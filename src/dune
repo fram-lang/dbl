@@ -1,4 +1,4 @@
 (executable
   (name dbl)
   (public_name dbl)
-  (libraries interpLib))
+  (libraries interpLib parser))

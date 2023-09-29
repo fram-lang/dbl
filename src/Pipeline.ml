@@ -6,10 +6,15 @@
 
 (* Author: Piotr Polesiuk, 2023 *)
 
+let common_pipeline prog =
+  prog
+  (* TODO: not implemented  *)
+  |> ignore
+
 let run_repl () =
   (* TODO: not implemented *)
   ()
 
 let run_file fname =
-  (* TODO: not implemented *)
-  ()
+  Parser.Main.parse_file fname
+  |> common_pipeline

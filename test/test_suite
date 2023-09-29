@@ -1,0 +1,8 @@
+function simple_run_tests {
+  for file in test/ok/*.dbl
+  do
+    simple_test $file
+  done
+}
+
+run_with_flags simple_run_tests ""

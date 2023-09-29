@@ -1,0 +1,6 @@
+(ocamlyacc (modules YaccParser))
+(ocamllex  (modules Lexer))
+
+(library
+  (name parser)
+  (libraries interpLib lang utils))
