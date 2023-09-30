@@ -8,6 +8,7 @@
 
 let common_pipeline prog =
   prog
+  |> TypeInference.Main.tr_program
   (* TODO: not implemented  *)
   |> ignore
 

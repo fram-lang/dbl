@@ -8,3 +8,9 @@
 
 (** Fatal error, that aborts compilation *)
 exception Fatal_error
+
+(** Increase error counter *)
+val incr_error_counter : unit -> unit
+
+(** Abort compilation if any error was reported. *)
+val assert_no_error : unit -> unit

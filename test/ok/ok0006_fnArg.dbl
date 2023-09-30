@@ -1,0 +1,2 @@
+let f = fn g => fn x => g x
+let x = f (fn x => x) ()

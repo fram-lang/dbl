@@ -1,0 +1,3 @@
+(library
+  (name typeInference)
+  (libraries interpLib lang utils))

@@ -1,0 +1,2 @@
+let id = fn x => x
+let x = id (fn y => y) ()
