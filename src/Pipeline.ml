@@ -15,8 +15,8 @@ let common_pipeline prog =
   |> TypeInference.Main.tr_program
   |> ToCore.Main.tr_program
   |> check_invariant Lang.Core.check_well_typed
-  (* TODO: not implemented  *)
-  |> ignore
+  |> TypeErase.tr_program
+  |> Eval.eval_program
 
 let run_repl () =
   (* TODO: not implemented *)
