@@ -1,3 +1,3 @@
 (library
   (name lang)
-  (libraries unifPriv utils))
+  (libraries unifPriv corePriv utils))

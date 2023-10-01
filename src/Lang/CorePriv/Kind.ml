@@ -2,16 +2,12 @@
  * See LICENSE for details.
  *)
 
-(** Kinds *)
+(** Operations on kinds *)
 
 (* Author: Piotr Polesiuk, 2023 *)
 
-type kind = kind_view
-and kind_view =
-  | KType
+open TypeBase
 
-let k_type = KType
+let equal = kind_equal
 
-let rec view k =
-  match k with
-  | KType -> k
+type ex = Ex : 'k kind -> ex

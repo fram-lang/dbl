@@ -2,16 +2,14 @@
  * See LICENSE for details.
  *)
 
-(** Kinds *)
+(** Type substitutions *)
 
 (* Author: Piotr Polesiuk, 2023 *)
 
-type kind = kind_view
-and kind_view =
-  | KType
+open TypeBase
 
-let k_type = KType
+type t
 
-let rec view k =
-  match k with
-  | KType -> k
+val singleton : 'k tvar -> 'k typ -> t
+
+val in_type : t -> 'k typ -> 'k typ

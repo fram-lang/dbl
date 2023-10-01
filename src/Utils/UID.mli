@@ -13,3 +13,6 @@ val compare : t -> t -> int
 
 (** Generate fresh identifier *)
 val fresh : unit -> t
+
+(** Finite maps from UIDs *)
+module Map : Map.S with type key = t

@@ -6,12 +6,19 @@
 
 (* Author: Piotr Polesiuk, 2023 *)
 
-type t = {
-  uid  : UID.t;
-  name : string
-}
+module Ordered = struct
+  type t = {
+    uid  : UID.t;
+    name : string
+  }
+
+  let compare x y = UID.compare x.uid y.uid
+end
+include Ordered
 
 let fresh ?(name="x") () =
   { uid  = UID.fresh ()
   ; name = name
   }
+
+module Map = Map.Make(Ordered)

@@ -15,3 +15,5 @@ let fresh () =
   let x = !next_fresh in
   next_fresh := x + 1;
   x
+
+module Map = Map.Make(Int)

@@ -17,3 +17,6 @@ type t = private {
 
 (** Create fresh variable *)
 val fresh : ?name:string -> unit -> t
+
+(** Finite maps from variables *)
+module Map : Map.S with type key = t

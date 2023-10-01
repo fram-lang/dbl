@@ -8,5 +8,11 @@
 
 type kind
 
+type kind_view =
+  | KType
+
 (** Kind of all types *)
 val k_type : kind
+
+(** Reveal a top-most constructor of a kind *)
+val view : kind -> kind_view

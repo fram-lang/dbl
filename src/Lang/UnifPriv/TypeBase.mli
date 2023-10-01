@@ -35,7 +35,7 @@ val t_var : tvar -> typ
 (** Arrow type *)
 val t_arrow : typ -> typ -> typ
 
-(** Reveal top-most constructor of a type *)
+(** Reveal a top-most constructor of a type *)
 val view : typ -> type_view
 
 (** Operations on unification variables *)

@@ -9,6 +9,7 @@
 type t = unit
 
 let fatal () =
+  InterpLib.Error.incr_error_counter ();
   raise InterpLib.Error.Fatal_error
 
 let report () =

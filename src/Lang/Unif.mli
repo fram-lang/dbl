@@ -71,8 +71,16 @@ type program = expr
 (* ========================================================================= *)
 (** Operations on kinds *)
 module Kind : sig
+  (** View of kinds *)
+  type kind_view =
+    | KType
+      (** Kind of all types *)
+
   (** Kind of all types *)
   val k_type : kind
+
+  (** Reveal a top-most constructor of a kind *)
+  val view : kind -> kind_view
 end
 
 (* ========================================================================= *)
@@ -139,7 +147,7 @@ module Type : sig
   (** Fresh unification variable (packed as type) *)
   val fresh_uvar : kind -> typ
 
-  (** Reveal top-most constructor of a type *)
+  (** Reveal a top-most constructor of a type *)
   val view : typ -> type_view
 
   (** Check if given unification variable appears in given type. It is
