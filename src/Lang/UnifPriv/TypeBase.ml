@@ -21,11 +21,14 @@ and uvar_state =
   | UV_Type of typ
 
 and typ = type_view
+and effect = typ
 and type_view =
   | TUnit
-  | TUVar  of uvar
-  | TVar   of tvar
-  | TArrow of typ * typ
+  | TRowPure
+  | TUVar      of uvar
+  | TVar       of tvar
+  | TPureArrow of typ * typ
+  | TArrow     of typ * typ * effect
 
 type scheme = {
   sch_tvars : tvar list;
@@ -38,7 +41,11 @@ let t_uvar u = TUVar u
 
 let t_var x = TVar x
 
-let t_arrow tp1 tp2 = TArrow(tp1, tp2)
+let t_pure_arrow tp1 tp2 = TPureArrow(tp1, tp2)
+
+let t_arrow tp1 tp2 eff = TArrow(tp1, tp2, eff)
+
+let t_row_pure = TRowPure
 
 let rec view tp =
   match tp with
@@ -51,7 +58,7 @@ let rec view tp =
       BRef.set u.state (UV_Type tp);
       tp
     end
-  | TUnit | TVar _ | TArrow _ -> tp
+  | TUnit | TRowPure | TVar _ | TPureArrow _ | TArrow _ -> tp
 
 module UVar = struct
   module Ordered = struct

@@ -23,7 +23,7 @@ let add_tvar sub x =
 let rec in_type_rec : type k. t -> k typ -> k typ =
   fun sub tp ->
   match tp with
-  | TUnit  -> TUnit
+  | TUnit | TEffPure -> tp
   | TVar x ->
     begin match Sub.find_opt x sub with
     | None    -> tp

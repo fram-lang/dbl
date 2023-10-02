@@ -25,6 +25,9 @@ type tvar
   This is an abstract type. Use [Type.view] to view it. *)
 type typ
 
+(** Effects. They are represented as types of effect kind *)
+type effect = typ
+
 (** Polymorphic type scheme *)
 type scheme = {
   sch_tvars : tvar list;
@@ -50,8 +53,11 @@ and expr_data =
   | EVar of var
     (** Variable *)
 
+  | EPureFn of var * typ * expr
+    (** Pure lambda-abstraction *)
+
   | EFn of var * typ * expr
-    (** Lambda-abstraction *)
+    (** Impure lambda-abstraction *)
 
   | ETFun of tvar * expr
     (** Type function *)
@@ -65,9 +71,10 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
-  | ERepl of (unit -> expr)
+  | ERepl of (unit -> expr) * effect
     (** REPL. It is a function that prompts user for another input. It returns
-      an expression to evaluate, usually containing another REPL expression. *)
+      an expression to evaluate, usually containing another REPL expression.
+      This constructor stores also an effect of a REPL expression. *)
 
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,
@@ -84,8 +91,14 @@ module Kind : sig
     | KType
       (** Kind of all types *)
 
+    | KEffrow
+      (** Kind of all effect rows *)
+
   (** Kind of all types *)
   val k_type : kind
+
+  (** Kind of all effect rows. *)
+  val k_effrow : kind
 
   (** Reveal a top-most constructor of a kind *)
   val view : kind -> kind_view
@@ -134,23 +147,36 @@ module Type : sig
     | TUnit
       (** Unit type *)
 
+    | TRowPure
+      (** Pure effect row *)
+
     | TUVar of uvar
       (** Unification variable *)
 
     | TVar of tvar
       (** Regular type variable *)
 
-    | TArrow of typ * typ
-      (** Arrow type *)
+    | TPureArrow of typ * typ
+      (** Pure arrow, i.e., type of fuction that doesn't perform any effects
+        and always terminate *)
+
+    | TArrow of typ * typ * effect
+      (** Impure arrow *)
 
   (** Unit type *)
   val t_unit : typ
 
+  (** Unification variable *)
+  val t_uvar : uvar -> typ
+
   (** Regular type variable *)
   val t_var : tvar -> typ
 
+  (** Pure arrow type *)
+  val t_pure_arrow : typ -> typ -> typ
+
   (** Arrow type *)
-  val t_arrow : typ -> typ -> typ
+  val t_arrow : typ -> typ -> effect -> typ
 
   (** Fresh unification variable (packed as type) *)
   val fresh_uvar : kind -> typ
@@ -171,6 +197,30 @@ module Type : sig
 
   (** Apply substitution to a type *)
   val subst : subst -> typ -> typ
+end
+
+(* ========================================================================= *)
+(** Operations on effects *)
+module Effect : sig
+  (** View of effect *)
+  type effect_view =
+    | EffPure
+      (** Pure effect *)
+
+    | EffUVar of uvar
+      (** Row unification variable *)
+
+    | EffVar  of tvar
+      (** Row variable *)
+
+  (** Pure effect row *)
+  val pure_row : effect
+
+  (** Row with single IO effect *)
+  val io_row : effect
+
+  (** View effect row *)
+  val view : effect -> effect_view
 end
 
 (* ========================================================================= *)

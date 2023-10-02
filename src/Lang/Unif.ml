@@ -26,6 +26,8 @@ module Type = struct
   let subst = UnifPriv.Subst.in_type
 end
 
+module Effect = UnifPriv.Effect
+
 module Scheme = struct
   let uvars         = UnifPriv.Type.scheme_uvars
   let collect_uvars = UnifPriv.Type.collect_scheme_uvars
@@ -39,12 +41,13 @@ type expr = expr_data node
 and expr_data =
   | EUnit
   | EVar      of var
+  | EPureFn   of var * typ * expr
   | EFn       of var * typ * expr
   | ETFun     of tvar * expr
   | EApp      of expr * expr
   | ETApp     of expr * typ
   | ELet      of var * scheme * expr * expr
-  | ERepl     of (unit -> expr)
+  | ERepl     of (unit -> expr) * effect
   | EReplExpr of expr * string * expr
 
 type program = expr

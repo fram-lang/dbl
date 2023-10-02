@@ -6,15 +6,20 @@
 
 (* Author: Piotr Polesiuk, 2023 *)
 
-type ktype = Dummy_Ktype
+type ktype   = Dummy_Ktype
+type keffect = Dummy_Keffect
 
 type _ kind =
-  | KType : ktype kind
+  | KType   : ktype kind
+  | KEffect : keffect kind
 
 let rec kind_equal : type k1 k2. k1 kind -> k2 kind -> (k1, k2) Eq.t =
   fun k1 k2 ->
   match k1, k2 with
-  | KType, KType -> Equal
+  | KType,   KType   -> Equal
+  | KType,   _       -> NotEqual
+  | KEffect, KEffect -> Equal
+  | KEffect, _       -> NotEqual
 
 module TVar : sig
   type 'k t = private {
@@ -61,9 +66,10 @@ end
 type 'k tvar = 'k TVar.t
 
 type _ typ =
-  | TUnit   : ktype typ
-  | TVar    : 'k tvar -> 'k typ
-  | TArrow  : ttype * ttype -> ktype typ
-  | TForall : 'k tvar * ttype -> ktype typ
+  | TUnit    : ktype typ
+  | TEffPure : keffect typ
+  | TVar     : 'k tvar -> 'k typ
+  | TArrow   : ttype * ttype -> ktype typ
+  | TForall  : 'k tvar * ttype -> ktype typ
 
 and ttype = ktype typ

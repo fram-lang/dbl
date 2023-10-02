@@ -12,6 +12,7 @@ open TypeBase
 let rec kind : type k. k typ -> k kind =
   function
   | TUnit     -> KType
+  | TEffPure  -> KEffect
   | TVar    x -> TVar.kind x
   | TArrow  _ -> KType
   | TForall _ -> KType

@@ -20,14 +20,16 @@ let is_empty sub =
 
 let rec in_type_rec sub tp =
   match TypeBase.view tp with
-  | TUnit | TUVar _ -> tp
+  | TUnit | TRowPure | TUVar _ -> tp
   | TVar x ->
     begin match TVar.Map.find_opt x sub with
     | None    -> tp
     | Some tp -> tp
     end
-  | TArrow(tp1, tp2) ->
-    t_arrow (in_type_rec sub tp1) (in_type_rec sub tp2)
+  | TPureArrow(tp1, tp2) ->
+    t_pure_arrow (in_type_rec sub tp1) (in_type_rec sub tp2)
+  | TArrow(tp1, tp2, eff) ->
+    t_arrow (in_type_rec sub tp1) (in_type_rec sub tp2) (in_type_rec sub eff)
 
 let in_type sub tp =
   if is_empty sub then tp

@@ -6,15 +6,21 @@
 
 (* Author: Piotr Polesiuk, 2023 *)
 
-(** type-level constructor of a kind of all types. The main purpose of this
+(** Type-level constructor of a kind of all types. The main purpose of this
   type is to encode kind-system in OCaml's GADT. Values of this types are
   never used. *)
 type ktype = Dummy_Ktype
 
+(** Type-level constructor of a kind of all effects. *)
+type keffect = Dummy_Keffect
+
 (** Kinds, self-indexed thanks to GADT *)
 type 'k kind =
-  (** Kind of all types *)
   | KType : ktype kind
+    (** Kind of all types *)
+
+  | KEffect : keffect kind
+    (** Kind of all effects *)
 
 (** Type variable, indexed by its kind *)
 type 'k tvar
@@ -23,6 +29,9 @@ type 'k tvar
 type _ typ =
   | TUnit : ktype typ
     (** Unit type *)
+
+  | TEffPure : keffect typ
+    (** Pure effect *)
 
   | TVar  : 'k tvar -> 'k typ
     (** Type variable *)

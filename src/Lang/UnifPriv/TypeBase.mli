@@ -12,11 +12,15 @@ type uvar
 type tvar = TVar.t
 type typ
 
+type effect = typ
+
 type type_view =
   | TUnit
-  | TUVar  of uvar
-  | TVar   of tvar
-  | TArrow of typ * typ
+  | TRowPure
+  | TUVar      of uvar
+  | TVar       of tvar
+  | TPureArrow of typ * typ
+  | TArrow     of typ * typ * effect
 
 type scheme = {
   sch_tvars : tvar list;
@@ -32,8 +36,14 @@ val t_uvar : uvar -> typ
 (** Regular type variable *)
 val t_var : tvar -> typ
 
+(** Pure arrow type *)
+val t_pure_arrow : typ -> typ -> typ
+
 (** Arrow type *)
-val t_arrow : typ -> typ -> typ
+val t_arrow : typ -> typ -> effect -> typ
+
+(** Pure effect row *)
+val t_row_pure : effect
 
 (** Reveal a top-most constructor of a type *)
 val view : typ -> type_view

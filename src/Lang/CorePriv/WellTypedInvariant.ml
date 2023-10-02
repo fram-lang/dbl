@@ -65,6 +65,7 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   fun env tp ->
   match tp with
   | TUnit  -> TUnit
+  | TEffPure -> TEffPure
   | TVar x -> TVar (Env.lookup_tvar env x)
   | TArrow(tp1, tp2) ->
     TArrow(tr_type env tp1, tr_type env tp2)

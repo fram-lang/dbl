@@ -21,5 +21,10 @@ val unbound_var : pos:Position.t -> S.var -> t
 
 val expr_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 
+val func_effect_mismatch :
+  pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
+
+val func_not_pure : pos:Position.t -> t
+
 val expr_not_function     : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t

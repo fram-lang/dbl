@@ -9,9 +9,12 @@
 type kind = kind_view
 and kind_view =
   | KType
+  | KEffrow
 
 let k_type = KType
 
+let k_effrow = KEffrow
+
 let rec view k =
   match k with
-  | KType -> k
+  | KType | KEffrow -> k

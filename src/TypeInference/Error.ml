@@ -24,6 +24,16 @@ let expr_type_mismatch ~pos ~env tp1 tp2 =
   Printf.eprintf "%s: error: Type mismatch\n"
     (Position.to_string pos)
 
+let func_effect_mismatch ~pos ~env eff1 eff2 =
+  (* TODO: better message *)
+  Printf.eprintf "%s: error: Function effect mismatch\n"
+    (Position.to_string pos)
+
+let func_not_pure ~pos =
+  Printf.eprintf
+    "%s: error: Cannot ensure that this function is pure and always terminates."
+    (Position.to_string pos)
+
 let expr_not_function ~pos ~env tp =
   (* TODO: better message *)
   Printf.eprintf

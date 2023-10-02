@@ -11,7 +11,7 @@ open Common
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e.data with
-  | EUnit | EVar _ | EFn _ | ETFun _ ->
+  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ ->
     tr_expr_v env e (fun v -> T.EValue v)
 
   | EApp(e1, e2) ->
@@ -27,7 +27,7 @@ let rec tr_expr env (e : S.expr) =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr env e2)
 
-  | ERepl func ->
+  | ERepl(func, _) ->
     ERepl (fun () -> tr_expr env (func ()))
 
   | EReplExpr(e1, tp, e2) ->
@@ -36,7 +36,7 @@ let rec tr_expr env (e : S.expr) =
 (** Translate expression and store result in variable [x] bound in [rest] *)
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
-  | EUnit | EVar _ | EFn _ | ETFun _ ->
+  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELet _ | ERepl _ | EReplExpr _ ->
@@ -49,7 +49,7 @@ and tr_expr_v env (e : S.expr) cont =
   | EUnit  -> cont T.VUnit
   | EVar x -> cont (VVar x)
 
-  | EFn(x, tp, body) ->
+  | EPureFn(x, tp, body) | EFn(x, tp, body) ->
     let tp = Type.tr_ttype env tp in
     cont (VFn(x, tp, tr_expr env body))
 

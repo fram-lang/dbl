@@ -11,8 +11,9 @@ open Common
 (** Translate type *)
 let rec tr_type env tp =
   match S.Type.view tp with
-  | TUnit   -> T.Type.Ex TUnit
-  | TUVar _ ->
+  | TUnit    -> T.Type.Ex TUnit
+  | TRowPure -> T.Type.Ex TEffPure
+  | TUVar _  ->
     (* TODO: they can be supported, and its especially useful in REPL *)
     InterpLib.Error.incr_error_counter ();
     Printf.eprintf "error: Unsolved unification variables left\n";
@@ -20,7 +21,9 @@ let rec tr_type env tp =
   | TVar x  ->
     let (Ex x) = Env.lookup_tvar env x in
     T.Type.Ex (TVar x)
-  | TArrow(tp1, tp2) ->
+  | TPureArrow(tp1, tp2) ->
+    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2))
+  | TArrow(tp1, tp2, _) ->
     T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2))
 
 (** Translate type of kind type *)
@@ -28,3 +31,5 @@ and tr_ttype env tp : T.ttype =
   let (Ex tp) = tr_type env tp in
   match T.Type.kind tp with
   | KType -> tp
+  | KEffect ->
+    failwith "Internal kind error"
