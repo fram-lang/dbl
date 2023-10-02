@@ -55,12 +55,21 @@ let rec infer_expr_type env (e : S.expr) =
     let (e2, tp) = infer_expr_type env e2 in
     (make (T.ELet(x, sch, e1, e2)), tp)
 
+  | ERepl func ->
+    let tp = T.Type.t_unit in
+    (make (T.ERepl(fun () -> check_expr_type env (func ()) tp)), tp)
+
+  | EReplExpr(e1, e2) ->
+    let (e1, tp1) = check_repl_expr env e1 in
+    let (e2, tp2) = infer_expr_type env e2 in
+    (make (T.EReplExpr(e1, tp1, e2)), tp2)
+
 (* ------------------------------------------------------------------------- *)
 (** Check type of an expression *)
 and check_expr_type env (e : S.expr) tp =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | EVar _ | EApp _ ->
+  | EUnit | EVar _ | EApp _ | ERepl _ ->
     let pos = e.pos in
     let (e, tp') = infer_expr_type env e in
     if not (Subtyping.subtype env tp' tp) then
@@ -88,6 +97,11 @@ and check_expr_type env (e : S.expr) tp =
     let e2 = check_expr_type env e2 tp in
     make (T.ELet(x, sch, e1, e2))
 
+  | EReplExpr(e1, e2) ->
+    let (e1, tp1) = check_repl_expr env e1 in
+    let e2 = check_expr_type env e2 tp in
+    make (T.EReplExpr(e1, tp1, e2))
+
 (* ------------------------------------------------------------------------- *)
 (** Check polymorphic let-definition *)
 and check_let_v env x body =
@@ -103,3 +117,9 @@ and check_let_e env x body =
   let sch = { T.sch_tvars = []; T.sch_body = tp } in
   let (env, x) = Env.add_poly_var env x sch in
   (env, x, sch, body)
+
+(* ------------------------------------------------------------------------- *)
+(** Check expression put into REPL *)
+and check_repl_expr env e =
+  let (e, tp) = infer_expr_type env e in
+  (e, "?")

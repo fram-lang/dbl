@@ -65,6 +65,14 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
+  | ERepl of (unit -> expr)
+    (** REPL. It is a function that prompts user for another input. It returns
+      an expression to evaluate, usually containing another REPL expression. *)
+
+  | EReplExpr of expr * string * expr
+    (** Print type (second parameter), evaluate and print the first expression,
+      then continue to the second expression. *)
+
 (** Program *)
 type program = expr
 

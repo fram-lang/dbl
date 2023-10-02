@@ -33,6 +33,14 @@ and expr_data =
     (** Let-expression with possibly impure expression. It does not generalize
       anything *)
 
+  | ERepl of (unit -> expr)
+    (** REPL. It is a function that prompts user for another input. It returns
+      an expression to evaluate, usually containing another REPL expression. *)
+
+  | EReplExpr of expr * expr
+    (** Print type, evaluate, and print the first expression, then continue
+      to the second one. *)
+
 (** Program *)
 type program = expr
 
@@ -40,4 +48,4 @@ type program = expr
 let rec is_value (e : expr) =
   match e.data with
   | EUnit | EVar _ | EFn _ -> true
-  | EApp _ | ELetV _ | ELetE _ -> false
+  | EApp _ | ELetV _ | ELetE _ | ERepl _ | EReplExpr _ -> false

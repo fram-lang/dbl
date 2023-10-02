@@ -19,8 +19,8 @@ let common_pipeline prog =
   |> Eval.eval_program
 
 let run_repl () =
-  (* TODO: not implemented *)
-  ()
+  Parser.Main.repl
+  |> common_pipeline
 
 let run_file fname =
   Parser.Main.parse_file fname

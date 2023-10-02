@@ -17,6 +17,11 @@ type value =
 (** CPS Computations *)
 and 'v comp = ('v -> unit) -> unit
 
+let to_string (v : value) =
+  match v with
+  | VUnit -> "()"
+  | VFn _ -> "<fun>"
+
 module Env : sig
   type t
 
@@ -48,6 +53,12 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     | VFn f -> f (eval_value env v2) cont
     | _ -> failwith "Runtime error!"
     end
+  | ERepl func -> eval_repl env func cont
+  | EReplExpr(e1, tp, e2) ->
+    Printf.printf ": %s\n" tp;
+    eval_expr env e1 (fun v1 ->
+      Printf.printf "= %s\n" (to_string v1);
+      eval_expr env e2 cont)
 
 and eval_value env (v : Lang.Untyped.value) =
   match v with
@@ -55,6 +66,14 @@ and eval_value env (v : Lang.Untyped.value) =
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->
     VFn(fun v -> eval_expr (Env.extend env x v) body)
+
+and eval_repl env func cont =
+  match func () with
+  | e -> eval_expr env e cont
+  | exception InterpLib.Error.Fatal_error ->
+    InterpLib.Error.reset ();
+    (* TODO: backtrack references *)
+    eval_repl env func cont
 
 let eval_program p =
   eval_expr Env.empty p ignore

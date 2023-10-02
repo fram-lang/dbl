@@ -8,12 +8,15 @@
 
 %token<string> LID
 %token BR_OPN BR_CLS
-%token ARROW2 EQ
+%token ARROW2 EQ SEMICOLON2
 %token KW_FN KW_IN KW_LET
 %token EOF
 
 %type<Raw.program> file
 %start file
+
+%type<Raw.repl_cmd> repl
+%start repl
 
 %{
 
@@ -69,4 +72,10 @@ def_list1
 
 file
 : def_list EOF { make $1 }
+;
+
+repl
+: EOF             { REPL_Exit    }
+| expr SEMICOLON2 { REPL_Expr $1 }
+| def SEMICOLON2  { REPL_Def  $1 }
 ;

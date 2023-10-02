@@ -11,3 +11,6 @@ type fname = string
 
 (** Parse single source file *)
 val parse_file : ?pos:Position.t -> fname -> Lang.Surface.program
+
+(** REPL program *)
+val repl : Lang.Surface.program

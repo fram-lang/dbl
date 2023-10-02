@@ -41,3 +41,14 @@ and def_data =
 
 (** Program *)
 type program = def list node
+
+(** REPL command *)
+type repl_cmd =
+  | REPL_Exit
+    (** Exit the REPL *)
+
+  | REPL_Expr of expr
+    (** Evaluate given expression *)
+  
+  | REPL_Def  of def
+    (** Provide a new definition in a REPL session *)

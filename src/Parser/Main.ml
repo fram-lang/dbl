@@ -38,3 +38,38 @@ let parse_file ?pos fname =
           lexbuf.Lexing.lex_curr_p)
         (Lexing.lexeme lexbuf)))
   |> Desugar.tr_program
+
+let make_nowhere data =
+  { Lang.Surface.pos  = Position.nowhere
+  ; Lang.Surface.data = data
+  }
+
+let rec repl_func () =
+  flush stderr;
+  Printf.printf "> %!";
+  let lexbuf = Lexing.from_channel stdin in
+  lexbuf.Lexing.lex_curr_p <-
+    { lexbuf.Lexing.lex_curr_p with
+      Lexing.pos_fname = "<stdin>"
+    };
+  match YaccParser.repl Lexer.token lexbuf with
+  | Raw.REPL_Exit ->
+    Printf.printf "\n%!";
+    exit 0
+
+  | Raw.REPL_Expr e ->
+    make_nowhere (Lang.Surface.EReplExpr(Desugar.tr_expr e,
+      make_nowhere (Lang.Surface.ERepl repl_func)))
+
+  | Raw.REPL_Def def ->
+    let e = Desugar.tr_def def (make_nowhere (Lang.Surface.ERepl repl_func)) in
+    { e with pos = def.pos }
+
+  | exception Parsing.Parse_error ->
+    Error.fatal (Error.unexpected_token
+      (Position.of_pp
+        lexbuf.Lexing.lex_start_p
+        lexbuf.Lexing.lex_curr_p)
+      (Lexing.lexeme lexbuf))
+
+let repl = make_nowhere (Lang.Surface.ERepl repl_func)

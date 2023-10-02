@@ -27,13 +27,19 @@ let rec tr_expr env (e : S.expr) =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr env e2)
 
+  | ERepl func ->
+    ERepl (fun () -> tr_expr env (func ()))
+
+  | EReplExpr(e1, tp, e2) ->
+    EReplExpr(tr_expr env e1, tp, tr_expr env e2)
+
 (** Translate expression and store result in variable [x] bound in [rest] *)
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
   | EUnit | EVar _ | EFn _ | ETFun _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
-  | EApp _ | ETApp _ | ELet _ ->
+  | EApp _ | ETApp _ | ELet _ | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -51,12 +57,15 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, Ex x) = Env.add_tvar env x in
     cont (VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ ->
+  | EApp _ | ETApp _ | ERepl _ ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr env e, cont (VVar x))
 
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr_v env e2 cont)
+
+  | EReplExpr(e1, tp, e2) ->
+    EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)
 
 (* ========================================================================= *)
 

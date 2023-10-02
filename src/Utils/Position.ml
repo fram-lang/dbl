@@ -31,6 +31,17 @@ type t = {
     (** Number of the first character of the last line (counting from 0) *)
 }
 
+(** Dummy position *)
+let nowhere =
+  { pos_fname      = "<nowhere>"
+  ; pos_start_line = 1
+  ; pos_start_cnum = 0
+  ; pos_start_bol  = 0
+  ; pos_length     = 0
+  ; pos_end_line   = 1
+  ; pos_end_bol    = 1
+  }
+
 (** Get position given by start end end positions from lexer *)
 let of_pp (p1 : Lexing.position) (p2 : Lexing.position) =
   { pos_fname      = p1.pos_fname

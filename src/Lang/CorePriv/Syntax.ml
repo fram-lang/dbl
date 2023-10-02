@@ -11,11 +11,13 @@ open TypeBase
 type var = Var.t
 
 type expr =
-  | EValue   of value
-  | ELet     of var * expr * expr
-  | ELetPure of var * expr * expr
-  | EApp     of value * value
-  | ETApp     : value * 'k typ -> expr
+  | EValue    of value
+  | ELet      of var * expr * expr
+  | ELetPure  of var * expr * expr
+  | EApp      of value * value
+  | ETApp      : value * 'k typ -> expr
+  | ERepl     of (unit -> expr)
+  | EReplExpr of expr * string * expr
 
 and value =
   | VUnit

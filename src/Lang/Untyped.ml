@@ -20,6 +20,14 @@ type expr =
   | EApp of value * value
     (** Function application *)
 
+  | ERepl of (unit -> expr)
+    (** REPL. It is a function that prompts user for another input. It returns
+      an expression to evaluate, usually containing another REPL expression. *)
+
+  | EReplExpr of expr * string * expr
+    (** Print type (second parameter), evaluate and print the first expression,
+      then continue to the second expression. *)
+
 (** Values *)
 and value =
   | VUnit

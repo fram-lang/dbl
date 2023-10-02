@@ -31,10 +31,11 @@ rule token = parse
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
   | "(*" { block_comment 1 lexbuf }
   | "//" { skip_line lexbuf; token lexbuf }
-  | '('  { YaccParser.BR_OPN }
-  | ')'  { YaccParser.BR_CLS }
-  | "=>" { YaccParser.ARROW2 }
-  | "="  { YaccParser.EQ     }
+  | '('  { YaccParser.BR_OPN     }
+  | ')'  { YaccParser.BR_CLS     }
+  | "=>" { YaccParser.ARROW2     }
+  | "="  { YaccParser.EQ         }
+  | ";;" { YaccParser.SEMICOLON2 }
   | lid_start var_char* as x { tokenize_ident x }
   | eof    { YaccParser.EOF }
   | _ as x {

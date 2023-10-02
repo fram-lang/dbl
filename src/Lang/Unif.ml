@@ -38,11 +38,13 @@ type var = Var.t
 type expr = expr_data node
 and expr_data =
   | EUnit
-  | EVar  of var
-  | EFn   of var * typ * expr
-  | ETFun of tvar * expr
-  | EApp  of expr * expr
-  | ETApp of expr * typ
-  | ELet  of var * scheme * expr * expr
+  | EVar      of var
+  | EFn       of var * typ * expr
+  | ETFun     of tvar * expr
+  | EApp      of expr * expr
+  | ETApp     of expr * typ
+  | ELet      of var * scheme * expr * expr
+  | ERepl     of (unit -> expr)
+  | EReplExpr of expr * string * expr
 
 type program = expr

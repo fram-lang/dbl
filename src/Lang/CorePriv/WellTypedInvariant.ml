@@ -100,6 +100,13 @@ let rec infer_type env e =
     | TUnit | TVar _ | TArrow _ ->
       failwith "Internal type error"
     end
+  | ERepl _ ->
+    (* In this case we have no means to check types further. *)
+    TUnit
+
+  | EReplExpr(e1, _, e2) ->
+    let _ : ttype = infer_type env e1 in
+    infer_type env e2
 
 and infer_vtype env v =
   match v with

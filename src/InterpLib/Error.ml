@@ -16,3 +16,6 @@ let incr_error_counter () =
 let assert_no_error () =
   if !err_counter <> 0 then
     raise Fatal_error
+
+let reset () =
+  err_counter := 0
