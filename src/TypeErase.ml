@@ -20,7 +20,7 @@ let rec tr_expr (e : S.expr) =
     tr_value_v v2 (fun v2 ->
     T.EApp(v1, v2)))
   | ETApp(v, _) -> tr_value v
-  | ERepl func ->
+  | ERepl(func, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
   | EReplExpr(e1, tp, e2) ->
     T.EReplExpr(tr_expr e1, tp, tr_expr e2)

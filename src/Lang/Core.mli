@@ -33,10 +33,13 @@ type _ typ =
   | TEffPure : keffect typ
     (** Pure effect *)
 
+  | TEffJoin : effect * effect -> keffect typ
+    (** Join of two effects *)
+
   | TVar  : 'k tvar -> 'k typ
     (** Type variable *)
 
-  | TArrow  : ttype * ttype -> ktype typ
+  | TArrow  : ttype * ttype * effect -> ktype typ
     (** Arrow type *)
 
   | TForall : 'k tvar * ttype -> ktype typ
@@ -44,6 +47,9 @@ type _ typ =
 
 (** Proper types *)
 and ttype = ktype typ
+
+(** Effects *)
+and effect = keffect typ
 
 (* ========================================================================= *)
 
@@ -67,9 +73,11 @@ type expr =
   | ETApp : value * 'k typ -> expr
     (** Type application *)
 
-  | ERepl of (unit -> expr)
+  | ERepl of (unit -> expr) * effect
     (** REPL. It is a function that prompts user for another input. It returns
-      an expression to evaluate, usually containing another REPL expression. *)
+      an expression to evaluate, usually containing another REPL expression.
+      The second parameter is an effect of an expression returned by the
+      function. *)
 
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,

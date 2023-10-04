@@ -27,8 +27,9 @@ let rec tr_expr env (e : S.expr) =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr env e2)
 
-  | ERepl(func, _) ->
-    ERepl (fun () -> tr_expr env (func ()))
+  | ERepl(func, eff) ->
+    let eff = Type.tr_effect env eff in
+    ERepl((fun () -> tr_expr env (func ())), eff)
 
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr env e2)

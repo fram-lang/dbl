@@ -24,13 +24,15 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   fun sub tp ->
   match tp with
   | TUnit | TEffPure -> tp
+  | TEffJoin(eff1, eff2) ->
+    TEffJoin(in_type_rec sub eff1, in_type_rec sub eff2)
   | TVar x ->
     begin match Sub.find_opt x sub with
     | None    -> tp
     | Some tp -> tp
     end
-  | TArrow(tp1, tp2) ->
-    TArrow(in_type_rec sub tp1, in_type_rec sub tp2)
+  | TArrow(tp1, tp2, eff) ->
+    TArrow(in_type_rec sub tp1, in_type_rec sub tp2, in_type_rec sub eff)
   | TForall(x, tp) ->
     let (sub, x) = add_tvar sub x in
     TForall(x, in_type_rec sub tp)

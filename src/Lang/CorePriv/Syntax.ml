@@ -16,7 +16,7 @@ type expr =
   | ELetPure  of var * expr * expr
   | EApp      of value * value
   | ETApp      : value * 'k typ -> expr
-  | ERepl     of (unit -> expr)
+  | ERepl     of (unit -> expr) * effect
   | EReplExpr of expr * string * expr
 
 and value =

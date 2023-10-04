@@ -22,9 +22,9 @@ let rec tr_type env tp =
     let (Ex x) = Env.lookup_tvar env x in
     T.Type.Ex (TVar x)
   | TPureArrow(tp1, tp2) ->
-    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2))
-  | TArrow(tp1, tp2, _) ->
-    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2))
+    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2, TEffPure))
+  | TArrow(tp1, tp2, eff) ->
+    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2, tr_effect env eff))
 
 (** Translate type of kind type *)
 and tr_ttype env tp : T.ttype =
@@ -32,4 +32,12 @@ and tr_ttype env tp : T.ttype =
   match T.Type.kind tp with
   | KType -> tp
   | KEffect ->
+    failwith "Internal kind error"
+
+(** Translate effect *)
+and tr_effect env eff : T.effect =
+  let (Ex eff) = tr_type env eff in
+  match T.Type.kind eff with
+  | KEffect -> eff
+  | KType ->
     failwith "Internal kind error"

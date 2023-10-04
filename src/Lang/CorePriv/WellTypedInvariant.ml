@@ -66,27 +66,30 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   match tp with
   | TUnit  -> TUnit
   | TEffPure -> TEffPure
+  | TEffJoin(eff1, eff2) ->
+    TEffJoin(tr_type env eff1, tr_type env eff2)
   | TVar x -> TVar (Env.lookup_tvar env x)
-  | TArrow(tp1, tp2) ->
-    TArrow(tr_type env tp1, tr_type env tp2)
+  | TArrow(tp1, tp2, eff) ->
+    TArrow(tr_type env tp1, tr_type env tp2, tr_type env eff)
   | TForall(x, tp) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, tr_type env tp)
 
 let rec infer_type env e =
   match e with
-  | EValue v -> infer_vtype env v
+  | EValue v -> (infer_vtype env v, TEffPure)
   | ELetPure(x, e1, e2) ->
-    let tp1 = infer_type env e1 in
+    let tp1 = check_effect env e1 TEffPure in
     infer_type (Env.add_var env x tp1) e2
   | ELet(x, e1, e2) ->
-    let tp1 = infer_type env e1 in
-    infer_type (Env.add_var env x tp1) e2
+    let (tp1, eff1) = infer_type env e1 in
+    let (tp2, eff2) = infer_type (Env.add_var env x tp1) e2 in
+    (tp2, Type.eff_join eff1 eff2)
   | EApp(v1, v2) ->
     begin match infer_vtype env v1 with
-    | TArrow(tp2, tp1) ->
+    | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
-      tp1
+      (tp1, eff)
     | TUnit | TVar _ | TForall _ ->
       failwith "Internal type error"
     end
@@ -95,36 +98,44 @@ let rec infer_type env e =
     | TForall(x, body) ->
       let tp = tr_type env tp in
       begin match Kind.equal (TVar.kind x) (Type.kind tp) with
-      | Equal    -> Type.subst_type x tp body
+      | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
     | TUnit | TVar _ | TArrow _ ->
       failwith "Internal type error"
     end
-  | ERepl _ ->
+  | ERepl(_, eff) ->
     (* In this case we have no means to check types further. *)
-    TUnit
+    (TUnit, tr_type env eff)
 
   | EReplExpr(e1, _, e2) ->
-    let _ : ttype = infer_type env e1 in
-    infer_type env e2
+    let (_, eff1) = infer_type env e1 in
+    let (tp2, eff2) = infer_type env e2 in
+    (tp2, Type.eff_join eff1 eff2)
 
 and infer_vtype env v =
   match v with
   | VUnit -> TUnit
   | VVar x -> Env.lookup_var env x
-  | VFn(x, tp, body) ->
-    let tp = tr_type env tp in
-    let env = Env.add_var env x tp in
-    TArrow(tp, infer_type env body)
+  | VFn(x, tp1, body) ->
+    let tp1 = tr_type env tp1 in
+    let env = Env.add_var env x tp1 in
+    let (tp2, eff) = infer_type env body in
+    TArrow(tp1, tp2, eff)
   | VTFun(x, body) ->
     let (env, x) = Env.add_tvar env x in
-    TForall(x, infer_type env body)
+    TForall(x, check_effect env body TEffPure)
 
 and check_type env e tp =
-  let tp' = infer_type env e in
+  let (tp', eff) = infer_type env e in
   if Type.subtype tp' tp then
-    ()
+    eff
+  else failwith "Internal type error"
+
+and check_effect env e eff =
+  let (tp, eff') = infer_type env e in
+  if Type.subeffect eff' eff then
+    tp
   else failwith "Internal type error"
 
 and check_vtype env v tp =
@@ -133,5 +144,11 @@ and check_vtype env v tp =
     ()
   else failwith "Internal type error"
 
+let check_type_effect env e tp eff =
+  let (tp', eff') = infer_type env e in
+  if Type.subtype tp' tp && Type.subeffect eff' eff then
+    ()
+  else failwith "Internal type error"
+
 let check_program p =
-  check_type Env.empty p TUnit
+  check_type_effect Env.empty p TUnit Effect.io

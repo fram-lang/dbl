@@ -68,8 +68,10 @@ type 'k tvar = 'k TVar.t
 type _ typ =
   | TUnit    : ktype typ
   | TEffPure : keffect typ
+  | TEffJoin : effect * effect -> keffect typ
   | TVar     : 'k tvar -> 'k typ
-  | TArrow   : ttype * ttype -> ktype typ
+  | TArrow   : ttype * ttype * effect -> ktype typ
   | TForall  : 'k tvar * ttype -> ktype typ
 
-and ttype = ktype typ
+and ttype  = ktype typ
+and effect = keffect typ
