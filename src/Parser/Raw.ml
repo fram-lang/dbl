@@ -33,6 +33,15 @@ and expr_data =
   | EDefs of def list * expr
     (** Local definitions *)
 
+  | EHandle of var * expr * h_expr
+    (** Effect handler *)
+
+(** Handler expressions *)
+and h_expr = h_expr_data node
+and h_expr_data =
+  | HEffect of var * var * expr
+    (** Handler of a single operation *)
+
 (** Definitions *)
 and def = def_data node
 and def_data =

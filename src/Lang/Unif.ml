@@ -17,7 +17,8 @@ module Kind = struct
   include UnifPriv.KindBase
 end
 
-module TVar = UnifPriv.TVar
+module TVar  = UnifPriv.TVar
+module Scope = UnifPriv.Scope
 
 module Type = struct
   include UnifPriv.TypeBase
@@ -47,7 +48,12 @@ and expr_data =
   | EApp      of expr * expr
   | ETApp     of expr * typ
   | ELet      of var * scheme * expr * expr
+  | EHandle   of tvar * var * expr * h_expr * typ * effect
   | ERepl     of (unit -> expr) * effect
   | EReplExpr of expr * string * expr
+
+and h_expr = h_expr_data node
+and h_expr_data =
+  | HEffect of typ * typ * var * var * expr
 
 type program = expr

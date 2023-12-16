@@ -33,6 +33,8 @@ module TVar : sig
 
   val clone : 'k t -> 'k t
 
+  val equal : 'k t -> 'k t -> bool
+
   type ex = Ex : 'k t -> ex
 
   module Map : Map1.S with type 'k key = 'k t
@@ -51,7 +53,9 @@ end = struct
 
   let clone x = fresh x.kind
 
-  let equal (type k1 k2) (x : k1 t) (y : k2 t) : (k1, k2) Eq.t =
+  let equal x y = x == y
+
+  let hequal (type k1 k2) (x : k1 t) (y : k2 t) : (k1, k2) Eq.t =
     if x.uid <> y.uid then NotEqual
     else kind_equal x.kind y.kind
 
@@ -60,7 +64,7 @@ end = struct
   module Map = Map1.Make(struct
     type nonrec 'a t = 'a t
     let uid x = x.uid
-    let equal = equal
+    let equal = hequal
   end)
 end
 type 'k tvar = 'k TVar.t

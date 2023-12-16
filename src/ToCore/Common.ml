@@ -12,5 +12,6 @@ module T = Lang.Core
 (** Translate kind *)
 let rec tr_kind k =
   match S.Kind.view k with
-  | KType   -> T.Kind.Ex KType
-  | KEffrow -> T.Kind.Ex KEffect
+  | KType     -> T.Kind.Ex KType
+  | KEffect   -> T.Kind.Ex KEffect
+  | KClEffect -> T.Kind.Ex KEffect

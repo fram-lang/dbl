@@ -33,6 +33,9 @@ and expr_data =
     (** Let-expression with possibly impure expression. It does not generalize
       anything *)
 
+  | EHandle of var * expr * h_expr
+    (** Effect handler *)
+
   | ERepl of (unit -> expr)
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression. *)
@@ -41,6 +44,12 @@ and expr_data =
     (** Print type, evaluate, and print the first expression, then continue
       to the second one. *)
 
+(** Handler expressions *)
+and h_expr = h_expr_data node
+and h_expr_data =
+  | HEffect of var * var * expr
+    (** Handler of a single operation *)
+
 (** Program *)
 type program = expr
 
@@ -48,4 +57,4 @@ type program = expr
 let rec is_value (e : expr) =
   match e.data with
   | EUnit | EVar _ | EFn _ -> true
-  | EApp _ | ELetV _ | ELetE _ | ERepl _ | EReplExpr _ -> false
+  | EApp _ | ELetV _ | ELetE _ | EHandle _ | ERepl _ | EReplExpr _ -> false

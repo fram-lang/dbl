@@ -9,16 +9,22 @@
 open KindBase
 
 type uvar
-type tvar = TVar.t
+type tvar  = TVar.t
+type scope = TVar.Set.t
 type typ
 
 type effect = typ
 
+type effect_end =
+  | EEClosed
+  | EEVar  of tvar
+  | EEUVar of uvar
+
 type type_view =
   | TUnit
-  | TRowPure
   | TUVar      of uvar
   | TVar       of tvar
+  | TEffect    of TVar.Set.t * effect_end
   | TPureArrow of typ * typ
   | TArrow     of typ * typ * effect
 
@@ -42,23 +48,36 @@ val t_pure_arrow : typ -> typ -> typ
 (** Arrow type *)
 val t_arrow : typ -> typ -> effect -> typ
 
-(** Pure effect row *)
-val t_row_pure : effect
+(** Create an effect *)
+val t_effect : TVar.Set.t -> effect_end -> effect
+
+(** Create a closed effect *)
+val t_closed_effect : TVar.Set.t -> effect
 
 (** Reveal a top-most constructor of a type *)
 val view : typ -> type_view
+
+(** Reveal a representation of an effect: a set of effect variables together
+  with a way of closing an effect. *)
+val effect_view : effect -> TVar.Set.t * effect_end
 
 (** Operations on unification variables *)
 module UVar : sig
   type t = uvar
 
-  val fresh : kind -> uvar
+  val fresh : scope:scope -> kind -> uvar
 
   val equal : t -> t -> bool
 
-  val set : t -> typ -> unit
+  (** Set a unification variable, without checking any constraints. It returns
+    expected scope of set type *)
+  val raw_set : t -> typ -> scope
 
   val fix : t -> tvar
+
+  (** Shrink scope of given unification variable to intersection of current
+    and given scope. *)
+  val shrink_scope : scope:scope -> uvar -> unit
 
   module Set : Set.S with type elt = t
 end

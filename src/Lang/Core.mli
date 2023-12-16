@@ -34,7 +34,8 @@ type _ typ =
     (** Pure effect *)
 
   | TEffJoin : effect * effect -> keffect typ
-    (** Join of two effects *)
+    (** Join of two effects. Avoid using this constructor directly: Function
+      [Effect.join] provides similar functionalily, but removes duplicates. *)
 
   | TVar  : 'k tvar -> 'k typ
     (** Type variable *)
@@ -73,6 +74,11 @@ type expr =
   | ETApp : value * 'k typ -> expr
     (** Type application *)
 
+  | EHandle of keffect tvar * var * expr * h_expr * ttype * effect
+    (** Handler. It stores handled (abstract) effect, capability variable,
+      handled expression, handler body, and type and effect of the whole
+      handler expression *)
+
   | ERepl of (unit -> expr) * effect
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
@@ -97,6 +103,13 @@ and value =
   | VTFun : 'k tvar * expr -> value
     (** Type function *)
 
+(** Handler expressions *)
+and h_expr =
+  | HEffect of ttype * ttype * var * var * expr
+    (** Handler of effectful functional operation. It stores input type,
+      output type, formal parameter, resumption formal parameter, and the 
+      body. *)
+
 (** Program *)
 type program = expr
 
@@ -118,6 +131,9 @@ module TVar : sig
   (** Create exact copy (with different UID) of a type variable *)
   val clone : 'k tvar -> 'k tvar
 
+  (** Get the kind of given type variable *)
+  val kind : 'k tvar -> 'k kind
+
   (** Existential version of type variable, where its kind is packed *)
   type ex = Ex : 'k tvar -> ex
 
@@ -133,6 +149,17 @@ module Type : sig
 
   (** Existential version of type representation, where its kind is packed *)
   type ex = Ex : 'k typ -> ex
+end
+
+(* ========================================================================= *)
+(** Operations on effects *)
+module Effect : sig
+  (** Join of two effects. Same as TEffJoin constructor, but removes
+    duplicates. *)
+  val join : effect -> effect -> effect
+
+  (** Effect of possible non-termination *)
+  val nterm : effect
 end
 
 (* ========================================================================= *)

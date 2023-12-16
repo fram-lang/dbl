@@ -24,6 +24,11 @@ let expr_type_mismatch ~pos ~env tp1 tp2 =
   Printf.eprintf "%s: error: Type mismatch\n"
     (Position.to_string pos)
 
+let expr_effect_mismatch ~pos ~env eff1 eff2 =
+  (* TODO: better message *)
+  Printf.eprintf "%s: error: Effect mismatch\n"
+    (Position.to_string pos)
+
 let func_effect_mismatch ~pos ~env eff1 eff2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Function effect mismatch\n"

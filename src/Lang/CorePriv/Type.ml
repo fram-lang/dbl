@@ -22,28 +22,57 @@ let rec kind : type k. k typ -> k kind =
 let subst_type x stp tp =
   Subst.in_type (Subst.singleton x stp) tp
 
-(** Check if given effect is pure *)
-let rec is_pure_effect eff =
-  match eff with
-  | TEffPure             -> true
-  | TEffJoin(eff1, eff2) -> is_pure_effect eff1 && is_pure_effect eff2
-  | TVar _               -> false
+(** Check equality of types *)
+let rec equal : type k. k typ -> k typ -> bool =
+  fun tp1 tp2 ->
+  match tp1, tp2 with
+  | TEffPure,   _ -> effect_equal tp1 tp2
+  | TEffJoin _, _ -> effect_equal tp1 tp2
+  | _, TEffPure   -> effect_equal tp1 tp2
+  | _, TEffJoin _ -> effect_equal tp1 tp2
 
-(** Check if effect row [eff] contains effect variable [x]. In other words,
-  it checks if [x] is a subeffect of [eff]. *)
-let rec contains_effect_var x eff =
-  match eff with
-  | TEffPure             -> false
-  | TEffJoin(eff1, eff2) ->
-    contains_effect_var x eff1 || contains_effect_var x eff2
-  | TVar y -> x == y
+  | TUnit, TUnit -> true
+  | TUnit, _     -> false
+
+  | TVar x, TVar y -> TVar.equal x y
+  | TVar _, _      -> false
+
+  | TArrow(ta1, tb1, eff1), TArrow(ta2, tb2, eff2) ->
+    equal ta1 ta2 && equal tb1 tb2 && effect_equal eff1 eff2
+  | TArrow _, _ -> false
+
+  | TForall(x1, tp1), TForall(x2, tp2) ->
+    begin match Kind.equal (TVar.kind x1) (TVar.kind x2) with
+    | Equal ->
+      if TVar.equal x1 x2 then equal tp1 tp2
+      else begin
+        let x = TVar.fresh (TVar.kind x1) in
+        equal (subst_type x1 (TVar x) tp1) (subst_type x2 (TVar x) tp2)
+      end
+    | NotEqual -> false
+    end
+  | TForall _, _ -> false
+
+(** Check equality of effects *)
+and effect_equal : effect -> effect -> bool =
+  fun eff1 eff2 -> subeffect eff1 eff2 && subeffect eff2 eff1
 
 (** Check if one effect is a subeffect of another *)
-let rec subeffect eff1 eff2 =
+and subeffect eff1 eff2 =
   match eff1 with
-  | TEffPure               -> true
-  | TEffJoin(eff_a, eff_b) -> subeffect eff_a eff2 && subeffect eff_b eff2
-  | TVar x                 -> contains_effect_var x eff2
+  | TEffPure -> true
+  | TEffJoin(eff_a, eff_b) ->
+    subeffect eff_a eff2 && subeffect eff_b eff2
+  | TVar _ -> simple_subeffect eff1 eff2
+
+(** Check if simple effect (different than pure and join) is a subeffect of
+  another effect *)
+and simple_subeffect eff1 eff2 =
+  match eff2 with
+  | TEffPure -> false
+  | TEffJoin(eff_a, eff_b) ->
+    simple_subeffect eff1 eff_a || simple_subeffect eff2 eff_b
+  | TVar _ -> equal eff1 eff2
 
 (** Check if one type is a subtype of another *)
 let rec subtype tp1 tp2 =
@@ -67,21 +96,5 @@ let rec subtype tp1 tp2 =
     | NotEqual -> false
     end
   | TForall _, (TUnit | TVar _ | TArrow _) -> false
-
-(** Join effect variable with another effect. *)
-let rec eff_cons_var x eff =
-  if contains_effect_var x eff then
-    eff
-  else if is_pure_effect eff then
-    TVar x
-  else
-    TEffJoin(TVar x, eff)
-
-(** Join two effects *)
-let rec eff_join eff1 eff2 =
-  match eff1 with
-  | TEffPure               -> eff2
-  | TEffJoin(eff_a, eff_b) -> eff_join eff_a (eff_join eff_b eff2)
-  | TVar x                 -> eff_cons_var x eff2
 
 type ex = Ex : 'k typ -> ex

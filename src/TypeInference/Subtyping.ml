@@ -16,25 +16,44 @@ type arrow =
 (** Internal exception *)
 exception Error
 
+let set_uvar env u tp =
+  let scope = T.UVar.raw_set u tp in
+  match T.Type.try_shrink_scope ~scope tp with
+  | Ok   () -> ()
+  | Error _ -> raise Error
+
+let rec check_effect_mem env x eff =
+  match T.Effect.view eff with
+  | EffPure | EffVar _ -> raise Error
+  | EffUVar u ->
+    set_uvar env u (T.Effect.cons x (Env.fresh_uvar env T.Kind.k_effect))
+  | EffCons(y, eff) ->
+    if T.TVar.equal x y then ()
+    else check_effect_mem env x eff
+
 let rec check_subeffect env eff1 eff2 =
   match T.Effect.view eff1 with
   | EffPure    -> ()
   | EffUVar u1 ->
-    begin match T.Effect.view eff2 with
-    | EffPure -> T.UVar.set u1 T.Effect.pure_row
-    | EffUVar u2 when T.UVar.equal u1 u2 -> ()
-    | EffUVar _ | EffVar _ ->
-      (** TODO: add constraint *)
-      T.UVar.set u1 eff2
-    end
+    if T.Effect.is_pure eff2 then
+      set_uvar env u1 T.Effect.pure
+    else
+      begin match T.Effect.view_end eff2 with
+      | EEUVar u2 when T.UVar.equal u1 u2 -> ()
+      | _ ->
+        (** TODO: add constraint *)
+        set_uvar env u1 eff2
+      end
   | EffVar x1 ->
-    begin match T.Effect.view eff2 with
-    | EffPure -> raise Error
-    | EffUVar u ->
-      T.UVar.set u (T.Type.t_var x1)
-    | EffVar x2 when T.TVar.equal x1 x2 -> ()
-    | EffVar _ -> raise Error
+    begin match T.Effect.view_end eff2 with
+    | EEUVar u ->
+      set_uvar env u (T.Type.t_var x1)
+    | EEVar x2 when T.TVar.equal x1 x2 -> ()
+    | _ -> raise Error
     end
+  | EffCons(x1, eff1) ->
+    check_effect_mem env x1 eff2;
+    check_subeffect env eff1 eff2
 
 let rec check_subtype env tp1 tp2 =
   match T.Type.view tp1, T.Type.view tp2 with
@@ -43,12 +62,12 @@ let rec check_subtype env tp1 tp2 =
     if T.Type.contains_uvar u tp2 then
       raise Error
     else
-      T.UVar.set u tp2
+      set_uvar env u (T.Type.open_down ~scope:(Env.scope env) tp2)
   | _, TUVar u ->
     if T.Type.contains_uvar u tp1 then
       raise Error
     else
-      T.UVar.set u tp1
+      set_uvar env u (T.Type.open_up ~scope:(Env.scope env) tp1)
 
   | TUnit, TUnit -> ()
   | TUnit, (TVar _ | TPureArrow _ | TArrow _) -> raise Error
@@ -72,7 +91,7 @@ let rec check_subtype env tp1 tp2 =
     check_subeffect env eff1 eff2
   | TArrow _, (TUnit | TVar _ | TPureArrow _) -> raise Error
 
-  | TRowPure, _ | _, TRowPure ->
+  | TEffect _, _ | _, TEffect _ ->
     failwith "Internal kind error"
 
 let subeffect env eff1 eff2 =
@@ -91,28 +110,28 @@ let to_arrow env tp =
   match T.Type.view tp with
   | TUnit | TVar _ -> Arr_No
   | TUVar u ->
-    let tp1 = T.Type.fresh_uvar T.Kind.k_type in
-    let tp2 = T.Type.fresh_uvar T.Kind.k_type in
-    let eff = T.Type.fresh_uvar T.Kind.k_effrow in
-    T.UVar.set u (T.Type.t_arrow tp1 tp2 eff);
+    let tp1 = Env.fresh_uvar env T.Kind.k_type in
+    let tp2 = Env.fresh_uvar env T.Kind.k_type in
+    let eff = Env.fresh_uvar env T.Kind.k_effect in
+    set_uvar env u (T.Type.t_arrow tp1 tp2 eff);
     Arr_Impure(tp1, tp2, eff)
   | TPureArrow(tp1, tp2)  -> Arr_Pure(tp1, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
 
-  | TRowPure ->
+  | TEffect _ ->
     failwith "Internal kind error"
 
 let from_arrow env tp =
   match T.Type.view tp with
   | TUnit | TVar _ -> Arr_No
   | TUVar u ->
-    let tp1 = T.Type.fresh_uvar T.Kind.k_type in
-    let tp2 = T.Type.fresh_uvar T.Kind.k_type in
-    let eff = T.Type.fresh_uvar T.Kind.k_effrow in
-    T.UVar.set u (T.Type.t_arrow tp1 tp2 eff);
+    let tp1 = Env.fresh_uvar env T.Kind.k_type in
+    let tp2 = Env.fresh_uvar env T.Kind.k_type in
+    let eff = Env.fresh_uvar env T.Kind.k_effect in
+    set_uvar env u (T.Type.t_arrow tp1 tp2 eff);
     Arr_Impure(tp1, tp2, eff)
   | TPureArrow(tp1, tp2) -> Arr_Pure(tp1, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
 
-  | TRowPure ->
+  | TEffect _ ->
     failwith "Internal kind error"

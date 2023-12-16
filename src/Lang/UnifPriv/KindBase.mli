@@ -10,13 +10,18 @@ type kind
 
 type kind_view =
   | KType
-  | KEffrow
+  | KEffect
+  | KClEffect
 
 (** Kind of all types *)
 val k_type : kind
 
-(** Kind of all effect rows *)
-val k_effrow : kind
+(** Kind of all effects *)
+val k_effect : kind
+
+(** Kind of all simple (closed) effects. These effects cannot contain
+  unification variables. *)
+val k_cleffect : kind
 
 (** Reveal a top-most constructor of a kind *)
 val view : kind -> kind_view

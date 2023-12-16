@@ -20,6 +20,9 @@ type expr =
   | EApp of value * value
     (** Function application *)
 
+  | EHandle of var * expr * h_expr
+    (** Handler *)
+
   | ERepl of (unit -> expr)
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression. *)
@@ -38,5 +41,11 @@ and value =
 
   | VFn of var * expr
     (** Function *)
+
+(** Handler expressions *)
+and h_expr =
+  | HEffect of var * var * expr
+    (** Handler of effectful functional operation. It stores formal parameter,
+      resumption formal parameter, and the body. *)
 
 type program = expr

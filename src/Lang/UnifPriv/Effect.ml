@@ -12,16 +12,34 @@ type effect_view =
   | EffPure
   | EffUVar of uvar
   | EffVar  of tvar
+  | EffCons of tvar * effect
 
-let pure_row = t_row_pure
+let pure = t_closed_effect TVar.Set.empty
 
-let io_row = t_row_pure (* TODO *)
+let singleton x =
+  t_closed_effect (TVar.Set.singleton x)
+
+let io = pure (* TODO *)
+
+let cons x eff =
+  let (xs, ee) = effect_view eff in
+  t_effect (TVar.Set.add x xs) ee
 
 let view eff =
-  match TypeBase.view eff with
-  | TRowPure -> EffPure
-  | TUVar u  -> EffUVar u
-  | TVar x   -> EffVar x
+  let (xs, ee) = effect_view eff in
+  match TVar.Set.choose_opt xs with
+  | Some x -> EffCons(x, t_effect (TVar.Set.remove x xs) ee)
+  | None ->
+    begin match ee with
+    | EEClosed -> EffPure
+    | EEVar  x -> EffVar  x
+    | EEUVar u -> EffUVar u
+    end
 
-  | TUnit | TPureArrow _ | TArrow _ ->
-    failwith "Internal kind error"
+let view_end eff =
+  snd (effect_view eff)
+
+let is_pure eff =
+  match effect_view eff with
+  | (xs, EEClosed) -> TVar.Set.is_empty xs
+  | _ -> false

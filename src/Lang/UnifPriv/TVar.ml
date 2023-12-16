@@ -27,4 +27,5 @@ let fresh kind =
 
 let equal x y = x == y
 
+module Set = Set.Make(Ordered)
 module Map = Map.Make(Ordered)

@@ -8,11 +8,32 @@
 
 open Common
 
+let eff_cons env x eff =
+  let (Ex x) = Env.lookup_tvar env x in
+  match T.TVar.kind x with
+  | KEffect -> T.Effect.join (TVar x) eff
+  | KType ->
+    failwith "Internal kind error"
+
+let tr_effect_end env (eff : S.Type.effect_end) =
+  match eff with
+  | EEClosed -> T.TEffPure
+  | EEVar x ->
+    let (Ex x) = Env.lookup_tvar env x in
+    begin match T.TVar.kind x with
+    | KEffect -> TVar x
+    | KType   -> failwith "Internal kind error"
+    end
+  | EEUVar _  ->
+    (* TODO: they can be supported, and its especially useful in REPL *)
+    InterpLib.Error.incr_error_counter ();
+    Printf.eprintf "error: Unsolved unification variables left\n";
+    raise InterpLib.Error.Fatal_error
+
 (** Translate type *)
 let rec tr_type env tp =
   match S.Type.view tp with
   | TUnit    -> T.Type.Ex TUnit
-  | TRowPure -> T.Type.Ex TEffPure
   | TUVar _  ->
     (* TODO: they can be supported, and its especially useful in REPL *)
     InterpLib.Error.incr_error_counter ();
@@ -20,7 +41,15 @@ let rec tr_type env tp =
     raise InterpLib.Error.Fatal_error
   | TVar x  ->
     let (Ex x) = Env.lookup_tvar env x in
-    T.Type.Ex (TVar x)
+    (* We add nterm effect to all effects in the program *)
+    begin match T.TVar.kind x with
+    | KEffect -> T.Type.Ex (T.Effect.join (TVar x) T.Effect.nterm)
+    | KType   -> T.Type.Ex (TVar x)
+    end
+  | TEffect(xs, ee) ->
+    (* We add nterm effect to all effects in the program *)
+    let eff = S.TVar.Set.fold (eff_cons env) xs (tr_effect_end env ee) in
+    T.Type.Ex (T.Effect.join eff T.Effect.nterm)
   | TPureArrow(tp1, tp2) ->
     T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2, TEffPure))
   | TArrow(tp1, tp2, eff) ->
@@ -34,7 +63,7 @@ and tr_ttype env tp : T.ttype =
   | KEffect ->
     failwith "Internal kind error"
 
-(** Translate effect *)
+(** Translate an effect (a type of effect kind) *)
 and tr_effect env eff : T.effect =
   let (Ex eff) = tr_type env eff in
   match T.Type.kind eff with

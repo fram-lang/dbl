@@ -9,7 +9,8 @@
 include CorePriv.TypeBase
 include CorePriv.Syntax
 
-module Kind = CorePriv.Kind
-module Type = CorePriv.Type
+module Kind   = CorePriv.Kind
+module Type   = CorePriv.Type
+module Effect = CorePriv.Effect
 
 let check_well_typed = CorePriv.WellTypedInvariant.check_program

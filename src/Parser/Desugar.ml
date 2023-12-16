@@ -19,6 +19,14 @@ let rec tr_expr (e : Raw.expr) =
   | EDefs(defs, e) ->
     let defs = tr_defs defs in
     defs (tr_expr e)
+  | EHandle(x, e, h) ->
+    make (EHandle(x, tr_expr e, tr_h_expr h))
+
+and tr_h_expr (h : Raw.h_expr) =
+  let make data = { h with data = data } in
+  match h.data with
+  | HEffect(x, r, e) ->
+    make (HEffect(x, r, tr_expr e))
 
 and tr_def (def : Raw.def) =
   let make f (rest : expr) =

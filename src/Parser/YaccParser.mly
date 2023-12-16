@@ -8,8 +8,8 @@
 
 %token<string> LID
 %token BR_OPN BR_CLS
-%token ARROW2 EQ SEMICOLON2
-%token KW_FN KW_IN KW_LET
+%token ARROW2 EQ SEMICOLON2 SLASH
+%token KW_EFFECT KW_FN KW_HANDLE KW_IN KW_LET KW_WITH
 %token EOF
 
 %type<Raw.program> file
@@ -39,7 +39,8 @@ let make data =
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN LID ARROW2 expr { make (EFn($2, $4))   }
-| expr_200              { $1 }
+| KW_HANDLE LID KW_IN expr KW_WITH h_expr { make (EHandle($2, $4, $6)) }
+| expr_200 { $1 }
 ;
 
 expr_200
@@ -51,6 +52,12 @@ expr_simple
 : LID                { make (EVar $1)   }
 | BR_OPN BR_CLS      { make EUnit       }
 | BR_OPN expr BR_CLS { make (EParen $2) }
+;
+
+/* ========================================================================= */
+
+h_expr
+: KW_EFFECT LID SLASH LID ARROW2 expr { make (HEffect($2, $4, $6)) }
 ;
 
 /* ========================================================================= */

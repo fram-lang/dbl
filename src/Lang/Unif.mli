@@ -20,12 +20,15 @@ type uvar
 (** Type variables *)
 type tvar
 
+(** Scope of a type *)
+type scope
+
 (** Types.
 
   This is an abstract type. Use [Type.view] to view it. *)
 type typ
 
-(** Effects. They are represented as types of effect kind *)
+(** Effects. They are represented as types effect kind *)
 type effect = typ
 
 (** Polymorphic type scheme *)
@@ -71,6 +74,11 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
+  | EHandle of tvar * var * expr * h_expr * typ * effect
+    (** Handler. It stores handled (abstract) effect, capability variable,
+      handled expression, handler body, and type and effect of the whole
+      handler expression *)
+
   | ERepl of (unit -> expr) * effect
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
@@ -79,6 +87,14 @@ and expr_data =
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,
       then continue to the second expression. *)
+
+(** Handler expressions *)
+and h_expr = h_expr_data node
+and h_expr_data =
+  | HEffect of typ * typ * var * var * expr
+    (** Handler of effectful functional operation. It stores input type,
+      output type, formal parameter, resumption formal parameter, and the
+      body. *)
 
 (** Program *)
 type program = expr
@@ -91,14 +107,22 @@ module Kind : sig
     | KType
       (** Kind of all types *)
 
-    | KEffrow
-      (** Kind of all effect rows *)
+    | KEffect
+      (** Kind of all effects *)
+    
+    | KClEffect
+      (** Kind of all simple effects: only closed rows withoud unification
+        variables *)
 
   (** Kind of all types *)
   val k_type : kind
 
-  (** Kind of all effect rows. *)
-  val k_effrow : kind
+  (** Kind of all effects *)
+  val k_effect : kind
+
+  (** Kind of all simple (closed) effects. These effects cannot contain
+    unification variables. *)
+  val k_cleffect : kind
 
   (** Reveal a top-most constructor of a kind *)
   val view : kind -> kind_view
@@ -116,8 +140,21 @@ module TVar : sig
   (** Check type variables for equality *)
   val equal : tvar -> tvar -> bool
 
+  (** Finite sets of type variables *)
+  module Set : Set.S with type elt = tvar
+
   (** Finite map from type variables *)
   module Map : Map.S with type key = tvar
+end
+
+(* ========================================================================= *)
+(** Operations on scopes of types *)
+module Scope : sig
+  (** Initial scope *)
+  val initial : scope
+
+  (** Extend scope with a variable *)
+  val add : scope -> tvar -> scope
 end
 
 (* ========================================================================= *)
@@ -128,9 +165,9 @@ module UVar : sig
   (** Check unification variables for equality *)
   val equal : t -> t -> bool
 
-  (** Set the value of a unification variable. It can be done at most once for
-    each variable *)
-  val set : t -> typ -> unit
+  (** Set a unification variable, without checking any constraints. It returns
+    expected scope of set type *)
+  val raw_set : t -> typ -> scope
 
   (** Promote unification variable to fresh type variable *)
   val fix : t -> tvar
@@ -142,19 +179,31 @@ end
 (* ========================================================================= *)
 (** Operations on types *)
 module Type : sig
+  (** End of an effect *)
+  type effect_end =
+    | EEClosed
+      (** Closed effect *)
+    
+    | EEVar of tvar
+      (** Open effect with type variable at the end *)
+
+    | EEUVar of uvar
+      (** Open effect with unification variable at the end *)
+
   (** View of a type *)
   type type_view =
     | TUnit
       (** Unit type *)
-
-    | TRowPure
-      (** Pure effect row *)
 
     | TUVar of uvar
       (** Unification variable *)
 
     | TVar of tvar
       (** Regular type variable *)
+
+    | TEffect of TVar.Set.t * effect_end
+      (** Effect: a set of simple effect variables together with a way of
+        closing an effect *)
 
     | TPureArrow of typ * typ
       (** Pure arrow, i.e., type of fuction that doesn't perform any effects
@@ -179,10 +228,20 @@ module Type : sig
   val t_arrow : typ -> typ -> effect -> typ
 
   (** Fresh unification variable (packed as type) *)
-  val fresh_uvar : kind -> typ
+  val fresh_uvar : scope:scope -> kind -> typ
 
   (** Reveal a top-most constructor of a type *)
   val view : typ -> type_view
+
+  (** Returns subtype of given type, where all closed rows on negative
+    positions are opened by a fresh unification variable. It works only
+    for proper types (of kind type) *)
+  val open_down : scope:scope -> typ -> typ
+
+  (** Returns supertype of given type, where all closed rows on positive
+    positions are opened by a fresh unification variable. It works only
+    for proper types (of kind type) *)
+  val open_up : scope:scope -> typ -> typ
 
   (** Check if given unification variable appears in given type. It is
     equivalent to [UVar.mem u (uvars tp)], but faster. *)
@@ -197,6 +256,11 @@ module Type : sig
 
   (** Apply substitution to a type *)
   val subst : subst -> typ -> typ
+
+  (** Ensure that given type fits given scope. It changes scope constraints
+    of unification variables accordingly. On error, it returns escaping type
+    variable. *)
+  val try_shrink_scope : scope:scope -> typ -> (unit, tvar) result
 end
 
 (* ========================================================================= *)
@@ -213,14 +277,30 @@ module Effect : sig
     | EffVar  of tvar
       (** Row variable *)
 
+    | EffCons of tvar * effect
+      (** Consing an simple effect variable to an effect *)
+
   (** Pure effect row *)
-  val pure_row : effect
+  val pure : effect
 
-  (** Row with single IO effect *)
-  val io_row : effect
+  (** Effect with single simple effect variable *)
+  val singleton : tvar -> effect
 
-  (** View effect row *)
+  (** Effect with single IO effect *)
+  val io : effect
+
+  (** Consing a simple effect variable to an effect *)
+  val cons : tvar -> effect -> effect
+
+  (** Row-like view of an effect *)
   val view : effect -> effect_view
+
+  (** View the end of given effect row. This function never returns value
+    constructed by [EffCons] constructor *)
+  val view_end : effect -> Type.effect_end
+
+  (** Check if an effect is pure *)
+  val is_pure : effect -> bool
 end
 
 (* ========================================================================= *)

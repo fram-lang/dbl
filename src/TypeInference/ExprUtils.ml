@@ -43,7 +43,7 @@ let generalize env e tp =
 
 let instantiate env e (sch : T.scheme) =
   let guess_type sub tv =
-    let tp = T.Type.fresh_uvar (T.TVar.kind tv) in
+    let tp = Env.fresh_uvar env (T.TVar.kind tv) in
     (T.Subst.add_type sub tv tp, tp)
   in
   let (sub, tps) =

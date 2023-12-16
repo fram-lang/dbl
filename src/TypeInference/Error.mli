@@ -19,7 +19,9 @@ val report : t -> unit
 
 val unbound_var : pos:Position.t -> S.var -> t
 
-val expr_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+val expr_effect_mismatch :
+  pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
 
 val func_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t

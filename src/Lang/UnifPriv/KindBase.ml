@@ -9,12 +9,15 @@
 type kind = kind_view
 and kind_view =
   | KType
-  | KEffrow
+  | KEffect
+  | KClEffect
 
 let k_type = KType
 
-let k_effrow = KEffrow
+let k_effect = KEffect
+
+let k_cleffect = KClEffect
 
 let rec view k =
   match k with
-  | KType | KEffrow -> k
+  | KType | KEffect | KClEffect -> k
