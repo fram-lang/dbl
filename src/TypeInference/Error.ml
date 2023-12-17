@@ -19,6 +19,10 @@ let unbound_var ~pos x =
   Printf.eprintf "%s: error: Unbound variable `%s'\n"
     (Position.to_string pos) x
 
+let unbound_implicit ~pos name =
+  Printf.eprintf "%s: error: Unbound implicit %s\n"
+    (Position.to_string pos) name
+
 let expr_type_mismatch ~pos ~env tp1 tp2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Type mismatch\n"
@@ -57,3 +61,22 @@ let type_escapes_its_scope ~pos ~env x =
   Printf.eprintf
     "%s: error: Something escapes its scope here.\n"
     (Position.to_string pos)
+
+let ungeneralizable_implicit ~pos name =
+  Printf.eprintf
+    "%s: error: Implicit %s is used, but cannot be generalized\n"
+    (Position.to_string pos)
+    name
+
+let looping_implicit ~pos name =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: Resolving of implicit %s leads to an infinite loop.\n"
+    (Position.to_string pos)
+    name
+
+let implicit_type_mismatch ~pos ~env name tp1 tp2 =
+  (* TODO: better message *)
+  Printf.eprintf "%s: error: Type mismatch of implicit %s\n"
+    (Position.to_string pos)
+    name

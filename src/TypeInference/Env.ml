@@ -14,13 +14,17 @@ type t = {
   var_map : (T.var * T.scheme) StrMap.t;
     (** Information about regular variable names *)
 
+  implicit_map : (T.var * T.scheme * (Position.t -> unit)) StrMap.t;
+    (** Information about named implicits *)
+
   scope   : T.scope
     (** Scope of type variables *)
 }
 
 let empty =
-  { var_map = StrMap.empty;
-    scope   = T.Scope.initial
+  { var_map      = StrMap.empty;
+    implicit_map = StrMap.empty;
+    scope        = T.Scope.initial
   }
 
 let add_poly_var env x sch =
@@ -30,7 +34,18 @@ let add_poly_var env x sch =
   }, y
 
 let add_mono_var env x tp =
-  add_poly_var env x { sch_tvars = []; sch_body = tp }
+  add_poly_var env x { sch_tvars = []; sch_implicit = []; sch_body = tp }
+
+let add_poly_implicit env name sch on_use =
+  let x = Var.fresh ~name () in
+  { env with
+    implicit_map = StrMap.add name (x, sch, on_use) env.implicit_map
+  }, x
+
+let add_mono_implicit env name tp on_use =
+  add_poly_implicit env name
+    { sch_tvars = []; sch_implicit = []; sch_body = tp }
+    on_use
 
 let add_anon_tvar env kind =
   let x = T.TVar.fresh kind in
@@ -40,6 +55,9 @@ let add_anon_tvar env kind =
 
 let lookup_var env x =
   StrMap.find_opt x env.var_map
+
+let lookup_implicit env name =
+  StrMap.find_opt name env.implicit_map
 
 let uvars env =
   T.UVar.Set.empty

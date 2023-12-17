@@ -6,10 +6,10 @@
 
 /* Author: Piotr Polesiuk, 2023 */
 
-%token<string> LID
+%token<string> LID TLID
 %token BR_OPN BR_CLS
 %token ARROW2 EQ SEMICOLON2 SLASH
-%token KW_EFFECT KW_FN KW_HANDLE KW_IN KW_LET KW_WITH
+%token KW_EFFECT KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET KW_WITH
 %token EOF
 
 %type<Raw.program> file
@@ -50,6 +50,7 @@ expr_200
 
 expr_simple
 : LID                { make (EVar $1)   }
+| TLID               { make (EName $1)  }
 | BR_OPN BR_CLS      { make EUnit       }
 | BR_OPN expr BR_CLS { make (EParen $2) }
 ;
@@ -63,7 +64,9 @@ h_expr
 /* ========================================================================= */
 
 def
-: KW_LET LID EQ expr { make (DLet($2, $4)) }
+: KW_LET LID  EQ expr { make (DLet($2, $4)) }
+| KW_LET TLID EQ expr { make (DLetName($2, $4)) }
+| KW_IMPLICIT TLID    { make (DImplicit $2) }
 ;
 
 def_list

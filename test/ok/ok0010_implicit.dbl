@@ -1,0 +1,7 @@
+implicit `a
+
+let foo = `a
+
+let _ =
+  let `a = () in
+  foo

@@ -8,6 +8,8 @@
 
 open KindBase
 
+type name = string
+
 type tvar = TVar.t
 
 type scope = TVar.Set.t
@@ -39,8 +41,9 @@ and effect_end =
   | EEUVar of uvar
 
 type scheme = {
-  sch_tvars : tvar list;
-  sch_body  : typ
+  sch_tvars    : tvar list;
+  sch_implicit : (name * typ) list;
+  sch_body     : typ
 }
 
 let t_unit = TUnit

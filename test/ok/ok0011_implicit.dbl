@@ -1,0 +1,7 @@
+implicit `id
+
+let id = fn x => `id (`id x)
+
+let _ =
+  let `id = fn y => y in
+  id ()

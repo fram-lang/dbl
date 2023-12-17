@@ -14,6 +14,9 @@ include module type of SyntaxNode.Export
   This is an abstract type. Use [Kind.view] to view it. *)
 type kind
 
+(** Names of implicit parameters *)
+type name = string
+
 (** Unification variables *)
 type uvar
 
@@ -33,10 +36,13 @@ type effect = typ
 
 (** Polymorphic type scheme *)
 type scheme = {
-  sch_tvars : tvar list;
+  sch_tvars    : tvar list;
     (** universally quantified type variables *)
+
+  sch_implicit : (name * typ) list;
+    (** Implicit parameters *)
   
-  sch_body  : typ
+  sch_body     : typ
     (** Body of the type scheme *)
 }
 

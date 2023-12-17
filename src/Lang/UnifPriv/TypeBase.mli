@@ -8,6 +8,8 @@
 
 open KindBase
 
+type name = string
+
 type uvar
 type tvar  = TVar.t
 type scope = TVar.Set.t
@@ -29,8 +31,9 @@ type type_view =
   | TArrow     of typ * typ * effect
 
 type scheme = {
-  sch_tvars : tvar list;
-  sch_body  : typ
+  sch_tvars    : tvar list;
+  sch_implicit : (name * typ) list;
+  sch_body     : typ
 }
 
 (** Unit type *)

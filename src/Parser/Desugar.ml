@@ -14,6 +14,7 @@ let rec tr_expr (e : Raw.expr) =
   | EUnit          -> make EUnit
   | EParen e       -> make (tr_expr e).data
   | EVar x         -> make (EVar x)
+  | EName n        -> make (EName n)
   | EFn(x, e)      -> make (EFn(x, tr_expr e))
   | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
@@ -29,7 +30,9 @@ and tr_h_expr (h : Raw.h_expr) =
 and tr_def (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet(x, e) -> make (DLet(x, tr_expr e))
+  | DLet(x, e)     -> make (DLet(x, tr_expr e))
+  | DLetName(n, e) -> make (DLetName(n, tr_expr e))
+  | DImplicit n    -> make (DImplicit n)
 
 and tr_defs defs = List.map tr_def defs
 

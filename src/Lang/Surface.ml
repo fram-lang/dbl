@@ -11,6 +11,9 @@ include SyntaxNode.Export
 (** Variables *)
 type var = string
 
+(** Names of implicit parameters *)
+type name = string
+
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
@@ -19,6 +22,9 @@ and expr_data =
 
   | EVar  of var
     (** Variable *)
+
+  | EName of name
+    (** Implicit parameter *)
 
   | EFn   of var * expr
     (** Lambda abstraction *)
@@ -44,6 +50,13 @@ and expr_data =
 and def = def_data node
 and def_data =
   | DLet of var * expr
+    (** Let definition *)
+
+  | DLetName of name * expr
+    (** Providing a named implicit *)
+
+  | DImplicit of name
+    (** Declaration of implicit *)
 
 (** Handler expressions *)
 and h_expr = h_expr_data node

@@ -8,8 +8,10 @@
 
 open Common
 
-(** Generalize type to polymorphic scheme *)
-val generalize : Env.t -> T.expr -> T.typ -> T.expr * T.scheme
+(** Generalize type to polymorphic scheme. The second parameter is a list of
+  implicit parameters. *)
+val generalize : Env.t -> (S.name * T.var * T.typ) list ->
+  T.expr -> T.typ -> T.expr * T.scheme
 
 (** Instantiate polymorphic expression *)
 val instantiate : Env.t -> T.expr -> T.scheme -> T.expr * T.typ

@@ -9,12 +9,13 @@
 {
 let kw_map =
   let open YaccParser in
-  [ "effect", KW_EFFECT
-  ; "fn",     KW_FN
-  ; "handle", KW_HANDLE
-  ; "in",     KW_IN
-  ; "let",    KW_LET
-  ; "with",   KW_WITH
+  [ "effect",   KW_EFFECT
+  ; "fn",       KW_FN
+  ; "handle",   KW_HANDLE
+  ; "implicit", KW_IMPLICIT
+  ; "in",       KW_IN
+  ; "let",      KW_LET
+  ; "with",     KW_WITH
   ] |> List.to_seq |> Hashtbl.of_seq
 
 let tokenize_ident str =
@@ -41,6 +42,7 @@ rule token = parse
   | ";;" { YaccParser.SEMICOLON2 }
   | "/"  { YaccParser.SLASH      }
   | lid_start var_char* as x { tokenize_ident x }
+  | '`' lid_start var_char* as x { YaccParser.TLID x }
   | eof    { YaccParser.EOF }
   | _ as x {
       Error.fatal (Error.invalid_character

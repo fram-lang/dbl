@@ -18,6 +18,7 @@ val fatal : t -> 'a
 val report : t -> unit
 
 val unbound_var : pos:Position.t -> S.var -> t
+val unbound_implicit : pos:Position.t -> S.name -> t
 
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
@@ -32,3 +33,10 @@ val expr_not_function     : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
+
+val ungeneralizable_implicit : pos:Position.t -> S.name -> t
+
+val looping_implicit : pos:Position.t -> S.name -> t
+
+val implicit_type_mismatch :
+  pos:Position.t -> env:Env.t -> S.name -> T.typ -> T.typ -> t

@@ -33,6 +33,16 @@ let infer_var_scheme ~pos env x =
     Error.fatal (Error.unbound_var ~pos x)
 
 (* ------------------------------------------------------------------------- *)
+(** Infer scheme of a named implicit *)
+let infer_implicit_scheme ~pos env name =
+  match Env.lookup_implicit env name with
+  | Some (x, sch, on_use) ->
+    on_use pos;
+    ({ T.pos = pos; T.data = T.EVar x }, sch)
+  | None ->
+    Error.fatal (Error.unbound_implicit ~pos name)
+
+(* ------------------------------------------------------------------------- *)
 (** Infer type of an expression. The effect of an expression is always in
   the check mode. However, pure expressions may returns an information that
   they are pure (see [ret_effect] type). *)
@@ -46,6 +56,11 @@ let rec infer_expr_type env (e : S.expr) eff =
   | EVar x ->
     let (e, sch) = infer_var_scheme ~pos env x in
     let (e, tp) = ExprUtils.instantiate env e sch in
+    (e, tp, Pure)
+
+  | EName n ->
+    let (e, sch) = infer_implicit_scheme ~pos env n in
+    let (e, tp)  = ExprUtils.instantiate env e sch in
     (e, tp, Pure)
 
   | EFn(x, body) ->
@@ -77,7 +92,7 @@ let rec infer_expr_type env (e : S.expr) eff =
 
   | EDefs(defs, e) ->
     let scope = Env.scope env in
-    let (env, e_gen, r_eff1) = check_defs env defs eff in
+    let (env, e_gen, r_eff1) = check_defs env ImplicitEnv.empty defs eff in
     let (e, tp, r_eff2) = infer_expr_type env e eff in
     (* TODO: tp can be raised to some supertype in the scope *)
     begin match T.Type.try_shrink_scope ~scope tp with
@@ -120,7 +135,7 @@ let rec infer_expr_type env (e : S.expr) eff =
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | EVar _ | EApp _ | EHandle _ | ERepl _ ->
+  | EUnit | EVar _ | EName _ | EApp _ | EHandle _ | ERepl _ ->
     let pos = e.pos in
     let (e, tp', r_eff) = infer_expr_type env e eff in
     if not (Subtyping.subtype env tp' tp) then
@@ -146,7 +161,7 @@ and check_expr_type env (e : S.expr) tp eff =
     end
 
   | EDefs(defs, e) ->
-    let (env, e_gen, r_eff1) = check_defs env defs eff in
+    let (env, e_gen, r_eff1) = check_defs env ImplicitEnv.empty defs eff in
     let (e, r_eff2) = check_expr_type env e tp eff in
     (e_gen e, ret_effect_join r_eff1 r_eff2)
 
@@ -159,39 +174,51 @@ and check_expr_type env (e : S.expr) tp eff =
 (** Check effect of a block of definitions. Returns extended environment, a
   function that extends expression with given list of definitions, and the
   effect of a definition block. *)
-and check_defs env (defs : S.def list) eff =
+and check_defs env ienv (defs : S.def list) eff =
   match defs with
   | [] -> (env, (fun e -> e), Pure)
   | def :: defs ->
-    let (env, e_gen1, r_eff1) = check_def  env def  eff in
-    let (env, e_gen2, r_eff2) = check_defs env defs eff in
+    let (env, ienv, e_gen1, r_eff1) = check_def env ienv def eff in
+    let (env, e_gen2, r_eff2) = check_defs env ienv defs eff in
     (env, (fun e -> e_gen1 (e_gen2 e)), ret_effect_join r_eff1 r_eff2)
 
-and check_def env (def : S.def) eff =
+and check_def env ienv (def : S.def) eff =
   let make (e : T.expr) data =
     { T.pos  = Position.join def.pos e.pos;
       T.data = data
     } in
   match def.data with
   | DLet(x, e1) ->
-    let (env, x, sch, e1, r_eff) = check_let env x e1 eff in
-    (env, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
+    let (sch, e1, r_eff) = check_let env ienv e1 eff in
+    let (env, x) = Env.add_poly_var env x sch in
+    (env, ienv, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
+
+  | DLetName(n, e1) ->
+    let (sch, e1, r_eff) = check_let env ienv e1 eff in
+    let ienv = ImplicitEnv.shadow ienv n in
+    let (env, x) = Env.add_poly_implicit env n sch ignore in
+    (env, ienv, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
+
+  | DImplicit n ->
+    let ienv = ImplicitEnv.declare_implicit ienv n in
+    (env, ienv, (fun e -> e), Pure)
 
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)
-and check_let env x body eff =
-  let (body, tp, r_eff) = infer_expr_type env body eff in
+and check_let env ienv body eff =
+  let (body_env, ims) = ImplicitEnv.begin_generalize env ienv in
+  let (body, tp, r_eff) = infer_expr_type body_env body eff in
   (* Purity restriction: check if r_eff is pure. If so, then generalize type
     of an expression *)
   match r_eff with
   | Pure ->
-    let (body, sch) = ExprUtils.generalize env body tp in
-    let (env, x) = Env.add_poly_var env x sch in
-    (env, x, sch, body, Pure)
+    let ims = ImplicitEnv.end_generalize_pure ims in
+    let (body, sch) = ExprUtils.generalize env ims body tp in
+    (sch, body, Pure)
   | Impure ->
-    let sch = { T.sch_tvars = []; T.sch_body = tp } in
-    let (env, x) = Env.add_poly_var env x sch in
-    (env, x, sch, body, Impure)
+    ImplicitEnv.end_generalize_impure ims;
+    let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
+    (sch, body, Impure)
 
 (* ------------------------------------------------------------------------- *)
 (** Infer type of an handler expression.
