@@ -37,13 +37,14 @@ let infer_var_scheme ~pos env x =
   the check mode. However, pure expressions may returns an information that
   they are pure (see [ret_effect] type). *)
 let rec infer_expr_type env (e : S.expr) eff =
+  let pos = e.pos in
   let make data = { e with data = data } in
   match e.data with
   | EUnit ->
     (make T.EUnit, T.Type.t_unit, Pure)
 
   | EVar x ->
-    let (e, sch) = infer_var_scheme ~pos:e.pos env x in
+    let (e, sch) = infer_var_scheme ~pos env x in
     let (e, tp) = ExprUtils.instantiate env e sch in
     (e, tp, Pure)
 
@@ -74,15 +75,16 @@ let rec infer_expr_type env (e : S.expr) eff =
       Error.fatal (Error.expr_not_function ~pos:e1.pos ~env ftp)
     end
 
-  | ELetV(x, e1, e2) ->
-    let (env, x, sch, e1) = check_let_v env x e1 in
-    let (e2, tp, r_eff) = infer_expr_type env e2 eff in
-    (make (T.ELet(x, sch, e1, e2)), tp, r_eff)
-
-  | ELetE(x, e1, e2) ->
-    let (env, x, sch, e1, r_eff1) = check_let_e env x e1 eff in
-    let (e2, tp, r_eff2) = infer_expr_type env e2 eff in
-    (make (T.ELet(x, sch, e1, e2)), tp, ret_effect_join r_eff1 r_eff2)
+  | EDefs(defs, e) ->
+    let scope = Env.scope env in
+    let (env, e_gen, r_eff1) = check_defs env defs eff in
+    let (e, tp, r_eff2) = infer_expr_type env e eff in
+    (* TODO: tp can be raised to some supertype in the scope *)
+    begin match T.Type.try_shrink_scope ~scope tp with
+    | Ok   () -> (e_gen e, tp, ret_effect_join r_eff1 r_eff2)
+    | Error x ->
+      Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
+    end
 
   | EHandle(x, e1, h) ->
     (* Since type and effect of e1 is used both on covariant and contravariant
@@ -96,7 +98,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     let (env1, x) = Env.add_mono_var env1 x x_tp in
     let (e1, _) = check_expr_type env1 e1 res_tp (T.Effect.cons h_eff res_eff) in
     if not (Subtyping.subeffect env res_eff eff) then
-      Error.report (Error.expr_effect_mismatch ~pos:e.pos ~env res_eff eff);
+      Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
     (make (T.EHandle(h_eff, x, e1, h, res_tp, res_eff)), res_tp, Impure)
 
   | ERepl func ->
@@ -143,20 +145,41 @@ and check_expr_type env (e : S.expr) tp eff =
       (e, r_eff)
     end
 
-  | ELetV(x, e1, e2) ->
-    let (env, x, sch, e1) = check_let_v env x e1 in
-    let (e2, r_eff) = check_expr_type env e2 tp eff in
-    (make (T.ELet(x, sch, e1, e2)), r_eff)
-
-  | ELetE(x, e1, e2) ->
-    let (env, x, sch, e1, r_eff1) = check_let_e env x e1 eff in
-    let (e2, r_eff2) = check_expr_type env e2 tp eff in
-    (make (T.ELet(x, sch, e1, e2)), ret_effect_join r_eff1 r_eff2)
+  | EDefs(defs, e) ->
+    let (env, e_gen, r_eff1) = check_defs env defs eff in
+    let (e, r_eff2) = check_expr_type env e tp eff in
+    (e_gen e, ret_effect_join r_eff1 r_eff2)
 
   | EReplExpr(e1, e2) ->
     let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
     let (e2, r_eff2) = check_expr_type env e2 tp eff in
     (make (T.EReplExpr(e1, tp1, e2)), ret_effect_join r_eff1 r_eff2)
+
+(* ------------------------------------------------------------------------- *)
+(** Check effect of a block of definitions. Returns extended environment, a
+  function that extends expression with given list of definitions, and the
+  effect of a definition block. *)
+and check_defs env (defs : S.def list) eff =
+  match defs with
+  | [] -> (env, (fun e -> e), Pure)
+  | def :: defs ->
+    let (env, e_gen1, r_eff1) = check_def  env def  eff in
+    let (env, e_gen2, r_eff2) = check_defs env defs eff in
+    (env, (fun e -> e_gen1 (e_gen2 e)), ret_effect_join r_eff1 r_eff2)
+
+and check_def env (def : S.def) eff =
+  let make (e : T.expr) data =
+    { T.pos  = Position.join def.pos e.pos;
+      T.data = data
+    } in
+  match def.data with
+  | DLetV(x, e1) ->
+    let (env, x, sch, e1) = check_let_v env x e1 in
+    (env, (fun e -> make e (T.ELet(x, sch, e1, e))), Pure)
+
+  | DLetE(x, e1) ->
+    let (env, x, sch, e1, r_eff) = check_let_e env x e1 eff in
+    (env, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Check polymorphic let-definition *)

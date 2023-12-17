@@ -62,8 +62,11 @@ let rec repl_func () =
       make_nowhere (Lang.Surface.ERepl repl_func)))
 
   | Raw.REPL_Def def ->
-    let e = Desugar.tr_def def (make_nowhere (Lang.Surface.ERepl repl_func)) in
-    { e with pos = def.pos }
+    let def = Desugar.tr_def def in
+    { def with data =
+        Lang.Surface.EDefs([def],
+          (make_nowhere (Lang.Surface.ERepl repl_func)))
+    }
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token

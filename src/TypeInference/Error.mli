@@ -30,3 +30,5 @@ val func_not_pure : pos:Position.t -> t
 
 val expr_not_function     : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
+
+val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t

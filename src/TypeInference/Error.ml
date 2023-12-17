@@ -51,3 +51,9 @@ let expr_not_function_ctx ~pos ~env tp =
     "%s: error: This expresion should not be a function.\n"
     (* the expected type is tp *)
     (Position.to_string pos)
+
+let type_escapes_its_scope ~pos ~env x =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: Something escapes its scope here.\n"
+    (Position.to_string pos)

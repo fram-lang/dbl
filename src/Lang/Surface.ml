@@ -26,12 +26,8 @@ and expr_data =
   | EApp  of expr * expr
     (** Application *)
 
-  | ELetV of var * expr * expr
-    (** Let-expression that is subject to generalization *)
-
-  | ELetE of var * expr * expr
-    (** Let-expression with possibly impure expression. It does not generalize
-      anything *)
+  | EDefs of def list * expr
+    (** Local definitions *)
 
   | EHandle of var * expr * h_expr
     (** Effect handler *)
@@ -43,6 +39,16 @@ and expr_data =
   | EReplExpr of expr * expr
     (** Print type, evaluate, and print the first expression, then continue
       to the second one. *)
+
+(** Local definitions *)
+and def = def_data node
+and def_data =
+  | DLetV of var * expr
+    (** Let-expression that is subject to generalization *)
+
+  | DLetE of var * expr
+    (** Let-expression with possibly impure expression. It does not generalize
+      anything *)
 
 (** Handler expressions *)
 and h_expr = h_expr_data node
@@ -57,4 +63,4 @@ type program = expr
 let rec is_value (e : expr) =
   match e.data with
   | EUnit | EVar _ | EFn _ -> true
-  | EApp _ | ELetV _ | ELetE _ | EHandle _ | ERepl _ | EReplExpr _ -> false
+  | EApp _ | EDefs _ | EHandle _ | ERepl _ | EReplExpr _ -> false
