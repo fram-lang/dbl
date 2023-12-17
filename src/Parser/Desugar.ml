@@ -29,12 +29,7 @@ and tr_h_expr (h : Raw.h_expr) =
 and tr_def (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet(x, e) ->
-    let e = tr_expr e in
-    if is_value e then
-      make (DLetV(x, e))
-    else
-      make (DLetE(x, e))
+  | DLet(x, e) -> make (DLet(x, tr_expr e))
 
 and tr_defs defs = List.map tr_def defs
 

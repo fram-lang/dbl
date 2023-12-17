@@ -43,12 +43,7 @@ and expr_data =
 (** Local definitions *)
 and def = def_data node
 and def_data =
-  | DLetV of var * expr
-    (** Let-expression that is subject to generalization *)
-
-  | DLetE of var * expr
-    (** Let-expression with possibly impure expression. It does not generalize
-      anything *)
+  | DLet of var * expr
 
 (** Handler expressions *)
 and h_expr = h_expr_data node
@@ -58,9 +53,3 @@ and h_expr_data =
 
 (** Program *)
 type program = expr
-
-(** Check whether given expression is a value *)
-let rec is_value (e : expr) =
-  match e.data with
-  | EUnit | EVar _ | EFn _ -> true
-  | EApp _ | EDefs _ | EHandle _ | ERepl _ | EReplExpr _ -> false

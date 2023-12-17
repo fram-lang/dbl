@@ -173,33 +173,25 @@ and check_def env (def : S.def) eff =
       T.data = data
     } in
   match def.data with
-  | DLetV(x, e1) ->
-    let (env, x, sch, e1) = check_let_v env x e1 in
-    (env, (fun e -> make e (T.ELet(x, sch, e1, e))), Pure)
-
-  | DLetE(x, e1) ->
-    let (env, x, sch, e1, r_eff) = check_let_e env x e1 eff in
+  | DLet(x, e1) ->
+    let (env, x, sch, e1, r_eff) = check_let env x e1 eff in
     (env, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
 (* ------------------------------------------------------------------------- *)
-(** Check polymorphic let-definition *)
-and check_let_v env x body =
-  let (body, tp, r_eff) = infer_expr_type env body T.Effect.pure in
+(** Check let-definition *)
+and check_let env x body eff =
+  let (body, tp, r_eff) = infer_expr_type env body eff in
+  (* Purity restriction: check if r_eff is pure. If so, then generalize type
+    of an expression *)
   match r_eff with
   | Pure ->
     let (body, sch) = ExprUtils.generalize env body tp in
     let (env, x) = Env.add_poly_var env x sch in
-    (env, x, sch, body)
+    (env, x, sch, body, Pure)
   | Impure ->
-    assert false
-
-(* ------------------------------------------------------------------------- *)
-(** Check monomorphic let-definition *)
-and check_let_e env x body eff =
-  let (body, tp, r_eff) = infer_expr_type env body eff in
-  let sch = { T.sch_tvars = []; T.sch_body = tp } in
-  let (env, x) = Env.add_poly_var env x sch in
-  (env, x, sch, body, r_eff)
+    let sch = { T.sch_tvars = []; T.sch_body = tp } in
+    let (env, x) = Env.add_poly_var env x sch in
+    (env, x, sch, body, Impure)
 
 (* ------------------------------------------------------------------------- *)
 (** Infer type of an handler expression.
