@@ -17,8 +17,11 @@ val fatal : t -> 'a
 (** Report non-fatal error *)
 val report : t -> unit
 
+val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
+
 val unbound_var : pos:Position.t -> S.var -> t
 val unbound_implicit : pos:Position.t -> S.name -> t
+val unbound_type_var : pos:Position.t -> S.tvar -> t
 
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
@@ -40,3 +43,6 @@ val looping_implicit : pos:Position.t -> S.name -> t
 
 val implicit_type_mismatch :
   pos:Position.t -> env:Env.t -> S.name -> T.typ -> T.typ -> t
+
+val ctor_redefinition :
+  pos:Position.t -> ppos:Position.t -> S.ctor_name -> t

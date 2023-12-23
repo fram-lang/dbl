@@ -9,6 +9,9 @@
 
 include module type of SyntaxNode.Export
 
+(** Kind unification variable *)
+type kuvar
+
 (** Kinds.
 
   This is an abstract type. Use [Kind.view] to view it. *)
@@ -49,6 +52,15 @@ type scheme = {
 (** Type substitution *)
 type subst
 
+(** Declaration of an ADT constructor *)
+type ctor_decl = {
+  ctor_name      : string;
+    (** Name of the constructor *)
+
+  ctor_arg_types : typ list
+    (** Types of the regular parameters *)
+}
+
 (* ========================================================================= *)
 (** Variable *)
 type var = Var.t
@@ -80,6 +92,11 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
+  | EData of tvar * var * ctor_decl list * expr
+    (** Definition of an ADT. It binds type variable (defined type) and
+      computationally irrelevant variable (the proof that the type is an
+      ADT) *)
+
   | EHandle of tvar * var * expr * h_expr * typ * effect
     (** Handler. It stores handled (abstract) effect, capability variable,
       handled expression, handler body, and type and effect of the whole
@@ -106,6 +123,17 @@ and h_expr_data =
 type program = expr
 
 (* ========================================================================= *)
+(** Operations on kind unification variables *)
+module KUVar : sig
+
+  (** Check for equality *)
+  val equal : kuvar -> kuvar -> bool
+
+  (** Set a unification variable *)
+  val set : kuvar -> kind -> unit
+end
+
+(* ========================================================================= *)
 (** Operations on kinds *)
 module Kind : sig
   (** View of kinds *)
@@ -117,8 +145,11 @@ module Kind : sig
       (** Kind of all effects *)
     
     | KClEffect
-      (** Kind of all simple effects: only closed rows withoud unification
+      (** Kind of all simple effects: only closed rows without unification
         variables *)
+
+    | KUVar of kuvar
+      (** Unification variable *)
 
   (** Kind of all types *)
   val k_type : kind
@@ -130,8 +161,14 @@ module Kind : sig
     unification variables. *)
   val k_cleffect : kind
 
+  (** Create a fresh unification kind variable *)
+  val fresh_uvar : unit -> kind
+
   (** Reveal a top-most constructor of a kind *)
   val view : kind -> kind_view
+
+  (** Check if given kind contains given unification variable *)
+  val contains_uvar : kuvar -> kind -> bool
 end
 
 (* ========================================================================= *)
@@ -233,11 +270,21 @@ module Type : sig
   (** Arrow type *)
   val t_arrow : typ -> typ -> effect -> typ
 
+  (** Create an effect *)
+  val t_effect : TVar.Set.t -> effect_end -> effect
+
+  (** Create a closed effect *)
+  val t_closed_effect : TVar.Set.t -> effect
+
   (** Fresh unification variable (packed as type) *)
   val fresh_uvar : scope:scope -> kind -> typ
 
   (** Reveal a top-most constructor of a type *)
   val view : typ -> type_view
+
+  (** Reveal a representation of an effect: a set of effect variables together
+    with a way of closing an effect. *)
+  val effect_view : effect -> TVar.Set.t * effect_end
 
   (** Returns subtype of given type, where all closed rows on negative
     positions are opened by a fresh unification variable. It works only

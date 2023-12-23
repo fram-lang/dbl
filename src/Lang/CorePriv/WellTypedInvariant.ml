@@ -15,7 +15,13 @@ module Env : sig
 
   val empty : t
 
+  (** Extend the environment with a regular variable *)
   val add_var  : t -> var -> ttype -> t
+
+  (** Extend the environment with a computationally irrelevant variable.
+    Computationally irrelevant variables are available only in computationally
+    irrelevant contexts. *)
+  val add_irr_var : t -> var -> ttype -> t
 
   (** Extend environment with a type variable. It returns its refreshed
     version *)
@@ -28,18 +34,25 @@ end = struct
   module TMap = TVar.Map.Make(TVar)
 
   type t = {
-    var_map  : ttype Var.Map.t;
-    tvar_map : TMap.t
+    var_map    : (bool * ttype) Var.Map.t;
+    tvar_map   : TMap.t;
+    irrelevant : bool
   }
 
   let empty =
-    { var_map  = Var.Map.empty
-    ; tvar_map = TMap.empty
+    { var_map    = Var.Map.empty
+    ; tvar_map   = TMap.empty
+    ; irrelevant = false
     }
 
   let add_var env x tp =
     { env with
-      var_map = Var.Map.add x tp env.var_map
+      var_map = Var.Map.add x (false, tp) env.var_map
+    }
+
+  let add_irr_var env x tp =
+    { env with
+      var_map = Var.Map.add x (true, tp) env.var_map
     }
 
   let add_tvar env x =
@@ -49,8 +62,12 @@ end = struct
     }, y
 
   let lookup_var env x =
-    try Var.Map.find x env.var_map with
-    | Not_found ->
+    match Var.Map.find x env.var_map with
+    | (irr, _) when irr && not env.irrelevant ->
+      failwith
+        "Internal error: using irrelevant variable in a relevant context."
+    | (_, tp) -> tp
+    | exception Not_found ->
       failwith "Internal error: unbound variable"
 
   let lookup_tvar env x =
@@ -74,6 +91,21 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, tr_type env tp)
+  | TData(tp, ctors) ->
+    TData(tr_type env tp, List.map (tr_ctor_type env) ctors)
+
+and tr_ctor_type env ctor =
+  { ctor_name      = ctor.ctor_name;
+    ctor_arg_types = List.map (tr_type env) ctor.ctor_arg_types
+  }
+
+let check_data : type k.
+    Env.t -> k typ -> ctor_type list -> ttype * ctor_type list =
+  fun env tp ctors ->
+  match Type.kind tp with
+  | KType -> (tp, List.map (tr_ctor_type env) ctors)
+  | _ ->
+    failwith "Internal kind error"
 
 let rec infer_type_eff env e =
   match e with
@@ -90,7 +122,7 @@ let rec infer_type_eff env e =
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
-    | TUnit | TVar _ | TForall _ ->
+    | TUnit | TVar _ | TForall _ | TData _ ->
       failwith "Internal type error"
     end
   | ETApp(v, tp) ->
@@ -101,8 +133,21 @@ let rec infer_type_eff env e =
       | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
-    | TUnit | TVar _ | TArrow _ ->
+    | TUnit | TVar _ | TArrow _ | TData _ ->
       failwith "Internal type error"
+    end
+  | EData(a, x, ctors, e) ->
+    let old_env = env in
+    let (env, a) = Env.add_tvar env a in
+    let (data_tp, ctors) = check_data old_env (TVar a) ctors in
+    let env = Env.add_irr_var env x (TData(data_tp, ctors)) in
+    let (tp, eff) = infer_type_eff env e in
+    begin match
+      Type.supertype_without a tp, Type.supereffect_without a eff
+    with
+    | Some tp, Some eff -> (tp, eff)
+    | _ ->
+      failwith "Internal type error: escaping type variable"
     end
   | EHandle(a, x, e, h, tp, eff) ->
     let tp  = tr_type env tp in

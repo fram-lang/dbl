@@ -34,6 +34,8 @@ module TVar : sig
   val clone : 'k t -> 'k t
 
   val equal : 'k t -> 'k t -> bool
+  
+  val hequal : 'k1 t -> 'k2 t -> ('k1, 'k2) Eq.t
 
   type ex = Ex : 'k t -> ex
 
@@ -76,6 +78,12 @@ type _ typ =
   | TVar     : 'k tvar -> 'k typ
   | TArrow   : ttype * ttype * effect -> ktype typ
   | TForall  : 'k tvar * ttype -> ktype typ
+  | TData    : ttype * ctor_type list -> ktype typ
 
 and ttype  = ktype typ
 and effect = keffect typ
+
+and ctor_type = {
+  ctor_name      : string;
+  ctor_arg_types : ttype list
+}

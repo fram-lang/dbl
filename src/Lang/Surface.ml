@@ -8,11 +8,41 @@
 
 include SyntaxNode.Export
 
+(** Type variables *)
+type tvar = string
+
 (** Variables *)
 type var = string
 
 (** Names of implicit parameters *)
 type name = string
+
+(** Name of a ADT constructor *)
+type ctor_name = string
+
+(** Type expressions *)
+type type_expr = type_expr_data node
+and type_expr_data =
+  | TWildcard
+    (** A placeholder for a fresh unification variable *)
+
+  | TVar of tvar
+    (** A (non-unification) type variable *)
+
+  | TPureArrow of type_expr * type_expr
+    (** Pure function: a function without effects, that always terminates *)
+
+  | TArrow of type_expr * type_expr * type_expr
+    (** Effectful function: the last parameter is an effect *)
+
+  | TEffect of type_expr list * type_expr option
+    (** Effect: list of simple effect optionally closed by another effect *)
+
+(** Declaration of constructor of ADT *)
+type ctor_decl = ctor_decl_data node
+and ctor_decl_data =
+  | CtorDecl of ctor_name * type_expr list
+    (** Declaration of constructor of ADT *)
 
 (** Expressions *)
 type expr = expr_data node
@@ -57,6 +87,9 @@ and def_data =
 
   | DImplicit of name
     (** Declaration of implicit *)
+
+  | DData of tvar * ctor_decl list
+    (** Definition of ADT *)
 
 (** Handler expressions *)
 and h_expr = h_expr_data node

@@ -8,6 +8,18 @@
 
 open Lang.Surface
 
+let rec tr_type_expr (tp : Raw.type_expr) =
+  let make data = { tp with data = data } in
+  match tp.data with
+  | TWildcard -> make TWildcard
+  | TVar x    -> make (TVar x)
+  | TPureArrow(tp1, tp2) ->
+    make (TPureArrow(tr_type_expr tp1, tr_type_expr tp2))
+  | TArrow(tp1, tp2, eff) ->
+    make (TArrow(tr_type_expr tp1, tr_type_expr tp2, tr_type_expr eff))
+  | TEffect(tps, ee) ->
+    make (TEffect(List.map tr_type_expr tps, Option.map tr_type_expr ee))
+
 let rec tr_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
@@ -30,11 +42,20 @@ and tr_h_expr (h : Raw.h_expr) =
 and tr_def (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet(x, e)     -> make (DLet(x, tr_expr e))
-  | DLetName(n, e) -> make (DLetName(n, tr_expr e))
+  | DLet({ data = PWildcard; _}, e) ->
+    (* TODO: patterns in let-expressions *)
+    make (DLet("_", tr_expr e))
+  | DLet({ data = PVar x; _}, e)  -> make (DLet(x, tr_expr e))
+  | DLet({ data = PName n; _}, e) -> make (DLetName(n, tr_expr e))
   | DImplicit n    -> make (DImplicit n)
+  | DData(x, cs)   -> make (DData(x, List.map tr_ctor_decl cs))
 
 and tr_defs defs = List.map tr_def defs
+
+and tr_ctor_decl (d : Raw.ctor_decl) =
+  let make data = { d with data = data } in
+  match d.data with
+  | CtorDecl(name, tps) -> make (CtorDecl(name, List.map tr_type_expr tps))
 
 let tr_program (p : Raw.program) =
   let make data = { p with data = data } in

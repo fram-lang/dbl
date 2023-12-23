@@ -46,6 +46,11 @@ type scheme = {
   sch_body     : typ
 }
 
+type ctor_decl = {
+  ctor_name      : string;
+  ctor_arg_types : typ list
+}
+
 let t_unit = TUnit
 
 let t_uvar u = TUVar u
@@ -87,7 +92,14 @@ let rec view tp =
 let effect_view eff =
   match view eff with
   | TUVar u -> (TVar.Set.empty, EEUVar u)
-  | TVar  x -> (TVar.Set.empty, EEVar x)
+  | TVar  x ->
+    begin match KindBase.view (TVar.kind x) with
+    | KEffect   -> (TVar.Set.empty, EEVar x)
+    | KClEffect -> (TVar.Set.singleton x, EEClosed)
+    | KType | KUVar _ ->
+      failwith "Internal kind error"
+    end
+
   | TEffect(xs, ee) -> (xs, ee)
 
   | TUnit | TPureArrow _ | TArrow _ ->

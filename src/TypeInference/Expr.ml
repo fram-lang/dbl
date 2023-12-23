@@ -77,13 +77,13 @@ let rec infer_expr_type env (e : S.expr) eff =
 
   | EApp(e1, e2) ->
     let (e1, ftp, r_eff1) = infer_expr_type env e1 eff in
-    begin match Subtyping.to_arrow env ftp with
+    begin match Unification.to_arrow env ftp with
     | Arr_Pure(atp, vtp) ->
       let (e2, r_eff2) = check_expr_type env e2 atp eff in
       (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
     | Arr_Impure(atp, vtp, f_eff) ->
       let (e2, r_eff2) = check_expr_type env e2 atp eff in
-      if not (Subtyping.subeffect env f_eff eff) then
+      if not (Unification.subeffect env f_eff eff) then
         Error.report (Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
       (make (T.EApp(e1, e2)), vtp, Impure)
     | Arr_No ->
@@ -112,7 +112,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     let (h, x_tp) = infer_h_expr_type env h h_eff res_tp res_eff in
     let (env1, x) = Env.add_mono_var env1 x x_tp in
     let (e1, _) = check_expr_type env1 e1 res_tp (T.Effect.cons h_eff res_eff) in
-    if not (Subtyping.subeffect env res_eff eff) then
+    if not (Unification.subeffect env res_eff eff) then
       Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
     (make (T.EHandle(h_eff, x, e1, h, res_tp, res_eff)), res_tp, Impure)
 
@@ -138,12 +138,12 @@ and check_expr_type env (e : S.expr) tp eff =
   | EUnit | EVar _ | EName _ | EApp _ | EHandle _ | ERepl _ ->
     let pos = e.pos in
     let (e, tp', r_eff) = infer_expr_type env e eff in
-    if not (Subtyping.subtype env tp' tp) then
+    if not (Unification.subtype env tp' tp) then
       Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
     (e, r_eff)
 
   | EFn(x, body) ->
-    begin match Subtyping.from_arrow env tp with
+    begin match Unification.from_arrow env tp with
     | Arr_Pure(tp1, tp2) ->
       let (env, x) = Env.add_mono_var env x tp1 in
       let (body, r_eff) = check_expr_type env body tp2 T.Effect.pure in
@@ -202,6 +202,16 @@ and check_def env ienv (def : S.def) eff =
   | DImplicit n ->
     let ienv = ImplicitEnv.declare_implicit ienv n in
     (env, ienv, (fun e -> e), Pure)
+
+  | DData(name, ctors) ->
+    Uniqueness.check_ctor_uniqueness ctors;
+    let ctors = DataType.check_ctor_decls env ctors in
+    let (env, x) = Env.add_tvar env name T.Kind.k_type in
+    let px = Var.fresh ~name () in
+    let proof = { T.pos = def.pos; T.data = T.EVar px } in
+    let env = Env.add_data env x proof ctors in
+    let env = DataType.open_data env (T.Type.t_var x) proof ctors in
+    (env, ienv, (fun e -> make e (T.EData(x, px, ctors, e))), Pure)
 
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)

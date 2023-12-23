@@ -1,0 +1,5 @@
+data E =
+
+data M =
+| None
+| Some of E

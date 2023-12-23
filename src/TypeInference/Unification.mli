@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-(** Checking subtyping of types *)
+(** Unification and subtyping of types *)
 
 (* Author: Piotr Polesiuk, 2023 *)
 
@@ -18,6 +18,10 @@ type arrow =
 
   | Arr_Impure of T.typ * T.typ * T.effect
     (** Impure arrow *)
+
+(** Check if one kind is equal to another. It performs some unifications
+  when necessary. *)
+val unify_kind : T.kind -> T.kind -> bool
 
 (** Check if one effect is a subeffect of another.
   It performs some unifications when necessary. *)

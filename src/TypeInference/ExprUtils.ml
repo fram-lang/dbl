@@ -84,7 +84,7 @@ and instantiate_implicit ~nset env sub (e : T.expr) (name, tp) =
       on_use e.pos;
       let arg = { T.pos = e.pos; T.data = T.EVar x } in
       let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
-      if Subtyping.subtype env arg_tp tp then
+      if Unification.subtype env arg_tp tp then
         { T.pos = e.pos; T.data = T.EApp(e, arg) }
       else
         Error.fatal

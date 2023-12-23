@@ -15,3 +15,6 @@ let rec tr_kind k =
   | KType     -> T.Kind.Ex KType
   | KEffect   -> T.Kind.Ex KEffect
   | KClEffect -> T.Kind.Ex KEffect
+  | KUVar u   ->
+    S.KUVar.set u S.Kind.k_type;
+    T.Kind.Ex KType

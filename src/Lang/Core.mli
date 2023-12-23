@@ -46,11 +46,29 @@ type _ typ =
   | TForall : 'k tvar * ttype -> ktype typ
     (** Polymorphic type *)
 
+  | TData    : ttype * ctor_type list -> ktype typ
+    (** Proof of the shape of ADT.
+      
+      Algebraic data type (ADTs) are just abstract types, but each operation
+      on them like constructors or pattern-matching requires additional
+      computationally irrelevant parameter of type that describes the shape
+      of ADTs. This approach simplifies many things, e.g., mutually recursive
+      types are not recursive at all! *)
+
 (** Proper types *)
 and ttype = ktype typ
 
 (** Effects *)
 and effect = keffect typ
+
+(** ADT constructor type *)
+and ctor_type = {
+  ctor_name      : string;
+    (** Name of the constructor *)
+
+  ctor_arg_types : ttype list
+    (** Types of constructor arguments *)
+}
 
 (* ========================================================================= *)
 
@@ -73,6 +91,11 @@ type expr =
 
   | ETApp : value * 'k typ -> expr
     (** Type application *)
+
+  | EData : 'a tvar * var * ctor_type list * expr -> expr
+    (** Definition of non-recursive ADT. It binds a type variable, an
+      irrelevant variable that stores the proof that this ADT has given
+      constructors, the list of constructors and the rest of an expression. *)
 
   | EHandle of keffect tvar * var * expr * h_expr * ttype * effect
     (** Handler. It stores handled (abstract) effect, capability variable,

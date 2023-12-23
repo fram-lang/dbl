@@ -10,6 +10,25 @@ open Common
 
 type t
 
+(** Information about constructor of ADT *)
+type ctor_info = {
+  ci_name : string;
+    (** Name of the constructor *)
+
+  ci_index : int;
+    (** Index of the constructor *)
+
+  ci_proof : T.expr;
+    (** Computationally irrelevant expression, that provides the proof that
+      the type is a proper ADT *)
+
+  ci_arg_types : T.typ list;
+    (** Types of the parameters *)
+
+  ci_type : T.typ
+    (** Result type of the constructor *)
+}
+
 (** Empty environment *)
 val empty : t
 
@@ -29,8 +48,19 @@ val add_poly_implicit :
 val add_mono_implicit :
   t -> S.name -> T.typ -> (Position.t -> unit) -> t * T.var
 
+(** Extend an environment with a named type variable *)
+val add_tvar : t -> S.tvar -> T.kind -> t * T.tvar
+
 (** Extend an environment with an anonymous type variable *)
 val add_anon_tvar : t -> T.kind -> t * T.tvar
+
+(** Assign ADT definition to given type variable. An assignment requires
+  providing a computationally irrelevant expression that gives us the proof
+  that the type variable is an ADT *)
+val add_data : t -> T.tvar -> T.expr -> T.ctor_decl list -> t
+
+(** Add constructor to the typing environment *)
+val add_ctor : t -> string -> ctor_info -> t
 
 (** Lookup for Unif representation and a scheme of a variable. Returns [None]
   if variable is not bound. *)
@@ -40,6 +70,10 @@ val lookup_var : t -> S.var -> (T.var * T.scheme) option
   implicit. Returns [None] if implicit is not bound. *)
 val lookup_implicit :
   t -> S.var -> (T.var * T.scheme * (Position.t -> unit)) option
+
+(** Lookup for Unif representation of a type variable. Returns [None] if
+  variable is not bound. *)
+val lookup_tvar : t -> S.tvar -> T.tvar option
 
 (** Set of unification variables in the environment *)
 val uvars : t -> T.UVar.Set.t

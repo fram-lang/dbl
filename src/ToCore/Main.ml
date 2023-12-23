@@ -27,6 +27,11 @@ let rec tr_expr env (e : S.expr) =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr env e2)
 
+  | EData(a, proof, ctors, e) ->
+    let ctors = Type.tr_ctor_decls env ctors in
+    let (env, Ex a) = Env.add_tvar env a in
+    T.EData(a, proof, ctors, tr_expr env e)
+
   | EHandle(a, x, e, h, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
     let eff = Type.tr_effect env eff in
@@ -50,7 +55,7 @@ and tr_expr_as env (e : S.expr) x rest =
   | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
-  | EApp _ | ETApp _ | ELet _ | EHandle _ | ERepl _ | EReplExpr _ ->
+  | EApp _ | ETApp _ | ELet _ | EData _ | EHandle _ | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -74,6 +79,11 @@ and tr_expr_v env (e : S.expr) cont =
 
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr_v env e2 cont)
+
+  | EData(a, proof, ctors, e) ->
+    let ctors = Type.tr_ctor_decls env ctors in
+    let (env, Ex a) = Env.add_tvar env a in
+    T.EData(a, proof, ctors, tr_expr_v env e cont)
 
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)

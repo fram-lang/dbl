@@ -36,6 +36,13 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (sub, x) = add_tvar sub x in
     TForall(x, in_type_rec sub tp)
+  | TData(tp, ctors) ->
+    TData(in_type_rec sub tp, List.map (in_ctor_type_rec sub) ctors)
+
+and in_ctor_type_rec sub ctor =
+  { ctor_name      = ctor.ctor_name;
+    ctor_arg_types = List.map (in_type_rec sub) ctor.ctor_arg_types
+  }
 
 let in_type sub tp =
   if is_empty sub then tp

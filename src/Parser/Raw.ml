@@ -9,11 +9,46 @@
 
 include SyntaxNode.Export
 
+(** Type variables *)
+type tvar = string
+
 (** Variables *)
 type var = string
 
 (** Names of implicit parameters *)
 type name = string
+
+(** Names of constructors of ADTs *)
+type ctor_name = string
+
+(** Type expressions *)
+type type_expr = type_expr_data node
+and type_expr_data =
+  | TWildcard
+    (** A placeholder for a fresh unification variable *)
+
+  | TVar of tvar
+    (** Type variable *)
+
+  | TPureArrow of type_expr * type_expr
+    (** Pure function: a function without effects, that always terminates *)
+  
+  | TArrow of type_expr * type_expr * type_expr
+    (** Effectful function: the last parameter is an effect *)
+
+  | TEffect of type_expr list * type_expr option
+    (** Effect: list of simple effect optionally closed by another effect *)
+
+type pattern = pattern_data node
+and pattern_data =
+  | PWildcard
+    (** Wildcard pattern -- it matches everything *)
+
+  | PVar of var
+    (** Pattern that binds a variable *)
+
+  | PName of name
+    (** Pattern that binds a named implicit *)
 
 (** Expressions *)
 type expr = expr_data node
@@ -51,14 +86,20 @@ and h_expr_data =
 (** Definitions *)
 and def = def_data node
 and def_data =
-  | DLet of var * expr
+  | DLet of pattern * expr
     (** Let-definition *)
-
-  | DLetName of name * expr
-    (** Providing a named implicit *)
 
   | DImplicit of name
     (** Declaration of implicit parameter *)
+
+  | DData of tvar * ctor_decl list
+    (** Definition of ADT *)
+
+(** Declaration of a constructor *)
+and ctor_decl = ctor_decl_data node
+and ctor_decl_data =
+  | CtorDecl of ctor_name * type_expr list
+    (** Declaration of a constructor *)
 
 (** Program *)
 type program = def list node

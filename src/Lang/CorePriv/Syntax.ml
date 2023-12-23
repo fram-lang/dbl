@@ -16,6 +16,7 @@ type expr =
   | ELetPure  of var * expr * expr
   | EApp      of value * value
   | ETApp      : value * 'k typ -> expr
+  | EData      : 'a tvar * var * ctor_type list * expr -> expr
   | EHandle   of keffect tvar * var * expr * h_expr * ttype * effect
   | ERepl     of (unit -> expr) * effect
   | EReplExpr of expr * string * expr

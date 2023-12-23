@@ -36,6 +36,11 @@ type scheme = {
   sch_body     : typ
 }
 
+type ctor_decl = {
+  ctor_name      : string;
+  ctor_arg_types : typ list
+}
+
 (** Unit type *)
 val t_unit : typ
 

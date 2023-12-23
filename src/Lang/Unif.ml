@@ -48,6 +48,7 @@ and expr_data =
   | EApp      of expr * expr
   | ETApp     of expr * typ
   | ELet      of var * scheme * expr * expr
+  | EData     of tvar * var * ctor_decl list * expr
   | EHandle   of tvar * var * expr * h_expr * typ * effect
   | ERepl     of (unit -> expr) * effect
   | EReplExpr of expr * string * expr

@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-(** Checking subtyping of types *)
+(** Unification and subtyping of types *)
 
 (* Author: Piotr Polesiuk, 2023 *)
 
@@ -15,6 +15,33 @@ type arrow =
 
 (** Internal exception *)
 exception Error
+
+let unify_with_kuvar x k =
+  if T.Kind.contains_uvar x k then
+    raise Error
+  else
+    T.KUVar.set x k
+
+let rec check_kind_equal k1 k2 =
+  match T.Kind.view k1, T.Kind.view k2 with
+  | KUVar x1, KUVar x2 when T.KUVar.equal x1 x2 -> ()
+  | KUVar x, _ -> unify_with_kuvar x k2
+  | _, KUVar x -> unify_with_kuvar x k1
+
+  | KType, KType -> ()
+  | KType, _ -> raise Error
+
+  | KEffect, KEffect -> ()
+  | KEffect, _ -> raise Error
+
+  | KClEffect, KClEffect -> ()
+  | KClEffect, _ -> raise Error
+
+let unify_kind k1 k2 =
+  (* TODO: create reference backtracking point *)
+  match check_kind_equal k1 k2 with
+  | ()              -> true
+  | exception Error -> false
 
 let set_uvar env u tp =
   let scope = T.UVar.raw_set u tp in

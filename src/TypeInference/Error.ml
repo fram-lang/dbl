@@ -15,6 +15,11 @@ let fatal () =
 let report () =
   InterpLib.Error.incr_error_counter ()
 
+let kind_mismatch ~pos k1 k2 =
+  (* TODO: better message *)
+  Printf.eprintf "%s: error: Kind mismatch\n"
+    (Position.to_string pos)
+
 let unbound_var ~pos x =
   Printf.eprintf "%s: error: Unbound variable `%s'\n"
     (Position.to_string pos) x
@@ -22,6 +27,10 @@ let unbound_var ~pos x =
 let unbound_implicit ~pos name =
   Printf.eprintf "%s: error: Unbound implicit %s\n"
     (Position.to_string pos) name
+
+let unbound_type_var ~pos x =
+  Printf.eprintf "%s: error: Unbound type %s\n"
+    (Position.to_string pos) x
 
 let expr_type_mismatch ~pos ~env tp1 tp2 =
   (* TODO: better message *)
@@ -80,3 +89,10 @@ let implicit_type_mismatch ~pos ~env name tp1 tp2 =
   Printf.eprintf "%s: error: Type mismatch of implicit %s\n"
     (Position.to_string pos)
     name
+
+let ctor_redefinition ~pos ~ppos name =
+  Printf.eprintf "%s: error: Constructor %s is defined more than once.\n"
+    (Position.to_string pos)
+    name;
+  Printf.eprintf "%s: note: Here is a previous definition.\n"
+    (Position.to_string ppos)

@@ -70,3 +70,13 @@ and tr_effect env eff : T.effect =
   | KEffect -> eff
   | KType ->
     failwith "Internal kind error"
+
+(** Translate a constructor declaration *)
+let tr_ctor_decl env (ctor : S.ctor_decl) =
+  { T.ctor_name      = ctor.ctor_name;
+    T.ctor_arg_types = List.map (tr_ttype env) ctor.ctor_arg_types
+  }
+
+(** Translate a list of constructor declarations *)
+let tr_ctor_decls env decls =
+  List.map (tr_ctor_decl env) decls
