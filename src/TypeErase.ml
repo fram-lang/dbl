@@ -15,6 +15,7 @@ let rec tr_expr (e : S.expr) =
   | EValue v        -> tr_value v
   | ELet(x, e1, e2) | ELetPure(x, e1, e2) ->
     T.ELet(x, tr_expr e1, tr_expr e2)
+  | ELetIrr(_, _, e) -> tr_expr e
   | EApp(v1, v2) ->
     tr_value_v v1 (fun v1 ->
     tr_value_v v2 (fun v2 ->
@@ -31,7 +32,7 @@ let rec tr_expr (e : S.expr) =
 (** Translate value as an expression *)
 and tr_value (v : S.value) =
   match v with
-  | VUnit | VVar _ | VFn _ ->
+  | VUnit | VVar _ | VFn _ | VCtor _ ->
     tr_value_v v (fun v -> T.EValue v)
   | VTFun(_, body) ->
     tr_expr body
@@ -45,6 +46,19 @@ and tr_value_v (v : S.value) cont =
   | VTFun(_, body) ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr body, cont (T.VVar x))
+  | VCtor(_, n, args) ->
+    tr_value_vs args (fun args ->
+    cont (T.VCtor(n, args)))
+
+(** Translate list of values and pass the result (list of values) to given
+  meta-continuation *)
+and tr_value_vs vs cont =
+  match vs with
+  | [] -> cont []
+  | v :: vs ->
+    tr_value_v  v  (fun v ->
+    tr_value_vs vs (fun vs ->
+    cont (v :: vs)))
 
 (** Translate a handler expression *)
 and tr_h_expr (h : S.h_expr) =

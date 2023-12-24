@@ -56,6 +56,9 @@ and expr_data =
   | EName of name
     (** Implicit parameter *)
 
+  | ECtor of ctor_name
+    (** ADT constructor *)
+
   | EFn   of var * expr
     (** Lambda abstraction *)
 

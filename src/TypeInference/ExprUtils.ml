@@ -10,6 +10,17 @@ open Common
 
 module StrSet = Set.Make(String)
 
+(** Make function that takes parameters of given types *)
+let rec make_fun tps body_f =
+  match tps with
+  | [] -> body_f []
+  | tp :: tps ->
+    let x = Var.fresh () in
+    let body = make_fun tps (fun xs -> body_f (x :: xs)) in
+    { T.pos  = body.T.pos;
+      T.data = T.EFn(x, tp, body)
+    }
+
 (** Make polymorphic function with given type parameters *)
 let rec make_tfun tvs body =
   match tvs with
@@ -57,6 +68,8 @@ let generalize env ims e tp =
   in
   (make_tfun tvs (make_ifun ims e), sch)
 
+(* ========================================================================= *)
+
 (** The main instantiation function. [nset] parameter is a set of names
   currently instantiated, used to avoid infinite loops, e.g., in
   [`n : {`n : _} -> _] *)
@@ -95,3 +108,12 @@ and instantiate_implicit ~nset env sub (e : T.expr) (name, tp) =
 
 let instantiate env e sch =
   instantiate_loop ~nset:StrSet.empty env e sch
+
+(* ========================================================================= *)
+
+let ctor_func ~pos (info : Env.ctor_info) =
+  let mk_var x = { T.pos = pos; T.data = T.EVar x } in
+  make_fun info.ci_arg_types (fun xs ->
+    { T.pos  = pos;
+      T.data = T.ECtor(info.ci_proof, info.ci_index, List.map mk_var xs)
+    })

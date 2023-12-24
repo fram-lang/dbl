@@ -43,6 +43,20 @@ let infer_implicit_scheme ~pos env name =
     Error.fatal (Error.unbound_implicit ~pos name)
 
 (* ------------------------------------------------------------------------- *)
+(** Infer scheme of a constructor of ADT *)
+let infer_ctor_scheme ~pos env c =
+  match Env.lookup_ctor env c with
+  | Some info ->
+    let sch = {
+        T.sch_tvars    = [];
+        T.sch_implicit = [];
+        T.sch_body     = T.Type.t_pure_arrows info.ci_arg_types info.ci_type
+      } in
+    (ExprUtils.ctor_func ~pos info, sch)
+  | None ->
+    Error.fatal (Error.unbound_constructor ~pos c)
+
+(* ------------------------------------------------------------------------- *)
 (** Infer type of an expression. The effect of an expression is always in
   the check mode. However, pure expressions may returns an information that
   they are pure (see [ret_effect] type). *)
@@ -60,6 +74,11 @@ let rec infer_expr_type env (e : S.expr) eff =
 
   | EName n ->
     let (e, sch) = infer_implicit_scheme ~pos env n in
+    let (e, tp)  = ExprUtils.instantiate env e sch in
+    (e, tp, Pure)
+
+  | ECtor c ->
+    let (e, sch) = infer_ctor_scheme ~pos env c in
     let (e, tp)  = ExprUtils.instantiate env e sch in
     (e, tp, Pure)
 
@@ -135,7 +154,7 @@ let rec infer_expr_type env (e : S.expr) eff =
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | EVar _ | EName _ | EApp _ | EHandle _ | ERepl _ ->
+  | EUnit | EVar _ | EName _ | EApp _ | ECtor _ | EHandle _ | ERepl _ ->
     let pos = e.pos in
     let (e, tp', r_eff) = infer_expr_type env e eff in
     if not (Unification.subtype env tp' tp) then

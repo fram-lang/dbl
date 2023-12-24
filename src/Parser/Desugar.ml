@@ -27,6 +27,7 @@ let rec tr_expr (e : Raw.expr) =
   | EParen e       -> make (tr_expr e).data
   | EVar x         -> make (EVar x)
   | EName n        -> make (EName n)
+  | ECtor c        -> make (ECtor c)
   | EFn(x, e)      -> make (EFn(x, tr_expr e))
   | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))

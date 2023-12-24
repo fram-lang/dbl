@@ -92,6 +92,12 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
+  | ECtor of expr * int * expr list
+    (** Fully-applied constructor of ADT. The first parameter is a
+      computationally irrelevent proof that given that the type of the
+      whole expression is an ADT. The second parameter is an index of the
+      constructor *)
+
   | EData of tvar * var * ctor_decl list * expr
     (** Definition of an ADT. It binds type variable (defined type) and
       computationally irrelevant variable (the proof that the type is an
@@ -266,6 +272,9 @@ module Type : sig
 
   (** Pure arrow type *)
   val t_pure_arrow : typ -> typ -> typ
+
+  (** Pure arrow, that takes multiple arguments *)
+  val t_pure_arrows : typ list -> typ -> typ
 
   (** Arrow type *)
   val t_arrow : typ -> typ -> effect -> typ

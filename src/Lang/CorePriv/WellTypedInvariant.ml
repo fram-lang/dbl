@@ -27,6 +27,10 @@ module Env : sig
     version *)
   val add_tvar : t -> 'k tvar -> t * 'k tvar
 
+  (** Move to computationally irrelevant context, making all irrelevant
+    variables available *)
+  val irrelevant : t -> t
+
   val lookup_var : t -> var -> ttype
 
   val lookup_tvar : t -> 'k tvar -> 'k tvar
@@ -60,6 +64,9 @@ end = struct
     { env with
       tvar_map = TMap.add x y env.tvar_map
     }, y
+
+  let irrelevant env =
+    { env with irrelevant = true }
 
   let lookup_var env x =
     match Var.Map.find x env.var_map with
@@ -110,13 +117,16 @@ let check_data : type k.
 let rec infer_type_eff env e =
   match e with
   | EValue v -> (infer_vtype env v, TEffPure)
-  | ELetPure(x, e1, e2) ->
-    let tp1 = infer_type_check_eff env e1 TEffPure in
-    infer_type_eff (Env.add_var env x tp1) e2
   | ELet(x, e1, e2) ->
     let (tp1, eff1) = infer_type_eff env e1 in
     let (tp2, eff2) = infer_type_eff (Env.add_var env x tp1) e2 in
     (tp2, Effect.join eff1 eff2)
+  | ELetPure(x, e1, e2) ->
+    let tp1 = infer_type_check_eff env e1 TEffPure in
+    infer_type_eff (Env.add_var env x tp1) e2
+  | ELetIrr(x, e1, e2) ->
+    let tp1 = infer_type_check_eff (Env.irrelevant env) e1 TEffPure in
+    infer_type_eff (Env.add_irr_var env x tp1) e2
   | EApp(v1, v2) ->
     begin match infer_vtype env v1 with
     | TArrow(tp2, tp1, eff) ->
@@ -178,6 +188,22 @@ and infer_vtype env v =
   | VTFun(x, body) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, infer_type_check_eff env body TEffPure)
+  | VCtor(proof, n, args) ->
+    assert (n >= 0);
+    begin match infer_vtype (Env.irrelevant env) proof with
+    | TData(tp, ctors) ->
+      begin match List.nth_opt ctors n with
+      | Some ctor ->
+        if List.length ctor.ctor_arg_types <> List.length args then
+          failwith "Internal type error (constructor arity)";
+        List.iter2 (check_vtype env) args ctor.ctor_arg_types;
+        tp
+      | None ->
+        failwith "Internal type error"
+      end
+    | _ ->
+      failwith "Internal type error"
+    end
 
 and infer_h_type env a h tp eff =
   match h with

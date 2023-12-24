@@ -14,6 +14,9 @@ type value =
   | VFn of (value -> value comp)
     (** Function *)
 
+  | VCtor of int * value list
+    (** Constructor of ADT *)
+
 (** CPS Computations *)
 and 'v comp = ('v -> ans) -> ans
 
@@ -28,8 +31,9 @@ and ans = frame list -> unit
 
 let to_string (v : value) =
   match v with
-  | VUnit -> "()"
-  | VFn _ -> "<fun>"
+  | VUnit   -> "()"
+  | VFn   _ -> "<fun>"
+  | VCtor _ -> "<ctor>"
 
 module Env : sig
   type t
@@ -110,6 +114,8 @@ and eval_value env (v : Lang.Untyped.value) =
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->
     VFn(fun v -> eval_expr (Env.extend env x v) body)
+  | VCtor(n, vs) ->
+    VCtor(n, List.map (eval_value env) vs)
 
 and eval_h_expr env l (h : Lang.Untyped.h_expr) =
   match h with

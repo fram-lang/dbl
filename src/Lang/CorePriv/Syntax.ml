@@ -14,6 +14,7 @@ type expr =
   | EValue    of value
   | ELet      of var * expr * expr
   | ELetPure  of var * expr * expr
+  | ELetIrr   of var * expr * expr
   | EApp      of value * value
   | ETApp      : value * 'k typ -> expr
   | EData      : 'a tvar * var * ctor_type list * expr -> expr
@@ -23,9 +24,10 @@ type expr =
 
 and value =
   | VUnit
-  | VVar of var
-  | VFn  of var * ttype * expr
-  | VTFun : 'k tvar * expr -> value
+  | VVar  of var
+  | VFn   of var * ttype * expr
+  | VTFun  : 'k tvar * expr -> value
+  | VCtor of value * int * value list
 
 and h_expr =
   | HEffect of ttype * ttype * var * var * expr

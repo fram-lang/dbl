@@ -86,6 +86,9 @@ type expr =
   | ELetPure of var * expr * expr
     (** Let expression, that binds pure expression *)
 
+  | ELetIrr of var * expr * expr
+    (** Let expression, that binds computationally irrelevant expression *)
+
   | EApp of value * value
     (** Function application *)
 
@@ -125,6 +128,12 @@ and value =
 
   | VTFun : 'k tvar * expr -> value
     (** Type function *)
+
+  | VCtor of value * int * value list
+    (** Fully-applied constructor of ADT. The first parameter is a
+      computationally irrelevent proof that given that the type of the
+      whole expression is an ADT. The second parameter is an index of the
+      constructor. *)
 
 (** Handler expressions *)
 and h_expr =

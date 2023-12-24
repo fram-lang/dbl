@@ -42,6 +42,9 @@ and value =
   | VFn of var * expr
     (** Function *)
 
+  | VCtor of int * value list
+    (** Fully applied constructor of ADT *)
+
 (** Handler expressions *)
 and h_expr =
   | HEffect of var * var * expr

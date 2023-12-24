@@ -98,6 +98,7 @@ expr_200
 expr_simple
 : LID                { make (EVar $1)   }
 | TLID               { make (EName $1)  }
+| UID                { make (ECtor $1)  }
 | BR_OPN BR_CLS      { make EUnit       }
 | BR_OPN expr BR_CLS { make (EParen $2) }
 ;

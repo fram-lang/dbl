@@ -12,6 +12,8 @@ let view = TypeBase.view
 
 let fresh_uvar ~scope kind = t_uvar (UVar.fresh ~scope kind)
 
+let t_pure_arrows tps tp = List.fold_right t_pure_arrow tps tp
+
 let open_effect_up ~scope eff =
   let (xs, ee) = effect_view eff in
   match ee with

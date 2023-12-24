@@ -71,6 +71,10 @@ val lookup_var : t -> S.var -> (T.var * T.scheme) option
 val lookup_implicit :
   t -> S.var -> (T.var * T.scheme * (Position.t -> unit)) option
 
+(** Lookup for a constructor of ADT. Returns [None] if there is no constructor
+  with given name *)
+val lookup_ctor : t -> S.ctor_name -> ctor_info option
+
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
 val lookup_tvar : t -> S.tvar -> T.tvar option

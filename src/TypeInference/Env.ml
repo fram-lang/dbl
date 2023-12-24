@@ -112,6 +112,9 @@ let lookup_var env x =
 let lookup_implicit env name =
   StrMap.find_opt name env.implicit_map
 
+let lookup_ctor env c =
+  StrMap.find_opt c env.ctor_map
+
 let lookup_tvar env x =
   StrMap.find_opt x env.tvar_map
 

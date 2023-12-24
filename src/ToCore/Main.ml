@@ -11,7 +11,7 @@ open Common
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e.data with
-  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ ->
+  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ ->
     tr_expr_v env e (fun v -> T.EValue v)
 
   | EApp(e1, e2) ->
@@ -52,7 +52,7 @@ let rec tr_expr env (e : S.expr) =
 (** Translate expression and store result in variable [x] bound in [rest] *)
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
-  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ ->
+  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELet _ | EData _ | EHandle _ | ERepl _ | EReplExpr _ ->
@@ -60,7 +60,7 @@ and tr_expr_as env (e : S.expr) x rest =
 
 (** Translate expression and pass a result (as a value to given
   meta-continuation) *)
-and tr_expr_v env (e : S.expr) cont =
+and tr_expr_v ?(irrelevant=false) env (e : S.expr) cont =
   match e.data with
   | EUnit  -> cont T.VUnit
   | EVar x -> cont (VVar x)
@@ -75,10 +75,18 @@ and tr_expr_v env (e : S.expr) cont =
 
   | EApp _ | ETApp _ | EHandle _ | ERepl _ ->
     let x = Var.fresh () in
-    T.ELet(x, tr_expr env e, cont (VVar x))
+    if irrelevant then
+      T.ELetIrr(x, tr_expr env e, cont (VVar x))
+    else
+      T.ELet(x, tr_expr env e, cont (VVar x))
 
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr_v env e2 cont)
+
+  | ECtor(proof, n, args) ->
+    tr_expr_v ~irrelevant:true env proof (fun proof ->
+    tr_expr_vs env args (fun args ->
+    cont (VCtor(proof, n, args))))
 
   | EData(a, proof, ctors, e) ->
     let ctors = Type.tr_ctor_decls env ctors in
@@ -87,6 +95,16 @@ and tr_expr_v env (e : S.expr) cont =
 
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)
+
+(** Translate a list of expressions and pass a result (as a list of values to
+  given meta-continuation) *)
+and tr_expr_vs env es cont =
+  match es with
+  | []      -> cont []
+  | e :: es ->
+    tr_expr_v env  e  (fun v ->
+    tr_expr_vs env es (fun vs ->
+    cont (v :: vs)))
 
 (** Translate a handler expression *)
 and tr_h_expr env h =

@@ -15,3 +15,7 @@ val generalize : Env.t -> (S.name * T.var * T.typ) list ->
 
 (** Instantiate polymorphic expression *)
 val instantiate : Env.t -> T.expr -> T.scheme -> T.expr * T.typ
+
+(** Create a function that represents ADT contructor, not applied to any
+  parameters yet, even the type parameters of the ADT. *)
+val ctor_func : pos:Position.t -> Env.ctor_info -> T.expr

@@ -28,6 +28,10 @@ let unbound_implicit ~pos name =
   Printf.eprintf "%s: error: Unbound implicit %s\n"
     (Position.to_string pos) name
 
+let unbound_constructor ~pos name =
+  Printf.eprintf "%s: error: Unbound constructor %s\n"
+    (Position.to_string pos) name
+
 let unbound_type_var ~pos x =
   Printf.eprintf "%s: error: Unbound type %s\n"
     (Position.to_string pos) x
