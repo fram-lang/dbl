@@ -65,6 +65,12 @@ type ctor_decl = {
 (** Variable *)
 type var = Var.t
 
+(** Pattern *)
+type pattern = pattern_data node
+and pattern_data =
+  | PVar of var
+    (** Pattern that binds a variable *)
+
 (** Expression *)
 type expr = expr_data node
 and expr_data =
@@ -103,6 +109,9 @@ and expr_data =
       computationally irrelevant variable (the proof that the type is an
       ADT) *)
 
+  | EMatch of expr * match_clause list * typ * effect
+    (** Pattern-matching. It stores type and effect of the whole expression. *)
+
   | EHandle of tvar * var * expr * h_expr * typ * effect
     (** Handler. It stores handled (abstract) effect, capability variable,
       handled expression, handler body, and type and effect of the whole
@@ -116,6 +125,9 @@ and expr_data =
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,
       then continue to the second expression. *)
+
+(** Clause of a pattern matching *)
+and match_clause = pattern * expr
 
 (** Handler expressions *)
 and h_expr = h_expr_data node

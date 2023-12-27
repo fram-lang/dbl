@@ -64,6 +64,11 @@ let rec infer_expr_type env (e : S.expr) eff =
   let pos = e.pos in
   let make data = { e with data = data } in
   match e.data with
+  | EMatch _ ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let (e, r_eff) = check_expr_type env e tp eff in
+    (e, tp, r_eff)
+
   | EUnit ->
     (make T.EUnit, T.Type.t_unit, Pure)
 
@@ -184,6 +189,14 @@ and check_expr_type env (e : S.expr) tp eff =
     let (e, r_eff2) = check_expr_type env e tp eff in
     (e_gen e, ret_effect_join r_eff1 r_eff2)
 
+  | EMatch(e, cls) ->
+    let (e, e_tp, _) = infer_expr_type env e eff in
+    let cls =
+      List.map (fun cl -> check_match_clause env e_tp cl tp eff) cls in
+    (* Pattern matching is always impure, as due to recursive types it can
+      be used to encode non-termination *)
+    (make (T.EMatch(e, cls, e_tp, eff)), Impure)
+
   | EReplExpr(e1, e2) ->
     let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
     let (e2, r_eff2) = check_expr_type env e2 tp eff in
@@ -248,6 +261,23 @@ and check_let env ienv body eff =
     ImplicitEnv.end_generalize_impure ims;
     let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
     (sch, body, Impure)
+
+(* ------------------------------------------------------------------------- *)
+(** Check a pattern-matching clause
+  In [check_match_clause env tp cl res_tp res_eff] the parameters have the
+  following meaning:
+  - [env]     -- an environment
+  - [tp]      -- type of the matched expression
+  - [cl]      -- clause
+  - [res_tp]  -- returned type
+  - [res_eff] -- returned effect *)
+and check_match_clause env tp cl res_tp res_eff =
+  match cl.data with
+  | Clause(pat, body) ->
+    let scope = Env.scope env in
+    let (env, pat) = Pattern.check_type ~env ~scope pat tp in
+    let (body, _) = check_expr_type env body res_tp res_eff in
+    (pat, body)
 
 (* ------------------------------------------------------------------------- *)
 (** Infer type of an handler expression.

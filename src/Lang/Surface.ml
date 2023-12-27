@@ -44,6 +44,18 @@ and ctor_decl_data =
   | CtorDecl of ctor_name * type_expr list
     (** Declaration of constructor of ADT *)
 
+(** Patterns *)
+type pattern = pattern_data node
+and pattern_data =
+  | PWildcard
+    (** Wildcard pattern -- it matches everything *)
+
+  | PVar of var
+    (** Pattern that binds a variable *)
+
+  | PName of name
+    (** Pattern that binds a named implicit *)
+
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
@@ -67,6 +79,9 @@ and expr_data =
 
   | EDefs of def list * expr
     (** Local definitions *)
+
+  | EMatch of expr * match_clause list
+    (** Pattern-matching *)
 
   | EHandle of var * expr * h_expr
     (** Effect handler *)
@@ -93,6 +108,11 @@ and def_data =
 
   | DData of tvar * ctor_decl list
     (** Definition of ADT *)
+
+(** Pattern-matching clauses *)
+and match_clause = match_clause_data node
+and match_clause_data =
+  | Clause of pattern * expr
 
 (** Handler expressions *)
 and h_expr = h_expr_data node

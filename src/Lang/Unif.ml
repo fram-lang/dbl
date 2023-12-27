@@ -38,6 +38,10 @@ module Subst = UnifPriv.Subst
 
 type var = Var.t
 
+type pattern = pattern_data node
+and pattern_data =
+  | PVar of var
+
 type expr = expr_data node
 and expr_data =
   | EUnit
@@ -50,9 +54,12 @@ and expr_data =
   | ELet      of var * scheme * expr * expr
   | ECtor     of expr * int * expr list
   | EData     of tvar * var * ctor_decl list * expr
+  | EMatch    of expr * match_clause list * typ * effect
   | EHandle   of tvar * var * expr * h_expr * typ * effect
   | ERepl     of (unit -> expr) * effect
   | EReplExpr of expr * string * expr
+
+and match_clause = pattern * expr
 
 and h_expr = h_expr_data node
 and h_expr_data =

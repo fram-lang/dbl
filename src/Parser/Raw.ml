@@ -77,8 +77,16 @@ and expr_data =
   | EDefs of def list * expr
     (** Local definitions *)
 
+  | EMatch of expr * match_clause list
+    (** Pattern-matching *)
+
   | EHandle of var * expr * h_expr
     (** Effect handler *)
+
+(** Pattern-matching clauses *)
+and match_clause = match_clause_data node
+and match_clause_data =
+  | Clause of pattern * expr
 
 (** Handler expressions *)
 and h_expr = h_expr_data node

@@ -9,8 +9,8 @@
 %token<string> LID UID TLID
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS
 %token ARROW ARROW2 BAR COMMA EQ SEMICOLON2 SLASH
-%token KW_DATA KW_EFFECT KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET KW_OF
-%token KW_WITH
+%token KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET
+%token KW_MATCH KW_OF KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -101,6 +101,20 @@ expr_simple
 | UID                { make (ECtor $1)  }
 | BR_OPN BR_CLS      { make EUnit       }
 | BR_OPN expr BR_CLS { make (EParen $2) }
+| KW_MATCH expr KW_WITH KW_END { make (EMatch($2, [])) }
+| KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
+  { make (EMatch($2, $5)) }
+;
+
+/* ========================================================================= */
+
+match_clause
+: pattern ARROW2 expr { make (Clause($1, $3)) }
+;
+
+match_clause_list
+: match_clause                       { [ $1 ]   }
+| match_clause BAR match_clause_list { $1 :: $3 }
 ;
 
 /* ========================================================================= */

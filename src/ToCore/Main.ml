@@ -32,6 +32,14 @@ let rec tr_expr env (e : S.expr) =
     let (env, Ex a) = Env.add_tvar env a in
     T.EData(a, proof, ctors, tr_expr env e)
 
+  | EMatch(me, cls, tp, eff) ->
+    let tp  = Type.tr_ttype env tp in
+    let eff = Type.tr_effect env eff in
+    let cls =
+      List.map (fun (pat, body) -> (pat, fun env -> tr_expr env body)) cls in
+    tr_expr_v env me (fun v ->
+    PatternMatch.tr_single_match ~pos:e.pos ~env v cls tp eff)
+
   | EHandle(a, x, e, h, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
     let eff = Type.tr_effect env eff in
@@ -55,7 +63,8 @@ and tr_expr_as env (e : S.expr) x rest =
   | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
-  | EApp _ | ETApp _ | ELet _ | EData _ | EHandle _ | ERepl _ | EReplExpr _ ->
+  | EApp _ | ETApp _ | ELet _ | EData _ | EMatch _ | EHandle _ | ERepl _
+  | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -73,7 +82,7 @@ and tr_expr_v ?(irrelevant=false) env (e : S.expr) cont =
     let (env, Ex x) = Env.add_tvar env x in
     cont (VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ | EHandle _ | ERepl _ ->
+  | EApp _ | ETApp _ | EMatch _ | EHandle _ | ERepl _ ->
     let x = Var.fresh () in
     if irrelevant then
       T.ELetIrr(x, tr_expr env e, cont (VVar x))

@@ -11,11 +11,13 @@ let kw_map =
   let open YaccParser in
   [ "data",     KW_DATA
   ; "effect",   KW_EFFECT
+  ; "end",      KW_END
   ; "fn",       KW_FN
   ; "handle",   KW_HANDLE
   ; "implicit", KW_IMPLICIT
   ; "in",       KW_IN
   ; "let",      KW_LET
+  ; "match",    KW_MATCH
   ; "of",       KW_OF
   ; "with",     KW_WITH
   ; "_",        UNDERSCORE
