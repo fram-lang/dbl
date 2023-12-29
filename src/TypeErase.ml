@@ -22,6 +22,9 @@ let rec tr_expr (e : S.expr) =
     T.EApp(v1, v2)))
   | ETApp(v, _) -> tr_value v
   | EData(_, _, _, e) -> tr_expr e
+  | EMatch(_, v, cls, _, _) ->
+    tr_value_v v (fun v ->
+    T.EMatch(v, List.map tr_clause cls))
   | EHandle(_, x, e, h, _, _) ->
     T.EHandle(x, tr_expr e, tr_h_expr h)
   | ERepl(func, _) ->
@@ -59,6 +62,10 @@ and tr_value_vs vs cont =
     tr_value_v  v  (fun v ->
     tr_value_vs vs (fun vs ->
     cont (v :: vs)))
+
+(** Translate a clause of pattern-matching *)
+and tr_clause (cl : S.match_clause) =
+  (cl.cl_vars, tr_expr cl.cl_body)
 
 (** Translate a handler expression *)
 and tr_h_expr (h : S.h_expr) =

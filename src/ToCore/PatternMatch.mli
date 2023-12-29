@@ -8,11 +8,10 @@
 
 open Common
 
-(** Translate a pattern-matching of a single value. Clauses are represented
-  as pairs of pattern and translating function that produces expression for
-  given environment. Function takes also the type and the effect of the whole
-  pattern-matching expression. *)
+(** Translate a pattern-matching of a single value.
+  This function takes also translation function from Unif to Core, the type,
+  and the effect of the whole pattern-matching expression. *)
 val tr_single_match :
   pos:Position.t -> env:Env.t ->
-  T.value -> (S.pattern * (Env.t -> T.expr)) list ->
-  T.ttype -> T.effect -> T.expr
+  tr_expr:(Env.t -> S.expr -> T.expr) ->
+  T.value -> S.match_clause list -> T.ttype -> T.effect -> T.expr

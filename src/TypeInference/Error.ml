@@ -46,6 +46,11 @@ let expr_effect_mismatch ~pos ~env eff1 eff2 =
   Printf.eprintf "%s: error: Effect mismatch\n"
     (Position.to_string pos)
 
+let pattern_type_mismatch ~pos ~env tp1 tp2 =
+  (* TODO: better message *)
+  Printf.eprintf "%s: error: Type mismatch\n"
+    (Position.to_string pos)
+
 let func_effect_mismatch ~pos ~env eff1 eff2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Function effect mismatch\n"
@@ -81,6 +86,11 @@ let ungeneralizable_implicit ~pos name =
     (Position.to_string pos)
     name
 
+let non_polymorphic_pattern ~pos =
+  Printf.eprintf
+    "%s: error: This pattern cannot match polymorphic values."
+    (Position.to_string pos)
+
 let looping_implicit ~pos name =
   (* TODO: better message *)
   Printf.eprintf
@@ -100,3 +110,9 @@ let ctor_redefinition ~pos ~ppos name =
     name;
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
+
+let ctor_arity_mismatch ~pos cname req_n prov_n =
+  Printf.eprintf
+    "%s: error: Constructor %s expects %d parameter(s), but is applied to %d."
+    (Position.to_string pos)
+    cname req_n prov_n;

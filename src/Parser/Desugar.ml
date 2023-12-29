@@ -20,12 +20,13 @@ let rec tr_type_expr (tp : Raw.type_expr) =
   | TEffect(tps, ee) ->
     make (TEffect(List.map tr_type_expr tps, Option.map tr_type_expr ee))
 
-let tr_pattern (p : Raw.pattern) =
+let rec tr_pattern (p : Raw.pattern) =
   let make data = { p with data = data } in
   match p.data with
-  | PWildcard -> make PWildcard
-  | PVar  x   -> make (PVar x)
-  | PName n   -> make (PName n)
+  | PWildcard    -> make PWildcard
+  | PVar  x      -> make (PVar x)
+  | PName n      -> make (PName n)
+  | PCtor(c, ps) -> make (PCtor(c, List.map tr_pattern ps))
 
 let rec tr_expr (e : Raw.expr) =
   let make data = { e with data = data } in
@@ -57,11 +58,9 @@ and tr_h_expr (h : Raw.h_expr) =
 and tr_def (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet({ data = PWildcard; _}, e) ->
-    (* TODO: patterns in let-expressions *)
-    make (DLet("_", tr_expr e))
   | DLet({ data = PVar x; _}, e)  -> make (DLet(x, tr_expr e))
   | DLet({ data = PName n; _}, e) -> make (DLetName(n, tr_expr e))
+  | DLet(pat, e)   -> make (DLetPat(tr_pattern pat, tr_expr e))
   | DImplicit n    -> make (DImplicit n)
   | DData(x, cs)   -> make (DData(x, List.map tr_ctor_decl cs))
 

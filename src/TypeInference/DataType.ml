@@ -18,18 +18,10 @@ let check_ctor_decl env (ctor : S.ctor_decl) =
 let check_ctor_decls env ctors =
   List.map (check_ctor_decl env) ctors
 
-let open_data_ctor tp proof (env, n) (ctor : T.ctor_decl) =
-  let ctor_info =
-    { Env.ci_name      = ctor.ctor_name;
-      Env.ci_index     = n;
-      Env.ci_proof     = proof;
-      Env.ci_arg_types = ctor.ctor_arg_types;
-      Env.ci_type      = tp
-    }
-  in
-  let env = Env.add_ctor env ctor.ctor_name ctor_info in
+let open_data_ctor adt (env, n) (ctor : T.ctor_decl) =
+  let env = Env.add_ctor env ctor.ctor_name n adt in
   (env, n+1)
 
-let open_data env tp proof ctors =
-  List.fold_left (open_data_ctor tp proof) (env, 0) ctors
+let open_data env (adt : Env.adt_info) =
+  List.fold_left (open_data_ctor adt) (env, 0) adt.adt_ctors
   |> fst

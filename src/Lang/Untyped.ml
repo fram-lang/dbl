@@ -20,6 +20,9 @@ type expr =
   | EApp of value * value
     (** Function application *)
 
+  | EMatch  of value * clause list
+    (** Pattern-matching *)
+
   | EHandle of var * expr * h_expr
     (** Handler *)
 
@@ -44,6 +47,9 @@ and value =
 
   | VCtor of int * value list
     (** Fully applied constructor of ADT *)
+
+(** Pattern-matching clause *)
+and clause = var list * expr
 
 (** Handler expressions *)
 and h_expr =

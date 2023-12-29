@@ -56,6 +56,9 @@ and pattern_data =
   | PName of name
     (** Pattern that binds a named implicit *)
 
+  | PCtor of ctor_name node * pattern list
+    (** ADT constructor pattern *)
+
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
@@ -102,6 +105,9 @@ and def_data =
 
   | DLetName of name * expr
     (** Providing a named implicit *)
+
+  | DLetPat  of pattern * expr
+    (** Let definition combinded with pattern-matching. *)
 
   | DImplicit of name
     (** Declaration of implicit *)

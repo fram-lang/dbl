@@ -1,0 +1,4 @@
+data A = A
+data B = B
+
+let _ = match A with A => B end

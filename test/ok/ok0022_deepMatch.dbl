@@ -1,0 +1,11 @@
+data A = A | T
+data P = P of A, A
+
+let foo = fn p =>
+  match p with
+  | P x T => x
+  | P T y => y
+  | _     => A
+  end
+
+let _ = foo (P T A)

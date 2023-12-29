@@ -28,6 +28,8 @@ val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
 
+val pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+
 val func_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
 
@@ -39,6 +41,7 @@ val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
 
 val ungeneralizable_implicit : pos:Position.t -> S.name -> t
+val non_polymorphic_pattern : pos:Position.t -> t
 
 val looping_implicit : pos:Position.t -> S.name -> t
 
@@ -47,3 +50,6 @@ val implicit_type_mismatch :
 
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t
+
+val ctor_arity_mismatch :
+  pos:Position.t -> S.ctor_name -> int -> int -> t

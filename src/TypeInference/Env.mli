@@ -10,23 +10,17 @@ open Common
 
 type t
 
-(** Information about constructor of ADT *)
-type ctor_info = {
-  ci_name : string;
-    (** Name of the constructor *)
+(** Information about ADT definition *)
+type adt_info = {
+  adt_proof : T.expr;
+    (** A computationally irrelevant expression that give a proof that given
+      type is an ADT *)
 
-  ci_index : int;
-    (** Index of the constructor *)
+  adt_ctors : T.ctor_decl list;
+    (** List of constructors of an ADT *)
 
-  ci_proof : T.expr;
-    (** Computationally irrelevant expression, that provides the proof that
-      the type is a proper ADT *)
-
-  ci_arg_types : T.typ list;
-    (** Types of the parameters *)
-
-  ci_type : T.typ
-    (** Result type of the constructor *)
+  adt_type  : T.typ
+    (** The type that is an ADT *)
 }
 
 (** Empty environment *)
@@ -54,13 +48,11 @@ val add_tvar : t -> S.tvar -> T.kind -> t * T.tvar
 (** Extend an environment with an anonymous type variable *)
 val add_anon_tvar : t -> T.kind -> t * T.tvar
 
-(** Assign ADT definition to given type variable. An assignment requires
-  providing a computationally irrelevant expression that gives us the proof
-  that the type variable is an ADT *)
-val add_data : t -> T.tvar -> T.expr -> T.ctor_decl list -> t
+(** Assign ADT definition to given type variable. *)
+val add_data : t -> T.tvar -> adt_info -> t
 
-(** Add constructor to the typing environment *)
-val add_ctor : t -> string -> ctor_info -> t
+(** Add constructor of given name and index to the environment *)
+val add_ctor : t -> string -> int -> adt_info -> t
 
 (** Lookup for Unif representation and a scheme of a variable. Returns [None]
   if variable is not bound. *)
@@ -72,8 +64,9 @@ val lookup_implicit :
   t -> S.var -> (T.var * T.scheme * (Position.t -> unit)) option
 
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
-  with given name *)
-val lookup_ctor : t -> S.ctor_name -> ctor_info option
+  with given name. On success return the index of the constructor and
+  full information about ADT *)
+val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
 
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)

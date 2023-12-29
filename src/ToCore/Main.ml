@@ -35,10 +35,8 @@ let rec tr_expr env (e : S.expr) =
   | EMatch(me, cls, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
     let eff = Type.tr_effect env eff in
-    let cls =
-      List.map (fun (pat, body) -> (pat, fun env -> tr_expr env body)) cls in
     tr_expr_v env me (fun v ->
-    PatternMatch.tr_single_match ~pos:e.pos ~env v cls tp eff)
+    PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 
   | EHandle(a, x, e, h, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
@@ -69,7 +67,7 @@ and tr_expr_as env (e : S.expr) x rest =
 
 (** Translate expression and pass a result (as a value to given
   meta-continuation) *)
-and tr_expr_v ?(irrelevant=false) env (e : S.expr) cont =
+and tr_expr_v env (e : S.expr) cont =
   match e.data with
   | EUnit  -> cont T.VUnit
   | EVar x -> cont (VVar x)
@@ -84,18 +82,15 @@ and tr_expr_v ?(irrelevant=false) env (e : S.expr) cont =
 
   | EApp _ | ETApp _ | EMatch _ | EHandle _ | ERepl _ ->
     let x = Var.fresh () in
-    if irrelevant then
-      T.ELetIrr(x, tr_expr env e, cont (VVar x))
-    else
-      T.ELet(x, tr_expr env e, cont (VVar x))
+    T.ELet(x, tr_expr env e, cont (VVar x))
 
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr_v env e2 cont)
 
   | ECtor(proof, n, args) ->
-    tr_expr_v ~irrelevant:true env proof (fun proof ->
+    let proof = tr_expr env proof in
     tr_expr_vs env args (fun args ->
-    cont (VCtor(proof, n, args))))
+    cont (VCtor(proof, n, args)))
 
   | EData(a, proof, ctors, e) ->
     let ctors = Type.tr_ctor_decls env ctors in

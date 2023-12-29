@@ -10,22 +10,10 @@ open Common
 
 module StrMap = Map.Make(String)
 
-(** Information about ADT definition *)
 type adt_info = {
   adt_proof : T.expr;
-    (** A computationally irrelevant expression that give a proof that given
-      type is an ADT *)
-
-  adt_ctors : T.ctor_decl list
-    (** List of constructors of an ADT *)
-}
-
-type ctor_info = {
-  ci_name      : string;
-  ci_index     : int;
-  ci_proof     : T.expr;
-  ci_arg_types : T.typ list;
-  ci_type      : T.typ
+  adt_ctors : T.ctor_decl list;
+  adt_type  : T.typ
 }
 
 type t = {
@@ -38,7 +26,7 @@ type t = {
   implicit_map : (T.var * T.scheme * (Position.t -> unit)) StrMap.t;
     (** Information about named implicits *)
 
-  ctor_map : ctor_info StrMap.t;
+  ctor_map : (int * adt_info) StrMap.t;
     (** Information about ADT constructors *)
 
   adt_map : adt_info T.TVar.Map.t;
@@ -90,20 +78,15 @@ let add_anon_tvar env kind =
     scope = T.Scope.add env.scope x
   }, x
 
-let add_data env x proof ctors =
+let add_data env x info =
   assert (not (T.TVar.Map.mem x env.adt_map));
-  let info =
-    { adt_proof = proof;
-      adt_ctors = ctors
-    }
-  in
   { env with
     adt_map = T.TVar.Map.add x info env.adt_map
   }
 
-let add_ctor env name info =
+let add_ctor env name idx info =
   { env with
-    ctor_map = StrMap.add name info env.ctor_map
+    ctor_map = StrMap.add name (idx, info) env.ctor_map
   }
 
 let lookup_var env x =

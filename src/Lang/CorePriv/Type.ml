@@ -243,3 +243,9 @@ and subtype_without : type k. k tvar -> ttype -> ttype option =
     end
 
 type ex = Ex : 'k typ -> ex
+
+let t_pure_arrows tps tp =
+  List.fold_right (fun tp1 tp2 -> TArrow(tp1, tp2, TEffPure)) tps tp
+
+let t_foralls xs tp =
+  List.fold_right (fun (TVar.Ex x) tp -> TForall(x, tp)) xs tp

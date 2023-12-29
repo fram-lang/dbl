@@ -50,6 +50,9 @@ and pattern_data =
   | PName of name
     (** Pattern that binds a named implicit *)
 
+  | PCtor of ctor_name node * pattern list
+    (** ADT constructor pattern *)
+
 (** Expressions *)
 type expr = expr_data node
 and expr_data =

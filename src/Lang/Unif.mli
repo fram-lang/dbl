@@ -68,11 +68,19 @@ type var = Var.t
 (** Pattern *)
 type pattern = pattern_data node
 and pattern_data =
-  | PVar of var
-    (** Pattern that binds a variable *)
+  | PWildcard
+    (** Wildcard pattern -- it matches everything *)
+
+  | PVar of var * scheme
+    (** Pattern that binds a variable of given scheme *)
+
+  | PCtor of string * int * expr * ctor_decl list * pattern list
+    (** ADT constructor pattern. It stores a name, constructor index,
+      proof that matched type is an ADT, full list of constructor of an ADT,
+      and patterns for parameters. *)
 
 (** Expression *)
-type expr = expr_data node
+and expr = expr_data node
 and expr_data =
   | EUnit
     (** Unit expression *)

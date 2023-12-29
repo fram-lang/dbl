@@ -100,6 +100,10 @@ type expr =
       irrelevant variable that stores the proof that this ADT has given
       constructors, the list of constructors and the rest of an expression. *)
 
+  | EMatch  of expr * value * match_clause list * ttype * effect
+    (** Shallow pattern matching. The first parameter is the proof that the
+      type of the matched value is an ADT *)
+
   | EHandle of keffect tvar * var * expr * h_expr * ttype * effect
     (** Handler. It stores handled (abstract) effect, capability variable,
       handled expression, handler body, and type and effect of the whole
@@ -129,11 +133,20 @@ and value =
   | VTFun : 'k tvar * expr -> value
     (** Type function *)
 
-  | VCtor of value * int * value list
+  | VCtor of expr * int * value list
     (** Fully-applied constructor of ADT. The first parameter is a
       computationally irrelevent proof that given that the type of the
       whole expression is an ADT. The second parameter is an index of the
       constructor. *)
+
+(** Pattern-matching clause *)
+and match_clause = {
+  cl_vars : var list;
+    (** List of variables bound by the constructor *)
+
+  cl_body : expr
+    (** Body of the clause *)
+}
 
 (** Handler expressions *)
 and h_expr =
@@ -178,6 +191,12 @@ end
 module Type : sig
   (** Get the kind of given type *)
   val kind : 'k typ -> 'k kind
+
+  (** Create a sequence of pure arrows *)
+  val t_pure_arrows : ttype list -> ttype -> ttype
+
+  (** Create a sequence of universal types *)
+  val t_foralls : TVar.ex list -> ttype -> ttype
 
   (** Existential version of type representation, where its kind is packed *)
   type ex = Ex : 'k typ -> ex

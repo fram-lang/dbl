@@ -38,6 +38,10 @@ let make data =
 
 %%
 
+uid
+: UID { make $1 }
+;
+
 bar_opt
 : /* empty */ { () }
 | BAR         { () }
@@ -76,9 +80,21 @@ ty_expr_list1
 /* ========================================================================= */
 
 pattern
-: LID        { make (PVar $1)  }
-| TLID       { make (PName $1) }
-| UNDERSCORE { make PWildcard  }
+: uid pattern_simple pattern_simple_list { make (PCtor($1, $2 :: $3)) }
+| pattern_simple { $1 }
+;
+
+pattern_simple
+: BR_OPN pattern BR_CLS { make ($2).data  }
+| LID                   { make (PVar $1)  }
+| TLID                  { make (PName $1) }
+| uid                   { make (PCtor($1, [])) }
+| UNDERSCORE            { make PWildcard  }
+;
+
+pattern_simple_list
+: /* empty */ { [] }
+| pattern_simple pattern_simple_list { $1 :: $2 }
 ;
 
 /* ========================================================================= */

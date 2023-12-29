@@ -71,6 +71,15 @@ and tr_effect env eff : T.effect =
   | KType ->
     failwith "Internal kind error"
 
+(** Translate a type scheme *)
+and tr_scheme env (sch : S.scheme) =
+  let { S.sch_tvars; sch_implicit; sch_body } = sch in
+  let (env, tvars) = List.fold_left_map Env.add_tvar env sch_tvars in
+  let itps = List.map (fun (_, tp) -> tr_ttype env tp) sch_implicit in
+  T.Type.t_foralls tvars
+    (T.Type.t_pure_arrows itps
+      (tr_ttype env sch_body))
+
 (** Translate a constructor declaration *)
 let tr_ctor_decl env (ctor : S.ctor_decl) =
   { T.ctor_name      = ctor.ctor_name;

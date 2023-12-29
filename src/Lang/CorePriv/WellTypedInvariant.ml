@@ -159,6 +159,23 @@ let rec infer_type_eff env e =
     | _ ->
       failwith "Internal type error: escaping type variable"
     end
+  | EMatch(proof, v, cls, tp, eff) ->
+    let tp  = tr_type env tp in
+    let eff = tr_type env eff in
+    begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
+    | TData(data_tp, ctors) when List.length cls = List.length ctors ->
+      check_vtype env v data_tp;
+      List.iter2 (fun cl ctor ->
+          let xs  = cl.cl_vars in
+          let tps = ctor.ctor_arg_types in
+          assert (List.length xs = List.length tps);
+          let env = List.fold_left2 Env.add_var env xs tps in
+          check_type_eff env cl.cl_body tp eff
+        ) cls ctors;
+      (tp, Effect.join Effect.nterm eff)
+    | _ ->
+      failwith "Internal type error"
+    end
   | EHandle(a, x, e, h, tp, eff) ->
     let tp  = tr_type env tp in
     let eff = tr_type env eff in
@@ -190,7 +207,7 @@ and infer_vtype env v =
     TForall(x, infer_type_check_eff env body TEffPure)
   | VCtor(proof, n, args) ->
     assert (n >= 0);
-    begin match infer_vtype (Env.irrelevant env) proof with
+    begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
     | TData(tp, ctors) ->
       begin match List.nth_opt ctors n with
       | Some ctor ->

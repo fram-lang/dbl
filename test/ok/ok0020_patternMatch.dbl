@@ -1,0 +1,11 @@
+data A = C1 | C2
+
+data B = X | Y of A
+
+let foo = fn x =>
+  match x with
+  | X   => C1
+  | Y x => x
+  end
+
+let _ = foo (Y C2)

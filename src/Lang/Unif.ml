@@ -40,9 +40,11 @@ type var = Var.t
 
 type pattern = pattern_data node
 and pattern_data =
-  | PVar of var
+  | PWildcard
+  | PVar  of var * scheme
+  | PCtor of string * int * expr * ctor_decl list * pattern list
 
-type expr = expr_data node
+and expr = expr_data node
 and expr_data =
   | EUnit
   | EVar      of var

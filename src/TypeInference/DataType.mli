@@ -11,7 +11,5 @@ open Common
 (** Check declarations of constructors *)
 val check_ctor_decls : Env.t -> S.ctor_decl list -> T.ctor_decl list
 
-(** Open ADT making its constructors immediately available. It requires a
-  computationally irrelevant expression that gives a proof that given type
-  is an ADT. *)
-val open_data : Env.t -> T.typ -> T.expr -> T.ctor_decl list -> Env.t
+(** Open ADT making its constructors immediately available. *)
+val open_data : Env.t -> Env.adt_info -> Env.t

@@ -1,4 +1,5 @@
 (executable
   (name dbl)
+  (modes byte exe)
   (public_name dbl)
   (libraries interpLib parser typeInference toCore))

@@ -97,6 +97,14 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     | VFn f -> f (eval_value env v2) cont
     | _ -> failwith "Runtime error!"
     end
+  | EMatch(v, cls) ->
+    begin match eval_value env v with
+    | VCtor(n, vs) ->
+      let (xs, body) = List.nth cls n in
+      let env = List.fold_left2 Env.extend env xs vs in
+      eval_expr env body cont
+    | _ -> failwith "Runtyime error!"
+    end
   | EHandle(x, e, h) ->
     let l = UID.fresh () in
     let h = eval_h_expr env l h in

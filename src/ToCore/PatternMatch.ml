@@ -18,8 +18,45 @@ let as_variable (v : T.value) cont =
     let x = Var.fresh () in
     T.ELetPure(x, T.EValue v, cont x)
 
+(** Collect all variables bound by given pattern. Returns extended environment
+  and list of variables, together with their types. *)
+let rec var_of_pattern env (p : S.pattern) =
+  match p.data with
+  | PWildcard    -> (env, [])
+  | PVar(x, sch) -> (env, [(x, Type.tr_scheme env sch)])
+  | PCtor(_, _, _, _, ps) -> var_of_patterns env ps
+
+(** Collect all variables bound by given list of patterns. Returns extended
+  environment and list of variables, together with their types. *)
+and var_of_patterns env ps =
+  match ps with
+  | [] -> (env, [])
+  | p :: ps ->
+    let (env, xs1) = var_of_pattern  env p  in
+    let (env, xs2) = var_of_patterns env ps in
+    (env, xs1 @ xs2)
+
+(** Create a function that represents a clause. *)
+let rec mk_clause_fun xs body =
+  match xs with
+  | [] -> T.EValue (T.VFn(Var.fresh (), T.TUnit, body))
+  | (x, tp) :: xs ->
+    T.EValue (T.VFn(x, tp, mk_clause_fun xs body))
+
+(** Build an application of a clause-representing function *)
+let rec mk_clause_app f xs env =
+  match xs with
+  | [] -> T.EApp(T.VVar f, T.VUnit)
+  | (x, _) :: xs ->
+    let fv = Var.fresh () in
+    T.ELetPure(fv, T.EApp(T.VVar f, T.VVar x),
+      mk_clause_app fv xs env)
+
 (** Context of pattern-matching *)
 module type MatchContext = sig
+  (** Translation from Unif to Core *)
+  val tr_expr : Env.t -> S.expr -> T.expr
+
   (** Location of the matching expression *)
   val pos     : Position.t
 
@@ -42,25 +79,63 @@ module Make(Ctx : MatchContext) = struct
     cl_body     : Env.t -> T.expr;
       (** Body-generating function *)
 
+    cl_small    : bool;
+      (** Set if the clause is small, i.e., when it is safe to duplicate
+        its body *)
+
     cl_used     : bool ref
       (* A flag that indicates if the pattern was used *)
   }
 
   (** Class of column (first patterns of generalized clauses) *)
   type column_class =
-    | CCVar
+    | CC_Var
       (** All patterns are variables or wild-cards *)
+
+    | CC_ADT of T.expr * S.ctor_decl list
+      (** Algebraic data type. It store computationally irrelevant proof of
+        the shape of the constructor and full list of constructors *)
 
   (** Return the class of the first column *)
   let rec column_class cls =
     match cls with
-    | [] -> CCVar
+    | [] -> CC_Var
     | { cl_patterns = []; _ } :: _ -> assert false
-    | { cl_patterns = p :: _; _ } :: cls ->
+    | { cl_patterns = p :: _; cl_env; _ } :: cls ->
       begin match p.data with
-      | PVar _ -> column_class cls
+      | PWildcard | PVar _ -> column_class cls
+      | PCtor(_, _, proof, ctors, _) ->
+        CC_ADT(Ctx.tr_expr cl_env proof, ctors)
       end
-  
+
+  (** Make sure that all non-head-constructor clauses are small. If not,
+    generate a function that represents a clause body. This function pass
+    modified clauses to the meta-continuation *)
+  let save_non_ctor_clause cl cont =
+    match cl.cl_patterns with
+    | _ when cl.cl_small -> cont cl
+    | [] -> assert false
+    | { data = PCtor _; _ } :: _ -> cont cl
+    | { data = (PWildcard | PVar _ ); _ } :: _ ->
+      let (env, xs) = var_of_patterns cl.cl_env cl.cl_patterns in
+      let cl_f = Var.fresh () in
+      T.ELetPure(cl_f, mk_clause_fun xs (cl.cl_body env),
+        cont {
+          cl_env      = cl.cl_env;
+          cl_patterns = cl.cl_patterns;
+          cl_body     = mk_clause_app cl_f xs;
+          cl_small    = true;
+          cl_used     = cl.cl_used
+        })
+
+  let rec save_non_ctor_clauses cls cont =
+    match cls with
+    | [] -> cont []
+    | cl :: cls ->
+      save_non_ctor_clause  cl  (fun cl ->
+      save_non_ctor_clauses cls (fun cls ->
+      cont (cl :: cls)))
+
   (* ======================================================================= *)
 
   (** Simplify a single clause of [CCVar] class, assuming that matched value
@@ -70,13 +145,22 @@ module Make(Ctx : MatchContext) = struct
     | [] -> assert false
     | p :: ps ->
       begin match p.data with
-      | PVar y ->
+      | PWildcard ->
+        { cl_env      = cl.cl_env;
+          cl_patterns = ps;
+          cl_body     = cl.cl_body;
+          cl_small    = cl.cl_small;
+          cl_used     = cl.cl_used
+        }
+      | PVar(y, _) ->
         { cl_env      = cl.cl_env;
           cl_patterns = ps;
           cl_body     =
             (fun env -> T.ELetPure(y, T.EValue (T.VVar x), cl.cl_body env));
+          cl_small    = cl.cl_small;
           cl_used     = cl.cl_used
         }
+      | PCtor _ -> assert false
       end
 
   (** Simplify clauses of [CCVar] class, assuming that matched value is stored
@@ -86,10 +170,58 @@ module Make(Ctx : MatchContext) = struct
 
   (* ======================================================================= *)
 
+  let simplify_ctor_clause v vs1 idx cl =
+    match cl.cl_patterns with
+    | [] -> assert false
+    | { data = PWildcard; pos } :: ps ->
+      assert cl.cl_small;
+      let dummy_pat = { S.data = S.PWildcard; S.pos = pos } in
+      Some {
+        cl_env      = cl.cl_env;
+        cl_patterns = List.map (fun _ -> dummy_pat) vs1 @ ps;
+        cl_body     = cl.cl_body;
+        cl_small    = cl.cl_small;
+        cl_used     = cl.cl_used
+      }
+    | { data = PVar(x, _); pos } :: ps ->
+      assert cl.cl_small;
+      let dummy_pat = { S.data = S.PWildcard; S.pos = pos } in
+      let body env = T.ELetPure(x, T.EValue v, cl.cl_body env) in
+      Some {
+        cl_env      = cl.cl_env;
+        cl_patterns = List.map (fun _ -> dummy_pat) vs1 @ ps;
+        cl_body     = body;
+        cl_small    = cl.cl_small;
+        cl_used     = cl.cl_used
+      }
+    | { data = PCtor(_, n, _, _, ps1); _ } :: ps when n = idx ->
+      assert (List.length ps1 = List.length vs1);
+      Some {
+        cl_env      = cl.cl_env;
+        cl_patterns = ps1 @ ps;
+        cl_body     = cl.cl_body;
+        cl_small    = cl.cl_small;
+        cl_used     = cl.cl_used
+      }
+    | { data = PCtor _; _ } :: _ -> None
+
+  (** Simplify and translate a constructor clause set. *)
+  let rec simplify_ctor ctx v vs cls idx (ctor : S.ctor_decl) =
+    let xs  = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_types in
+    let ctx =
+      focus_with ctx (ExCtor(ctor.ctor_name, List.map (fun _ -> ExHole) xs)) in
+    let vs1 = List.map (fun x -> T.VVar x) xs in
+    let cls = List.filter_map (simplify_ctor_clause v vs1 idx) cls in
+    { T.cl_vars = xs;
+      T.cl_body = tr_match ctx (vs1 @ vs) cls
+    }
+
+  (* ======================================================================= *)
+
   (** Main function of the translation. It solves a bit more general problem:
     it takes list of values [vs] and list of clauses [cls], where each of
     clauses have list of patterns (the same length as [vs]). *)
-  let rec tr_match ctx vs cls =
+  and tr_match ctx vs cls =
     match vs, cls with
     | [], cl :: _ ->
       assert (List.is_empty cl.cl_patterns);
@@ -102,9 +234,15 @@ module Make(Ctx : MatchContext) = struct
 
     | v :: vs, _ ->
       begin match column_class cls with
-      | CCVar ->
+      | CC_Var ->
         as_variable v (fun x ->
         tr_match (refocus ctx) vs (simplify_var x cls))
+
+      | CC_ADT(proof, ctors) ->
+        as_variable v (fun x ->
+        save_non_ctor_clauses cls (fun cls ->
+        let cls = List.mapi (simplify_ctor ctx (T.VVar x) vs cls) ctors in
+        T.EMatch(proof, v, cls, Ctx.res_tp, Ctx.res_eff)))
       end
 
   (** Create an internal representation of a clause that matches single value
@@ -112,7 +250,8 @@ module Make(Ctx : MatchContext) = struct
   let mk_clause env (pat, body) =
     { cl_env      = env;
       cl_patterns = [ pat ];
-      cl_body     = body;
+      cl_body     = (fun env -> Ctx.tr_expr env body);
+      cl_small    = false;
       cl_used     = ref false
     }
 
@@ -122,8 +261,9 @@ module Make(Ctx : MatchContext) = struct
     (* TODO: warn redundant patterns/clauses *)
 end
 
-let tr_single_match ~pos ~env v cls tp eff =
+let tr_single_match ~pos ~env ~tr_expr v cls tp eff =
   let module M = Make(struct
+    let tr_expr = tr_expr
     let pos     = pos
     let res_tp  = tp
     let res_eff = eff

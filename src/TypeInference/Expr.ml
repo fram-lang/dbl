@@ -46,13 +46,14 @@ let infer_implicit_scheme ~pos env name =
 (** Infer scheme of a constructor of ADT *)
 let infer_ctor_scheme ~pos env c =
   match Env.lookup_ctor env c with
-  | Some info ->
+  | Some (idx, info) ->
+    let ctor = List.nth info.adt_ctors idx in
     let sch = {
         T.sch_tvars    = [];
         T.sch_implicit = [];
-        T.sch_body     = T.Type.t_pure_arrows info.ci_arg_types info.ci_type
+        T.sch_body     = T.Type.t_pure_arrows ctor.ctor_arg_types info.adt_type
       } in
-    (ExprUtils.ctor_func ~pos info, sch)
+    (ExprUtils.ctor_func ~pos idx info, sch)
   | None ->
     Error.fatal (Error.unbound_constructor ~pos c)
 
@@ -120,7 +121,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     let (e, tp, r_eff2) = infer_expr_type env e eff in
     (* TODO: tp can be raised to some supertype in the scope *)
     begin match T.Type.try_shrink_scope ~scope tp with
-    | Ok   () -> (e_gen e, tp, ret_effect_join r_eff1 r_eff2)
+    | Ok   () -> (e_gen e tp, tp, ret_effect_join r_eff1 r_eff2)
     | Error x ->
       Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
     end
@@ -187,7 +188,7 @@ and check_expr_type env (e : S.expr) tp eff =
   | EDefs(defs, e) ->
     let (env, e_gen, r_eff1) = check_defs env ImplicitEnv.empty defs eff in
     let (e, r_eff2) = check_expr_type env e tp eff in
-    (e_gen e, ret_effect_join r_eff1 r_eff2)
+    (e_gen e tp, ret_effect_join r_eff1 r_eff2)
 
   | EMatch(e, cls) ->
     let (e, e_tp, _) = infer_expr_type env e eff in
@@ -195,7 +196,7 @@ and check_expr_type env (e : S.expr) tp eff =
       List.map (fun cl -> check_match_clause env e_tp cl tp eff) cls in
     (* Pattern matching is always impure, as due to recursive types it can
       be used to encode non-termination *)
-    (make (T.EMatch(e, cls, e_tp, eff)), Impure)
+    (make (T.EMatch(e, cls, tp, eff)), Impure)
 
   | EReplExpr(e1, e2) ->
     let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
@@ -208,11 +209,11 @@ and check_expr_type env (e : S.expr) tp eff =
   effect of a definition block. *)
 and check_defs env ienv (defs : S.def list) eff =
   match defs with
-  | [] -> (env, (fun e -> e), Pure)
+  | [] -> (env, (fun e _ -> e), Pure)
   | def :: defs ->
     let (env, ienv, e_gen1, r_eff1) = check_def env ienv def eff in
     let (env, e_gen2, r_eff2) = check_defs env ienv defs eff in
-    (env, (fun e -> e_gen1 (e_gen2 e)), ret_effect_join r_eff1 r_eff2)
+    (env, (fun e tp -> e_gen1 (e_gen2 e tp) tp), ret_effect_join r_eff1 r_eff2)
 
 and check_def env ienv (def : S.def) eff =
   let make (e : T.expr) data =
@@ -223,27 +224,40 @@ and check_def env ienv (def : S.def) eff =
   | DLet(x, e1) ->
     let (sch, e1, r_eff) = check_let env ienv e1 eff in
     let (env, x) = Env.add_poly_var env x sch in
-    (env, ienv, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
+    (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
   | DLetName(n, e1) ->
     let (sch, e1, r_eff) = check_let env ienv e1 eff in
     let ienv = ImplicitEnv.shadow ienv n in
     let (env, x) = Env.add_poly_implicit env n sch ignore in
-    (env, ienv, (fun e -> make e (T.ELet(x, sch, e1, e))), r_eff)
+    (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
+
+  | DLetPat(pat, e1) ->
+    let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
+    let scope = Env.scope env1 in
+    let (e1, tp, _) = infer_expr_type env1 e1 eff in
+    ImplicitEnv.end_generalize_impure ims;
+    let (env, pat) = Pattern.check_type ~env ~scope pat tp in
+    (env, ienv, (fun e res_tp ->
+      make e (T.EMatch(e1, [(pat, e)], res_tp, eff))), Impure)
 
   | DImplicit n ->
     let ienv = ImplicitEnv.declare_implicit ienv n in
-    (env, ienv, (fun e -> e), Pure)
+    (env, ienv, (fun e _ -> e), Pure)
 
   | DData(name, ctors) ->
     Uniqueness.check_ctor_uniqueness ctors;
     let ctors = DataType.check_ctor_decls env ctors in
     let (env, x) = Env.add_tvar env name T.Kind.k_type in
     let px = Var.fresh ~name () in
-    let proof = { T.pos = def.pos; T.data = T.EVar px } in
-    let env = Env.add_data env x proof ctors in
-    let env = DataType.open_data env (T.Type.t_var x) proof ctors in
-    (env, ienv, (fun e -> make e (T.EData(x, px, ctors, e))), Pure)
+    let info = {
+      Env.adt_proof = { T.pos = def.pos; T.data = T.EVar px };
+      Env.adt_ctors = ctors;
+      Env.adt_type  = T.Type.t_var x
+    } in
+    let env = Env.add_data env x info in
+    let env = DataType.open_data env info in
+    (env, ienv, (fun e _ -> make e (T.EData(x, px, ctors, e))), Pure)
 
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)

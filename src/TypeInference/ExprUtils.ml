@@ -111,9 +111,10 @@ let instantiate env e sch =
 
 (* ========================================================================= *)
 
-let ctor_func ~pos (info : Env.ctor_info) =
+let ctor_func ~pos idx (info : Env.adt_info) =
   let mk_var x = { T.pos = pos; T.data = T.EVar x } in
-  make_fun info.ci_arg_types (fun xs ->
+  let ctor = List.nth info.adt_ctors idx in
+  make_fun ctor.ctor_arg_types (fun xs ->
     { T.pos  = pos;
-      T.data = T.ECtor(info.ci_proof, info.ci_index, List.map mk_var xs)
+      T.data = T.ECtor(info.adt_proof, idx, List.map mk_var xs)
     })
