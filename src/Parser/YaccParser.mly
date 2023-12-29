@@ -38,10 +38,6 @@ let make data =
 
 %%
 
-uid
-: UID { make $1 }
-;
-
 bar_opt
 : /* empty */ { () }
 | BAR         { () }
@@ -79,29 +75,9 @@ ty_expr_list1
 
 /* ========================================================================= */
 
-pattern
-: uid pattern_simple pattern_simple_list { make (PCtor($1, $2 :: $3)) }
-| pattern_simple { $1 }
-;
-
-pattern_simple
-: BR_OPN pattern BR_CLS { make ($2).data  }
-| LID                   { make (PVar $1)  }
-| TLID                  { make (PName $1) }
-| uid                   { make (PCtor($1, [])) }
-| UNDERSCORE            { make PWildcard  }
-;
-
-pattern_simple_list
-: /* empty */ { [] }
-| pattern_simple pattern_simple_list { $1 :: $2 }
-;
-
-/* ========================================================================= */
-
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
-| KW_FN LID ARROW2 expr { make (EFn($2, $4))   }
+| KW_FN expr_simple_list1 ARROW2 expr { make (EFn($2, $4))   }
 | KW_HANDLE LID KW_IN expr KW_WITH h_expr { make (EHandle($2, $4, $6)) }
 | expr_200 { $1 }
 ;
@@ -115,6 +91,7 @@ expr_simple
 : LID                { make (EVar $1)   }
 | TLID               { make (EName $1)  }
 | UID                { make (ECtor $1)  }
+| UNDERSCORE         { make EWildcard   }
 | BR_OPN BR_CLS      { make EUnit       }
 | BR_OPN expr BR_CLS { make (EParen $2) }
 | KW_MATCH expr KW_WITH KW_END { make (EMatch($2, [])) }
@@ -122,10 +99,15 @@ expr_simple
   { make (EMatch($2, $5)) }
 ;
 
+expr_simple_list1
+: expr_simple { [ $1 ] }
+| expr_simple expr_simple_list1 { $1 :: $2 }
+;
+
 /* ========================================================================= */
 
 match_clause
-: pattern ARROW2 expr { make (Clause($1, $3)) }
+: expr ARROW2 expr { make (Clause($1, $3)) }
 ;
 
 match_clause_list
@@ -136,14 +118,15 @@ match_clause_list
 /* ========================================================================= */
 
 h_expr
-: KW_EFFECT LID SLASH LID ARROW2 expr { make (HEffect($2, $4, $6)) }
+: KW_EFFECT LID SLASH LID ARROW2 expr
+    { make (HEffect($2, $4, $6)) }
 ;
 
 /* ========================================================================= */
 
 def
-: KW_LET pattern EQ expr { make (DLet($2, $4)) }
-| KW_IMPLICIT TLID       { make (DImplicit $2) }
+: KW_LET expr EQ expr { make (DLet($2, $4)) }
+| KW_IMPLICIT TLID    { make (DImplicit $2) }
 | KW_DATA UID EQ bar_opt ctor_decl_list { make (DData($2, $5)) }
 ;
 

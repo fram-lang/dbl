@@ -1,0 +1,8 @@
+implicit `f
+
+let foo x = `f x
+
+let `f x = x
+
+let _ =
+  foo ()

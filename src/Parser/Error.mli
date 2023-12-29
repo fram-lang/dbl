@@ -19,3 +19,6 @@ val unexpected_token  : Position.t -> string -> t
 val invalid_character : Position.t -> char -> t
 
 val eof_in_comment : Position.t -> t
+
+val desugar_error : Position.t -> t
+val invalid_pattern_arg : Position.t -> t

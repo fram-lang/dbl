@@ -1,0 +1,3 @@
+let foo f x = f x x
+let bar g = foo (fn x y => g y x) ()
+let _ = bar (fn x y => x)

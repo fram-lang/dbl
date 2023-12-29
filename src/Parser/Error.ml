@@ -34,3 +34,15 @@ let eof_in_comment pos =
   (* TODO: not implemented properly *)
   Printf.eprintf "%s: error: unexpected end of file inside a block comment\n"
     (Position.to_string pos)
+
+let desugar_error pos =
+  (* TODO: not implemented properly *)
+  Printf.eprintf
+    "%s: error: syntax error. This construction cannot be used in this context.\n"
+    (Position.to_string pos)
+
+let invalid_pattern_arg pos =
+  (* TODO: not implemented properly *)
+  Printf.eprintf
+    "%s: error: syntax error. This argument is provied to a pattern that do not expect it.\n"
+    (Position.to_string pos)

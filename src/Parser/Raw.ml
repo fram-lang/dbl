@@ -39,23 +39,12 @@ and type_expr_data =
   | TEffect of type_expr list * type_expr option
     (** Effect: list of simple effect optionally closed by another effect *)
 
-type pattern = pattern_data node
-and pattern_data =
-  | PWildcard
-    (** Wildcard pattern -- it matches everything *)
-
-  | PVar of var
-    (** Pattern that binds a variable *)
-
-  | PName of name
-    (** Pattern that binds a named implicit *)
-
-  | PCtor of ctor_name node * pattern list
-    (** ADT constructor pattern *)
-
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
+  | EWildcard
+    (** Wild-card patterns -- matches everything *)
+
   | EUnit
     (** Unit value *)
 
@@ -71,7 +60,7 @@ and expr_data =
   | ECtor of ctor_name
     (** ADT constructor *)
 
-  | EFn   of var * expr
+  | EFn   of expr list * expr
     (** Lambda-abstraction *)
 
   | EApp  of expr * expr
@@ -89,7 +78,7 @@ and expr_data =
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =
-  | Clause of pattern * expr
+  | Clause of expr * expr
 
 (** Handler expressions *)
 and h_expr = h_expr_data node
@@ -100,7 +89,7 @@ and h_expr_data =
 (** Definitions *)
 and def = def_data node
 and def_data =
-  | DLet of pattern * expr
+  | DLet of expr * expr
     (** Let-definition *)
 
   | DImplicit of name
