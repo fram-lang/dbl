@@ -45,7 +45,11 @@ let begin_generalize env ims =
   List.fold_left generalize_implicit (env, []) ims
 
 let end_generalize_pure ims =
-  List.map (fun im -> (im.i_name, im.i_var, im.i_type)) ims
+  ims |> List.filter_map
+    (fun im ->
+      match BRef.get im.i_used with
+      | Some _ -> Some (im.i_name, im.i_var, im.i_type)
+      | None   -> None)
 
 let end_generalize_impure ims =
   List.iter
