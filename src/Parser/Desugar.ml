@@ -73,12 +73,7 @@ let rec tr_let_pattern (p : Raw.expr) ps =
 
 (** Translate a formal parameter of a function *)
 let tr_function_arg (arg : Raw.expr) =
-  match arg.data with
-  | EWildcard -> "_"
-  | EVar x    -> x
-  | EUnit | EParen _ | EName _ | ECtor _ | EFn _ | EApp _ | EDefs _ | EMatch _
-  | EHandle _ | ERecord _ ->
-    Error.fatal (Error.desugar_error arg.pos)
+  ArgPattern (tr_pattern arg [])
 
 (** Translate a function, given a list of formal parameters *)
 let rec tr_function args body =

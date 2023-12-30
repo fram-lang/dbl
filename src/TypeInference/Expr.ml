@@ -8,21 +8,6 @@
 
 open Common
 
-(** Return information about effect. *)
-type ret_effect =
-  | Pure
-    (** Expression is pure, i.e, it does not perform any effects, and always
-      terminates *)
-
-  | Impure
-    (** Expression is inpure *)
-
-let ret_effect_join eff1 eff2 =
-  match eff1, eff2 with
-  | Pure,   eff2   -> eff2
-  | eff1,   Pure   -> eff1
-  | Impure, Impure -> Impure
-
 (* ------------------------------------------------------------------------- *)
 (** Infer scheme of type variable *)
 let infer_var_scheme ~pos env x =
@@ -104,13 +89,19 @@ let rec infer_expr_type env (e : S.expr) eff =
     let tp = T.Type.subst sub sch.sch_body in
     (p_ctx (i_ctx e), tp, ret_effect_join r_eff1 r_eff2)
 
-  | EFn(x, body) ->
-    let tp1 = Env.fresh_uvar env T.Kind.k_type in
-    let (env, x) = Env.add_mono_var env x tp1 in
+  | EFn(arg, body) ->
+    let tp2 = Env.fresh_uvar env T.Kind.k_type in
     let body_eff = Env.fresh_uvar env T.Kind.k_effect in
-    let (body, tp2, r_eff) = infer_expr_type env body body_eff in
-    begin match r_eff with
+    let (env, pat, tp1, r_eff1) = Pattern.infer_arg_type env arg in
+    let (body, r_eff2) = check_expr_type env body tp2 body_eff in
+    let x = Var.fresh () in
+    let make' data = { pat with data = data } in
+    let body = make'
+      (T.EMatch(make' (T.EVar x), [(pat, body)], tp2, body_eff)) in
+    begin match ret_effect_join r_eff1 r_eff2 with
     | Pure ->
+      let b = Unification.subeffect env body_eff T.Effect.pure in
+      assert b;
       (make (T.EPureFn(x, tp1, body)), T.Type.t_pure_arrow tp1 tp2, Pure)
     | Impure ->
       (make (T.EFn(x, tp1, body)), T.Type.t_arrow tp1 tp2 body_eff, Pure)
@@ -119,6 +110,7 @@ let rec infer_expr_type env (e : S.expr) eff =
   | EApp(e1, e2) ->
     let (e1, ftp, r_eff1) = infer_expr_type env e1 eff in
     begin match Unification.to_arrow env ftp with
+    | Arr_UVar -> assert false
     | Arr_Pure(atp, vtp) ->
       let (e2, r_eff2) = check_expr_type env e2 atp eff in
       (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
@@ -177,24 +169,32 @@ and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
   | EUnit | EPoly _ | EApp _ | EHandle _ | ERepl _ ->
-    let pos = e.pos in
-    let (e, tp', r_eff) = infer_expr_type env e eff in
-    if not (Unification.subtype env tp' tp) then
-      Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
-    (e, r_eff)
+    check_expr_type_default env e tp eff
 
-  | EFn(x, body) ->
+  | EFn(arg, body) ->
     begin match Unification.from_arrow env tp with
+    | Arr_UVar ->
+      check_expr_type_default env e tp eff
+
     | Arr_Pure(tp1, tp2) ->
-      let (env, x) = Env.add_mono_var env x tp1 in
-      let (body, r_eff) = check_expr_type env body tp2 T.Effect.pure in
-      if r_eff <> Pure then
+      let (env, pat, r_eff1) = Pattern.check_arg_type env arg tp1 in
+      let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
+      if ret_effect_join r_eff1 r_eff2 <> Pure then
         Error.report (Error.func_not_pure ~pos:e.pos);
+      let x = Var.fresh () in
+      let make' data = { pat with data = data } in
+      let body = make'
+        (T.EMatch(make' (T.EVar x), [(pat, body)], tp2, T.Effect.pure)) in
       (make (T.EPureFn(x, tp1, body)), Pure)
+
     | Arr_Impure(tp1, tp2, eff) ->
-      let (env, x) = Env.add_mono_var env x tp1 in
+      let (env, pat, _) = Pattern.check_arg_type env arg tp1 in
       let (body, _) = check_expr_type env body tp2 eff in
+      let x = Var.fresh () in
+      let make' data = { pat with data = data } in
+      let body = make' (T.EMatch(make' (T.EVar x), [(pat, body)], tp2, eff)) in
       (make (T.EFn(x, tp1, body)), Pure)
+
     | Arr_No ->
       Error.report (Error.expr_not_function_ctx ~pos:e.pos ~env tp);
       let (e, _, r_eff) = infer_expr_type env e eff in
@@ -208,16 +208,20 @@ and check_expr_type env (e : S.expr) tp eff =
 
   | EMatch(e, cls) ->
     let (e, e_tp, _) = infer_expr_type env e eff in
-    let cls =
-      List.map (fun cl -> check_match_clause env e_tp cl tp eff) cls in
-    (* Pattern matching is always impure, as due to recursive types it can
-      be used to encode non-termination *)
-    (make (T.EMatch(e, cls, tp, eff)), Impure)
+    let (cls, r_eff) = check_match_clauses env e_tp cls tp eff in
+    (make (T.EMatch(e, cls, tp, eff)), r_eff)
 
   | EReplExpr(e1, e2) ->
     let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
     let (e2, r_eff2) = check_expr_type env e2 tp eff in
     (make (T.EReplExpr(e1, tp1, e2)), ret_effect_join r_eff1 r_eff2)
+
+and check_expr_type_default env (e : S.expr) tp eff =
+  let pos = e.pos in
+  let (e, tp', r_eff) = infer_expr_type env e eff in
+  if not (Unification.subtype env tp' tp) then
+    Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
+  (e, r_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Check explicit instantiations against given list of named parameters (from
@@ -280,11 +284,11 @@ and check_def env ienv (def : S.def) eff =
   | DLetPat(pat, e1) ->
     let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
     let scope = Env.scope env1 in
-    let (e1, tp, _) = infer_expr_type env1 e1 eff in
+    let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
     ImplicitEnv.end_generalize_impure ims;
-    let (env, pat) = Pattern.check_type ~env ~scope pat tp in
-    (env, ienv, (fun e res_tp ->
-      make e (T.EMatch(e1, [(pat, e)], res_tp, eff))), Impure)
+    let (env, pat, r_eff2) = Pattern.check_type ~env ~scope pat tp in
+    let ctx e res_tp = make e (T.EMatch(e1, [(pat, e)], res_tp, eff)) in
+    (env, ienv, ctx, ret_effect_join r_eff1 r_eff2)
 
   | DImplicit n ->
     let ienv = ImplicitEnv.declare_implicit ienv n in
@@ -330,13 +334,23 @@ and check_let env ienv body eff =
   - [cl]      -- clause
   - [res_tp]  -- returned type
   - [res_eff] -- returned effect *)
-and check_match_clause env tp cl res_tp res_eff =
+and check_match_clause env tp (cl : S.match_clause) res_tp res_eff =
   match cl.data with
   | Clause(pat, body) ->
     let scope = Env.scope env in
-    let (env, pat) = Pattern.check_type ~env ~scope pat tp in
-    let (body, _) = check_expr_type env body res_tp res_eff in
-    (pat, body)
+    let (env, pat, r_eff1) = Pattern.check_type ~env ~scope pat tp in
+    let (body, r_eff2) = check_expr_type env body res_tp res_eff in
+    (pat, body, ret_effect_join r_eff1 r_eff2)
+
+and check_match_clauses env tp cls res_tp res_eff =
+  let (r_eff, cls) = List.fold_left_map
+    (fun r_eff1 cl ->
+      let (pat, body, r_eff2) = check_match_clause env tp cl res_tp res_eff in
+      (ret_effect_join r_eff1 r_eff2, (pat, body)))
+    Pure
+    cls
+  in
+  (cls, r_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Infer type of an handler expression.

@@ -59,6 +59,11 @@ and pattern_data =
   | PCtor of ctor_name node * pattern list
     (** ADT constructor pattern *)
 
+(** Formal argument *)
+type arg =
+  | ArgPattern of pattern
+    (** Argument with pattern-matching *)
+
 (** Polymorphic expressions *)
 type poly_expr = poly_expr_data node
 and poly_expr_data =
@@ -81,7 +86,7 @@ and expr_data =
     (** Polymorphic expression with patrtial explicit instantiation, possibly
       empty *)
 
-  | EFn   of var * expr
+  | EFn   of arg * expr
     (** Lambda abstraction *)
 
   | EApp  of expr * expr

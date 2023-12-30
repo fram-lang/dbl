@@ -13,6 +13,10 @@ type arrow =
   | Arr_No
     (** Type is not an arrow *)
 
+  | Arr_UVar
+    (** Type is a unification variable. It will never be returned by
+      [to_arrow] *)
+
   | Arr_Pure of T.typ * T.typ
     (** Pure arrow *)
 
@@ -36,5 +40,6 @@ val subtype : Env.t -> T.typ -> T.typ -> bool
 val to_arrow : Env.t -> T.typ -> arrow
 
 (** Coerce given type from an arrow.
-  It performs some unifications when necessary. *)
+  It performs some unifications when necessary. Returns [Arr_UVar], when given
+  type is an unification variable. *)
 val from_arrow : Env.t -> T.typ -> arrow 

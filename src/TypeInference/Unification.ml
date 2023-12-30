@@ -10,6 +10,7 @@ open Common
 
 type arrow =
   | Arr_No
+  | Arr_UVar
   | Arr_Pure   of T.typ * T.typ
   | Arr_Impure of T.typ * T.typ * T.effect
 
@@ -151,12 +152,7 @@ let to_arrow env tp =
 let from_arrow env tp =
   match T.Type.view tp with
   | TUnit | TVar _ -> Arr_No
-  | TUVar u ->
-    let tp1 = Env.fresh_uvar env T.Kind.k_type in
-    let tp2 = Env.fresh_uvar env T.Kind.k_type in
-    let eff = Env.fresh_uvar env T.Kind.k_effect in
-    set_uvar env u (T.Type.t_arrow tp1 tp2 eff);
-    Arr_Impure(tp1, tp2, eff)
+  | TUVar _ -> Arr_UVar
   | TPureArrow(tp1, tp2) -> Arr_Pure(tp1, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
 
