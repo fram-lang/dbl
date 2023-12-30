@@ -70,28 +70,34 @@ let generalize env ims e tp =
 
 (* ========================================================================= *)
 
+let guess_type env sub tv =
+  let tp = Env.fresh_uvar env (T.TVar.kind tv) in
+  (T.Subst.add_type sub tv tp, tp)
+
+let guess_types env tvars =
+  List.fold_left_map (guess_type env) T.Subst.empty tvars
+
 (** The main instantiation function. [nset] parameter is a set of names
   currently instantiated, used to avoid infinite loops, e.g., in
-  [`n : {`n : _} -> _] *)
+  [`n : {`n : _} -> _]. *)
 let rec instantiate_loop ~nset env e (sch : T.scheme) =
-  let guess_type sub tv =
-    let tp = Env.fresh_uvar env (T.TVar.kind tv) in
-    (T.Subst.add_type sub tv tp, tp)
-  in
-  let (sub, tps) =
-    List.fold_left_map guess_type T.Subst.empty sch.sch_tvars in
+  let (sub, tps) = guess_types env sch.sch_tvars in
   let e = make_tapp e tps in
-  let e =
-    List.fold_left (instantiate_implicit ~nset env sub) e sch.sch_implicit
-  in
+  let ims =
+    List.map (fun (n, tp) -> (n, T.Type.subst sub tp)) sch.sch_implicit in
+  let e = instantiate_implicits_loop ~nset env e ims in
   (e, T.Type.subst sub sch.sch_body)
 
-and instantiate_implicit ~nset env sub (e : T.expr) (name, tp) =
-  if StrSet.mem name nset then
+and instantiate_implicits_loop ~nset ?(inst=[]) env e ims =
+  List.fold_left (instantiate_implicit ~nset ~inst env) e ims
+
+and instantiate_implicit ~nset ~inst env (e : T.expr) (name, tp) =
+  match StrSet.mem name nset, List.assoc_opt name inst with
+  | true, _ ->
     Error.fatal (Error.looping_implicit ~pos:e.pos name)
-  else
+  | false, Some e -> e
+  | false, None ->
     let nset = StrSet.add name nset in
-    let tp = T.Type.subst sub tp in
     begin match Env.lookup_implicit env name with
     | Some(x, sch, on_use) ->
       on_use e.pos;
@@ -106,8 +112,8 @@ and instantiate_implicit ~nset env sub (e : T.expr) (name, tp) =
       Error.fatal (Error.unbound_implicit ~pos:e.pos name)
     end
 
-let instantiate env e sch =
-  instantiate_loop ~nset:StrSet.empty env e sch
+let instantiate_implicits env e ims inst =
+  instantiate_implicits_loop ~nset:StrSet.empty ~inst env e ims
 
 (* ========================================================================= *)
 

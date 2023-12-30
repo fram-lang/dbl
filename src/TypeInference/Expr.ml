@@ -58,6 +58,25 @@ let infer_ctor_scheme ~pos env c =
     Error.fatal (Error.unbound_constructor ~pos c)
 
 (* ------------------------------------------------------------------------- *)
+(** Infer scheme of a polymorphic expression. The effect of en expression is
+  always in the check-mode. It returns a tuple, that contains the context of
+  the polymorphic expression (computing polymorphic expression may have some
+  effects, that should be performed before explicit instantiation), the
+  translated polymorphic expression, its scheme, and the effect. *)
+let infer_poly_scheme env (e : S.poly_expr) eff =
+  let pos = e.pos in
+  match e.data with
+  | EVar  x ->
+    let (e, sch) = infer_var_scheme ~pos env x in
+    (Fun.id, e, sch, Pure)
+  | EName n ->
+    let (e, sch) = infer_implicit_scheme ~pos env n in
+    (Fun.id, e, sch, Pure)
+  | ECtor c ->
+    let (e, sch) = infer_ctor_scheme ~pos env c in
+    (Fun.id, e, sch, Pure)
+
+(* ------------------------------------------------------------------------- *)
 (** Infer type of an expression. The effect of an expression is always in
   the check mode. However, pure expressions may returns an information that
   they are pure (see [ret_effect] type). *)
@@ -73,20 +92,17 @@ let rec infer_expr_type env (e : S.expr) eff =
   | EUnit ->
     (make T.EUnit, T.Type.t_unit, Pure)
 
-  | EVar x ->
-    let (e, sch) = infer_var_scheme ~pos env x in
-    let (e, tp) = ExprUtils.instantiate env e sch in
-    (e, tp, Pure)
-
-  | EName n ->
-    let (e, sch) = infer_implicit_scheme ~pos env n in
-    let (e, tp)  = ExprUtils.instantiate env e sch in
-    (e, tp, Pure)
-
-  | ECtor c ->
-    let (e, sch) = infer_ctor_scheme ~pos env c in
-    let (e, tp)  = ExprUtils.instantiate env e sch in
-    (e, tp, Pure)
+  | EPoly(e, inst) ->
+    let (p_ctx, e, sch, r_eff1) = infer_poly_scheme env e eff in
+    Uniqueness.check_inst_uniqueness inst;
+    let (sub, tps) = ExprUtils.guess_types env sch.sch_tvars in
+    let e = ExprUtils.make_tapp e tps in
+    let ims =
+      List.map (fun (n, tp) -> (n, T.Type.subst sub tp)) sch.sch_implicit in
+    let (i_ctx, inst, r_eff2) = check_explicit_insts env ims inst eff in
+    let e = ExprUtils.instantiate_implicits env e ims inst in
+    let tp = T.Type.subst sub sch.sch_body in
+    (p_ctx (i_ctx e), tp, ret_effect_join r_eff1 r_eff2)
 
   | EFn(x, body) ->
     let tp1 = Env.fresh_uvar env T.Kind.k_type in
@@ -160,7 +176,7 @@ let rec infer_expr_type env (e : S.expr) eff =
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | EVar _ | EName _ | EApp _ | ECtor _ | EHandle _ | ERepl _ ->
+  | EUnit | EPoly _ | EApp _ | EHandle _ | ERepl _ ->
     let pos = e.pos in
     let (e, tp', r_eff) = infer_expr_type env e eff in
     if not (Unification.subtype env tp' tp) then
@@ -202,6 +218,35 @@ and check_expr_type env (e : S.expr) tp eff =
     let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
     let (e2, r_eff2) = check_expr_type env e2 tp eff in
     (make (T.EReplExpr(e1, tp1, e2)), ret_effect_join r_eff1 r_eff2)
+
+(* ------------------------------------------------------------------------- *)
+(** Check explicit instantiations against given list of named parameters (from
+  type scheme). It returns context (represented as meta-function) that
+  preserves the order of computations, list of checked instantiations, and
+  the effect. *)
+and check_explicit_insts env ims insts eff =
+  match insts with
+  | [] -> (Fun.id, [], Pure)
+  | { data = S.IName(n, e); pos } :: insts ->
+    let make data = { T.data; T.pos } in
+    begin match List.assoc_opt n ims with
+    | Some tp ->
+      let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
+      let (e, r_eff1) = check_expr_type env e tp eff in
+      let (ctx, insts, r_eff2) = check_explicit_insts env ims insts eff in
+      let x = Var.fresh () in
+      let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
+      let insts = (n, make (T.EVar x)) :: insts in
+      (ctx, insts, ret_effect_join r_eff1 r_eff2)
+    | None ->
+      Error.warn (Error.redundant_named_parameter ~pos n);
+      let (e, tp, r_eff1) = infer_expr_type env e eff in
+      let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
+      let (ctx, insts, r_eff2) = check_explicit_insts env ims insts eff in
+      let x = Var.fresh () in
+      let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
+      (ctx, insts, ret_effect_join r_eff1 r_eff2)
+    end
 
 (* ------------------------------------------------------------------------- *)
 (** Check effect of a block of definitions. Returns extended environment, a

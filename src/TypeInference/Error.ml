@@ -15,6 +15,8 @@ let fatal () =
 let report () =
   InterpLib.Error.incr_error_counter ()
 
+let warn () = ()
+
 let kind_mismatch ~pos k1 k2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Kind mismatch\n"
@@ -111,8 +113,21 @@ let ctor_redefinition ~pos ~ppos name =
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
 
+let inst_redefinition ~pos ~ppos name =
+  Printf.eprintf "%s: error: Named parameter %s is provided more than once.\n"
+    (Position.to_string pos)
+    name;
+  Printf.eprintf "%s: note: Here is a previous definition.\n"
+    (Position.to_string ppos)
+
 let ctor_arity_mismatch ~pos cname req_n prov_n =
   Printf.eprintf
     "%s: error: Constructor %s expects %d parameter(s), but is applied to %d."
     (Position.to_string pos)
-    cname req_n prov_n;
+    cname req_n prov_n
+
+let redundant_named_parameter ~pos n =
+  Printf.eprintf
+    "%s: warning: Providing named parameter %s to a function that do not expect it."
+    (Position.to_string pos)
+    n

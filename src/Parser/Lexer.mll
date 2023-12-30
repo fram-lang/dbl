@@ -44,6 +44,8 @@ rule token = parse
   | ')'  { YaccParser.BR_CLS     }
   | '['  { YaccParser.SBR_OPN    }
   | ']'  { YaccParser.SBR_CLS    }
+  | '{'  { YaccParser.CBR_OPN    }
+  | '}'  { YaccParser.CBR_CLS    }
   | "->" { YaccParser.ARROW      }
   | "=>" { YaccParser.ARROW2     }
   | "|"  { YaccParser.BAR        }

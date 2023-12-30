@@ -59,12 +59,9 @@ and pattern_data =
   | PCtor of ctor_name node * pattern list
     (** ADT constructor pattern *)
 
-(** Expressions *)
-type expr = expr_data node
-and expr_data =
-  | EUnit
-    (** Unit expression *)
-
+(** Polymorphic expressions *)
+type poly_expr = poly_expr_data node
+and poly_expr_data =
   | EVar  of var
     (** Variable *)
 
@@ -73,6 +70,16 @@ and expr_data =
 
   | ECtor of ctor_name
     (** ADT constructor *)
+
+(** Expressions *)
+type expr = expr_data node
+and expr_data =
+  | EUnit
+    (** Unit expression *)
+
+  | EPoly of poly_expr * inst list
+    (** Polymorphic expression with patrtial explicit instantiation, possibly
+      empty *)
 
   | EFn   of var * expr
     (** Lambda abstraction *)
@@ -96,6 +103,12 @@ and expr_data =
   | EReplExpr of expr * expr
     (** Print type, evaluate, and print the first expression, then continue
       to the second one. *)
+
+(** Explicit instantiation of polymorphic expression *)
+and inst = inst_data node
+and inst_data =
+  | IName of name * expr
+    (** Explicit instantiation of named implicit parameter *)
 
 (** Local definitions *)
 and def = def_data node

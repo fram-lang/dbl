@@ -75,6 +75,10 @@ and expr_data =
   | EHandle of var * expr * h_expr
     (** Effect handler *)
 
+  | ERecord of field list
+    (** Record-like expression, e.g., explicit instantiation of named
+      parameters *)
+
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =
@@ -85,6 +89,15 @@ and h_expr = h_expr_data node
 and h_expr_data =
   | HEffect of var * var * expr
     (** Handler of a single operation *)
+
+(** Field of record-like expression *)
+and field = field_data node
+and field_data =
+  | FldName of name
+    (** Single named implicit parameter *)
+
+  | FldNameVal of name * expr
+    (** Named implicit parameter together with a value *)
 
 (** Definitions *)
 and def = def_data node

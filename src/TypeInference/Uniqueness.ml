@@ -12,11 +12,14 @@ module StrMap = Map.Make(String)
 
 type cat =
   | Constructor
+  | ExplicitInst
 
 let report_error ~cat name pos ppos =
   match cat with
   | Constructor ->
     Error.report (Error.ctor_redefinition ~pos ~ppos name)
+  | ExplicitInst ->
+    Error.report (Error.inst_redefinition ~pos ~ppos name)
 
 let check_uniqueness ~cat ~name_of ~pos_of xs =
   let rec loop names xs =
@@ -39,3 +42,11 @@ let check_ctor_uniqueness ctors =
   let name_of { S.data = S.CtorDecl(name, _); _ } = name in
   let pos_of (ctor : S.ctor_decl) = ctor.pos in
   check_uniqueness ~cat:Constructor ~name_of ~pos_of ctors
+
+let check_inst_uniqueness insts =
+  let name_of (inst : S.inst) =
+    match inst.data with
+    | IName(n, _) -> n
+  in
+  let pos_of (inst : S.inst) = inst.pos in
+  check_uniqueness ~cat:ExplicitInst ~name_of ~pos_of insts

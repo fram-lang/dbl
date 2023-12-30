@@ -7,7 +7,7 @@
 /* Author: Piotr Polesiuk, 2023 */
 
 %token<string> LID UID TLID
-%token BR_OPN BR_CLS SBR_OPN SBR_CLS
+%token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COMMA EQ SEMICOLON2 SLASH
 %token KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET
 %token KW_MATCH KW_OF KW_WITH
@@ -75,6 +75,23 @@ ty_expr_list1
 
 /* ========================================================================= */
 
+ctor_decl
+: UID                     { make (CtorDecl($1, [])) }
+| UID KW_OF ty_expr_list1 { make (CtorDecl($1, $3)) }
+;
+
+ctor_decl_list1
+: ctor_decl                     { [ $1 ]   }
+| ctor_decl BAR ctor_decl_list1 { $1 :: $3 }
+;
+
+ctor_decl_list
+: /* empty */     { [] }
+| ctor_decl_list1 { $1 }
+;
+
+/* ========================================================================= */
+
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_simple_list1 ARROW2 expr { make (EFn($2, $4))   }
@@ -97,6 +114,7 @@ expr_simple
 | KW_MATCH expr KW_WITH KW_END { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
+| CBR_OPN field_list CBR_CLS { make (ERecord $2) }
 ;
 
 expr_simple_list1
@@ -124,6 +142,18 @@ h_expr
 
 /* ========================================================================= */
 
+field
+: TLID         { make (FldName $1)         }
+| TLID EQ expr { make (FldNameVal($1, $3)) }
+;
+
+field_list
+: field                  { [ $1 ]   }
+| field COMMA field_list { $1 :: $3 }
+;
+
+/* ========================================================================= */
+
 def
 : KW_LET expr EQ expr { make (DLet($2, $4)) }
 | KW_IMPLICIT TLID    { make (DImplicit $2) }
@@ -139,22 +169,6 @@ def_list1
 : def def_list { $1 :: $2 }
 ;
 
-/* ========================================================================= */
-
-ctor_decl
-: UID                     { make (CtorDecl($1, [])) }
-| UID KW_OF ty_expr_list1 { make (CtorDecl($1, $3)) }
-;
-
-ctor_decl_list1
-: ctor_decl                     { [ $1 ]   }
-| ctor_decl BAR ctor_decl_list1 { $1 :: $3 }
-;
-
-ctor_decl_list
-: /* empty */     { [] }
-| ctor_decl_list1 { $1 }
-;
 
 /* ========================================================================= */
 

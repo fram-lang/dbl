@@ -1,0 +1,3 @@
+implicit `n
+let foo = `n
+let _ = foo { `n = () }

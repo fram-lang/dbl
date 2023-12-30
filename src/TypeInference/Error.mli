@@ -17,6 +17,9 @@ val fatal : t -> 'a
 (** Report non-fatal error *)
 val report : t -> unit
 
+(** Report a warning *)
+val warn : t -> unit
+
 val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 
 val unbound_var : pos:Position.t -> S.var -> t
@@ -51,5 +54,10 @@ val implicit_type_mismatch :
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t
 
+val inst_redefinition :
+  pos:Position.t -> ppos:Position.t -> S.name -> t
+
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name -> int -> int -> t
+
+val redundant_named_parameter : pos:Position.t -> S.name -> t
