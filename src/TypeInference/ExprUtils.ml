@@ -95,7 +95,8 @@ and instantiate_implicit ~nset ~inst env (e : T.expr) (name, tp) =
   match StrSet.mem name nset, List.assoc_opt name inst with
   | true, _ ->
     Error.fatal (Error.looping_implicit ~pos:e.pos name)
-  | false, Some e -> e
+  | false, Some arg ->
+    { T.pos = e.pos; T.data = T.EApp(e, arg) }
   | false, None ->
     let nset = StrSet.add name nset in
     begin match Env.lookup_implicit env name with

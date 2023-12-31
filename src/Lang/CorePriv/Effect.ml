@@ -30,3 +30,10 @@ let nterm = (* TODO *) TEffPure
 
 (** Effect of a whole program: IO + #NTerm *)
 let prog_effect = TEffJoin(io, nterm)
+
+(** Check if the effect is pure *)
+let rec is_pure eff =
+  match eff with
+  | TEffPure -> true
+  | TEffJoin(eff1, eff2) -> is_pure eff1 && is_pure eff2
+  | TVar _ -> false

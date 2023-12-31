@@ -21,4 +21,7 @@ let fresh ?(name="x") () =
   ; name = name
   }
 
+let unique_name x =
+  x.name ^ UID.to_string x.uid
+
 module Map = Map.Make(Ordered)

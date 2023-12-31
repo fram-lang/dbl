@@ -215,6 +215,9 @@ end
 
 (* ========================================================================= *)
 
+(** Produce S-expression that represents given program *)
+val to_sexpr : program -> SExpr.t
+
 (** Internal type-checker for Core programs.
   It is used as a sanity check, if implemented transformations preserve
   types. *)

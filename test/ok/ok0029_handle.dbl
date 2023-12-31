@@ -1,0 +1,11 @@
+let f p = p
+
+implicit `f
+
+let test f =
+  f (`f ())
+
+let tauto _ =
+  handle x
+  in test {`f=x} f
+  with effect x / r => ()

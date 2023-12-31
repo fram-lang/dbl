@@ -240,9 +240,21 @@ and infer_type_check_eff env e eff =
 
 and check_type_eff env e tp eff =
   let (tp', eff') = infer_type_eff env e in
-  if Type.subtype tp' tp && Type.subeffect eff' eff then
-    ()
-  else failwith "Internal type error"
+  if not (Type.subtype tp' tp) then
+    InterpLib.InternalError.report
+      ~reason:"type mismatch"
+      ~sloc:(SExprPrinter.tr_expr e)
+      ~requested:(SExprPrinter.tr_type tp)
+      ~provided:(SExprPrinter.tr_type tp')
+      ();
+  if not (Type.subeffect eff' eff) then
+    InterpLib.InternalError.report
+      ~reason:"effect mismatch"
+      ~sloc:(SExprPrinter.tr_expr e)
+      ~requested:(SExprPrinter.tr_type eff)
+      ~provided:(SExprPrinter.tr_type eff')
+      ();
+  ()
 
 and check_vtype env v tp =
   let tp' = infer_vtype env v in

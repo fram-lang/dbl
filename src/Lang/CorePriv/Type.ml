@@ -83,7 +83,7 @@ and simple_subeffect eff1 eff2 =
   match eff2 with
   | TEffPure -> false
   | TEffJoin(eff_a, eff_b) ->
-    simple_subeffect eff1 eff_a || simple_subeffect eff2 eff_b
+    simple_subeffect eff1 eff_a || simple_subeffect eff1 eff_b
   | TVar _ -> equal eff1 eff2
 
 (** Check if one type is a subtype of another *)

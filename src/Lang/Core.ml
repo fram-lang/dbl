@@ -13,4 +13,5 @@ module Kind   = CorePriv.Kind
 module Type   = CorePriv.Type
 module Effect = CorePriv.Effect
 
+let to_sexpr         = CorePriv.SExprPrinter.tr_program
 let check_well_typed = CorePriv.WellTypedInvariant.check_program

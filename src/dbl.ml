@@ -14,7 +14,15 @@ let args = ref []
 let cmd_args_options = Arg.align
   [ "-args",
     Arg.Rest (fun arg -> args := arg :: !args),
-    "[CMD_ARG]... Pass remaining arguments to the interpreted program"
+    "[CMD_ARG]... Pass remaining arguments to the interpreted program";
+
+    "-dcore",
+    Arg.Set Pipeline.dump_core,
+    " Dump internal Core representation";
+
+    "-verbose-internal-errors",
+    Arg.Set InterpLib.InternalError.verbose,
+    " Make internal errors more verbose (for debugging only)"
   ]
 
 let fname = ref None

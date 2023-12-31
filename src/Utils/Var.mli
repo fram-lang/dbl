@@ -4,7 +4,7 @@
 
 (** Generic variable representation.
 
-  Variables are idetified by their unique idetifier, but they also contain
+  Variables are identified by their unique identifier, but they also contain
   name provided by the user. Names are used for pretty-printing and they
   don't need to be unique. *)
 
@@ -17,6 +17,10 @@ type t = private {
 
 (** Create fresh variable *)
 val fresh : ?name:string -> unit -> t
+
+(** Return name of the variable, that is guaranteed to be unique, i.e, for
+  different variables, [unique_name] return different names *)
+val unique_name : t -> string
 
 (** Finite maps from variables *)
 module Map : Map.S with type key = t

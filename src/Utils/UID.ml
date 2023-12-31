@@ -16,4 +16,6 @@ let fresh () =
   next_fresh := x + 1;
   x
 
+let to_string x = Printf.sprintf "#%x" x
+
 module Map = Map.Make(Int)
