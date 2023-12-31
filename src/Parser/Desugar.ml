@@ -107,8 +107,8 @@ let rec tr_expr (e : Raw.expr) =
   | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
-  | EHandle(x, e, h) ->
-    make (EHandle(x, tr_expr e, tr_h_expr h))
+  | EHandle(pat, e, h) ->
+    make (EHandle(tr_pattern pat [], tr_expr e, tr_h_expr h))
   | EWildcard | ERecord _ ->
     Error.fatal (Error.desugar_error e.pos)
 

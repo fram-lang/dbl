@@ -72,7 +72,7 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
-  | EHandle of var * expr * h_expr
+  | EHandle of expr * expr * h_expr
     (** Effect handler *)
 
   | ERecord of field list

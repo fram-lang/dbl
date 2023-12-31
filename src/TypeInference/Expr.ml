@@ -134,7 +134,7 @@ let rec infer_expr_type env (e : S.expr) eff =
       Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
     end
 
-  | EHandle(x, e1, h) ->
+  | EHandle(pat, e1, h) ->
     (* Since type and effect of e1 is used both on covariant and contravariant
      position (return type and resumption respectively), we should guess
      them even in type-check mode. *)
@@ -143,8 +143,13 @@ let rec infer_expr_type env (e : S.expr) eff =
     let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
     (* TODO: effect capability may have a scheme instead of type *)
     let (h, x_tp) = infer_h_expr_type env h h_eff res_tp res_eff in
-    let (env1, x) = Env.add_mono_var env1 x x_tp in
-    let (e1, _) = check_expr_type env1 e1 res_tp (T.Effect.cons h_eff res_eff) in
+    let (env1, pat, _) =
+      Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat x_tp in
+    let e1_eff = T.Effect.cons h_eff res_eff in
+    let (e1, _) = check_expr_type env1 e1 res_tp e1_eff in
+    let make' data = { pat with data = data } in
+    let x = Var.fresh () in
+    let e1 = make' (T.EMatch(make' (T.EVar x), [(pat, e1)], res_tp, e1_eff)) in
     if not (Unification.subeffect env res_eff eff) then
       Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
     (make (T.EHandle(h_eff, x, e1, h, res_tp, res_eff)), res_tp, Impure)

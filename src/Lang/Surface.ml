@@ -98,7 +98,7 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
-  | EHandle of var * expr * h_expr
+  | EHandle of pattern * expr * h_expr
     (** Effect handler *)
 
   | ERepl of (unit -> expr)

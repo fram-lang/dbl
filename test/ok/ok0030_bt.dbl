@@ -1,0 +1,36 @@
+data Bool = False | True
+
+let not b =
+  match b with
+  | True  => False
+  | False => True
+  end
+
+let band b1 b2 =
+  match b1 with
+  | True  => b2
+  | False => False
+  end
+
+let bor b1 b2 = not (band (not b1) (not b2))
+
+let iff b1 b2 =
+  match b1 with
+  | True  => b2
+  | False => not b2
+  end
+
+let form p q r =
+  iff (band p (bor q r)) (bor (band p q) (band p r))
+
+implicit `flip
+
+let test f =
+  f (`flip ()) (`flip ()) (`flip ())
+
+let tauto _ =
+  handle `flip
+  in test form
+  with effect x / r => band (r True) (r False)
+
+let _ = tauto ()
