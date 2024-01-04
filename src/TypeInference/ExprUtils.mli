@@ -4,7 +4,7 @@
 
 (** Utility functions that help to build Unif expressions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -27,6 +27,23 @@ val guess_types : Env.t -> T.tvar list -> T.subst * T.typ list
 val instantiate_implicits :
   Env.t -> T.expr -> (T.name * T.typ) list -> (S.name * T.expr) list -> T.expr
 
-(** Create a function that represents ADT contructor of given index,
+(** Create a function that represents ADT constructor of given index,
   not applied to any parameters yet, even the type parameters of the ADT. *)
 val ctor_func : pos:Position.t -> int -> Env.adt_info -> T.expr
+
+(** Extend an expression with pattern-matching on argument or other form
+  of binder. In call [arg_match pat body tp eff] the meaning of the parameters
+  is the following:
+  - [pat]  -- the binding pattern;
+  - [body] -- an expression that should be extended with a pattern-matching,
+      e.g. body of a function;
+  - [tp]   -- the type of [body] expression;
+  - [eff]  -- the effect of [body] expression.
+  It returns a variable that should be bound instead of pattern together with
+  an extended expression. *)
+val arg_match : T.pattern -> T.expr -> T.typ -> T.effect -> T.var * T.expr
+
+(** Same as [arg_match], but take multiple binders of named parameters. *)
+val inst_args_match :
+  (S.name * T.pattern * T.typ) list -> T.expr -> T.typ -> T.effect ->
+    (S.name * T.var * T.typ) list * T.expr

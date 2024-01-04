@@ -4,16 +4,17 @@
 
 (** The first phase of desugaring and post-parsing *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Lang.Surface
 
 type let_pattern =
-  | LP_Var of var * Raw.expr list
-    (** Variable definition with a list of formal parameters. *)
+  | LP_Id of ident * Raw.expr list
+    (** identifier definition with a list of formal parameters. *)
 
-  | LP_Name of name * Raw.expr list
-    (** Name definition with a list of formal parameters. *)
+  | LP_Fun of ident * inst_arg list * Raw.expr list
+    (** Function definition with list of formal implicit and explicit
+      parameters *)
 
   | LP_Pat of pattern
     (** Let definition with pattern-matching *)
@@ -59,21 +60,40 @@ and tr_pattern (p : Raw.expr) ps =
   | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
 
+(** Translate a formal parameter of a function *)
+let tr_function_arg (arg : Raw.expr) =
+  ArgPattern (tr_pattern arg [])
+
+let tr_inst_arg (fld : Raw.field) =
+  let make data = { fld with data = data } in
+  match fld.data with
+  | FldName n ->
+    make (IName(n, ArgPattern(make (PName n))))
+  | FldNameVal(n, e) ->
+    make (IName(n, tr_function_arg e))
+
 (** Translate an expression as a let-pattern. Argument [ps] is an accumulated
   list of formal parameters/subpatterns *)
 let rec tr_let_pattern (p : Raw.expr) ps =
   match p.data with
   | EWildcard | EUnit | EParen _ | ECtor _ -> LP_Pat (tr_pattern p ps)
-  | EVar  x -> LP_Var(x, ps)
-  | EName n -> LP_Name(n, ps)
+  | EVar _ | EName _ ->
+    let id =
+      match p.data with
+      | EVar  x -> IdVar  x
+      | EName n -> IdName n
+      | _ -> assert false
+    in
+    begin match ps with
+    | { data = ERecord iargs; _ } :: ps ->
+      LP_Fun(id, List.map tr_inst_arg iargs, ps)
+    | _ ->
+      LP_Id(id, ps)
+    end
   | EApp(p, p1) -> tr_let_pattern p (p1 :: ps)
 
   | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
-
-(** Translate a formal parameter of a function *)
-let tr_function_arg (arg : Raw.expr) =
-  ArgPattern (tr_pattern arg [])
 
 (** Translate a function, given a list of formal parameters *)
 let rec tr_function args body =
@@ -137,10 +157,10 @@ and tr_def (def : Raw.def) =
   match def.data with
   | DLet(p, e) ->
     begin match tr_let_pattern p [] with
-    | LP_Var(x, args) ->
-      make (DLet(x, tr_function args (tr_expr e)))
-    | LP_Name(n, args) ->
-      make (DLetName(n, tr_function args (tr_expr e)))
+    | LP_Id(id, args) ->
+      make (DLetId(id, tr_function args (tr_expr e)))
+    | LP_Fun(id, iargs, args) ->
+      make (DLetFun(id, iargs, tr_function args (tr_expr e)))
     | LP_Pat p -> make (DLetPat(p, tr_expr e))
     end
   | DImplicit n    -> make (DImplicit n)

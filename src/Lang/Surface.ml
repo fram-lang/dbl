@@ -4,7 +4,7 @@
 
 (** The Surface language: result of parsing and input for type inference *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 include SyntaxNode.Export
 
@@ -19,6 +19,16 @@ type name = string
 
 (** Name of a ADT constructor *)
 type ctor_name = string
+
+(** Identifier *)
+type ident =
+  | IdVar  of var
+  | IdName of name
+
+(** Explicit instantiation. Parametrized by expression representation *)
+type 'e inst_data =
+  | IName of name * 'e
+    (** Explicit instantiation of named implicit parameter *)
 
 (** Type expressions *)
 type type_expr = type_expr_data node
@@ -63,6 +73,9 @@ and pattern_data =
 type arg =
   | ArgPattern of pattern
     (** Argument with pattern-matching *)
+
+(** Implicit formal argument *)
+type inst_arg = arg inst_data node
 
 (** Polymorphic expressions *)
 type poly_expr = poly_expr_data node
@@ -110,22 +123,19 @@ and expr_data =
       to the second one. *)
 
 (** Explicit instantiation of polymorphic expression *)
-and inst = inst_data node
-and inst_data =
-  | IName of name * expr
-    (** Explicit instantiation of named implicit parameter *)
+and inst = expr inst_data node
 
 (** Local definitions *)
 and def = def_data node
 and def_data =
-  | DLet of var * expr
-    (** Let definition *)
+  | DLetId of ident * expr
+    (** Let definition: monomorphic or polymorphic, depending on effect *)
 
-  | DLetName of name * expr
-    (** Providing a named implicit *)
+  | DLetFun of ident * inst_arg list * expr
+    (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr
-    (** Let definition combinded with pattern-matching. *)
+    (** Let definition combinded with pattern-matching. Always monomorphic *)
 
   | DImplicit of name
     (** Declaration of implicit *)

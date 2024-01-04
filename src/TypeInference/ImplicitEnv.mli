@@ -5,7 +5,7 @@
 (** Additional environment used in type-checking definition blocks. It stores
   information about declared named implicits. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -32,5 +32,9 @@ val end_generalize_impure : implicit_list -> unit
 (** Extend environment with a declaration of implicit *)
 val declare_implicit : t -> S.name -> t
 
-(** Shadow existsing implicit name *)
+(** Shadow existing implicit name *)
 val shadow : t -> S.name -> t
+
+(** Extend environment with a polymorphic identifier. If it is a name, then
+  it will be shadowed in implicit environment *)
+val add_poly_id : Env.t -> t -> S.ident -> T.scheme -> Env.t * t * T.var

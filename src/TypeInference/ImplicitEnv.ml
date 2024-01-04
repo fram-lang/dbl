@@ -5,7 +5,7 @@
 (** Additional environment used in type-checking definition blocks. It stores
   information about declared named implicits. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -63,3 +63,13 @@ let end_generalize_impure ims =
 let declare_implicit ienv name = name :: ienv
 
 let shadow ienv name = List.filter ((<>) name) ienv
+
+let add_poly_id env ienv (id : S.ident) sch =
+  match id with
+  | IdVar x ->
+    let (env, x) = Env.add_poly_var env x sch in
+    (env, ienv, x)
+  | IdName n ->
+    let ienv = shadow ienv n in
+    let (env, x) = Env.add_poly_implicit env n sch ignore in
+    (env, ienv, x)

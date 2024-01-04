@@ -4,7 +4,7 @@
 
 (** Type-inference for expressions and related syntactic categories *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -94,10 +94,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     let body_eff = Env.fresh_uvar env T.Kind.k_effect in
     let (env, pat, tp1, r_eff1) = Pattern.infer_arg_type env arg in
     let (body, r_eff2) = check_expr_type env body tp2 body_eff in
-    let x = Var.fresh () in
-    let make' data = { pat with data = data } in
-    let body = make'
-      (T.EMatch(make' (T.EVar x), [(pat, body)], tp2, body_eff)) in
+    let (x, body) = ExprUtils.arg_match pat body tp2 body_eff in
     begin match ret_effect_join r_eff1 r_eff2 with
     | Pure ->
       let b = Unification.subeffect env body_eff T.Effect.pure in
@@ -147,9 +144,7 @@ let rec infer_expr_type env (e : S.expr) eff =
       Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat x_tp in
     let e1_eff = T.Effect.cons h_eff res_eff in
     let (e1, _) = check_expr_type env1 e1 res_tp e1_eff in
-    let make' data = { pat with data = data } in
-    let x = Var.fresh () in
-    let e1 = make' (T.EMatch(make' (T.EVar x), [(pat, e1)], res_tp, e1_eff)) in
+    let (x, e1) = ExprUtils.arg_match pat e1 res_tp e1_eff in
     if not (Unification.subeffect env res_eff eff) then
       Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
     (make (T.EHandle(h_eff, x, e1, h, res_tp, res_eff)), res_tp, Impure)
@@ -186,18 +181,13 @@ and check_expr_type env (e : S.expr) tp eff =
       let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
       if ret_effect_join r_eff1 r_eff2 <> Pure then
         Error.report (Error.func_not_pure ~pos:e.pos);
-      let x = Var.fresh () in
-      let make' data = { pat with data = data } in
-      let body = make'
-        (T.EMatch(make' (T.EVar x), [(pat, body)], tp2, T.Effect.pure)) in
+      let (x, body) = ExprUtils.arg_match pat body tp2 T.Effect.pure in
       (make (T.EPureFn(x, tp1, body)), Pure)
 
     | Arr_Impure(tp1, tp2, eff) ->
       let (env, pat, _) = Pattern.check_arg_type env arg tp1 in
       let (body, _) = check_expr_type env body tp2 eff in
-      let x = Var.fresh () in
-      let make' data = { pat with data = data } in
-      let body = make' (T.EMatch(make' (T.EVar x), [(pat, body)], tp2, eff)) in
+      let (x, body) = ExprUtils.arg_match pat body tp2 eff in
       (make (T.EFn(x, tp1, body)), Pure)
 
     | Arr_No ->
@@ -275,19 +265,30 @@ and check_def env ienv (def : S.def) eff =
       T.data = data
     } in
   match def.data with
-  | DLet(x, e1) ->
+  | DLetId(id, e1) ->
     let (sch, e1, r_eff) = check_let env ienv e1 eff in
-    let (env, x) = Env.add_poly_var env x sch in
+    let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
     (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
-  | DLetName(n, e1) ->
-    let (sch, e1, r_eff) = check_let env ienv e1 eff in
-    let ienv = ImplicitEnv.shadow ienv n in
-    let (env, x) = Env.add_poly_implicit env n sch ignore in
-    (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
+  | DLetFun(id, iargs, body) ->
+    let (body_env, ims1) = ImplicitEnv.begin_generalize env ienv in
+    let (body_env, ims2, r_eff1) =
+      Pattern.infer_inst_arg_types body_env iargs in
+    let (body, tp, r_eff2) = infer_expr_type body_env body T.Effect.pure in
+    begin match ret_effect_join r_eff1 r_eff2 with
+    | Pure -> ()
+    | Impure -> Error.report (Error.func_not_pure ~pos:def.pos)
+    end;
+    (* TODO: check if [tp] is in proper scope (ims2 may bind some types) *)
+    let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
+    let ims1 = ImplicitEnv.end_generalize_pure ims1 in
+    let (body, sch) = ExprUtils.generalize env (ims1 @ ims2) body tp in
+    let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
+    (env, ienv, (fun e _ -> make e (T.ELet(x, sch, body, e))), Pure)
 
   | DLetPat(pat, e1) ->
     let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
+    let ienv = Pattern.fold_implicit ImplicitEnv.shadow ienv pat in
     let scope = Env.scope env1 in
     let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
     ImplicitEnv.end_generalize_impure ims;

@@ -4,7 +4,7 @@
 
 (** Type-inference for patterns *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -83,3 +83,24 @@ let infer_arg_type env (arg : S.arg) =
 let check_arg_type env (arg : S.arg) tp =
   match arg with
   | ArgPattern pat -> check_type ~env ~scope:(Env.scope env) pat tp
+
+let infer_inst_arg_type env (im : S.inst_arg) =
+  match im.data with
+  | IName(name, arg) ->
+    let (env, pat, tp, r_eff) = infer_arg_type env arg in
+    (env, (name, pat, tp), r_eff)
+
+let rec infer_inst_arg_types env ims =
+  match ims with
+  | []        -> (env, [], Pure)
+  | im :: ims ->
+    let (env, im, r_eff1)  = infer_inst_arg_type env im in
+    let (env, ims, r_eff2) = infer_inst_arg_types env ims in
+    (env, im :: ims, ret_effect_join r_eff1 r_eff2)
+
+let rec fold_implicit f acc (pat : S.pattern) =
+  match pat.data with
+  | PWildcard | PVar _ -> acc
+  | PName n -> f acc n
+  | PCtor(_, ps) ->
+    List.fold_left (fold_implicit f) acc ps

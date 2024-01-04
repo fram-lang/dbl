@@ -4,7 +4,7 @@
 
 (** Utility functions that help to build Unif expressions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -125,3 +125,19 @@ let ctor_func ~pos idx (info : Env.adt_info) =
     { T.pos  = pos;
       T.data = T.ECtor(info.adt_proof, idx, List.map mk_var xs)
     })
+
+(* ========================================================================= *)
+
+let arg_match pat body tp eff =
+  let x = Var.fresh () in
+  let make data = { pat with T.data = data } in
+  let body = make (T.EMatch(make (T.EVar x), [(pat, body)], tp, eff)) in
+  (x, body)
+
+let rec inst_args_match ims body tp eff =
+  match ims with
+  | [] -> ([], body)
+  | (name, pat, x_tp) :: ims ->
+    let (x, body)   = arg_match pat body tp eff in
+    let (ims, body) = inst_args_match ims body tp eff in
+    ((name, x, x_tp) :: ims, body)
