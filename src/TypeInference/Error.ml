@@ -4,7 +4,7 @@
 
 (** Reporting errors related to type-inference. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 type t = unit
 
@@ -60,7 +60,7 @@ let func_effect_mismatch ~pos ~env eff1 eff2 =
 
 let func_not_pure ~pos =
   Printf.eprintf
-    "%s: error: Cannot ensure that this function is pure and always terminates."
+    "%s: error: Cannot ensure that this function is pure and always terminates.\n"
     (Position.to_string pos)
 
 let expr_not_function ~pos ~env tp =
@@ -90,7 +90,7 @@ let ungeneralizable_implicit ~pos name =
 
 let non_polymorphic_pattern ~pos =
   Printf.eprintf
-    "%s: error: This pattern cannot match polymorphic values."
+    "%s: error: This pattern cannot match polymorphic values.\n"
     (Position.to_string pos)
 
 let looping_implicit ~pos name =
@@ -122,12 +122,12 @@ let inst_redefinition ~pos ~ppos name =
 
 let ctor_arity_mismatch ~pos cname req_n prov_n =
   Printf.eprintf
-    "%s: error: Constructor %s expects %d parameter(s), but is applied to %d."
+    "%s: error: Constructor %s expects %d parameter(s), but is applied to %d.\n"
     (Position.to_string pos)
     cname req_n prov_n
 
 let redundant_named_parameter ~pos n =
   Printf.eprintf
-    "%s: warning: Providing named parameter %s to a function that do not expect it."
+    "%s: warning: Providing named parameter %s to a function that do not expect it.\n"
     (Position.to_string pos)
     n
