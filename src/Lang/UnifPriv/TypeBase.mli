@@ -4,7 +4,7 @@
 
 (** Internal implementation of types in the Unif Language. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open KindBase
 
@@ -19,8 +19,9 @@ type effect = typ
 
 type effect_end =
   | EEClosed
-  | EEVar  of tvar
   | EEUVar of uvar
+  | EEVar  of tvar
+  | EEApp  of typ * typ
 
 type type_view =
   | TUnit
@@ -29,6 +30,7 @@ type type_view =
   | TEffect    of TVar.Set.t * effect_end
   | TPureArrow of typ * typ
   | TArrow     of typ * typ * effect
+  | TApp       of typ * typ
 
 type scheme = {
   sch_tvars    : tvar list;
@@ -62,6 +64,9 @@ val t_effect : TVar.Set.t -> effect_end -> effect
 (** Create a closed effect *)
 val t_closed_effect : TVar.Set.t -> effect
 
+(** Type application *)
+val t_app : typ -> typ -> typ
+
 (** Reveal a top-most constructor of a type *)
 val view : typ -> type_view
 
@@ -74,6 +79,9 @@ module UVar : sig
   type t = uvar
 
   val fresh : scope:scope -> kind -> uvar
+
+  (** Get the kind of given unification variable *)
+  val kind : t -> kind
 
   val equal : t -> t -> bool
 

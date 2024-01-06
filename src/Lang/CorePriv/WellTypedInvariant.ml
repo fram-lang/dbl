@@ -4,7 +4,7 @@
 
 (** Internal type-checker of the Core language *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Syntax
 open TypeBase
@@ -26,6 +26,9 @@ module Env : sig
   (** Extend environment with a type variable. It returns its refreshed
     version *)
   val add_tvar : t -> 'k tvar -> t * 'k tvar
+
+  (** Extend environment with a list of type variables. *)
+  val add_tvars : t -> TVar.ex list -> t * TVar.ex list
 
   (** Move to computationally irrelevant context, making all irrelevant
     variables available *)
@@ -65,6 +68,13 @@ end = struct
       tvar_map = TMap.add x y env.tvar_map
     }, y
 
+  let add_tvar_ex env (TVar.Ex x) =
+    let (env, x) = add_tvar env x in
+    (env, TVar.Ex x)
+
+  let add_tvars env xs =
+    List.fold_left_map add_tvar_ex env xs
+
   let irrelevant env =
     { env with irrelevant = true }
 
@@ -100,17 +110,29 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
     TForall(x, tr_type env tp)
   | TData(tp, ctors) ->
     TData(tr_type env tp, List.map (tr_ctor_type env) ctors)
+  | TApp(tp1, tp2) ->
+    TApp(tr_type env tp1, tr_type env tp2)
 
 and tr_ctor_type env ctor =
   { ctor_name      = ctor.ctor_name;
     ctor_arg_types = List.map (tr_type env) ctor.ctor_arg_types
   }
 
-let check_data : type k.
-    Env.t -> k typ -> ctor_type list -> ttype * ctor_type list =
-  fun env tp ctors ->
-  match Type.kind tp with
-  | KType -> (tp, List.map (tr_ctor_type env) ctors)
+let rec check_data : type k.
+    Env.t -> k typ -> TVar.ex list -> ctor_type list ->
+      TVar.ex list * ttype * ctor_type list =
+  fun env tp xs ctors ->
+  match xs, Type.kind tp with
+  | [], KType -> (xs, tp, List.map (tr_ctor_type env) ctors)
+  | Ex x :: xs, KArrow(k1, k2) ->
+    begin match Kind.equal (TVar.kind x) k1 with
+    | Equal ->
+      let (env, x) = Env.add_tvar env x in
+      let (xs, tp, ctors) = check_data env (TApp(tp, TVar x)) xs ctors in
+      (Ex x :: xs, tp, ctors)
+    | NotEqual ->
+      failwith "Internal kind error"
+    end
   | _ ->
     failwith "Internal kind error"
 
@@ -132,7 +154,7 @@ let rec infer_type_eff env e =
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
-    | TUnit | TVar _ | TForall _ | TData _ ->
+    | TUnit | TVar _ | TForall _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
   | ETApp(v, tp) ->
@@ -143,14 +165,16 @@ let rec infer_type_eff env e =
       | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
-    | TUnit | TVar _ | TArrow _ | TData _ ->
+    | TUnit | TVar _ | TArrow _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
-  | EData(a, x, ctors, e) ->
+
+  | EData(a, x, xs, ctors, e) ->
     let old_env = env in
     let (env, a) = Env.add_tvar env a in
-    let (data_tp, ctors) = check_data old_env (TVar a) ctors in
-    let env = Env.add_irr_var env x (TData(data_tp, ctors)) in
+    let (xs, data_tp, ctors) = check_data old_env (TVar a) xs ctors in
+    let env = Env.add_irr_var env x
+      (Type.t_foralls xs (TData(data_tp, ctors))) in
     let (tp, eff) = infer_type_eff env e in
     begin match
       Type.supertype_without a tp, Type.supereffect_without a eff
@@ -159,6 +183,7 @@ let rec infer_type_eff env e =
     | _ ->
       failwith "Internal type error: escaping type variable"
     end
+
   | EMatch(proof, v, cls, tp, eff) ->
     let tp  = tr_type env tp in
     let eff = tr_type env eff in

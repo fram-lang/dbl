@@ -4,7 +4,7 @@
 
 (** Type erasure. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 module S = Lang.Core
 module T = Lang.Untyped
@@ -21,7 +21,7 @@ let rec tr_expr (e : S.expr) =
     tr_value_v v2 (fun v2 ->
     T.EApp(v1, v2)))
   | ETApp(v, _) -> tr_value v
-  | EData(_, _, _, e) -> tr_expr e
+  | EData(_, _, _, _, e) -> tr_expr e
   | EMatch(_, v, cls, _, _) ->
     tr_value_v v (fun v ->
     T.EMatch(v, List.map tr_clause cls))

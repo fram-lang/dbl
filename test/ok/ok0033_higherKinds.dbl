@@ -1,0 +1,13 @@
+data Option X =
+| None
+| Some of X
+
+data Pair X Y = Pair of X, Y
+
+data ST S M X = ST of (S ->[] M (Pair S X))
+
+let run s0 (ST m) =
+  match m s0 with
+  | None            => None
+  | Some (Pair _ x) => Some x
+  end

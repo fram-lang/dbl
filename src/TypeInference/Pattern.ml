@@ -41,18 +41,22 @@ and check_type ~env ~scope (pat : S.pattern) tp =
   | PCtor(cname, args) ->
     begin match Env.lookup_ctor env cname.data with
     | Some(idx, info) ->
-      let ctor = List.nth info.adt_ctors idx in
+      let (sub, tps) = ExprUtils.guess_types env info.adt_args in
+      let proof  = ExprUtils.make_tapp info.adt_proof tps in
+      let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
+      let ctor   = List.nth ctors idx in
+      let res_tp = T.Type.subst sub info.adt_type in
       if List.length ctor.ctor_arg_types <> List.length args then
         Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
           cname.data (List.length ctor.ctor_arg_types) (List.length args))
-      else if not (Unification.subtype env tp info.adt_type) then
+      else if not (Unification.subtype env tp res_tp) then
         Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
-          info.adt_type tp)
+          res_tp tp)
       else
         let (env, ps, _) =
           check_pattern_types ~env ~scope args ctor.ctor_arg_types in
         let pat = make
-          (T.PCtor(cname.data, idx, info.adt_proof, info.adt_ctors, ps)) in
+          (T.PCtor(cname.data, idx, proof, ctors, ps)) in
         (* Pattern matching is always impure, as due to recursive types it can
           be used to encode non-termination *)
         (env, pat, Impure)

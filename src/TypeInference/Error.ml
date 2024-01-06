@@ -22,6 +22,12 @@ let kind_mismatch ~pos k1 k2 =
   Printf.eprintf "%s: error: Kind mismatch\n"
     (Position.to_string pos)
 
+let type_not_function ~pos ~env k =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: This type cannot be applied.\n"
+    (Position.to_string pos)
+
 let unbound_var ~pos x =
   Printf.eprintf "%s: error: Unbound variable `%s'\n"
     (Position.to_string pos) x

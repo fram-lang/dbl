@@ -4,7 +4,7 @@
 
 (** Environment of the type inference *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -12,6 +12,7 @@ module StrMap = Map.Make(String)
 
 type adt_info = {
   adt_proof : T.expr;
+  adt_args  : T.tvar list;
   adt_ctors : T.ctor_decl list;
   adt_type  : T.typ
 }

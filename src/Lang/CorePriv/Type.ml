@@ -4,7 +4,7 @@
 
 (** Operations on types *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open TypeBase
 
@@ -18,6 +18,10 @@ let rec kind : type k. k typ -> k kind =
   | TArrow   _ -> KType
   | TForall  _ -> KType
   | TData    _ -> KType
+  | TApp(tp, _) ->
+    begin match kind tp with
+    | KArrow(_, k) -> k
+    end
 
 (** Substitute one type in another *)
 let subst_type x stp tp =
@@ -60,6 +64,13 @@ let rec equal : type k. k typ -> k typ -> bool =
     List.for_all2 ctor_type_equal ctors1 ctors2
   | TData _, _ -> false
 
+  | TApp(tf1, ta1), TApp(tf2, ta2) ->
+    begin match Kind.equal (kind ta1) (kind ta2) with
+    | Equal    -> equal tf1 tf2 && equal ta1 ta2
+    | NotEqual -> false
+    end
+  | TApp _, _ -> false
+
 and ctor_type_equal { ctor_name; ctor_arg_types } ctor2 =
   ctor_name = ctor2.ctor_name &&
   List.length ctor_arg_types = List.length ctor2.ctor_arg_types &&
@@ -75,7 +86,7 @@ and subeffect eff1 eff2 =
   | TEffPure -> true
   | TEffJoin(eff_a, eff_b) ->
     subeffect eff_a eff2 && subeffect eff_b eff2
-  | TVar _ -> simple_subeffect eff1 eff2
+  | TVar _ | TApp _ -> simple_subeffect eff1 eff2
 
 (** Check if simple effect (different than pure and join) is a subeffect of
   another effect *)
@@ -84,20 +95,20 @@ and simple_subeffect eff1 eff2 =
   | TEffPure -> false
   | TEffJoin(eff_a, eff_b) ->
     simple_subeffect eff1 eff_a || simple_subeffect eff1 eff_b
-  | TVar _ -> equal eff1 eff2
+  | TVar _ | TApp _ -> equal eff1 eff2
 
 (** Check if one type is a subtype of another *)
 let rec subtype tp1 tp2 =
   match tp1, tp2 with
   | TUnit, TUnit  -> true
-  | TUnit, (TVar _ | TArrow _ | TForall _ | TData _) -> false
+  | TUnit, (TVar _ | TArrow _ | TForall _ | TData _ | TApp _) -> false
 
   | TVar x, TVar y -> x == y
-  | TVar _, (TUnit | TArrow _ | TForall _ | TData _) -> false
+  | TVar _, (TUnit | TArrow _ | TForall _ | TData _ | TApp _) -> false
 
   | TArrow(atp1, vtp1, eff1), TArrow(atp2, vtp2, eff2) ->
     subtype atp2 atp1 && subtype vtp1 vtp2 && subeffect eff1 eff2
-  | TArrow _, (TUnit | TVar _ | TForall _ | TData _) -> false
+  | TArrow _, (TUnit | TVar _ | TForall _ | TData _ | TApp _) -> false
 
   | TForall(x1, tp1), TForall(x2, tp2) ->
     (* TODO: it can be done better than O(n^2) time. *)
@@ -107,10 +118,13 @@ let rec subtype tp1 tp2 =
       subtype (subst_type x1 x tp1) (subst_type x2 x tp2)
     | NotEqual -> false
     end
-  | TForall _, (TUnit | TVar _ | TArrow _ | TData _) -> false
+  | TForall _, (TUnit | TVar _ | TArrow _ | TData _ | TApp _) -> false
 
   | TData _, TData _ -> equal tp1 tp2
-  | TData _, (TUnit | TVar _ | TArrow _ | TForall _) -> false
+  | TData _, (TUnit | TVar _ | TArrow _ | TForall _ | TApp _) -> false
+
+  | TApp _, TApp _ -> equal tp1 tp2
+  | TApp _, (TUnit | TVar _ | TArrow _ | TForall _ | TData _) -> false
 
 let rec forall_map f xs =
   match xs with
@@ -158,6 +172,11 @@ let rec type_without : type k1 k2. k1 tvar -> k2 typ -> k2 typ option =
     | Some tp, Some ctors -> Some (TData(tp, ctors))
     | _ -> None
     end
+  | TApp(tp1, tp2) ->
+    begin match type_without a tp1, type_without a tp2 with
+    | Some tp1, Some tp2 -> Some (TApp(tp1, tp2))
+    | _ -> None
+    end
 
 and ctor_type_without : type k. k tvar -> ctor_type -> ctor_type option =
   fun a ctor ->
@@ -191,6 +210,11 @@ let rec subeffect_without : type k. k tvar -> effect -> effect =
     | Equal    -> TEffPure
     | NotEqual -> eff
     end
+  | TApp _ ->
+    begin match type_without a eff with
+    | None     -> TEffPure
+    | Some eff -> eff
+    end
 
 (** Tries to find a supertype of given type that do not contain given type
   variable *)
@@ -198,7 +222,7 @@ let rec supertype_without : type k. k tvar -> ttype -> ttype option =
   fun a tp ->
   match tp with
   | TUnit  -> Some tp
-  | TVar _ | TData _ -> type_without a tp
+  | TVar _ | TData _ | TApp _ -> type_without a tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       subtype_without     a tp1,
@@ -224,7 +248,7 @@ and subtype_without : type k. k tvar -> ttype -> ttype option =
   fun a tp ->
   match tp with
   | TUnit  -> Some tp
-  | TVar _ | TData _ -> type_without a tp
+  | TVar _ | TData _ | TApp _ -> type_without a tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       supertype_without a tp1, subtype_without a tp2, subeffect_without a eff

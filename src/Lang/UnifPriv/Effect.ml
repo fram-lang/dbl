@@ -4,7 +4,7 @@
 
 (** Operations on effects *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open TypeBase
 
@@ -12,6 +12,7 @@ type effect_view =
   | EffPure
   | EffUVar of uvar
   | EffVar  of tvar
+  | EffApp  of typ * typ
   | EffCons of tvar * effect
 
 let pure = t_closed_effect TVar.Set.empty
@@ -32,8 +33,9 @@ let view eff =
   | None ->
     begin match ee with
     | EEClosed -> EffPure
-    | EEVar  x -> EffVar  x
     | EEUVar u -> EffUVar u
+    | EEVar  x -> EffVar  x
+    | EEApp(tp1, tp2) -> EffApp(tp1, tp2)
     end
 
 let view_end eff =

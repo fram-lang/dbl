@@ -4,7 +4,7 @@
 
 (** The Unif language: result of type-inference. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 include SyntaxNode.Export
 
@@ -34,6 +34,10 @@ module Scheme = struct
   let collect_uvars = UnifPriv.Type.collect_scheme_uvars
 end
 
+module CtorDecl = struct
+  let subst = UnifPriv.Subst.in_ctor_decl
+end
+
 module Subst = UnifPriv.Subst
 
 type var = Var.t
@@ -55,7 +59,7 @@ and expr_data =
   | ETApp     of expr * typ
   | ELet      of var * scheme * expr * expr
   | ECtor     of expr * int * expr list
-  | EData     of tvar * var * ctor_decl list * expr
+  | EData     of tvar * var * tvar list * ctor_decl list * expr
   | EMatch    of expr * match_clause list * typ * effect
   | EHandle   of tvar * var * expr * h_expr * typ * effect
   | ERepl     of (unit -> expr) * effect

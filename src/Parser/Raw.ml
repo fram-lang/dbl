@@ -5,7 +5,7 @@
 (** The Raw language: result of yacc-generated. It is later post-parsed by
   [Desugar] in order to obtain the program in Surface language. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 include SyntaxNode.Export
 
@@ -27,6 +27,9 @@ and type_expr_data =
   | TWildcard
     (** A placeholder for a fresh unification variable *)
 
+  | TParen of type_expr
+    (** Parentheses *)
+
   | TVar of tvar
     (** Type variable *)
 
@@ -38,6 +41,9 @@ and type_expr_data =
 
   | TEffect of type_expr list * type_expr option
     (** Effect: list of simple effect optionally closed by another effect *)
+
+  | TApp of type_expr * type_expr
+    (** Type application *)
 
 (** Expressions *)
 type expr = expr_data node
@@ -108,7 +114,7 @@ and def_data =
   | DImplicit of name
     (** Declaration of implicit parameter *)
 
-  | DData of tvar * ctor_decl list
+  | DData of type_expr * ctor_decl list
     (** Definition of ADT *)
 
 (** Declaration of a constructor *)

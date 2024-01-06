@@ -4,7 +4,7 @@
 
 (** Kind-checking and translation of type expressions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -13,3 +13,6 @@ val check_kind : Env.t -> S.type_expr -> T.kind -> T.typ
 
 (** Check kind and translate a type expression of kind Type *)
 val tr_ttype : Env.t -> S.type_expr -> T.typ
+
+(** Translate formal type parameters and extend the environment *)
+val tr_type_args : Env.t -> S.type_arg list -> Env.t * T.tvar list

@@ -4,7 +4,7 @@
 
 (** Reporting errors related to type-inference. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -21,6 +21,8 @@ val report : t -> unit
 val warn : t -> unit
 
 val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
+
+val type_not_function : pos:Position.t -> env:Env.t -> T.kind -> t
 
 val unbound_var : pos:Position.t -> S.var -> t
 val unbound_implicit : pos:Position.t -> S.name -> t

@@ -4,7 +4,7 @@
 
 (** Main module of a translation from Unif to Core *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -27,10 +27,11 @@ let rec tr_expr env (e : S.expr) =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr env e2)
 
-  | EData(a, proof, ctors, e) ->
-    let ctors = Type.tr_ctor_decls env ctors in
+  | EData(a, proof, args, ctors, e) ->
+    let (cenv, args) = Env.add_tvars env args in
+    let ctors = Type.tr_ctor_decls cenv ctors in
     let (env, Ex a) = Env.add_tvar env a in
-    T.EData(a, proof, ctors, tr_expr env e)
+    T.EData(a, proof, args, ctors, tr_expr env e)
 
   | EMatch(me, cls, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
@@ -45,7 +46,7 @@ let rec tr_expr env (e : S.expr) =
     let (env, Ex a) = Env.add_tvar env a in
     begin match T.TVar.kind a with
     | KEffect -> T.EHandle(a, x, tr_expr env e, h, tp, eff)
-    | KType -> failwith "Internal kind error"
+    | KType | KArrow _ -> failwith "Internal kind error"
     end
 
   | ERepl(func, eff) ->
@@ -92,10 +93,11 @@ and tr_expr_v env (e : S.expr) cont =
     tr_expr_vs env args (fun args ->
     cont (VCtor(proof, n, args)))
 
-  | EData(a, proof, ctors, e) ->
-    let ctors = Type.tr_ctor_decls env ctors in
+  | EData(a, proof, args, ctors, e) ->
+    let (cenv, args) = Env.add_tvars env args in
+    let ctors = Type.tr_ctor_decls cenv ctors in
     let (env, Ex a) = Env.add_tvar env a in
-    T.EData(a, proof, ctors, tr_expr_v env e cont)
+    T.EData(a, proof, args, ctors, tr_expr_v env e cont)
 
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)

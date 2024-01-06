@@ -121,10 +121,12 @@ let instantiate_implicits env e ims inst =
 let ctor_func ~pos idx (info : Env.adt_info) =
   let mk_var x = { T.pos = pos; T.data = T.EVar x } in
   let ctor = List.nth info.adt_ctors idx in
+  let proof = make_tapp info.adt_proof (List.map T.Type.t_var info.adt_args) in
+  make_tfun info.adt_args (
   make_fun ctor.ctor_arg_types (fun xs ->
     { T.pos  = pos;
-      T.data = T.ECtor(info.adt_proof, idx, List.map mk_var xs)
-    })
+      T.data = T.ECtor(proof, idx, List.map mk_var xs)
+    }))
 
 (* ========================================================================= *)
 

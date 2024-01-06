@@ -4,7 +4,7 @@
 
 (** Unification and subtyping of types *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -26,6 +26,10 @@ type arrow =
 (** Check if one kind is equal to another. It performs some unifications
   when necessary. *)
 val unify_kind : T.kind -> T.kind -> bool
+
+(** Ensure that given kind is an arrow. It performs some unifications when
+  necessary. On success, it returns LHS and RHS kinds of an arrow kind. *)
+val kind_to_arrow : T.kind -> (T.kind * T.kind) option
 
 (** Check if one effect is a subeffect of another.
   It performs some unifications when necessary. *)

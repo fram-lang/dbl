@@ -4,7 +4,7 @@
 
 (** Internal implementation of types in the Unif Language. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open KindBase
 
@@ -34,11 +34,13 @@ and type_view =
   | TEffect    of TVar.Set.t * effect_end
   | TPureArrow of typ * typ
   | TArrow     of typ * typ * effect
+  | TApp       of typ * typ
 
 and effect_end =
   | EEClosed
-  | EEVar  of tvar
   | EEUVar of uvar
+  | EEVar  of tvar
+  | EEApp  of typ * typ
 
 type scheme = {
   sch_tvars    : tvar list;
@@ -65,6 +67,8 @@ let t_pure_arrow tp1 tp2 = TPureArrow(tp1, tp2)
 
 let t_arrow tp1 tp2 eff = TArrow(tp1, tp2, eff)
 
+let t_app tp1 tp2 = TApp(tp1, tp2)
+
 let rec view tp =
   match tp with
   | TUVar u ->
@@ -80,6 +84,7 @@ let rec view tp =
     begin match view (TUVar u) with
     | TUVar u -> TEffect(xs, EEUVar u)
     | TVar x  -> TEffect(xs, EEVar x)
+    | TApp(tp1, tp2) -> TEffect(xs, EEApp(tp1, tp2))
     | TEffect(ys, ee) -> TEffect(TVar.Set.union xs ys, ee)
 
     | TUnit | TPureArrow _ | TArrow _ ->
@@ -87,7 +92,7 @@ let rec view tp =
     end
   | TEffect(xs, ee) -> tp
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ -> tp
+  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _ -> tp
 
 let effect_view eff =
   match view eff with
@@ -96,9 +101,10 @@ let effect_view eff =
     begin match KindBase.view (TVar.kind x) with
     | KEffect   -> (TVar.Set.empty, EEVar x)
     | KClEffect -> (TVar.Set.singleton x, EEClosed)
-    | KType | KUVar _ ->
+    | KType | KUVar _ | KArrow _ ->
       failwith "Internal kind error"
     end
+  | TApp(tp1, tp2) -> (TVar.Set.empty, EEApp(tp1, tp2))
 
   | TEffect(xs, ee) -> (xs, ee)
 
@@ -118,6 +124,8 @@ module UVar = struct
       state = BRef.ref UV_UVar;
       scope = BRef.ref scope
     }
+
+  let kind u = u.kind
 
   let equal u1 u2 = u1 == u2
 

@@ -4,7 +4,7 @@
 
 (** Environment of the translation *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -21,6 +21,9 @@ let add_tvar env x =
   let y = T.TVar.Ex (T.TVar.fresh k) in
   { tvar_map = S.TVar.Map.add x y env.tvar_map
   }, y
+
+let add_tvars env xs =
+  List.fold_left_map add_tvar env xs
 
 let lookup_tvar env x =
   try S.TVar.Map.find x env.tvar_map with

@@ -48,6 +48,15 @@ and type_expr_data =
   | TEffect of type_expr list * type_expr option
     (** Effect: list of simple effect optionally closed by another effect *)
 
+  | TApp of type_expr * type_expr
+    (** Type application *)
+
+(** Type formal parameter *)
+type type_arg = type_arg_data node
+and type_arg_data =
+  | TA_Var of tvar
+    (** Type variable *)
+
 (** Declaration of constructor of ADT *)
 type ctor_decl = ctor_decl_data node
 and ctor_decl_data =
@@ -140,7 +149,7 @@ and def_data =
   | DImplicit of name
     (** Declaration of implicit *)
 
-  | DData of tvar * ctor_decl list
+  | DData of tvar * type_arg list * ctor_decl list
     (** Definition of ADT *)
 
 (** Pattern-matching clauses *)

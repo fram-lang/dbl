@@ -4,7 +4,7 @@
 
 (** Kinds and types *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 type ktype   = Dummy_Ktype
 type keffect = Dummy_Keffect
@@ -12,6 +12,7 @@ type keffect = Dummy_Keffect
 type _ kind =
   | KType   : ktype kind
   | KEffect : keffect kind
+  | KArrow  : 'k1 kind * 'k2 kind -> ('k1 -> 'k2) kind
 
 let rec kind_equal : type k1 k2. k1 kind -> k2 kind -> (k1, k2) Eq.t =
   fun k1 k2 ->
@@ -20,6 +21,12 @@ let rec kind_equal : type k1 k2. k1 kind -> k2 kind -> (k1, k2) Eq.t =
   | KType,   _       -> NotEqual
   | KEffect, KEffect -> Equal
   | KEffect, _       -> NotEqual
+  | KArrow(ka1, kv1), KArrow(ka2, kv2) ->
+    begin match kind_equal ka1 ka2, kind_equal kv1 kv2 with
+    | Equal, Equal -> Equal
+    | _            -> NotEqual
+    end
+  | KArrow _, _ -> NotEqual
 
 module TVar : sig
   type 'k t = private {
@@ -79,6 +86,7 @@ type _ typ =
   | TArrow   : ttype * ttype * effect -> ktype typ
   | TForall  : 'k tvar * ttype -> ktype typ
   | TData    : ttype * ctor_type list -> ktype typ
+  | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
 
 and ttype  = ktype typ
 and effect = keffect typ

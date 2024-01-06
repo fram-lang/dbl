@@ -4,7 +4,7 @@
 
 (** Kind-checking and translation of type expressions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -37,9 +37,20 @@ let rec infer_kind env (tp : S.type_expr) =
   | TEffect(tps, ee) ->
     (check_effect env tps ee, T.Kind.k_effect)
 
+  | TApp(tp1, tp2) ->
+    let pos1 = tp1.pos in
+    let (tp1, k1) = infer_kind env tp1 in
+    begin match Unification.kind_to_arrow k1 with
+    | Some(k2, kv) ->
+      let tp2 = check_kind env tp2 k2 in
+      (T.Type.t_app tp1 tp2, kv)
+    | None ->
+      Error.fatal (Error.type_not_function ~pos:pos1 ~env k1)
+    end
+
 and check_kind env (tp : S.type_expr) k =
   match tp.data with
-  | TVar _ | TPureArrow _ | TArrow _ ->
+  | TVar _ | TPureArrow _ | TArrow _ | TApp _ ->
     check_kind_default env tp k
 
   | TEffect(tps, ee) ->
@@ -52,10 +63,10 @@ and check_kind env (tp : S.type_expr) k =
     | KClEffect ->
       begin match T.Effect.view_end tp' with
       | EEClosed -> tp'
-      | EEVar _ | EEUVar _ ->
+      | EEUVar _ | EEVar _ | EEApp _ ->
         Error.fatal (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect k)
       end
-    | KType ->
+    | KType | KArrow _ ->
       Error.report (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect k);
       Env.fresh_uvar env k
     end
@@ -82,10 +93,17 @@ and check_effect env tps ee =
 and check_cl_effect_it env tvs tp =
   match T.Type.effect_view (check_kind env tp T.Kind.k_cleffect) with
   | (tvs', EEClosed) -> T.TVar.Set.union tvs tvs'
-  | (tvs', (EEVar _ | EEUVar _)) ->
+  | (tvs', (EEUVar _ | EEVar _ | EEApp _)) ->
     Error.report
       (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect T.Kind.k_cleffect);
     T.TVar.Set.union tvs tvs'
 
 let tr_ttype env tp =
   check_kind env tp T.Kind.k_type
+
+let tr_type_arg env (arg : S.type_arg) =
+  match arg.data with
+  | TA_Var x -> Env.add_tvar env x (T.Kind.fresh_uvar ())
+
+let tr_type_args env args =
+  List.fold_left_map tr_type_arg env args

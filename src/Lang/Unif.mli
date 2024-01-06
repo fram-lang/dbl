@@ -5,7 +5,7 @@
 (** The Unif language: result of type-inference.
   The main feature of the Unif language is a support for type-unification *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 include module type of SyntaxNode.Export
 
@@ -112,7 +112,7 @@ and expr_data =
       whole expression is an ADT. The second parameter is an index of the
       constructor *)
 
-  | EData of tvar * var * ctor_decl list * expr
+  | EData of tvar * var * tvar list * ctor_decl list * expr
     (** Definition of an ADT. It binds type variable (defined type) and
       computationally irrelevant variable (the proof that the type is an
       ADT) *)
@@ -177,6 +177,9 @@ module Kind : sig
     | KUVar of kuvar
       (** Unification variable *)
 
+    | KArrow of kind * kind
+      (** Arrow kind *)
+
   (** Kind of all types *)
   val k_type : kind
 
@@ -186,6 +189,12 @@ module Kind : sig
   (** Kind of all simple (closed) effects. These effects cannot contain
     unification variables. *)
   val k_cleffect : kind
+
+  (** Arrow kind *)
+  val k_arrow : kind -> kind -> kind
+
+  (** Create an arrow kind with multiple parameters. *)
+  val k_arrows : kind list -> kind -> kind
 
   (** Create a fresh unification kind variable *)
   val fresh_uvar : unit -> kind
@@ -253,11 +262,14 @@ module Type : sig
     | EEClosed
       (** Closed effect *)
     
+    | EEUVar of uvar
+      (** Open effect with unification variable at the end *)
+
     | EEVar of tvar
       (** Open effect with type variable at the end *)
 
-    | EEUVar of uvar
-      (** Open effect with unification variable at the end *)
+    | EEApp of typ * typ
+      (** Type application of an effect kind *)
 
   (** View of a type *)
   type type_view =
@@ -280,6 +292,9 @@ module Type : sig
 
     | TArrow of typ * typ * effect
       (** Impure arrow *)
+  
+    | TApp of typ * typ
+      (** Type application *)
 
   (** Unit type *)
   val t_unit : typ
@@ -305,6 +320,12 @@ module Type : sig
   (** Create a closed effect *)
   val t_closed_effect : TVar.Set.t -> effect
 
+  (** Type application *)
+  val t_app : typ -> typ -> typ
+
+  (** Type application to multiple arguments *)
+  val t_apps : typ -> typ list -> typ
+
   (** Fresh unification variable (packed as type) *)
   val fresh_uvar : scope:scope -> kind -> typ
 
@@ -314,6 +335,9 @@ module Type : sig
   (** Reveal a representation of an effect: a set of effect variables together
     with a way of closing an effect. *)
   val effect_view : effect -> TVar.Set.t * effect_end
+
+  (** Get the kind of given type *)
+  val kind : typ -> kind
 
   (** Returns subtype of given type, where all closed rows on negative
     positions are opened by a fresh unification variable. It works only
@@ -358,6 +382,9 @@ module Effect : sig
 
     | EffVar  of tvar
       (** Row variable *)
+
+    | EffApp  of typ * typ
+      (** Type application of an effect kind *)
 
     | EffCons of tvar * effect
       (** Consing an simple effect variable to an effect *)
@@ -404,4 +431,11 @@ module Scheme : sig
   (** Extend given set of unification variables by unification variables
     from given scheme. Equivalent to [uvars sch UVar.Set.empty] *)
   val collect_uvars : scheme -> UVar.Set.t -> UVar.Set.t
+end
+
+(* ========================================================================= *)
+(** Operations on constructor declarations *)
+module CtorDecl : sig
+  (** Set of unification variables in given scheme *)
+  val subst : subst -> ctor_decl -> ctor_decl
 end

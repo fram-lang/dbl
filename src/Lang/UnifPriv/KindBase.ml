@@ -4,7 +4,7 @@
 
 (** Kinds *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 type kuvar = kind option BRef.t
 and kind = kind_view
@@ -12,7 +12,8 @@ and kind_view =
   | KType
   | KEffect
   | KClEffect
-  | KUVar of kuvar
+  | KUVar  of kuvar
+  | KArrow of kind * kind
 
 module KUVar = struct
   let fresh () = BRef.ref None
@@ -31,11 +32,15 @@ let k_effect = KEffect
 
 let k_cleffect = KClEffect
 
+let k_arrow k1 k2 = KArrow(k1, k2)
+
+let k_arrows ks k = List.fold_right k_arrow ks k
+
 let fresh_uvar () = KUVar (KUVar.fresh ())
 
 let rec view k =
   match k with
-  | KType | KEffect | KClEffect -> k
+  | KType | KEffect | KClEffect | KArrow _ -> k
   | KUVar u ->
     begin match BRef.get u with
     | None -> k
@@ -49,3 +54,5 @@ let rec contains_uvar x k =
   match view k with
   | KType | KEffect | KClEffect -> false
   | KUVar u -> KUVar.equal x u
+  | KArrow(k1, k2) ->
+    contains_uvar x k1 || contains_uvar x k2

@@ -4,7 +4,7 @@
 
 (** Type substitutions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open TypeBase
 
@@ -38,6 +38,8 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
     TForall(x, in_type_rec sub tp)
   | TData(tp, ctors) ->
     TData(in_type_rec sub tp, List.map (in_ctor_type_rec sub) ctors)
+  | TApp(tp1, tp2) ->
+    TApp(in_type_rec sub tp1, in_type_rec sub tp2)
 
 and in_ctor_type_rec sub ctor =
   { ctor_name      = ctor.ctor_name;

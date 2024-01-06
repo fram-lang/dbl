@@ -4,7 +4,7 @@
 
 /** Yacc-generated parser */
 
-/* Author: Piotr Polesiuk, 2023 */
+/* Author: Piotr Polesiuk, 2023,2024 */
 
 %token<string> LID UID TLID
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
@@ -46,14 +46,19 @@ bar_opt
 /* ========================================================================= */
 
 ty_expr
-: ty_expr_simple ARROW ty_expr { make (TPureArrow($1, $3)) }
-| ty_expr_simple ARROW SBR_OPN effect SBR_CLS ty_expr
+: ty_expr_app ARROW ty_expr { make (TPureArrow($1, $3)) }
+| ty_expr_app ARROW SBR_OPN effect SBR_CLS ty_expr
     { make (TArrow($1, $6, $4)) }
+| ty_expr_app { $1 }
+;
+
+ty_expr_app
+: ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
 | ty_expr_simple { $1 }
 ;
 
 ty_expr_simple
-: BR_OPN ty_expr BR_CLS { make ($2).data }
+: BR_OPN ty_expr BR_CLS { make (TParen $2) }
 | UID        { make (TVar $1) }
 | UNDERSCORE { make TWildcard }
 ;
@@ -69,8 +74,8 @@ ty_expr_list
 ;
 
 ty_expr_list1
-: ty_expr_simple                     { [ $1 ]   }
-| ty_expr_simple COMMA ty_expr_list1 { $1 :: $3 }
+: ty_expr_app                     { [ $1 ]   }
+| ty_expr_app COMMA ty_expr_list1 { $1 :: $3 }
 ;
 
 /* ========================================================================= */
@@ -157,7 +162,8 @@ field_list
 def
 : KW_LET expr EQ expr { make (DLet($2, $4)) }
 | KW_IMPLICIT TLID    { make (DImplicit $2) }
-| KW_DATA UID EQ bar_opt ctor_decl_list { make (DData($2, $5)) }
+| KW_DATA ty_expr EQ bar_opt ctor_decl_list
+    { make (DData($2, $5)) }
 ;
 
 def_list

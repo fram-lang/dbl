@@ -34,7 +34,7 @@ let infer_ctor_scheme ~pos env c =
   | Some (idx, info) ->
     let ctor = List.nth info.adt_ctors idx in
     let sch = {
-        T.sch_tvars    = [];
+        T.sch_tvars    = info.adt_args;
         T.sch_implicit = [];
         T.sch_body     = T.Type.t_pure_arrows ctor.ctor_arg_types info.adt_type
       } in
@@ -300,19 +300,23 @@ and check_def env ienv (def : S.def) eff =
     let ienv = ImplicitEnv.declare_implicit ienv n in
     (env, ienv, (fun e _ -> e), Pure)
 
-  | DData(name, ctors) ->
+  | DData(name, args, ctors) ->
+    let (cenv, args) = Type.tr_type_args env args in
     Uniqueness.check_ctor_uniqueness ctors;
-    let ctors = DataType.check_ctor_decls env ctors in
-    let (env, x) = Env.add_tvar env name T.Kind.k_type in
+    let ctors = DataType.check_ctor_decls cenv ctors in
+    let kind = T.Kind.k_arrows (List.map T.TVar.kind args) T.Kind.k_type in
+    let (env, x) = Env.add_tvar env name kind in
     let px = Var.fresh ~name () in
     let info = {
       Env.adt_proof = { T.pos = def.pos; T.data = T.EVar px };
+      Env.adt_args  = args;
       Env.adt_ctors = ctors;
-      Env.adt_type  = T.Type.t_var x
+      Env.adt_type  =
+        T.Type.t_apps (T.Type.t_var x) (List.map T.Type.t_var args)
     } in
     let env = Env.add_data env x info in
     let env = DataType.open_data env info in
-    (env, ienv, (fun e _ -> make e (T.EData(x, px, ctors, e))), Pure)
+    (env, ienv, (fun e _ -> make e (T.EData(x, px, args, ctors, e))), Pure)
 
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)

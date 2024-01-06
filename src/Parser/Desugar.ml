@@ -8,6 +8,10 @@
 
 open Lang.Surface
 
+type ty_def =
+  | TD_Id of tvar * Raw.type_expr list
+    (** Name with parameters *)
+
 type let_pattern =
   | LP_Id of ident * Raw.expr list
     (** identifier definition with a list of formal parameters. *)
@@ -23,6 +27,7 @@ let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TWildcard -> make TWildcard
+  | TParen tp -> make (tr_type_expr tp).data
   | TVar x    -> make (TVar x)
   | TPureArrow(tp1, tp2) ->
     make (TPureArrow(tr_type_expr tp1, tr_type_expr tp2))
@@ -30,6 +35,26 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     make (TArrow(tr_type_expr tp1, tr_type_expr tp2, tr_type_expr eff))
   | TEffect(tps, ee) ->
     make (TEffect(List.map tr_type_expr tps, Option.map tr_type_expr ee))
+  | TApp(tp1, tp2) ->
+    make (TApp(tr_type_expr tp1, tr_type_expr tp2))
+
+(** Translate a type expression as a type parameter *)
+let rec tr_type_arg (tp : Raw.type_expr) =
+  let make data = { tp with data = data } in
+  match tp.data with
+  | TParen tp -> make (tr_type_arg tp).data
+  | TVar x    -> make (TA_Var x)
+  | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ ->
+    Error.fatal (Error.desugar_error tp.pos)
+
+(** Translate a left-hand-side of the type definition. The additional
+  parameter is an accumulated list of formal parameters *)
+let rec tr_type_def (tp : Raw.type_expr) args =
+  match tp.data with
+  | TVar x -> TD_Id(x, args)
+  | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
+  | TWildcard | TParen _ | TPureArrow _ | TArrow _ | TEffect _ ->
+    Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a simple pattern, i.e., pattern that cannot be applied to
   the list of parameters. This function makes sure, that the provided list
@@ -163,8 +188,12 @@ and tr_def (def : Raw.def) =
       make (DLetFun(id, iargs, tr_function args (tr_expr e)))
     | LP_Pat p -> make (DLetPat(p, tr_expr e))
     end
-  | DImplicit n    -> make (DImplicit n)
-  | DData(x, cs)   -> make (DData(x, List.map tr_ctor_decl cs))
+  | DImplicit n  -> make (DImplicit n)
+  | DData(tp, cs) ->
+    begin match tr_type_def tp [] with
+    | TD_Id(x, args) ->
+      make (DData(x, List.map tr_type_arg args, List.map tr_ctor_decl cs))
+    end
 
 and tr_defs defs = List.map tr_def defs
 

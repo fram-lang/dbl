@@ -4,20 +4,31 @@
 
 (** Translating Core to S-expressions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open TypeBase
 open SExpr
 
 let rec tr_kind : type k. k kind -> SExpr.t =
-  function
+  fun k ->
+  match k with
   | KType   -> Sym "type"
   | KEffect -> Sym "effect"
+  | KArrow _ -> List (tr_arrow_kind k)
+
+and tr_arrow_kind : type k. k kind -> SExpr.t list =
+  fun k ->
+  match k with
+  | KArrow(k1, k2) ->
+    tr_kind k1 :: tr_arrow_kind k2
+  | KType | KEffect -> [ Sym "->"; tr_kind k ]
 
 let tr_var  x = Sym (Var.unique_name x)
 
 let tr_tvar (x : _ tvar) =
   Sym (Printf.sprintf "tp%s" (UID.to_string x.uid))
+
+let tr_tvar_ex (TVar.Ex x) = tr_tvar x
 
 let tr_tvar_binder x =
   List [tr_tvar x; tr_kind (TVar.kind x)]
@@ -33,6 +44,7 @@ let rec tr_type : type k. k typ -> SExpr.t =
   | TForall _ -> List (Sym "forall" :: tr_forall tp)
   | TData(tp, ctors) ->
     List (Sym "data" :: tr_type tp :: List.map tr_ctor_type ctors)
+  | TApp _ -> tr_type_app tp []
 
 and tr_effect : effect -> SExpr.t list =
   fun tp ->
@@ -41,6 +53,7 @@ and tr_effect : effect -> SExpr.t list =
   | TEffJoin(eff1, eff2) ->
     tr_effect eff1 @ tr_effect eff2
   | TVar x -> [ tr_tvar x ]
+  | TApp _ -> [ tr_type tp ]
 
 and tr_arrow : ttype -> SExpr.t list =
   fun tp ->
@@ -50,7 +63,7 @@ and tr_arrow : ttype -> SExpr.t list =
   | TArrow(tp1, tp2, eff) ->
     [ tr_type tp1; Sym "->"; tr_type tp2; tr_type eff ]
 
-  | TUnit | TVar _ | TForall _ | TData _ ->
+  | TUnit | TVar _ | TForall _ | TData _ | TApp _ ->
     [ Sym "->"; tr_type tp ]
 
 and tr_forall : ttype -> SExpr.t list =
@@ -59,7 +72,16 @@ and tr_forall : ttype -> SExpr.t list =
   | TForall(x, body) ->
     tr_tvar_binder x :: tr_forall body
 
-  | TUnit | TVar _ | TArrow _ | TData _ -> [ tr_type tp ]
+  | TUnit | TVar _ | TArrow _ | TData _ | TApp _ -> [ tr_type tp ]
+
+and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
+  fun tp args ->
+  match tp with
+  | TApp(tp1, tp2) ->
+    tr_type_app tp1 (tr_type tp2 :: args)
+
+  | TUnit | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TData _ ->
+    List (Sym "app" :: tr_type tp :: args)
 
 and tr_ctor_type { ctor_name; ctor_arg_types } =
   List (Sym ctor_name :: List.map tr_type ctor_arg_types)
@@ -111,9 +133,11 @@ and tr_defs (e : Syntax.expr) =
     List [Sym "let-pure"; tr_var x; tr_expr e1] :: tr_defs e2
   | ELetIrr(x, e1, e2) ->
     List [Sym "let-irr"; tr_var x; tr_expr e1] :: tr_defs e2
-  | EData(a, x, ctors, e2) ->
+  | EData(a, x, args, ctors, e2) ->
     List
-      (Sym "data" :: tr_tvar a :: tr_var x :: List.map tr_ctor_type ctors) ::
+      (Sym "data" :: tr_tvar a :: tr_var x ::
+        (List (List.map tr_tvar_ex args)) ::
+        List.map tr_ctor_type ctors) ::
     tr_defs e2
 
   | EValue _ | EApp _ | ETApp _ | EMatch _ | EHandle _ | ERepl _

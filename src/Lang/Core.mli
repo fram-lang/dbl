@@ -4,7 +4,7 @@
 
 (** Core Language. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 (** Type-level constructor of a kind of all types. The main purpose of this
   type is to encode kind-system in OCaml's GADT. Values of this types are
@@ -22,8 +22,31 @@ type 'k kind =
   | KEffect : keffect kind
     (** Kind of all effects *)
 
+  | KArrow : 'k1 kind * 'k2 kind -> ('k1 -> 'k2) kind
+    (** Arrow kind *)
+
 (** Type variable, indexed by its kind *)
 type 'k tvar
+
+(** Operations on type variables *)
+module TVar : sig
+  type 'k t = 'k tvar
+
+  (** Create a fresh type variable of given kind *)
+  val fresh : 'k kind -> 'k tvar
+
+  (** Create exact copy (with different UID) of a type variable *)
+  val clone : 'k tvar -> 'k tvar
+
+  (** Get the kind of given type variable *)
+  val kind : 'k tvar -> 'k kind
+
+  (** Existential version of type variable, where its kind is packed *)
+  type ex = Ex : 'k tvar -> ex
+
+  (** Finite maps from type variables *)
+  module Map : Map1.S with type 'k key = 'k t
+end
 
 (** Types, indexed by a type-represented kind *)
 type _ typ =
@@ -54,6 +77,9 @@ type _ typ =
       computationally irrelevant parameter of type that describes the shape
       of ADTs. This approach simplifies many things, e.g., mutually recursive
       types are not recursive at all! *)
+
+  | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
+    (** Type application *)
 
 (** Proper types *)
 and ttype = ktype typ
@@ -95,7 +121,7 @@ type expr =
   | ETApp : value * 'k typ -> expr
     (** Type application *)
 
-  | EData : 'a tvar * var * ctor_type list * expr -> expr
+  | EData : 'a tvar * var * TVar.ex list * ctor_type list * expr -> expr
     (** Definition of non-recursive ADT. It binds a type variable, an
       irrelevant variable that stores the proof that this ADT has given
       constructors, the list of constructors and the rest of an expression. *)
@@ -163,27 +189,9 @@ type program = expr
 module Kind : sig
   (** Existential version of kind, where its kind index is packed *)
   type ex = Ex : 'k kind -> ex
-end
 
-(* ========================================================================= *)
-(** Operations on type variables *)
-module TVar : sig
-  type 'k t = 'k tvar
-
-  (** Create a fresh type variable of given kind *)
-  val fresh : 'k kind -> 'k tvar
-
-  (** Create exact copy (with different UID) of a type variable *)
-  val clone : 'k tvar -> 'k tvar
-
-  (** Get the kind of given type variable *)
-  val kind : 'k tvar -> 'k kind
-
-  (** Existential version of type variable, where its kind is packed *)
-  type ex = Ex : 'k tvar -> ex
-
-  (** Finite maps from type variables *)
-  module Map : Map1.S with type 'k key = 'k t
+  (** Check for equality of kinds *)
+  val equal : 'k1 kind -> 'k2 kind -> ('k1, 'k2) Eq.t
 end
 
 (* ========================================================================= *)

@@ -4,7 +4,7 @@
 
 (** Environment of the type inference *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -14,13 +14,16 @@ type t
 type adt_info = {
   adt_proof : T.expr;
     (** A computationally irrelevant expression that give a proof that given
-      type is an ADT *)
+      type is an ADT. It is polymorphic in the type parameters of an ADT. *)
+
+  adt_args  : T.tvar list;
+    (** Type parameter of an ADT *)
 
   adt_ctors : T.ctor_decl list;
     (** List of constructors of an ADT *)
 
   adt_type  : T.typ
-    (** The type that is an ADT *)
+    (** The type that is an ADT, already applied to [adt_args] *)
 }
 
 (** Empty environment *)

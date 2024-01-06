@@ -4,7 +4,7 @@
 
 (** Common definitions of the translation *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 module S = Lang.Unif
 module T = Lang.Core
@@ -18,3 +18,7 @@ let rec tr_kind k =
   | KUVar u   ->
     S.KUVar.set u S.Kind.k_type;
     T.Kind.Ex KType
+  | KArrow(k1, k2) ->
+    let (Ex k1) = tr_kind k1 in
+    let (Ex k2) = tr_kind k2 in
+    T.Kind.Ex (KArrow(k1, k2))
