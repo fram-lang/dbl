@@ -23,6 +23,25 @@ type let_pattern =
   | LP_Pat of pattern
     (** Let definition with pattern-matching *)
 
+(** Apply function [f] to each element of [xs]. Function [f] returns elements
+  of [Either.t] type, that describes on which list the result should be put.
+  It warns, when elements of the right list appear before somee element of the
+  left list. *)
+let rec map_inst_like f xs =
+  match xs with
+  | [] -> ([], [])
+  | x :: xs ->
+    begin match f x with
+    | Either.Left y ->
+      let (ys, zs) = map_inst_like f xs in
+      (y :: ys, zs)
+    | Either.Right z ->
+      let (ys, zs) = map_inst_like f xs in
+      if not (List.is_empty ys) then
+        Error.warn (Error.value_before_type_param x.pos);
+      (ys, z :: zs)
+    end
+
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
@@ -46,8 +65,9 @@ and tr_scheme_expr (tp : Raw.type_expr) =
   | TParen tp ->
     { (tr_scheme_expr tp) with sch_pos = pos }
   | TPureArrow({ data = TRecord flds; _}, tp) ->
-    let implicit = List.map tr_scheme_field flds in
+    let (tvs, implicit) = map_inst_like tr_scheme_field flds in
     { sch_pos      = pos;
+      sch_tvars    = tvs;
       sch_implicit = implicit;
       sch_body     = tr_type_expr tp
     }
@@ -56,6 +76,7 @@ and tr_scheme_expr (tp : Raw.type_expr) =
 
   | TWildcard | TVar _ | TPureArrow _ | TArrow _ | TEffect _ | TApp _ ->
     { sch_pos      = pos;
+      sch_tvars    = [];
       sch_implicit = [];
       sch_body     = tr_type_expr tp
     }
@@ -65,13 +86,15 @@ and tr_scheme_expr (tp : Raw.type_expr) =
 and tr_scheme_field (fld : Raw.ty_field) =
   let make data = { fld with data = data } in
   match fld.data with
+  | FldAnonType tp ->
+    Either.Left (tr_type_arg tp)
   | FldName n ->
-    make (IName(n, make TWildcard))
+    Either.Right (make (IName(n, make TWildcard)))
   | FldNameVal(n, tp) ->
-    make (IName(n, tr_type_expr tp))
+    Either.Right (make (IName(n, tr_type_expr tp)))
 
 (** Translate a type expression as a type parameter *)
-let rec tr_type_arg (tp : Raw.type_expr) =
+and tr_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
@@ -124,6 +147,9 @@ let tr_function_arg (arg : Raw.expr) =
 let tr_inst_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
+  | FldAnonType _ ->
+    (* Never returned by YaccParser, but should be implemented at some point *)
+    assert false
   | FldName n ->
     make (IName(n, ArgPattern(make (PName n))))
   | FldNameVal(n, e) ->
@@ -204,6 +230,8 @@ and tr_h_expr (h : Raw.h_expr) =
 and tr_explicit_inst (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
+  | FldAnonType _ ->
+    Error.fatal (Error.desugar_error fld.pos)
   | FldName n ->
     make (IName(n, make (EPoly(make (EName n), []))))
   | FldNameVal(n, e) ->

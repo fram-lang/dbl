@@ -23,11 +23,13 @@ type ctor_name = string
 
 (** Field of record-like, e.g., scheme name parameters, or explicit
   instantiation *)
-type 'a field_data =
+type ('tp, 'e) field_data =
+  | FldAnonType of 'tp
+
   | FldName of name
     (** Single named implicit parameter *)
 
-  | FldNameVal of name * 'a
+  | FldNameVal of name * 'e
     (** Named implicit parameter together with a value *)
 
 (** Type expressions *)
@@ -58,7 +60,7 @@ and type_expr_data =
     (** Record-like type: left-hand-side of a type-scheme *)
 
 (** Field of record-like type *)
-and ty_field = type_expr field_data node
+and ty_field = (type_expr, type_expr) field_data node
 
 (** Expressions *)
 type expr = expr_data node
@@ -112,7 +114,7 @@ and h_expr_data =
     (** Handler of a single operation *)
 
 (** Field of record-like expression *)
-and field = expr field_data node
+and field = (type_expr, expr) field_data node
 
 (** Definitions *)
 and def = def_data node

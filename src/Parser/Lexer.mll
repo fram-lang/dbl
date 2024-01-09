@@ -19,6 +19,7 @@ let kw_map =
   ; "let",      KW_LET
   ; "match",    KW_MATCH
   ; "of",       KW_OF
+  ; "type",     KW_TYPE
   ; "with",     KW_WITH
   ; "_",        UNDERSCORE
   ] |> List.to_seq |> Hashtbl.of_seq

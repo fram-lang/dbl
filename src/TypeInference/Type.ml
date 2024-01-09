@@ -99,8 +99,9 @@ and check_cl_effect_it env tvs tp =
     T.TVar.Set.union tvs tvs'
 
 and tr_scheme env (sch : S.scheme_expr) =
+  let (env, tvs) = tr_type_args env sch.sch_tvars in
   let ims = List.map (tr_implicit_decl env) sch.sch_implicit in
-  { T.sch_tvars    = [];
+  { T.sch_tvars    = tvs;
     T.sch_implicit = ims;
     T.sch_body     = tr_ttype env sch.sch_body
   }
@@ -115,9 +116,9 @@ and tr_ttype env tp =
 and tr_effect env eff =
   check_kind env eff T.Kind.k_effect
 
-let tr_type_arg env (arg : S.type_arg) =
+and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
   | TA_Var x -> Env.add_tvar env x (T.Kind.fresh_uvar ())
 
-let tr_type_args env args =
+and tr_type_args env args =
   List.fold_left_map tr_type_arg env args

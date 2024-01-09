@@ -12,6 +12,9 @@ type t
 (** Raise fatal error and abort the compilation *)
 val fatal : t -> 'a
 
+(** Report a warning. *)
+val warn : t -> unit
+
 val cannot_read_file : ?pos:Position.t -> fname:string -> string -> t
 val cannot_open_file : ?pos:Position.t -> fname:string -> string -> t
 
@@ -23,3 +26,5 @@ val eof_in_comment : Position.t -> t
 val desugar_error : Position.t -> t
 val invalid_pattern_arg : Position.t -> t
 val impure_scheme : Position.t -> t
+
+val value_before_type_param : Position.t -> t

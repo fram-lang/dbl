@@ -56,6 +56,9 @@ and scheme_expr = {
   sch_pos : Position.t;
     (** Location of the scheme expression *)
 
+  sch_tvars : type_arg list;
+    (** Type parameters *)
+
   sch_implicit : implicit_decl list;
     (** Named parameters *)
 
@@ -67,7 +70,7 @@ and scheme_expr = {
 and implicit_decl = type_expr inst_data node
 
 (** Type formal parameter *)
-type type_arg = type_arg_data node
+and type_arg = type_arg_data node
 and type_arg_data =
   | TA_Var of tvar
     (** Type variable *)

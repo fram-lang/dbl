@@ -12,6 +12,8 @@ let fatal () =
   InterpLib.Error.incr_error_counter ();
   raise InterpLib.Error.Fatal_error
 
+let warn () = ()
+
 let cannot_read_file ?pos ~fname msg =
   (* TODO: not implemented properly *)
   Printf.eprintf "error: cannot read file %s (%s)\n" fname msg
@@ -51,4 +53,10 @@ let impure_scheme pos =
   (* TODO: not implemented properly *)
   Printf.eprintf
     "%s: error: syntax error. Type schemes must be pure.\n"
+    (Position.to_string pos)
+
+let value_before_type_param pos =
+  (* TODO: not implemented properly *)
+  Printf.eprintf
+    "%s: warning: Named value parameter appears before a type parameter.\n"
     (Position.to_string pos)

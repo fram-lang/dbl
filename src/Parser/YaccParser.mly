@@ -10,7 +10,7 @@
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA EQ SEMICOLON2 SLASH
 %token KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET
-%token KW_MATCH KW_OF KW_WITH
+%token KW_MATCH KW_OF KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -84,7 +84,8 @@ ty_expr_list1
 /* ------------------------------------------------------------------------- */
 
 ty_field
-: TLID               { make (FldName $1)         }
+: KW_TYPE ty_expr    { make (FldAnonType $2)     }
+| TLID               { make (FldName $1)         }
 | TLID COLON ty_expr { make (FldNameVal($1, $3)) }
 ;
 
