@@ -55,10 +55,10 @@ and tr_type env tp =
     (* We add nterm effect to all effects in the program *)
     let eff = S.TVar.Set.fold (eff_cons env) xs (tr_effect_end env ee) in
     T.Type.Ex (T.Effect.join eff T.Effect.nterm)
-  | TPureArrow(tp1, tp2) ->
-    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2, TEffPure))
-  | TArrow(tp1, tp2, eff) ->
-    T.Type.Ex (TArrow(tr_ttype env tp1, tr_ttype env tp2, tr_effect env eff))
+  | TPureArrow(sch, tp2) ->
+    T.Type.Ex (TArrow(tr_scheme env sch, tr_ttype env tp2, TEffPure))
+  | TArrow(sch, tp2, eff) ->
+    T.Type.Ex (TArrow(tr_scheme env sch, tr_ttype env tp2, tr_effect env eff))
   | TApp(tp1, tp2) ->
     let (Ex tp1) = tr_type env tp1 in
     let (Ex tp2) = tr_type env tp2 in

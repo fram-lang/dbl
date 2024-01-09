@@ -8,19 +8,47 @@
 
 open TypeBase
 
-type t = typ TVar.Map.t
+type t = {
+  perm : TVar.Perm.t;
+    (** Permutation of type variables, applied before type substitution. *)
 
-let empty = TVar.Map.empty
+  sub  : typ TVar.Map.t
+    (** Simultaneous substitution *)
+}
+
+let empty =
+  { perm = TVar.Perm.id;
+    sub  = TVar.Map.empty
+  }
+
+let rename_to_fresh sub x y =
+  { sub with perm = TVar.Perm.swap_with_fresh_r sub.perm x y }
+
+let add_tvar sub x =
+  let y = TVar.clone x in
+  (rename_to_fresh sub x y, y)
+
+let add_tvars sub xs =
+  List.fold_left_map add_tvar sub xs
 
 let add_type sub x tp =
-  TVar.Map.add x tp sub
+  { sub with sub = TVar.Map.add x tp sub.sub }
 
 let is_empty sub =
-  TVar.Map.is_empty sub
+  TVar.Perm.is_identity sub.perm && TVar.Map.is_empty sub.sub
+
+(** Returns a new permutation attached to (modified in place) unification
+  variable *)
+let in_uvar sub p u =
+  let p = TVar.Perm.compose sub.perm p in
+  UVar.filter_scope u
+    (fun x -> not (TVar.Map.mem (TVar.Perm.apply p x) sub.sub));
+  p
 
 (* TODO: write a bit about how substitution in effects is handled *)
 let in_effvar sub x ys =
-  match TVar.Map.find_opt x sub with
+  let x = TVar.Perm.apply sub.perm x in
+  match TVar.Map.find_opt x sub.sub with
   | None     -> TVar.Set.add x ys
   | Some eff ->
     begin match view eff with
@@ -39,10 +67,13 @@ let in_effvar sub x ys =
 
 let rec in_effect_end sub ee =
   match ee with
-  | EEClosed | EEUVar _ -> (TVar.Set.empty, ee)
+  | EEClosed -> (TVar.Set.empty, ee)
+  | EEUVar(p, u) ->
+    (TVar.Set.empty, EEUVar(in_uvar sub p u, u))
   | EEVar x  ->
-    begin match TVar.Map.find_opt x sub with
-    | None     -> (TVar.Set.empty, ee)
+    let x = TVar.Perm.apply sub.perm x in
+    begin match TVar.Map.find_opt x sub.sub with
+    | None     -> (TVar.Set.empty, EEVar x)
     | Some eff -> effect_view eff
     end
   | EEApp(tp1, tp2) ->
@@ -50,21 +81,35 @@ let rec in_effect_end sub ee =
 
 and in_type_rec sub tp =
   match TypeBase.view tp with
-  | TUnit | TUVar _ -> tp
+  | TUnit -> tp
+  | TUVar(p, u) ->
+    let p = in_uvar sub p u in
+    t_uvar p u
   | TVar x ->
-    begin match TVar.Map.find_opt x sub with
-    | None    -> tp
+    let x = TVar.Perm.apply sub.perm x in
+    begin match TVar.Map.find_opt x sub.sub with
+    | None    -> t_var x
     | Some tp -> tp
     end
   | TEffect(xs, ee) ->
     let (ys, ee) = in_effect_end sub ee in
     t_effect (TVar.Set.fold (in_effvar sub) xs ys) ee
-  | TPureArrow(tp1, tp2) ->
-    t_pure_arrow (in_type_rec sub tp1) (in_type_rec sub tp2)
-  | TArrow(tp1, tp2, eff) ->
-    t_arrow (in_type_rec sub tp1) (in_type_rec sub tp2) (in_type_rec sub eff)
+  | TPureArrow(sch, tp2) ->
+    t_pure_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2)
+  | TArrow(sch, tp2, eff) ->
+    t_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2) (in_type_rec sub eff)
   | TApp(tp1, tp2) ->
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
+
+and in_scheme_rec sub sch =
+  let (sub, tvars) = add_tvars sub sch.sch_tvars in
+  let ims =
+    List.map (fun (name, tp) -> (name, in_type_rec sub tp))
+      sch.sch_implicit in
+  { sch_tvars    = tvars;
+    sch_implicit = ims;
+    sch_body     = in_type_rec sub sch.sch_body
+  }
 
 let in_type sub tp =
   if is_empty sub then tp

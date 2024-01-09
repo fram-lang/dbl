@@ -36,7 +36,10 @@ let infer_ctor_scheme ~pos env c =
     let sch = {
         T.sch_tvars    = info.adt_args;
         T.sch_implicit = [];
-        T.sch_body     = T.Type.t_pure_arrows ctor.ctor_arg_types info.adt_type
+        T.sch_body     =
+          T.Type.t_pure_arrows
+            (List.map T.Scheme.of_type ctor.ctor_arg_types)
+            info.adt_type
       } in
     (ExprUtils.ctor_func ~pos idx info, sch)
   | None ->
@@ -92,27 +95,27 @@ let rec infer_expr_type env (e : S.expr) eff =
   | EFn(arg, body) ->
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
     let body_eff = Env.fresh_uvar env T.Kind.k_effect in
-    let (env, pat, tp1, r_eff1) = Pattern.infer_arg_type env arg in
+    let (env, pat, sch, r_eff1) = Pattern.infer_arg_scheme env arg in
     let (body, r_eff2) = check_expr_type env body tp2 body_eff in
     let (x, body) = ExprUtils.arg_match pat body tp2 body_eff in
     begin match ret_effect_join r_eff1 r_eff2 with
     | Pure ->
       let b = Unification.subeffect env body_eff T.Effect.pure in
       assert b;
-      (make (T.EPureFn(x, tp1, body)), T.Type.t_pure_arrow tp1 tp2, Pure)
+      (make (T.EPureFn(x, sch, body)), T.Type.t_pure_arrow sch tp2, Pure)
     | Impure ->
-      (make (T.EFn(x, tp1, body)), T.Type.t_arrow tp1 tp2 body_eff, Pure)
+      (make (T.EFn(x, sch, body)), T.Type.t_arrow sch tp2 body_eff, Pure)
     end
 
   | EApp(e1, e2) ->
     let (e1, ftp, r_eff1) = infer_expr_type env e1 eff in
     begin match Unification.to_arrow env ftp with
     | Arr_UVar -> assert false
-    | Arr_Pure(atp, vtp) ->
-      let (e2, r_eff2) = check_expr_type env e2 atp eff in
+    | Arr_Pure(sch, vtp) ->
+      let (e2, r_eff2) = check_actual_arg env e2 sch eff in
       (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
-    | Arr_Impure(atp, vtp, f_eff) ->
-      let (e2, r_eff2) = check_expr_type env e2 atp eff in
+    | Arr_Impure(sch, vtp, f_eff) ->
+      let (e2, r_eff2) = check_actual_arg env e2 sch eff in
       if not (Unification.subeffect env f_eff eff) then
         Error.report (Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
       (make (T.EApp(e1, e2)), vtp, Impure)
@@ -176,19 +179,19 @@ and check_expr_type env (e : S.expr) tp eff =
     | Arr_UVar ->
       check_expr_type_default env e tp eff
 
-    | Arr_Pure(tp1, tp2) ->
-      let (env, pat, r_eff1) = Pattern.check_arg_type env arg tp1 in
+    | Arr_Pure(sch, tp2) ->
+      let (env, pat, r_eff1) = Pattern.check_arg_scheme env arg sch in
       let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
       if ret_effect_join r_eff1 r_eff2 <> Pure then
         Error.report (Error.func_not_pure ~pos:e.pos);
       let (x, body) = ExprUtils.arg_match pat body tp2 T.Effect.pure in
-      (make (T.EPureFn(x, tp1, body)), Pure)
+      (make (T.EPureFn(x, sch, body)), Pure)
 
-    | Arr_Impure(tp1, tp2, eff) ->
-      let (env, pat, _) = Pattern.check_arg_type env arg tp1 in
+    | Arr_Impure(sch, tp2, eff) ->
+      let (env, pat, _) = Pattern.check_arg_scheme env arg sch in
       let (body, _) = check_expr_type env body tp2 eff in
       let (x, body) = ExprUtils.arg_match pat body tp2 eff in
-      (make (T.EFn(x, tp1, body)), Pure)
+      (make (T.EFn(x, sch, body)), Pure)
 
     | Arr_No ->
       Error.report (Error.expr_not_function_ctx ~pos:e.pos ~env tp);
@@ -217,6 +220,37 @@ and check_expr_type_default env (e : S.expr) tp eff =
   if not (Unification.subtype env tp' tp) then
     Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
   (e, r_eff)
+
+(* ------------------------------------------------------------------------- *)
+(** Check the scheme of an actual parameter of a function *)
+and check_actual_arg env (arg : S.expr) sch eff =
+  let ((env, sub), tvars) =
+    List.fold_left_map
+      (fun (env, sub) x ->
+        let (env, y) = Env.add_anon_tvar env (T.TVar.kind x) in
+        let sub = T.Subst.rename_to_fresh sub x y in
+        ((env, sub), y))
+      (env, T.Subst.empty) sch.sch_tvars in
+  let (env, ims) =
+    List.fold_left_map
+      (fun env (name, tp) ->
+        let (env, x) =
+          Env.add_mono_implicit env name (T.Type.subst sub tp) ignore in
+        (env, (name, x, tp)))
+      env sch.sch_implicit in
+  let body_tp = T.Type.subst sub sch.sch_body in
+  let (body, res_eff) =
+    match tvars, ims with
+    | [], [] -> check_expr_type env arg body_tp eff
+    | _ ->
+      let (body, res_eff) = check_expr_type env arg body_tp T.Effect.pure in
+      begin match res_eff with
+      | Pure -> ()
+      | Impure -> Error.report (Error.func_not_pure ~pos:arg.pos) 
+      end;
+      (body, Pure)
+  in
+  (ExprUtils.make_tfun tvars (ExprUtils.make_ifun ims body), res_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Check explicit instantiations against given list of named parameters (from
@@ -377,12 +411,13 @@ and infer_h_expr_type env h h_eff res_tp res_eff =
   | HEffect(x, r, body) ->
     let in_tp  = Env.fresh_uvar env T.Kind.k_type in
     let out_tp = Env.fresh_uvar env T.Kind.k_type in
-    let r_tp   = T.Type.t_arrow out_tp res_tp res_eff in
+    let r_tp   = T.Type.t_arrow (T.Scheme.of_type out_tp) res_tp res_eff in
     let (env, x) = Env.add_mono_var env x in_tp in
     let (env, r) = Env.add_mono_var env r r_tp in
     let (body, _) = check_expr_type env body res_tp res_eff in
     (make (T.HEffect(in_tp, out_tp, x, r, body)),
-      T.Type.t_arrow in_tp out_tp (T.Effect.singleton h_eff))
+      T.Type.t_arrow (T.Scheme.of_type in_tp) out_tp
+        (T.Effect.singleton h_eff))
 
 (* ------------------------------------------------------------------------- *)
 (** Check expression put into REPL *)

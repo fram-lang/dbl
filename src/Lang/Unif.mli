@@ -88,10 +88,10 @@ and expr_data =
   | EVar of var
     (** Variable *)
 
-  | EPureFn of var * typ * expr
+  | EPureFn of var * scheme * expr
     (** Pure lambda-abstraction *)
 
-  | EFn of var * typ * expr
+  | EFn of var * scheme * expr
     (** Impure lambda-abstraction *)
 
   | ETFun of tvar * expr
@@ -223,6 +223,9 @@ module TVar : sig
 
   (** Finite map from type variables *)
   module Map : Map.S with type key = tvar
+
+  (** Finite partial permutations of type variables *)
+  module Perm : Perm.S with type key = tvar and module KeySet = Set
 end
 
 (* ========================================================================= *)
@@ -244,11 +247,16 @@ module UVar : sig
   val equal : t -> t -> bool
 
   (** Set a unification variable, without checking any constraints. It returns
-    expected scope of set type *)
-  val raw_set : t -> typ -> scope
+    expected scope of set type. The first parameter is a permutation attached
+    to the unification variable. *)
+  val raw_set : TVar.Perm.t -> t -> typ -> scope
 
   (** Promote unification variable to fresh type variable *)
   val fix : t -> tvar
+
+  (** Shrink scope of given unification variable, leaving only those variables
+    which satisfy given predicate *)
+  val filter_scope : t -> (tvar -> bool) -> unit
 
   (** Set of unification variables *)
   module Set : Set.S with type elt = t
@@ -262,8 +270,10 @@ module Type : sig
     | EEClosed
       (** Closed effect *)
     
-    | EEUVar of uvar
-      (** Open effect with unification variable at the end *)
+    | EEUVar of TVar.Perm.t * uvar
+      (** Open effect with unification variable at the end. The unification
+        variable is associated with a delayed partial permutation of type
+        variables. *)
 
     | EEVar of tvar
       (** Open effect with type variable at the end *)
@@ -276,8 +286,10 @@ module Type : sig
     | TUnit
       (** Unit type *)
 
-    | TUVar of uvar
-      (** Unification variable *)
+    | TUVar of TVar.Perm.t * uvar
+      (** Unification variable, associated with a delayed partial permutation,
+      of type variables. Mappings of variables not in scope of the
+      unification variable might be not present in the permutation. *)
 
     | TVar of tvar
       (** Regular type variable *)
@@ -286,11 +298,11 @@ module Type : sig
       (** Effect: a set of simple effect variables together with a way of
         closing an effect *)
 
-    | TPureArrow of typ * typ
-      (** Pure arrow, i.e., type of fuction that doesn't perform any effects
+    | TPureArrow of scheme * typ
+      (** Pure arrow, i.e., type of function that doesn't perform any effects
         and always terminate *)
 
-    | TArrow of typ * typ * effect
+    | TArrow of scheme * typ * effect
       (** Impure arrow *)
   
     | TApp of typ * typ
@@ -300,19 +312,19 @@ module Type : sig
   val t_unit : typ
 
   (** Unification variable *)
-  val t_uvar : uvar -> typ
+  val t_uvar : TVar.Perm.t -> uvar -> typ
 
   (** Regular type variable *)
   val t_var : tvar -> typ
 
   (** Pure arrow type *)
-  val t_pure_arrow : typ -> typ -> typ
+  val t_pure_arrow : scheme -> typ -> typ
 
   (** Pure arrow, that takes multiple arguments *)
-  val t_pure_arrows : typ list -> typ -> typ
+  val t_pure_arrows : scheme list -> typ -> typ
 
   (** Arrow type *)
-  val t_arrow : typ -> typ -> effect -> typ
+  val t_arrow : scheme -> typ -> effect -> typ
 
   (** Create an effect *)
   val t_effect : TVar.Set.t -> effect_end -> effect
@@ -377,8 +389,8 @@ module Effect : sig
     | EffPure
       (** Pure effect *)
 
-    | EffUVar of uvar
-      (** Row unification variable *)
+    | EffUVar of TVar.Perm.t * uvar
+      (** Row unification variable (with delayed permutation) *)
 
     | EffVar  of tvar
       (** Row variable *)
@@ -418,6 +430,10 @@ module Subst : sig
   (** Empty substitution *)
   val empty : subst
 
+  (** Extend substitution with a renaming. The new version of a variable
+    must be fresh enough. *)
+  val rename_to_fresh : subst -> tvar -> tvar -> subst
+
   (** Extend substitution. It is rather parallel extension than composition *)
   val add_type : subst -> tvar -> typ -> subst
 end
@@ -425,12 +441,18 @@ end
 (* ========================================================================= *)
 (** Operations on type schemes *)
 module Scheme : sig
+  (** Create a monomorphic type-scheme *)
+  val of_type : typ -> scheme
+
   (** Set of unification variables in given scheme *)
   val uvars : scheme -> UVar.Set.t
 
   (** Extend given set of unification variables by unification variables
     from given scheme. Equivalent to [uvars sch UVar.Set.empty] *)
   val collect_uvars : scheme -> UVar.Set.t -> UVar.Set.t
+
+  (** Make sure that type variables bound by this scheme are fresh *)
+  val refresh : scheme -> scheme
 end
 
 (* ========================================================================= *)

@@ -4,7 +4,7 @@
 
 (** Type variables *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open KindBase
 
@@ -25,7 +25,10 @@ let fresh kind =
   ; kind = kind
   }
 
+let clone x = fresh (kind x)
+
 let equal x y = x == y
 
-module Set = Set.Make(Ordered)
-module Map = Map.Make(Ordered)
+module Set  = Set.Make(Ordered)
+module Map  = Map.Make(Ordered)
+module Perm = Perm.Make(Ordered)(Set)

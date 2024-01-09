@@ -10,15 +10,15 @@ open Common
 
 module StrSet = Set.Make(String)
 
-(** Make function that takes parameters of given types *)
-let rec make_fun tps body_f =
-  match tps with
+(** Make function that takes parameters of given type schemes *)
+let rec make_fun schs body_f =
+  match schs with
   | [] -> body_f []
-  | tp :: tps ->
+  | sch :: schs ->
     let x = Var.fresh () in
-    let body = make_fun tps (fun xs -> body_f (x :: xs)) in
+    let body = make_fun schs (fun xs -> body_f (x :: xs)) in
     { T.pos  = body.T.pos;
-      T.data = T.EFn(x, tp, body)
+      T.data = T.EFn(x, sch, body)
     }
 
 (** Make polymorphic function with given type parameters *)
@@ -36,7 +36,7 @@ let rec make_ifun ims body =
   | [] -> body
   | (_, x, tp) :: ims ->
     { T.pos  = body.T.pos;
-      T.data = T.EFn(x, tp, make_ifun ims body)
+      T.data = T.EFn(x, T.Scheme.of_type tp, make_ifun ims body)
     }
 
 let rec make_tapp e tps =
@@ -123,7 +123,7 @@ let ctor_func ~pos idx (info : Env.adt_info) =
   let ctor = List.nth info.adt_ctors idx in
   let proof = make_tapp info.adt_proof (List.map T.Type.t_var info.adt_args) in
   make_tfun info.adt_args (
-  make_fun ctor.ctor_arg_types (fun xs ->
+  make_fun (List.map T.Scheme.of_type ctor.ctor_arg_types) (fun xs ->
     { T.pos  = pos;
       T.data = T.ECtor(proof, idx, List.map mk_var xs)
     }))

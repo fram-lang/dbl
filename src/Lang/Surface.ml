@@ -39,10 +39,10 @@ and type_expr_data =
   | TVar of tvar
     (** A (non-unification) type variable *)
 
-  | TPureArrow of type_expr * type_expr
+  | TPureArrow of scheme_expr * type_expr
     (** Pure function: a function without effects, that always terminates *)
 
-  | TArrow of type_expr * type_expr * type_expr
+  | TArrow of scheme_expr * type_expr * type_expr
     (** Effectful function: the last parameter is an effect *)
 
   | TEffect of type_expr list * type_expr option
@@ -50,6 +50,21 @@ and type_expr_data =
 
   | TApp of type_expr * type_expr
     (** Type application *)
+
+(** Type-scheme expressions *)
+and scheme_expr = {
+  sch_pos : Position.t;
+    (** Location of the scheme expression *)
+
+  sch_implicit : implicit_decl list;
+    (** Named parameters *)
+
+  sch_body : type_expr
+    (** Body of the scheme *)
+}
+
+(** Declaration of implicit/named parameter *)
+and implicit_decl = type_expr inst_data node
 
 (** Type formal parameter *)
 type type_arg = type_arg_data node

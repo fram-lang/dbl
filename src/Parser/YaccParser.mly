@@ -8,7 +8,7 @@
 
 %token<string> LID UID TLID
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COMMA EQ SEMICOLON2 SLASH
+%token ARROW ARROW2 BAR COLON COMMA EQ SEMICOLON2 SLASH
 %token KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET
 %token KW_MATCH KW_OF KW_WITH
 %token UNDERSCORE
@@ -61,7 +61,10 @@ ty_expr_simple
 : BR_OPN ty_expr BR_CLS { make (TParen $2) }
 | UID        { make (TVar $1) }
 | UNDERSCORE { make TWildcard }
+| CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
 ;
+
+/* ------------------------------------------------------------------------- */
 
 effect
 : ty_expr_list                    { make (TEffect($1, None))    }
@@ -76,6 +79,18 @@ ty_expr_list
 ty_expr_list1
 : ty_expr_app                     { [ $1 ]   }
 | ty_expr_app COMMA ty_expr_list1 { $1 :: $3 }
+;
+
+/* ------------------------------------------------------------------------- */
+
+ty_field
+: TLID               { make (FldName $1)         }
+| TLID COLON ty_expr { make (FldNameVal($1, $3)) }
+;
+
+ty_field_list
+: ty_field                     { [ $1 ]   }
+| ty_field COMMA ty_field_list { $1 :: $3 }
 ;
 
 /* ========================================================================= */

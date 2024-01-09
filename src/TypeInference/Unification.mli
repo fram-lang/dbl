@@ -17,10 +17,10 @@ type arrow =
     (** Type is a unification variable. It will never be returned by
       [to_arrow] *)
 
-  | Arr_Pure of T.typ * T.typ
+  | Arr_Pure of T.scheme * T.typ
     (** Pure arrow *)
 
-  | Arr_Impure of T.typ * T.typ * T.effect
+  | Arr_Impure of T.scheme * T.typ * T.effect
     (** Impure arrow *)
 
 (** Check if one kind is equal to another. It performs some unifications

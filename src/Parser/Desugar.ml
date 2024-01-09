@@ -30,13 +30,45 @@ let rec tr_type_expr (tp : Raw.type_expr) =
   | TParen tp -> make (tr_type_expr tp).data
   | TVar x    -> make (TVar x)
   | TPureArrow(tp1, tp2) ->
-    make (TPureArrow(tr_type_expr tp1, tr_type_expr tp2))
+    make (TPureArrow(tr_scheme_expr tp1, tr_type_expr tp2))
   | TArrow(tp1, tp2, eff) ->
-    make (TArrow(tr_type_expr tp1, tr_type_expr tp2, tr_type_expr eff))
+    make (TArrow(tr_scheme_expr tp1, tr_type_expr tp2, tr_type_expr eff))
   | TEffect(tps, ee) ->
     make (TEffect(List.map tr_type_expr tps, Option.map tr_type_expr ee))
   | TApp(tp1, tp2) ->
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
+  | TRecord _ ->
+    Error.fatal (Error.desugar_error tp.pos)
+
+and tr_scheme_expr (tp : Raw.type_expr) =
+  let pos = tp.pos in
+  match tp.data with
+  | TParen tp ->
+    { (tr_scheme_expr tp) with sch_pos = pos }
+  | TPureArrow({ data = TRecord flds; _}, tp) ->
+    let implicit = List.map tr_scheme_field flds in
+    { sch_pos      = pos;
+      sch_implicit = implicit;
+      sch_body     = tr_type_expr tp
+    }
+  | TArrow({data = TRecord _; _}, _, _) ->
+    Error.fatal (Error.impure_scheme pos)
+
+  | TWildcard | TVar _ | TPureArrow _ | TArrow _ | TEffect _ | TApp _ ->
+    { sch_pos      = pos;
+      sch_implicit = [];
+      sch_body     = tr_type_expr tp
+    }
+  | TRecord _ ->
+    Error.fatal (Error.desugar_error tp.pos)
+
+and tr_scheme_field (fld : Raw.ty_field) =
+  let make data = { fld with data = data } in
+  match fld.data with
+  | FldName n ->
+    make (IName(n, make TWildcard))
+  | FldNameVal(n, tp) ->
+    make (IName(n, tr_type_expr tp))
 
 (** Translate a type expression as a type parameter *)
 let rec tr_type_arg (tp : Raw.type_expr) =
@@ -44,7 +76,7 @@ let rec tr_type_arg (tp : Raw.type_expr) =
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
   | TVar x    -> make (TA_Var x)
-  | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ ->
+  | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
@@ -53,7 +85,7 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   match tp.data with
   | TVar x -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
-  | TWildcard | TParen _ | TPureArrow _ | TArrow _ | TEffect _ ->
+  | TWildcard | TParen _ | TPureArrow _ | TArrow _ | TEffect _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a simple pattern, i.e., pattern that cannot be applied to

@@ -4,7 +4,7 @@
 
 (** Reporting errors related to parsing *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 type t = unit
 
@@ -45,4 +45,10 @@ let invalid_pattern_arg pos =
   (* TODO: not implemented properly *)
   Printf.eprintf
     "%s: error: syntax error. This argument is provied to a pattern that do not expect it.\n"
+    (Position.to_string pos)
+
+let impure_scheme pos =
+  (* TODO: not implemented properly *)
+  Printf.eprintf
+    "%s: error: syntax error. Type schemes must be pure.\n"
     (Position.to_string pos)

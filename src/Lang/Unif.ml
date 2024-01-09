@@ -30,8 +30,10 @@ end
 module Effect = UnifPriv.Effect
 
 module Scheme = struct
+  let of_type       = UnifPriv.Type.mono_scheme
   let uvars         = UnifPriv.Type.scheme_uvars
   let collect_uvars = UnifPriv.Type.collect_scheme_uvars
+  let refresh       = UnifPriv.Type.refresh_scheme
 end
 
 module CtorDecl = struct
@@ -52,8 +54,8 @@ and expr = expr_data node
 and expr_data =
   | EUnit
   | EVar      of var
-  | EPureFn   of var * typ * expr
-  | EFn       of var * typ * expr
+  | EPureFn   of var * scheme * expr
+  | EFn       of var * scheme * expr
   | ETFun     of tvar * expr
   | EApp      of expr * expr
   | ETApp     of expr * typ

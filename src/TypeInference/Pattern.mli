@@ -18,14 +18,17 @@ val check_type :
   env:Env.t -> scope:T.scope -> S.pattern -> T.typ ->
     Env.t * T.pattern * ret_effect
 
-(** Infer type of given formal argument. Returns extended environment,
-  a pattern that represents an argument, its type, and the effect of
+(** Infer type-scheme of given formal argument. Returns extended environment,
+  a pattern that represents an argument, its scheme, and the effect of
   pattern-matching *)
-val infer_arg_type : Env.t -> S.arg -> Env.t * T.pattern * T.typ * ret_effect
+val infer_arg_scheme :
+  Env.t -> S.arg -> Env.t * T.pattern * T.scheme * ret_effect
 
-(** Check if given argument has given type. Returns extended environment,
-  translated argument as pattern, and the effect of pattern-matching *)
-val check_arg_type : Env.t -> S.arg -> T.typ -> Env.t * T.pattern * ret_effect
+(** Check if given argument has given type scheme. Returns extended
+  environment, translated argument as pattern, and the effect of
+  pattern-matching *)
+val check_arg_scheme :
+  Env.t -> S.arg -> T.scheme -> Env.t * T.pattern * ret_effect
 
 (** Infer types of given named formal parameters. Returns extended environment,
   the effect of pattern-matching, and the list of translated parameters as

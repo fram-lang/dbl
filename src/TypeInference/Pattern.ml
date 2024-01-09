@@ -76,23 +76,29 @@ and check_pattern_types ~env ~scope pats tps =
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
-let infer_arg_type env (arg : S.arg) =
+let infer_arg_scheme env (arg : S.arg) =
   match arg with
   | ArgPattern pat ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let scope = Env.scope env in
     let (env, pat, r_eff) = check_type ~env ~scope pat tp in
-    (env, pat, tp, r_eff)
+    (env, pat, T.Scheme.of_type tp, r_eff)
 
-let check_arg_type env (arg : S.arg) tp =
+let check_arg_scheme env (arg : S.arg) sch =
   match arg with
-  | ArgPattern pat -> check_type ~env ~scope:(Env.scope env) pat tp
+  | ArgPattern pat -> check_scheme ~env ~scope:(Env.scope env) pat sch
 
 let infer_inst_arg_type env (im : S.inst_arg) =
   match im.data with
   | IName(name, arg) ->
-    let (env, pat, tp, r_eff) = infer_arg_type env arg in
-    (env, (name, pat, tp), r_eff)
+    let (env, pat, sch, r_eff) = infer_arg_scheme env arg in
+    begin match sch.sch_tvars, sch.sch_implicit with
+    | [], [] ->
+      (env, (name, pat, sch.sch_body), r_eff)
+    | _ ->
+      (* TODO: it will be changed *)
+      failwith "Implicit parameters cannot be polymorphich yet."
+    end
 
 let rec infer_inst_arg_types env ims =
   match ims with

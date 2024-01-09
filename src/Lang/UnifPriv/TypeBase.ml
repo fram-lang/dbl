@@ -29,20 +29,20 @@ and typ = type_view
 and effect = typ
 and type_view =
   | TUnit
-  | TUVar      of uvar
+  | TUVar      of TVar.Perm.t * uvar
   | TVar       of tvar
   | TEffect    of TVar.Set.t * effect_end
-  | TPureArrow of typ * typ
-  | TArrow     of typ * typ * effect
+  | TPureArrow of scheme * typ
+  | TArrow     of scheme * typ * effect
   | TApp       of typ * typ
 
 and effect_end =
   | EEClosed
-  | EEUVar of uvar
+  | EEUVar of TVar.Perm.t * uvar
   | EEVar  of tvar
   | EEApp  of typ * typ
 
-type scheme = {
+and scheme = {
   sch_tvars    : tvar list;
   sch_implicit : (name * typ) list;
   sch_body     : typ
@@ -55,7 +55,7 @@ type ctor_decl = {
 
 let t_unit = TUnit
 
-let t_uvar u = TUVar u
+let t_uvar p u = TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
 
 let t_var x = TVar x
 
@@ -63,26 +63,26 @@ let t_effect xs ee = TEffect(xs, ee)
 
 let t_closed_effect xs =  TEffect(xs, EEClosed)
 
-let t_pure_arrow tp1 tp2 = TPureArrow(tp1, tp2)
+let t_pure_arrow sch tp2 = TPureArrow(sch, tp2)
 
-let t_arrow tp1 tp2 eff = TArrow(tp1, tp2, eff)
+let t_arrow sch tp2 eff = TArrow(sch, tp2, eff)
 
 let t_app tp1 tp2 = TApp(tp1, tp2)
 
 let rec view tp =
   match tp with
-  | TUVar u ->
+  | TUVar(p, u) ->
     begin match BRef.get u.state with
     | UV_UVar -> tp
     | UV_Type tp ->
       (* Path compression *)
       let tp = view tp in
       BRef.set u.state (UV_Type tp);
-      tp
+      perm p tp
     end
-  | TEffect(xs, EEUVar u) ->
-    begin match view (TUVar u) with
-    | TUVar u -> TEffect(xs, EEUVar u)
+  | TEffect(xs, EEUVar(p, u)) ->
+    begin match view (TUVar(p, u)) with
+    | TUVar(p, u) -> TEffect(xs, EEUVar(p, u))
     | TVar x  -> TEffect(xs, EEVar x)
     | TApp(tp1, tp2) -> TEffect(xs, EEApp(tp1, tp2))
     | TEffect(ys, ee) -> TEffect(TVar.Set.union xs ys, ee)
@@ -94,9 +94,46 @@ let rec view tp =
 
   | TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _ -> tp
 
+and perm p tp =
+  if TVar.Perm.is_identity p then tp
+  else perm_rec p tp
+
+and perm_rec p tp =
+  match view tp with
+  | TUnit -> TUnit
+  | TUVar(p', u) ->
+    let p = TVar.Perm.compose p p' in
+    TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
+  | TVar x -> TVar (TVar.Perm.apply p x)
+  | TEffect(xs, ee) ->
+    TEffect(TVar.Perm.map_set p xs, perm_effect_end_rec p ee)
+  | TPureArrow(sch, tp2) ->
+    TPureArrow(perm_scheme_rec p sch, perm_rec p tp2)
+  | TArrow(sch, tp2, eff) ->
+    TArrow(perm_scheme_rec p sch, perm_rec p tp2, perm_rec p eff)
+  | TApp(tp1, tp2) ->
+    TApp(perm_rec p tp1, perm_rec p tp2)
+
+and perm_effect_end_rec p ee =
+  match ee with
+  | EEClosed -> EEClosed
+  | EEUVar(p', u) ->
+    let p = TVar.Perm.compose p p' in
+    EEUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
+  | EEVar x -> EEVar (TVar.Perm.apply p x)
+  | EEApp(tp1, tp2) ->
+    EEApp(perm_rec p tp1, perm_rec p tp2)
+
+and perm_scheme_rec p sch =
+  { sch_tvars    = List.map (TVar.Perm.apply p) sch.sch_tvars;
+    sch_implicit =
+      List.map (fun (name, tp) -> (name, perm_rec p tp)) sch.sch_implicit;
+    sch_body     = perm_rec p sch.sch_body
+  }
+
 let effect_view eff =
   match view eff with
-  | TUVar u -> (TVar.Set.empty, EEUVar u)
+  | TUVar(p, u) -> (TVar.Set.empty, EEUVar(p, u))
   | TVar  x ->
     begin match KindBase.view (TVar.kind x) with
     | KEffect   -> (TVar.Set.empty, EEVar x)
@@ -129,12 +166,12 @@ module UVar = struct
 
   let equal u1 u2 = u1 == u2
 
-  let raw_set u tp =
+  let raw_set p u tp =
     match BRef.get u.state with
     | UV_Type _ -> assert false
     | UV_UVar   ->
-      BRef.set u.state (UV_Type tp);
-      BRef.get u.scope
+      BRef.set u.state (UV_Type (perm (TVar.Perm.inverse p) tp));
+      TVar.Perm.map_set p (BRef.get u.scope)
 
   let fix u =
     match BRef.get u.state with
@@ -146,6 +183,9 @@ module UVar = struct
 
   let shrink_scope ~scope u =
     BRef.set u.scope (TVar.Set.inter (BRef.get u.scope) scope)
+
+  let filter_scope u f =
+    BRef.set u.scope (TVar.Set.filter f (BRef.get u.scope))
 
   module Set = Set.Make(Ordered)
 end

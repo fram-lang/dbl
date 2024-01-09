@@ -19,20 +19,20 @@ type effect = typ
 
 type effect_end =
   | EEClosed
-  | EEUVar of uvar
+  | EEUVar of TVar.Perm.t * uvar
   | EEVar  of tvar
   | EEApp  of typ * typ
 
 type type_view =
   | TUnit
-  | TUVar      of uvar
+  | TUVar      of TVar.Perm.t * uvar
   | TVar       of tvar
   | TEffect    of TVar.Set.t * effect_end
-  | TPureArrow of typ * typ
-  | TArrow     of typ * typ * effect
+  | TPureArrow of scheme * typ
+  | TArrow     of scheme * typ * effect
   | TApp       of typ * typ
 
-type scheme = {
+and scheme = {
   sch_tvars    : tvar list;
   sch_implicit : (name * typ) list;
   sch_body     : typ
@@ -47,16 +47,16 @@ type ctor_decl = {
 val t_unit : typ
 
 (** Unification variable *)
-val t_uvar : uvar -> typ
+val t_uvar : TVar.Perm.t -> uvar -> typ
 
 (** Regular type variable *)
 val t_var : tvar -> typ
 
 (** Pure arrow type *)
-val t_pure_arrow : typ -> typ -> typ
+val t_pure_arrow : scheme -> typ -> typ
 
 (** Arrow type *)
-val t_arrow : typ -> typ -> effect -> typ
+val t_arrow : scheme -> typ -> effect -> typ
 
 (** Create an effect *)
 val t_effect : TVar.Set.t -> effect_end -> effect
@@ -86,14 +86,19 @@ module UVar : sig
   val equal : t -> t -> bool
 
   (** Set a unification variable, without checking any constraints. It returns
-    expected scope of set type *)
-  val raw_set : t -> typ -> scope
+    expected scope of set type. The first parameter is a permutation attached
+    to unification variable *)
+  val raw_set : TVar.Perm.t -> t -> typ -> scope
 
   val fix : t -> tvar
 
   (** Shrink scope of given unification variable to intersection of current
     and given scope. *)
   val shrink_scope : scope:scope -> uvar -> unit
+
+  (** Shrink scope of given unification variable, leaving only those variables
+    which satisfy given predicate *)
+  val filter_scope : uvar -> (tvar -> bool) -> unit
 
   module Set : Set.S with type elt = t
 end

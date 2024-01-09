@@ -8,6 +8,12 @@
 
 open Common
 
+(** Make polymorphic function with given type parameters *)
+val make_tfun : T.tvar list -> T.expr -> T.expr
+
+(** Make function polymorphic in implicit parameters *)
+val make_ifun : (S.name * T.var * T.typ) list -> T.expr -> T.expr
+
 (** Generate a type application to given list of types *)
 val make_tapp : T.expr -> T.typ list -> T.expr
 

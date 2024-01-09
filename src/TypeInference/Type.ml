@@ -23,16 +23,16 @@ let rec infer_kind env (tp : S.type_expr) =
       (Env.fresh_uvar env k, k)
     end
 
-  | TPureArrow(tp1, tp2) ->
-    let tp1 = check_kind env tp1 T.Kind.k_type in
-    let tp2 = check_kind env tp2 T.Kind.k_type in
-    (T.Type.t_pure_arrow tp1 tp2, T.Kind.k_type)
+  | TPureArrow(sch, tp) ->
+    let sch = tr_scheme env sch in
+    let tp  = tr_ttype  env tp  in
+    (T.Type.t_pure_arrow sch tp, T.Kind.k_type)
 
-  | TArrow(tp1, tp2, eff) ->
-    let tp1 = check_kind env tp1 T.Kind.k_type in
-    let tp2 = check_kind env tp2 T.Kind.k_type in
-    let eff = check_kind env eff T.Kind.k_effect in
-    (T.Type.t_arrow tp1 tp2 eff, T.Kind.k_type)
+  | TArrow(sch, tp, eff) ->
+    let sch = tr_scheme env sch in
+    let tp  = tr_ttype  env tp  in
+    let eff = tr_effect env eff in
+    (T.Type.t_arrow sch tp eff, T.Kind.k_type)
 
   | TEffect(tps, ee) ->
     (check_effect env tps ee, T.Kind.k_effect)
@@ -98,8 +98,22 @@ and check_cl_effect_it env tvs tp =
       (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect T.Kind.k_cleffect);
     T.TVar.Set.union tvs tvs'
 
-let tr_ttype env tp =
+and tr_scheme env (sch : S.scheme_expr) =
+  let ims = List.map (tr_implicit_decl env) sch.sch_implicit in
+  { T.sch_tvars    = [];
+    T.sch_implicit = ims;
+    T.sch_body     = tr_ttype env sch.sch_body
+  }
+
+and tr_implicit_decl env (im : S.implicit_decl) =
+  match im.data with
+  | IName(n, tp) -> (n, tr_ttype env tp)
+
+and tr_ttype env tp =
   check_kind env tp T.Kind.k_type
+
+and tr_effect env eff =
+  check_kind env eff T.Kind.k_effect
 
 let tr_type_arg env (arg : S.type_arg) =
   match arg.data with

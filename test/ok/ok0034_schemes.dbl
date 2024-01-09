@@ -1,0 +1,4 @@
+data Bool = False | True
+data A = A of (({`x : Bool} -> Bool) ->[] Bool)
+
+let foo (A g) = g `x

@@ -13,6 +13,15 @@ type t
 (** Empty substitution *)
 val empty : t
 
+(** Extend substitution with a renaming. The new version of a variable
+  must be fresh enough. *)
+val rename_to_fresh : t -> tvar -> tvar -> t
+
+(** Extend the substitution with a permutation that maps given type variables
+  to their fresh version. It returns extended substitution together with
+  refreshed type variables *)
+val add_tvars : t -> tvar list -> t * tvar list
+
 (** Extend substitution *)
 val add_type : t -> tvar -> typ -> t
 

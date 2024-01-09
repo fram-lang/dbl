@@ -4,7 +4,7 @@
 
 (** Reporting errors related to parsing *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 (** Abstract representation of error *)
 type t
@@ -22,3 +22,4 @@ val eof_in_comment : Position.t -> t
 
 val desugar_error : Position.t -> t
 val invalid_pattern_arg : Position.t -> t
+val impure_scheme : Position.t -> t

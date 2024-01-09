@@ -4,7 +4,7 @@
 
 (** Type variables *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open KindBase
 
@@ -17,7 +17,10 @@ val kind : t -> kind
 
 val fresh : kind -> t
 
+val clone : t -> t
+
 val equal : t -> t -> bool
 
-module Set : Set.S with type elt = t
-module Map : Map.S with type key = t
+module Set  : Set.S with  type elt = t
+module Map  : Map.S with  type key = t
+module Perm : Perm.S with type key = t and module KeySet = Set

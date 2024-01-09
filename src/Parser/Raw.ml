@@ -21,6 +21,15 @@ type name = string
 (** Names of constructors of ADTs *)
 type ctor_name = string
 
+(** Field of record-like, e.g., scheme name parameters, or explicit
+  instantiation *)
+type 'a field_data =
+  | FldName of name
+    (** Single named implicit parameter *)
+
+  | FldNameVal of name * 'a
+    (** Named implicit parameter together with a value *)
+
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =
@@ -44,6 +53,12 @@ and type_expr_data =
 
   | TApp of type_expr * type_expr
     (** Type application *)
+
+  | TRecord of ty_field list
+    (** Record-like type: left-hand-side of a type-scheme *)
+
+(** Field of record-like type *)
+and ty_field = type_expr field_data node
 
 (** Expressions *)
 type expr = expr_data node
@@ -97,13 +112,7 @@ and h_expr_data =
     (** Handler of a single operation *)
 
 (** Field of record-like expression *)
-and field = field_data node
-and field_data =
-  | FldName of name
-    (** Single named implicit parameter *)
-
-  | FldNameVal of name * expr
-    (** Named implicit parameter together with a value *)
+and field = expr field_data node
 
 (** Definitions *)
 and def = def_data node

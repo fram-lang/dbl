@@ -10,7 +10,7 @@ open TypeBase
 
 type effect_view =
   | EffPure
-  | EffUVar of uvar
+  | EffUVar of TVar.Perm.t * uvar
   | EffVar  of tvar
   | EffApp  of typ * typ
   | EffCons of tvar * effect
@@ -33,7 +33,7 @@ let view eff =
   | None ->
     begin match ee with
     | EEClosed -> EffPure
-    | EEUVar u -> EffUVar u
+    | EEUVar(p, u) -> EffUVar(p, u)
     | EEVar  x -> EffVar  x
     | EEApp(tp1, tp2) -> EffApp(tp1, tp2)
     end

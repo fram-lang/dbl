@@ -73,8 +73,8 @@ and tr_expr_v env (e : S.expr) cont =
   | EUnit  -> cont T.VUnit
   | EVar x -> cont (VVar x)
 
-  | EPureFn(x, tp, body) | EFn(x, tp, body) ->
-    let tp = Type.tr_ttype env tp in
+  | EPureFn(x, sch, body) | EFn(x, sch, body) ->
+    let tp = Type.tr_scheme env sch in
     cont (VFn(x, tp, tr_expr env body))
 
   | ETFun(x, body) ->

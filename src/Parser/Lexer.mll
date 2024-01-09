@@ -4,7 +4,7 @@
 
 (** Lexer *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 {
 let kw_map =
@@ -49,6 +49,7 @@ rule token = parse
   | "->" { YaccParser.ARROW      }
   | "=>" { YaccParser.ARROW2     }
   | "|"  { YaccParser.BAR        }
+  | ":"  { YaccParser.COLON      }
   | ","  { YaccParser.COMMA      }
   | "="  { YaccParser.EQ         }
   | ";;" { YaccParser.SEMICOLON2 }
