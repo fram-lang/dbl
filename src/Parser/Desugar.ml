@@ -122,6 +122,7 @@ let rec tr_simple_pattern (p : Raw.expr) ps =
   | [], EParen p  -> make (tr_pattern p []).data
   | [], EVar  x   -> make (PVar x)
   | [], EName n   -> make (PName n)
+  | [], EAnnot(p, sch) -> make (PAnnot(tr_pattern p [], tr_scheme_expr sch))
   | [], (ECtor _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandle _
     | ERecord _) ->
     assert false
@@ -132,7 +133,7 @@ let rec tr_simple_pattern (p : Raw.expr) ps =
 and tr_pattern (p : Raw.expr) ps =
   let make data = { p with data = data } in
   match p.data with
-  | EWildcard | EUnit | EParen _ | EVar _ | EName _ ->
+  | EWildcard | EUnit | EParen _ | EVar _ | EName _ | EAnnot _ ->
     tr_simple_pattern p ps
   | ECtor c -> make (PCtor(make c, List.map (fun p -> tr_pattern p []) ps))
   | EApp(p, p1) -> tr_pattern p (p1 :: ps)
@@ -141,8 +142,16 @@ and tr_pattern (p : Raw.expr) ps =
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a formal parameter of a function *)
-let tr_function_arg (arg : Raw.expr) =
-  ArgPattern (tr_pattern arg [])
+let rec tr_function_arg (arg : Raw.expr) =
+  match arg.data with
+  | EParen arg -> tr_function_arg arg
+  | EAnnot(p, sch) ->
+    ArgAnnot(tr_pattern p [], tr_scheme_expr sch)
+  | EWildcard | EUnit | EVar _ | EName _ | ECtor _ | EApp _ ->
+    ArgPattern (tr_pattern arg [])
+
+  | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
+    Error.fatal (Error.desugar_error arg.pos)
 
 let tr_inst_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -159,7 +168,8 @@ let tr_inst_arg (fld : Raw.field) =
   list of formal parameters/subpatterns *)
 let rec tr_let_pattern (p : Raw.expr) ps =
   match p.data with
-  | EWildcard | EUnit | EParen _ | ECtor _ -> LP_Pat (tr_pattern p ps)
+  | EWildcard | EUnit | EParen _ | ECtor _ | EAnnot _ ->
+    LP_Pat (tr_pattern p ps)
   | EVar _ | EName _ ->
     let id =
       match p.data with
@@ -195,7 +205,7 @@ let tr_poly_expr (e : Raw.expr) =
   | ECtor c -> make (ECtor c)
 
   | EWildcard | EUnit | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _
-  | EHandle _ | ERecord _ ->
+  | EHandle _ | ERecord _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 let rec tr_expr (e : Raw.expr) =
@@ -212,7 +222,7 @@ let rec tr_expr (e : Raw.expr) =
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
   | EHandle(pat, e, h) ->
     make (EHandle(tr_pattern pat [], tr_expr e, tr_h_expr h))
-  | EWildcard | ERecord _ ->
+  | EWildcard | ERecord _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_match_clause (cl : Raw.match_clause) =

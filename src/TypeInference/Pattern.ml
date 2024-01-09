@@ -26,11 +26,17 @@ let rec check_scheme ~env ~scope (pat : S.pattern) sch =
     | _ ->
       Error.fatal (Error.non_polymorphic_pattern ~pos:pat.pos)
     end
+  | PAnnot(pat, sch') ->
+    let sch_pos = sch'.sch_pos in
+    let sch' = Type.tr_scheme env sch' in
+    if not (Unification.subscheme env sch sch') then
+      Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
+    check_scheme ~env ~scope:(Env.scope env) pat sch'
 
 and check_type ~env ~scope (pat : S.pattern) tp =
   let make data = { pat with T.data = data } in
   match pat.data with
-  | PWildcard | PVar _ | PName _ ->
+  | PWildcard | PVar _ | PName _ | PAnnot _ ->
     let sch = {
       T.sch_tvars    = [];
       T.sch_implicit = [];
@@ -78,6 +84,11 @@ and check_pattern_types ~env ~scope pats tps =
 
 let infer_arg_scheme env (arg : S.arg) =
   match arg with
+  | ArgAnnot(pat, sch) ->
+    let sch = Type.tr_scheme env sch in
+    let scope = Env.scope env in
+    let (env, pat, r_eff) = check_scheme ~env ~scope pat sch in
+    (env, pat, sch, r_eff)
   | ArgPattern pat ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let scope = Env.scope env in
@@ -86,6 +97,12 @@ let infer_arg_scheme env (arg : S.arg) =
 
 let check_arg_scheme env (arg : S.arg) sch =
   match arg with
+  | ArgAnnot(pat, sch') ->
+    let sch_pos = sch'.sch_pos in
+    let sch' = Type.tr_scheme env sch' in
+    if not (Unification.subscheme env sch sch') then
+      Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
+    check_scheme ~env ~scope:(Env.scope env) pat sch'
   | ArgPattern pat -> check_scheme ~env ~scope:(Env.scope env) pat sch
 
 let infer_inst_arg_type env (im : S.inst_arg) =
@@ -114,3 +131,5 @@ let rec fold_implicit f acc (pat : S.pattern) =
   | PName n -> f acc n
   | PCtor(_, ps) ->
     List.fold_left (fold_implicit f) acc ps
+  | PAnnot(pat, _) ->
+    fold_implicit f acc pat

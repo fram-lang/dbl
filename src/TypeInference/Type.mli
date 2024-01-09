@@ -11,6 +11,9 @@ open Common
 (** Check kind and translate a type expression *)
 val check_kind : Env.t -> S.type_expr -> T.kind -> T.typ
 
+(** Check and translate a type-scheme expression *)
+val tr_scheme : Env.t -> S.scheme_expr -> T.scheme
+
 (** Check kind and translate a type expression of kind Type *)
 val tr_ttype : Env.t -> S.type_expr -> T.typ
 

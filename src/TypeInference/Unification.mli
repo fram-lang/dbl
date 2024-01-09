@@ -39,6 +39,10 @@ val subeffect : Env.t -> T.effect -> T.effect -> bool
   It performs some unifications when necessary. *)
 val subtype : Env.t -> T.typ -> T.typ -> bool
 
+(** Check if one scheme is a subscheme of another.
+  It performs some unifications when necessary. *)
+val subscheme : Env.t -> T.scheme -> T.scheme -> bool
+
 (** Coerce given type to an arrow.
   It performs some unifications when necessary. *)
 val to_arrow : Env.t -> T.typ -> arrow

@@ -1,0 +1,2 @@
+let foo (id : {type X} -> X -> X) = id id
+let _ = foo (fn x => x) ()

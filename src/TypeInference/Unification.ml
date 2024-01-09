@@ -265,6 +265,12 @@ let subtype env tp1 tp2 =
   | ()              -> true
   | exception Error -> false
 
+let subscheme env sch1 sch2 =
+  (* TODO: create reference backtracking point *)
+  match check_subscheme env sch1 sch2 with
+  | ()              -> true
+  | exception Error -> false
+
 let to_arrow env tp =
   match T.Type.view tp with
   | TUnit | TVar _ | TApp _ -> Arr_No

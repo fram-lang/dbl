@@ -34,6 +34,8 @@ val expr_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
 
 val pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+val pattern_annot_mismatch :
+  pos:Position.t -> env:Env.t -> T.scheme -> T.scheme -> t
 
 val func_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t

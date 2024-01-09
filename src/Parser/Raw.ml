@@ -102,6 +102,9 @@ and expr_data =
     (** Record-like expression, e.g., explicit instantiation of named
       parameters *)
 
+  | EAnnot of expr * type_expr
+    (** Type annotation *)
+
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =

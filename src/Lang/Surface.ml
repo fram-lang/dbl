@@ -96,8 +96,14 @@ and pattern_data =
   | PCtor of ctor_name node * pattern list
     (** ADT constructor pattern *)
 
+  | PAnnot of pattern * scheme_expr
+    (** Scheme annotation *)
+
 (** Formal argument *)
 type arg =
+  | ArgAnnot of pattern * scheme_expr
+    (** Argument with scheme annotation *)
+
   | ArgPattern of pattern
     (** Argument with pattern-matching *)
 
