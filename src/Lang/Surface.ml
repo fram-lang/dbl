@@ -164,7 +164,7 @@ and def_data =
   | DLetId of ident * expr
     (** Let definition: monomorphic or polymorphic, depending on effect *)
 
-  | DLetFun of ident * inst_arg list * expr
+  | DLetFun of ident * type_arg list * inst_arg list * expr
     (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr

@@ -17,9 +17,10 @@ val make_ifun : (S.name * T.var * T.typ) list -> T.expr -> T.expr
 (** Generate a type application to given list of types *)
 val make_tapp : T.expr -> T.typ list -> T.expr
 
-(** Generalize type to polymorphic scheme. The second parameter is a list of
+(** Generalize type to polymorphic scheme. The second parameter is a list
+  of explicit type parameters, and the third parameter is a list of
   implicit parameters. *)
-val generalize : Env.t -> (S.name * T.var * T.typ) list ->
+val generalize : Env.t -> T.tvar list -> (S.name * T.var * T.typ) list ->
   T.expr -> T.typ -> T.expr * T.scheme
 
 (** Guess types used to instantiate polymorphic function. Returns substitution

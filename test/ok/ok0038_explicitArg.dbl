@@ -1,0 +1,1 @@
+let id {type X} (x : X) = x

@@ -304,8 +304,9 @@ and check_def env ienv (def : S.def) eff =
     let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
     (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
-  | DLetFun(id, iargs, body) ->
-    let (body_env, ims1) = ImplicitEnv.begin_generalize env ienv in
+  | DLetFun(id, targs, iargs, body) ->
+    let (body_env, tvars) = Type.tr_type_args env targs in 
+    let (body_env, ims1) = ImplicitEnv.begin_generalize body_env ienv in
     let (body_env, ims2, r_eff1) =
       Pattern.infer_inst_arg_types body_env iargs in
     let (body, tp, r_eff2) = infer_expr_type body_env body T.Effect.pure in
@@ -316,7 +317,7 @@ and check_def env ienv (def : S.def) eff =
     (* TODO: check if [tp] is in proper scope (ims2 may bind some types) *)
     let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
     let ims1 = ImplicitEnv.end_generalize_pure ims1 in
-    let (body, sch) = ExprUtils.generalize env (ims1 @ ims2) body tp in
+    let (body, sch) = ExprUtils.generalize env tvars (ims1 @ ims2) body tp in
     let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
     (env, ienv, (fun e _ -> make e (T.ELet(x, sch, body, e))), Pure)
 
@@ -362,7 +363,7 @@ and check_let env ienv body eff =
   match r_eff with
   | Pure ->
     let ims = ImplicitEnv.end_generalize_pure ims in
-    let (body, sch) = ExprUtils.generalize env ims body tp in
+    let (body, sch) = ExprUtils.generalize env [] ims body tp in
     (sch, body, Pure)
   | Impure ->
     ImplicitEnv.end_generalize_impure ims;

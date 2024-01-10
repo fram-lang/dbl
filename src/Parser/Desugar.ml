@@ -16,8 +16,8 @@ type let_pattern =
   | LP_Id of ident * Raw.expr list
     (** identifier definition with a list of formal parameters. *)
 
-  | LP_Fun of ident * inst_arg list * Raw.expr list
-    (** Function definition with list of formal implicit and explicit
+  | LP_Fun of ident * type_arg list * inst_arg list * Raw.expr list
+    (** Function definition with list of formal type, implicit, and explicit
       parameters *)
 
   | LP_Pat of pattern
@@ -156,13 +156,12 @@ let rec tr_function_arg (arg : Raw.expr) =
 let tr_inst_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
-  | FldAnonType _ ->
-    (* Never returned by YaccParser, but should be implemented at some point *)
-    assert false
+  | FldAnonType arg ->
+    Either.Left (tr_type_arg arg)
   | FldName n ->
-    make (IName(n, ArgPattern(make (PName n))))
+    Either.Right (make (IName(n, ArgPattern(make (PName n)))))
   | FldNameVal(n, e) ->
-    make (IName(n, tr_function_arg e))
+    Either.Right (make (IName(n, tr_function_arg e)))
 
 (** Translate an expression as a let-pattern. Argument [ps] is an accumulated
   list of formal parameters/subpatterns *)
@@ -179,7 +178,8 @@ let rec tr_let_pattern (p : Raw.expr) ps =
     in
     begin match ps with
     | { data = ERecord iargs; _ } :: ps ->
-      LP_Fun(id, List.map tr_inst_arg iargs, ps)
+      let (targs, iargs) = map_inst_like tr_inst_arg iargs in
+      LP_Fun(id, targs, iargs, ps)
     | _ ->
       LP_Id(id, ps)
     end
@@ -254,8 +254,8 @@ and tr_def (def : Raw.def) =
     begin match tr_let_pattern p [] with
     | LP_Id(id, args) ->
       make (DLetId(id, tr_function args (tr_expr e)))
-    | LP_Fun(id, iargs, args) ->
-      make (DLetFun(id, iargs, tr_function args (tr_expr e)))
+    | LP_Fun(id, targs, iargs, args) ->
+      make (DLetFun(id, targs, iargs, tr_function args (tr_expr e)))
     | LP_Pat p -> make (DLetPat(p, tr_expr e))
     end
   | DImplicit n  -> make (DImplicit n)

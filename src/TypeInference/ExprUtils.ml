@@ -50,8 +50,8 @@ let rec make_tapp e tps =
     in
     make_tapp e tps
 
-let generalize env ims e tp =
-  let tvs =
+let generalize env tvs2 ims e tp =
+  let tvs1 =
     List.fold_left
       (fun tvs (_, _, itp) -> T.Type.collect_uvars itp tvs)
       (T.Type.uvars tp)
@@ -60,6 +60,7 @@ let generalize env ims e tp =
     |> T.UVar.Set.elements
     |> List.map T.UVar.fix
   in
+  let tvs = tvs1 @ tvs2 in
   let sch =
     { T.sch_tvars    = tvs
     ; T.sch_implicit = List.map (fun (name, _, tp) -> (name, tp)) ims

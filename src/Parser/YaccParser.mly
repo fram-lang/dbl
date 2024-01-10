@@ -169,8 +169,9 @@ h_expr
 /* ========================================================================= */
 
 field
-: TLID         { make (FldName $1)         }
-| TLID EQ expr { make (FldNameVal($1, $3)) }
+: KW_TYPE ty_expr { make (FldAnonType $2)     }
+| TLID            { make (FldName $1)         }
+| TLID EQ expr    { make (FldNameVal($1, $3)) }
 ;
 
 field_list
