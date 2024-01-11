@@ -42,7 +42,7 @@ type scheme = {
   sch_tvars    : tvar list;
     (** universally quantified type variables *)
 
-  sch_implicit : (name * typ) list;
+  sch_implicit : (name * scheme) list;
     (** Implicit parameters *)
   
   sch_body     : typ
@@ -453,6 +453,9 @@ module Scheme : sig
 
   (** Make sure that type variables bound by this scheme are fresh *)
   val refresh : scheme -> scheme
+
+  (** Apply substitution to a scheme *)
+  val subst : subst -> scheme -> scheme
 end
 
 (* ========================================================================= *)

@@ -179,9 +179,10 @@ and unify_scheme env sch1 sch2 =
         (env, sub1, sub2))
       (env, T.Subst.empty, T.Subst.empty) sch1.sch_tvars sch2.sch_tvars in
   List.iter2
-    (fun (name1, tp1) (name2, tp2) ->
+    (fun (name1, isch1) (name2, isch2) ->
       if name1 <> name2 then raise Error;
-      unify env (T.Type.subst sub1 tp1) (T.Type.subst sub2 tp2))
+      unify_scheme env
+        (T.Scheme.subst sub1 isch1) (T.Scheme.subst sub2 isch2))
     sch1.sch_implicit sch2.sch_implicit;
   unify env
     (T.Type.subst sub1 sch1.sch_body) (T.Type.subst sub2 sch2.sch_body)
@@ -245,10 +246,11 @@ and check_subscheme env sch1 sch2 =
         (env, sub1, sub2))
       (env, T.Subst.empty, T.Subst.empty) sch1.sch_tvars sch2.sch_tvars in
   List.iter2
-    (fun (name1, tp1) (name2, tp2) ->
+    (fun (name1, isch1) (name2, isch2) ->
       if name1 <> name2 then raise Error;
       (* contravariant *)
-      check_subtype env (T.Type.subst sub2 tp2) (T.Type.subst sub1 tp1))
+      check_subscheme env
+        (T.Scheme.subst sub2 isch2) (T.Scheme.subst sub1 isch1))
     sch1.sch_implicit sch2.sch_implicit;
   check_subtype env
     (T.Type.subst sub1 sch1.sch_body) (T.Type.subst sub2 sch2.sch_body)

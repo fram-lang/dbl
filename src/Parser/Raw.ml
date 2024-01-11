@@ -32,6 +32,9 @@ type ('tp, 'e) field_data =
   | FldNameVal of name * 'e
     (** Named implicit parameter together with a value *)
 
+  | FldNameAnnot of name * 'tp
+    (** type-annotated implicit parameter *)
+
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =

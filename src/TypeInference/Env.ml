@@ -112,3 +112,18 @@ let scope env = env.scope
 
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
+
+let open_scheme env sch =
+  let sch = T.Scheme.refresh sch in
+  let env = 
+    { env with
+      scope = List.fold_left T.Scope.add env.scope sch.sch_tvars
+    } in
+  let (env, ims) =
+    List.fold_left_map
+      (fun env (name, sch) ->
+        let (env, x) = add_poly_implicit env name sch ignore in
+        (env, (name, x, sch)))
+      env
+      sch.sch_implicit in
+  (env, sch.sch_tvars, ims, sch.sch_body)

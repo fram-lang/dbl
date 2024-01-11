@@ -83,3 +83,9 @@ val scope : t -> T.scope
 
 (** Create a fresh unification variable in current scope *)
 val fresh_uvar : t -> T.kind -> T.typ
+
+(** Introduce all variables and named parameters bound by given scheme.
+  Returns extended environment, list of type variables, list of introduced
+  named parameters, and the type of the scheme body. *)
+val open_scheme : t -> T.scheme ->
+  t * T.tvar list * (S.name * T.var * T.scheme) list * T.typ

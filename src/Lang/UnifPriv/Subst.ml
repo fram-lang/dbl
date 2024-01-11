@@ -104,7 +104,7 @@ and in_type_rec sub tp =
 and in_scheme_rec sub sch =
   let (sub, tvars) = add_tvars sub sch.sch_tvars in
   let ims =
-    List.map (fun (name, tp) -> (name, in_type_rec sub tp))
+    List.map (fun (name, isch) -> (name, in_scheme_rec sub isch))
       sch.sch_implicit in
   { sch_tvars    = tvars;
     sch_implicit = ims;
@@ -114,6 +114,10 @@ and in_scheme_rec sub sch =
 let in_type sub tp =
   if is_empty sub then tp
   else in_type_rec sub tp
+
+let in_scheme sub sch =
+  if is_empty sub then sch
+  else in_scheme_rec sub sch
 
 let in_ctor_decl sub ctor =
   if is_empty sub then ctor

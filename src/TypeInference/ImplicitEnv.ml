@@ -48,7 +48,7 @@ let end_generalize_pure ims =
   ims |> List.filter_map
     (fun im ->
       match BRef.get im.i_used with
-      | Some _ -> Some (im.i_name, im.i_var, im.i_type)
+      | Some _ -> Some (im.i_name, im.i_var, T.Scheme.of_type im.i_type)
       | None   -> None)
 
 let end_generalize_impure ims =

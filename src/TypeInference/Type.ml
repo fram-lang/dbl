@@ -108,7 +108,7 @@ and tr_scheme env (sch : S.scheme_expr) =
 
 and tr_implicit_decl env (im : S.implicit_decl) =
   match im.data with
-  | IName(n, tp) -> (n, tr_ttype env tp)
+  | IName(n, sch) -> (n, tr_scheme env sch)
 
 and tr_ttype env tp =
   check_kind env tp T.Kind.k_type

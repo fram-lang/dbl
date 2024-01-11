@@ -34,6 +34,7 @@ module Scheme = struct
   let uvars         = UnifPriv.Type.scheme_uvars
   let collect_uvars = UnifPriv.Type.collect_scheme_uvars
   let refresh       = UnifPriv.Type.refresh_scheme
+  let subst         = UnifPriv.Subst.in_scheme
 end
 
 module CtorDecl = struct

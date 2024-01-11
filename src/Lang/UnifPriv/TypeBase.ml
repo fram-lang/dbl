@@ -44,7 +44,7 @@ and effect_end =
 
 and scheme = {
   sch_tvars    : tvar list;
-  sch_implicit : (name * typ) list;
+  sch_implicit : (name * scheme) list;
   sch_body     : typ
 }
 
@@ -127,7 +127,8 @@ and perm_effect_end_rec p ee =
 and perm_scheme_rec p sch =
   { sch_tvars    = List.map (TVar.Perm.apply p) sch.sch_tvars;
     sch_implicit =
-      List.map (fun (name, tp) -> (name, perm_rec p tp)) sch.sch_implicit;
+      List.map (fun (name, sch) -> (name, perm_scheme_rec p sch))
+        sch.sch_implicit;
     sch_body     = perm_rec p sch.sch_body
   }
 

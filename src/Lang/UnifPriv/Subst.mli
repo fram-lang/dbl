@@ -28,5 +28,8 @@ val add_type : t -> tvar -> typ -> t
 (** Substitute in type *)
 val in_type : t -> typ -> typ
 
+(** Substitute in a type scheme *)
+val in_scheme : t -> scheme -> scheme
+
 (** Substitute in constructor definition *)
 val in_ctor_decl : t -> ctor_decl -> ctor_decl

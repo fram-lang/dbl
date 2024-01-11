@@ -34,7 +34,7 @@ type type_view =
 
 and scheme = {
   sch_tvars    : tvar list;
-  sch_implicit : (name * typ) list;
+  sch_implicit : (name * scheme) list;
   sch_body     : typ
 }
 

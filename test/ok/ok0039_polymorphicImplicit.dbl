@@ -1,0 +1,7 @@
+let foo {`id : {type X} -> X -> X} = `id ()
+
+let _ = foo {`id = fn x => x}
+
+let `id x = x
+
+let _ = foo

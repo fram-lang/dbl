@@ -67,7 +67,7 @@ and scheme_expr = {
 }
 
 (** Declaration of implicit/named parameter *)
-and implicit_decl = type_expr inst_data node
+and implicit_decl = scheme_expr inst_data node
 
 (** Type formal parameter *)
 and type_arg = type_arg_data node

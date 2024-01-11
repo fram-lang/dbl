@@ -30,12 +30,12 @@ val infer_arg_scheme :
 val check_arg_scheme :
   Env.t -> S.arg -> T.scheme -> Env.t * T.pattern * ret_effect
 
-(** Infer types of given named formal parameters. Returns extended environment,
-  the effect of pattern-matching, and the list of translated parameters as
-  triples: name, pattern, and its type *)
-val infer_inst_arg_types :
+(** Infer type schemes of given named formal parameters. Returns extended
+  environment, the effect of pattern-matching, and the list of translated
+  parameters as triples: name, pattern, and its type scheme *)
+val infer_inst_arg_schemes :
   Env.t -> S.inst_arg list ->
-    Env.t * (S.name * T.pattern * T.typ) list * ret_effect
+    Env.t * (S.name * T.pattern * T.scheme) list * ret_effect
 
 (** Accumulate all results of given function called on all names of implicit
   parameters bound by given pattern *)

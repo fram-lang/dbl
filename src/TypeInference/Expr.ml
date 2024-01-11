@@ -86,7 +86,8 @@ let rec infer_expr_type env (e : S.expr) eff =
     let (sub, tps) = ExprUtils.guess_types env sch.sch_tvars in
     let e = ExprUtils.make_tapp e tps in
     let ims =
-      List.map (fun (n, tp) -> (n, T.Type.subst sub tp)) sch.sch_implicit in
+      List.map (fun (n, sch) -> (n, T.Scheme.subst sub sch))
+        sch.sch_implicit in
     let (i_ctx, inst, r_eff2) = check_explicit_insts env ims inst eff in
     let e = ExprUtils.instantiate_implicits env e ims inst in
     let tp = T.Type.subst sub sch.sch_body in
@@ -224,21 +225,7 @@ and check_expr_type_default env (e : S.expr) tp eff =
 (* ------------------------------------------------------------------------- *)
 (** Check the scheme of an actual parameter of a function *)
 and check_actual_arg env (arg : S.expr) sch eff =
-  let ((env, sub), tvars) =
-    List.fold_left_map
-      (fun (env, sub) x ->
-        let (env, y) = Env.add_anon_tvar env (T.TVar.kind x) in
-        let sub = T.Subst.rename_to_fresh sub x y in
-        ((env, sub), y))
-      (env, T.Subst.empty) sch.sch_tvars in
-  let (env, ims) =
-    List.fold_left_map
-      (fun env (name, tp) ->
-        let (env, x) =
-          Env.add_mono_implicit env name (T.Type.subst sub tp) ignore in
-        (env, (name, x, tp)))
-      env sch.sch_implicit in
-  let body_tp = T.Type.subst sub sch.sch_body in
+  let (env, tvars, ims, body_tp) = Env.open_scheme env sch in
   let (body, res_eff) =
     match tvars, ims with
     | [], [] -> check_expr_type env arg body_tp eff
@@ -263,9 +250,8 @@ and check_explicit_insts env ims insts eff =
   | { data = S.IName(n, e); pos } :: insts ->
     let make data = { T.data; T.pos } in
     begin match List.assoc_opt n ims with
-    | Some tp ->
-      let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
-      let (e, r_eff1) = check_expr_type env e tp eff in
+    | Some sch ->
+      let (e, r_eff1) = check_actual_arg env e sch eff in
       let (ctx, insts, r_eff2) = check_explicit_insts env ims insts eff in
       let x = Var.fresh () in
       let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
@@ -308,7 +294,7 @@ and check_def env ienv (def : S.def) eff =
     let (body_env, tvars) = Type.tr_type_args env targs in 
     let (body_env, ims1) = ImplicitEnv.begin_generalize body_env ienv in
     let (body_env, ims2, r_eff1) =
-      Pattern.infer_inst_arg_types body_env iargs in
+      Pattern.infer_inst_arg_schemes body_env iargs in
     let (body, tp, r_eff2) = infer_expr_type body_env body T.Effect.pure in
     begin match ret_effect_join r_eff1 r_eff2 with
     | Pure -> ()

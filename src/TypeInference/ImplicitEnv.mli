@@ -24,7 +24,7 @@ val begin_generalize : Env.t -> t -> Env.t * implicit_list
 
 (** Get a list of implicits, that were used, and therefore, should be
   generalized. *)
-val end_generalize_pure : implicit_list -> (S.name * T.var * T.typ) list
+val end_generalize_pure : implicit_list -> (S.name * T.var * T.scheme) list
 
 (** Ensure, that no implicits on a given list were used. *)
 val end_generalize_impure : implicit_list -> unit

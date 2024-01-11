@@ -34,9 +34,9 @@ let rec make_tfun tvs body =
 let rec make_ifun ims body =
   match ims with
   | [] -> body
-  | (_, x, tp) :: ims ->
+  | (_, x, sch) :: ims ->
     { T.pos  = body.T.pos;
-      T.data = T.EFn(x, T.Scheme.of_type tp, make_ifun ims body)
+      T.data = T.EFn(x, sch, make_ifun ims body)
     }
 
 let rec make_tapp e tps =
@@ -53,7 +53,7 @@ let rec make_tapp e tps =
 let generalize env tvs2 ims e tp =
   let tvs1 =
     List.fold_left
-      (fun tvs (_, _, itp) -> T.Type.collect_uvars itp tvs)
+      (fun tvs (_, _, isch) -> T.Scheme.collect_uvars isch tvs)
       (T.Type.uvars tp)
       ims
     |> Fun.flip T.UVar.Set.diff (Env.uvars env)
@@ -63,7 +63,7 @@ let generalize env tvs2 ims e tp =
   let tvs = tvs1 @ tvs2 in
   let sch =
     { T.sch_tvars    = tvs
-    ; T.sch_implicit = List.map (fun (name, _, tp) -> (name, tp)) ims
+    ; T.sch_implicit = List.map (fun (name, _, sch) -> (name, sch)) ims
     ; T.sch_body     = tp
     }
   in
@@ -85,14 +85,14 @@ let rec instantiate_loop ~nset env e (sch : T.scheme) =
   let (sub, tps) = guess_types env sch.sch_tvars in
   let e = make_tapp e tps in
   let ims =
-    List.map (fun (n, tp) -> (n, T.Type.subst sub tp)) sch.sch_implicit in
+    List.map (fun (n, sch) -> (n, T.Scheme.subst sub sch)) sch.sch_implicit in
   let e = instantiate_implicits_loop ~nset env e ims in
   (e, T.Type.subst sub sch.sch_body)
 
 and instantiate_implicits_loop ~nset ?(inst=[]) env e ims =
   List.fold_left (instantiate_implicit ~nset ~inst env) e ims
 
-and instantiate_implicit ~nset ~inst env (e : T.expr) (name, tp) =
+and instantiate_implicit ~nset ~inst env (e : T.expr) (name, isch) =
   match StrSet.mem name nset, List.assoc_opt name inst with
   | true, _ ->
     Error.fatal (Error.looping_implicit ~pos:e.pos name)
@@ -103,8 +103,10 @@ and instantiate_implicit ~nset ~inst env (e : T.expr) (name, tp) =
     begin match Env.lookup_implicit env name with
     | Some(x, sch, on_use) ->
       on_use e.pos;
+      let (env, tvs, ims, tp) = Env.open_scheme env isch in
       let arg = { T.pos = e.pos; T.data = T.EVar x } in
       let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
+      let arg = make_tfun tvs (make_ifun ims arg) in
       if Unification.subtype env arg_tp tp then
         { T.pos = e.pos; T.data = T.EApp(e, arg) }
       else
@@ -147,7 +149,7 @@ let arg_match (pat : T.pattern) body tp eff =
 let rec inst_args_match ims body tp eff =
   match ims with
   | [] -> ([], body)
-  | (name, pat, x_tp) :: ims ->
+  | (name, pat, x_sch) :: ims ->
     let (x, body)   = arg_match pat body tp eff in
     let (ims, body) = inst_args_match ims body tp eff in
-    ((name, x, x_tp) :: ims, body)
+    ((name, x, x_sch) :: ims, body)

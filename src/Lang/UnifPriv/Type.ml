@@ -32,7 +32,8 @@ let rec kind tp =
 let refresh_scheme sch =
   let (sub, tvars) = Subst.add_tvars Subst.empty sch.sch_tvars in
   let ims =
-    List.map (fun (name, tp) -> (name, Subst.in_type sub tp)) sch.sch_implicit
+    List.map (fun (name, isch) -> (name, Subst.in_scheme sub isch))
+      sch.sch_implicit
   in
   { sch_tvars    = tvars;
     sch_implicit = ims;
@@ -62,7 +63,8 @@ and open_scheme_down ~scope sch =
   let scope = List.fold_left Scope.add scope sch.sch_tvars in
   { sch_tvars    = sch.sch_tvars;
     sch_implicit =
-      List.map (fun (name, tp) -> (name, open_up ~scope tp)) sch.sch_implicit;
+      List.map (fun (name, isch) -> (name, open_scheme_up ~scope isch))
+        sch.sch_implicit;
     sch_body     = open_down ~scope sch.sch_body
   }
 
@@ -85,7 +87,8 @@ and open_scheme_up ~scope sch =
   let scope = List.fold_left Scope.add scope sch.sch_tvars in
   { sch_tvars    = sch.sch_tvars;
     sch_implicit =
-      List.map (fun (name, tp) -> (name, open_down ~scope tp)) sch.sch_implicit;
+      List.map (fun (name, isch) -> (name, open_scheme_down ~scope isch))
+        sch.sch_implicit;
     sch_body     = open_up ~scope sch.sch_body
   }
 
@@ -101,7 +104,8 @@ let rec contains_uvar u tp =
     contains_uvar u tp1 || contains_uvar u tp2
 
 and scheme_contains_uvar u sch =
-  List.exists (fun (_, tp) -> contains_uvar u tp) sch.sch_implicit ||
+  List.exists (fun (_, isch) -> scheme_contains_uvar u isch)
+    sch.sch_implicit ||
   contains_uvar u sch.sch_body
 
 let rec collect_uvars tp uvs =
@@ -162,7 +166,8 @@ and shrink_scope ~scope tp =
 
 and shrink_scheme_scope ~scope sch =
   let scope = List.fold_left Scope.add scope sch.sch_tvars in
-  List.iter (fun (_, tp) -> shrink_scope ~scope tp) sch.sch_implicit;
+  List.iter (fun (_, isch) -> shrink_scheme_scope ~scope isch)
+    sch.sch_implicit;
   shrink_scope ~scope sch.sch_body
 
 let try_shrink_scope ~scope tp =

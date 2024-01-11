@@ -105,24 +105,18 @@ let check_arg_scheme env (arg : S.arg) sch =
     check_scheme ~env ~scope:(Env.scope env) pat sch'
   | ArgPattern pat -> check_scheme ~env ~scope:(Env.scope env) pat sch
 
-let infer_inst_arg_type env (im : S.inst_arg) =
+let infer_inst_arg_scheme env (im : S.inst_arg) =
   match im.data with
   | IName(name, arg) ->
     let (env, pat, sch, r_eff) = infer_arg_scheme env arg in
-    begin match sch.sch_tvars, sch.sch_implicit with
-    | [], [] ->
-      (env, (name, pat, sch.sch_body), r_eff)
-    | _ ->
-      (* TODO: it will be changed *)
-      failwith "Implicit parameters cannot be polymorphich yet."
-    end
+    (env, (name, pat, sch), r_eff)
 
-let rec infer_inst_arg_types env ims =
+let rec infer_inst_arg_schemes env ims =
   match ims with
   | []        -> (env, [], Pure)
   | im :: ims ->
-    let (env, im, r_eff1)  = infer_inst_arg_type env im in
-    let (env, ims, r_eff2) = infer_inst_arg_types env ims in
+    let (env, im, r_eff1)  = infer_inst_arg_scheme env im in
+    let (env, ims, r_eff2) = infer_inst_arg_schemes env ims in
     (env, im :: ims, ret_effect_join r_eff1 r_eff2)
 
 let rec fold_implicit f acc (pat : S.pattern) =

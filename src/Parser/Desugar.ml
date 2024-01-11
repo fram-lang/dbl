@@ -89,9 +89,18 @@ and tr_scheme_field (fld : Raw.ty_field) =
   | FldAnonType tp ->
     Either.Left (tr_type_arg tp)
   | FldName n ->
-    Either.Right (make (IName(n, make TWildcard)))
+    let sch =
+      { sch_pos      = fld.pos;
+        sch_tvars    = [];
+        sch_implicit = [];
+        sch_body     = make TWildcard
+      }
+    in
+    Either.Right (make (IName(n, sch)))
   | FldNameVal(n, tp) ->
-    Either.Right (make (IName(n, tr_type_expr tp)))
+    Either.Right (make (IName(n, tr_scheme_expr tp)))
+  | FldNameAnnot _ ->
+    assert false
 
 (** Translate a type expression as a type parameter *)
 and tr_type_arg (tp : Raw.type_expr) =
@@ -162,6 +171,9 @@ let tr_inst_arg (fld : Raw.field) =
     Either.Right (make (IName(n, ArgPattern(make (PName n)))))
   | FldNameVal(n, e) ->
     Either.Right (make (IName(n, tr_function_arg e)))
+  | FldNameAnnot(n, sch) ->
+    Either.Right
+      (make (IName(n, ArgAnnot(make (PName n), tr_scheme_expr sch))))
 
 (** Translate an expression as a let-pattern. Argument [ps] is an accumulated
   list of formal parameters/subpatterns *)
@@ -246,6 +258,8 @@ and tr_explicit_inst (fld : Raw.field) =
     make (IName(n, make (EPoly(make (EName n), []))))
   | FldNameVal(n, e) ->
     make (IName(n, tr_expr e))
+  | FldNameAnnot _ ->
+    Error.fatal (Error.desugar_error fld.pos)
 
 and tr_def (def : Raw.def) =
   let make data = { def with data = data } in
