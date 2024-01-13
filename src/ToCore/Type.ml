@@ -101,7 +101,7 @@ and tr_scheme env (sch : S.scheme) =
 (** Translate a constructor declaration *)
 let tr_ctor_decl env (ctor : S.ctor_decl) =
   { T.ctor_name      = ctor.ctor_name;
-    T.ctor_arg_types = List.map (tr_ttype env) ctor.ctor_arg_types
+    T.ctor_arg_types = List.map (tr_scheme env) ctor.ctor_arg_schemes
   }
 
 (** Translate a list of constructor declarations *)

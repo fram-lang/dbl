@@ -49,8 +49,8 @@ and scheme = {
 }
 
 type ctor_decl = {
-  ctor_name      : string;
-  ctor_arg_types : typ list
+  ctor_name        : string;
+  ctor_arg_schemes : scheme list
 }
 
 let t_unit = TUnit

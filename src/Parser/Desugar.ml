@@ -284,7 +284,7 @@ and tr_defs defs = List.map tr_def defs
 and tr_ctor_decl (d : Raw.ctor_decl) =
   let make data = { d with data = data } in
   match d.data with
-  | CtorDecl(name, tps) -> make (CtorDecl(name, List.map tr_type_expr tps))
+  | CtorDecl(name, tps) -> make (CtorDecl(name, List.map tr_scheme_expr tps))
 
 let tr_program (p : Raw.program) =
   let make data = { p with data = data } in

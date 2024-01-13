@@ -4,7 +4,7 @@
 
 (** Translation of pattern-matching *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 open PatternContext
@@ -207,7 +207,7 @@ module Make(Ctx : MatchContext) = struct
 
   (** Simplify and translate a constructor clause set. *)
   let rec simplify_ctor ctx v vs cls idx (ctor : S.ctor_decl) =
-    let xs  = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_types in
+    let xs  = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_schemes in
     let ctx =
       focus_with ctx (ExCtor(ctor.ctor_name, List.map (fun _ -> ExHole) xs)) in
     let vs1 = List.map (fun x -> T.VVar x) xs in

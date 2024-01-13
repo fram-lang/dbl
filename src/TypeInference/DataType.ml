@@ -4,15 +4,15 @@
 
 (** Checking and processing algebraic data types (ADTs) *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
 let check_ctor_decl env (ctor : S.ctor_decl) =
   match ctor.data with
-  | CtorDecl(name, tps) ->
-    { T.ctor_name      = name;
-      T.ctor_arg_types = List.map (Type.tr_ttype env) tps
+  | CtorDecl(name, schs) ->
+    { T.ctor_name        = name;
+      T.ctor_arg_schemes = List.map (Type.tr_scheme env) schs
     }
 
 let check_ctor_decls env ctors =

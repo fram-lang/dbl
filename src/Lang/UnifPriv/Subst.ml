@@ -122,6 +122,6 @@ let in_scheme sub sch =
 let in_ctor_decl sub ctor =
   if is_empty sub then ctor
   else {
-    ctor_name      = ctor.ctor_name;
-    ctor_arg_types = List.map (in_type_rec sub) ctor.ctor_arg_types
+    ctor_name        = ctor.ctor_name;
+    ctor_arg_schemes = List.map (in_scheme_rec sub) ctor.ctor_arg_schemes
   }

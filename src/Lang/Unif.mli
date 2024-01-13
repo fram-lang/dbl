@@ -54,11 +54,11 @@ type subst
 
 (** Declaration of an ADT constructor *)
 type ctor_decl = {
-  ctor_name      : string;
+  ctor_name        : string;
     (** Name of the constructor *)
 
-  ctor_arg_types : typ list
-    (** Types of the regular parameters *)
+  ctor_arg_schemes : scheme list
+    (** Type schemes of the regular parameters *)
 }
 
 (* ========================================================================= *)

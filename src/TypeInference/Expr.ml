@@ -37,9 +37,7 @@ let infer_ctor_scheme ~pos env c =
         T.sch_tvars    = info.adt_args;
         T.sch_implicit = [];
         T.sch_body     =
-          T.Type.t_pure_arrows
-            (List.map T.Scheme.of_type ctor.ctor_arg_types)
-            info.adt_type
+          T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
       } in
     (ExprUtils.ctor_func ~pos idx info, sch)
   | None ->

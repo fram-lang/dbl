@@ -1,0 +1,5 @@
+data I = I of ({type X} -> X -> X)
+
+let foo (I id) = id ()
+
+let bar = foo (I (fn x => x))
