@@ -1,0 +1,3 @@
+data Ex = Ex of {type X}, X
+
+let foo (f : {type A} -> A -> A) (Ex x) = Ex (f x)

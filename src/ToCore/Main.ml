@@ -88,10 +88,11 @@ and tr_expr_v env (e : S.expr) cont =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr_v env e2 cont)
 
-  | ECtor(proof, n, args) ->
+  | ECtor(proof, n, tps, args) ->
     let proof = tr_expr env proof in
+    let tps   = List.map (Type.tr_type env) tps in
     tr_expr_vs env args (fun args ->
-    cont (VCtor(proof, n, args)))
+    cont (VCtor(proof, n, tps, args)))
 
   | EData(a, proof, args, ctors, e) ->
     let (cenv, args) = Env.add_tvars env args in

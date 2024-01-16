@@ -8,6 +8,25 @@
 
 open Common
 
+let rec check_ctor_type_args ~env ~scope ~sub tvs =
+  match tvs with
+  | []        -> (env, scope, sub, [])
+  | tv :: tvs ->
+    let (env, a) = Env.add_anon_tvar env (T.TVar.kind tv) in
+    let scope = T.Scope.add scope a in
+    let sub   = T.Subst.rename_to_fresh sub tv a in
+    let (env, scope, sub, tvs) = check_ctor_type_args ~env ~scope ~sub tvs in
+    (env, scope, sub, a :: tvs)
+
+let rec check_ctor_implicit_args ~pos ~env ~scope ims =
+  match ims with
+  | [] -> (env, [])
+  | (name, sch) :: ims ->
+    let (env, x) = Env.add_poly_implicit env name sch ignore in
+    let p = { T.pos = pos; T.data = T.PVar(x, sch) } in
+    let (env, ps) = check_ctor_implicit_args ~pos ~env ~scope ims in
+    (env, p :: ps)
+
 let rec check_scheme ~env ~scope (pat : S.pattern) sch =
   let make data = { pat with T.data = data } in
   match pat.data with
@@ -52,17 +71,26 @@ and check_type ~env ~scope (pat : S.pattern) tp =
       let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
       let ctor   = List.nth ctors idx in
       let res_tp = T.Type.subst sub info.adt_type in
-      if List.length ctor.ctor_arg_schemes <> List.length args then
+      let (env, scope, sub2, tvars) =
+        check_ctor_type_args ~env ~scope ~sub:T.Subst.empty ctor.ctor_tvars in
+      let ctor_implicit =
+        List.map (fun (name, sch) -> (name, T.Scheme.subst sub2 sch))
+          ctor.ctor_implicit in
+      let ctor_arg_schemes =
+        List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
+      let (env, ps1) =
+        check_ctor_implicit_args ~pos:pat.pos ~env ~scope ctor_implicit in
+      if List.length ctor_arg_schemes <> List.length args then
         Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
-          cname.data (List.length ctor.ctor_arg_schemes) (List.length args))
+          cname.data (List.length ctor_arg_schemes) (List.length args))
       else if not (Unification.subtype env tp res_tp) then
         Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
           res_tp tp)
       else
-        let (env, ps, _) =
-          check_pattern_schemes ~env ~scope args ctor.ctor_arg_schemes in
+        let (env, ps2, _) =
+          check_pattern_schemes ~env ~scope args ctor_arg_schemes in
         let pat = make
-          (T.PCtor(cname.data, idx, proof, ctors, ps)) in
+          (T.PCtor(cname.data, idx, proof, ctors, tvars, ps1 @ ps2)) in
         (* Pattern matching is always impure, as due to recursive types it can
           be used to encode non-termination *)
         (env, pat, Impure)

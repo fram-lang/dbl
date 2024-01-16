@@ -50,6 +50,8 @@ and scheme = {
 
 type ctor_decl = {
   ctor_name        : string;
+  ctor_tvars       : tvar list;
+  ctor_implicit    : (name * scheme) list;
   ctor_arg_schemes : scheme list
 }
 

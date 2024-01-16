@@ -57,6 +57,12 @@ type ctor_decl = {
   ctor_name        : string;
     (** Name of the constructor *)
 
+  ctor_tvars       : tvar list;
+    (** Existential type variables of the constructor *)
+
+  ctor_implicit    : (name * scheme) list;
+    (** Implicit parameters of the constructor *)
+
   ctor_arg_schemes : scheme list
     (** Type schemes of the regular parameters *)
 }
@@ -74,10 +80,10 @@ and pattern_data =
   | PVar of var * scheme
     (** Pattern that binds a variable of given scheme *)
 
-  | PCtor of string * int * expr * ctor_decl list * pattern list
+  | PCtor of string * int * expr * ctor_decl list * tvar list * pattern list
     (** ADT constructor pattern. It stores a name, constructor index,
       proof that matched type is an ADT, full list of constructor of an ADT,
-      and patterns for parameters. *)
+      existential type binders, and patterns for parameters. *)
 
 (** Expression *)
 and expr = expr_data node
@@ -106,11 +112,14 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
-  | ECtor of expr * int * expr list
-    (** Fully-applied constructor of ADT. The first parameter is a
-      computationally irrelevent proof that given that the type of the
-      whole expression is an ADT. The second parameter is an index of the
-      constructor *)
+  | ECtor of expr * int * typ list * expr list
+    (** Fully-applied constructor of ADT. The meaning of the parameters
+      is the following.
+      - Computationally irrelevant proof that given that the type of the
+        whole expression is an ADT.
+      - An index of the constructor.
+      - Existential type parameters of the constructor.
+      - Regular parameter of the constructor, including named and implicit. *)
 
   | EData of tvar * var * tvar list * ctor_decl list * expr
     (** Definition of an ADT. It binds type variable (defined type) and

@@ -71,10 +71,33 @@ let rec equal : type k. k typ -> k typ -> bool =
     end
   | TApp _, _ -> false
 
-and ctor_type_equal { ctor_name; ctor_arg_types } ctor2 =
-  ctor_name = ctor2.ctor_name &&
-  List.length ctor_arg_types = List.length ctor2.ctor_arg_types &&
-  List.for_all2 equal ctor_arg_types ctor2.ctor_arg_types
+and ctor_type_equal { ctor_name; ctor_tvars; ctor_arg_types } ctor2 =
+  match
+    tvars_binder_equal ~sub1:Subst.empty ~sub2:Subst.empty
+      ctor_tvars ctor2.ctor_tvars
+  with
+  | None -> false
+  | Some(sub1, sub2) ->
+    ctor_name = ctor2.ctor_name &&
+    List.length ctor_arg_types = List.length ctor2.ctor_arg_types &&
+    List.for_all2
+      (fun tp1 tp2 ->
+        equal (Subst.in_type sub1 tp1) (Subst.in_type sub2 tp2))
+      ctor_arg_types ctor2.ctor_arg_types
+
+and tvars_binder_equal ~sub1 ~sub2 xs1 xs2 =
+  match xs1, xs2 with
+  | [], [] -> Some(sub1, sub2)
+  | TVar.Ex x1 :: xs1, TVar.Ex x2 :: xs2 ->
+    begin match Kind.equal (TVar.kind x1) (TVar.kind x2) with
+    | Equal ->
+      let x = TVar.fresh (TVar.kind x1) in
+      let sub1 = Subst.add sub1 x1 (TVar x) in
+      let sub2 = Subst.add sub2 x2 (TVar x) in
+      tvars_binder_equal ~sub1 ~sub2 xs1 xs2
+    | NotEqual -> None
+    end
+  | [], _ :: _ | _ :: _, [] -> None
 
 (** Check equality of effects *)
 and effect_equal : effect -> effect -> bool =
@@ -180,13 +203,22 @@ let rec type_without : type k1 k2. k1 tvar -> k2 typ -> k2 typ option =
 
 and ctor_type_without : type k. k tvar -> ctor_type -> ctor_type option =
   fun a ctor ->
-  match forall_map (type_without a) ctor.ctor_arg_types with
-  | Some tps ->
-    Some {
-      ctor_name      = ctor.ctor_name;
-      ctor_arg_types = tps
-    }
-  | None -> None
+  if List.exists
+    (fun (TVar.Ex x) ->
+      match TVar.hequal a x with
+      | Equal    -> true
+      | NotEqual -> false)
+    ctor.ctor_tvars
+  then Some ctor
+  else
+    match forall_map (type_without a) ctor.ctor_arg_types with
+    | Some tps ->
+      Some {
+        ctor_name      = ctor.ctor_name;
+        ctor_tvars     = ctor.ctor_tvars;
+        ctor_arg_types = tps
+      }
+    | None -> None
 
 (** Tries to find a supereffect of given type that do not contain given type
   variable *)

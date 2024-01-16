@@ -33,9 +33,10 @@ let infer_ctor_scheme ~pos env c =
   match Env.lookup_ctor env c with
   | Some (idx, info) ->
     let ctor = List.nth info.adt_ctors idx in
+    let targs = info.adt_args @ ctor.ctor_tvars in
     let sch = {
-        T.sch_tvars    = info.adt_args;
-        T.sch_implicit = [];
+        T.sch_tvars    = targs;
+        T.sch_implicit = ctor.ctor_implicit;
         T.sch_body     =
           T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
       } in

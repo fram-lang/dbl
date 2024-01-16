@@ -18,39 +18,51 @@ let as_variable (v : T.value) cont =
     let x = Var.fresh () in
     T.ELetPure(x, T.EValue v, cont x)
 
-(** Collect all variables bound by given pattern. Returns extended environment
-  and list of variables, together with their types. *)
+(** Collect all type variables and regular variables bound by given pattern.
+  Returns extended environment, list of type variables (ins Source and
+  Target), and list of variables together with their types. *)
 let rec var_of_pattern env (p : S.pattern) =
   match p.data with
-  | PWildcard    -> (env, [])
-  | PVar(x, sch) -> (env, [(x, Type.tr_scheme env sch)])
-  | PCtor(_, _, _, _, ps) -> var_of_patterns env ps
+  | PWildcard    -> (env, [], [])
+  | PVar(x, sch) -> (env, [], [(x, Type.tr_scheme env sch)])
+  | PCtor(_, _, _, _, tvs, ps) ->
+    let (env, tvs1) = Env.add_tvars env tvs in
+    let (env, tvs2, xs2) = var_of_patterns env ps in
+    (env, List.combine tvs tvs1 @ tvs2, xs2)
 
 (** Collect all variables bound by given list of patterns. Returns extended
-  environment and list of variables, together with their types. *)
+  environment, list of type variables, and list of variables together with
+  their types. *)
 and var_of_patterns env ps =
   match ps with
-  | [] -> (env, [])
+  | [] -> (env, [], [])
   | p :: ps ->
-    let (env, xs1) = var_of_pattern  env p  in
-    let (env, xs2) = var_of_patterns env ps in
-    (env, xs1 @ xs2)
+    let (env, tvs1, xs1) = var_of_pattern  env p  in
+    let (env, tvs2, xs2) = var_of_patterns env ps in
+    (env, tvs1 @ tvs2, xs1 @ xs2)
 
 (** Create a function that represents a clause. *)
-let rec mk_clause_fun xs body =
-  match xs with
-  | [] -> T.EValue (T.VFn(Var.fresh (), T.TUnit, body))
-  | (x, tp) :: xs ->
-    T.EValue (T.VFn(x, tp, mk_clause_fun xs body))
+let rec mk_clause_fun tvs xs body =
+  match tvs, xs with
+  | [], [] -> T.EValue (T.VFn(Var.fresh (), T.TUnit, body))
+  | [], (x, tp) :: xs ->
+    T.EValue (T.VFn(x, tp, mk_clause_fun [] xs body))
+  | T.TVar.Ex tv :: tvs, xs ->
+    T.EValue (T.VTFun(tv, mk_clause_fun tvs xs body))
 
 (** Build an application of a clause-representing function *)
-let rec mk_clause_app f xs env =
-  match xs with
-  | [] -> T.EApp(T.VVar f, T.VUnit)
-  | (x, _) :: xs ->
+let rec mk_clause_app f tvs xs env =
+  match tvs, xs with
+  | [], [] -> T.EApp(T.VVar f, T.VUnit)
+  | [], (x, _) :: xs ->
     let fv = Var.fresh () in
     T.ELetPure(fv, T.EApp(T.VVar f, T.VVar x),
-      mk_clause_app fv xs env)
+      mk_clause_app fv [] xs env)
+  | tv :: tvs, xs ->
+    let (T.TVar.Ex a) = Env.lookup_tvar env tv in
+    let fv = Var.fresh () in
+    T.ELetPure(fv, T.ETApp(T.VVar f, T.TVar a),
+      mk_clause_app fv tvs xs env)
 
 (** Context of pattern-matching *)
 module type MatchContext = sig
@@ -104,7 +116,7 @@ module Make(Ctx : MatchContext) = struct
     | { cl_patterns = p :: _; cl_env; _ } :: cls ->
       begin match p.data with
       | PWildcard | PVar _ -> column_class cls
-      | PCtor(_, _, proof, ctors, _) ->
+      | PCtor(_, _, proof, ctors, _, _) ->
         CC_ADT(Ctx.tr_expr cl_env proof, ctors)
       end
 
@@ -117,13 +129,13 @@ module Make(Ctx : MatchContext) = struct
     | [] -> assert false
     | { data = PCtor _; _ } :: _ -> cont cl
     | { data = (PWildcard | PVar _ ); _ } :: _ ->
-      let (env, xs) = var_of_patterns cl.cl_env cl.cl_patterns in
+      let (env, tvs, xs) = var_of_patterns cl.cl_env cl.cl_patterns in
       let cl_f = Var.fresh () in
-      T.ELetPure(cl_f, mk_clause_fun xs (cl.cl_body env),
+      T.ELetPure(cl_f, mk_clause_fun (List.map snd tvs) xs (cl.cl_body env),
         cont {
           cl_env      = cl.cl_env;
           cl_patterns = cl.cl_patterns;
-          cl_body     = mk_clause_app cl_f xs;
+          cl_body     = mk_clause_app cl_f (List.map fst tvs) xs;
           cl_small    = true;
           cl_used     = cl.cl_used
         })
@@ -170,7 +182,7 @@ module Make(Ctx : MatchContext) = struct
 
   (* ======================================================================= *)
 
-  let simplify_ctor_clause v vs1 idx cl =
+  let simplify_ctor_clause v vs1 idx tvs cl =
     match cl.cl_patterns with
     | [] -> assert false
     | { data = PWildcard; pos } :: ps ->
@@ -194,10 +206,10 @@ module Make(Ctx : MatchContext) = struct
         cl_small    = cl.cl_small;
         cl_used     = cl.cl_used
       }
-    | { data = PCtor(_, n, _, _, ps1); _ } :: ps when n = idx ->
+    | { data = PCtor(_, n, _, _, ptvs, ps1); _ } :: ps when n = idx ->
       assert (List.length ps1 = List.length vs1);
       Some {
-        cl_env      = cl.cl_env;
+        cl_env      = Env.add_tvars' cl.cl_env ptvs tvs;
         cl_patterns = ps1 @ ps;
         cl_body     = cl.cl_body;
         cl_small    = cl.cl_small;
@@ -207,13 +219,26 @@ module Make(Ctx : MatchContext) = struct
 
   (** Simplify and translate a constructor clause set. *)
   let rec simplify_ctor ctx v vs cls idx (ctor : S.ctor_decl) =
-    let xs  = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_schemes in
+    let tvs =
+      List.map
+        (fun a ->
+          let (T.Kind.Ex k) = tr_kind (S.TVar.kind a) in
+          T.TVar.Ex (T.TVar.fresh k))
+        ctor.ctor_tvars in
+    let xs1 =
+      List.map (fun (name, _) -> (name, Var.fresh ())) ctor.ctor_implicit in
+    let xs2 = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_schemes in
     let ctx =
-      focus_with ctx (ExCtor(ctor.ctor_name, List.map (fun _ -> ExHole) xs)) in
+      focus_with ctx
+        (ExCtor(ctor.ctor_name,
+          List.map (fun (name, _) -> (name, ExHole)) xs1,
+          List.map (fun _ -> ExHole) xs2)) in
+    let xs = List.map snd xs1 @ xs2 in
     let vs1 = List.map (fun x -> T.VVar x) xs in
-    let cls = List.filter_map (simplify_ctor_clause v vs1 idx) cls in
-    { T.cl_vars = xs;
-      T.cl_body = tr_match ctx (vs1 @ vs) cls
+    let cls = List.filter_map (simplify_ctor_clause v vs1 idx tvs) cls in
+    { T.cl_tvars = tvs;
+      T.cl_vars  = xs;
+      T.cl_body  = tr_match ctx (vs1 @ vs) cls
     }
 
   (* ======================================================================= *)

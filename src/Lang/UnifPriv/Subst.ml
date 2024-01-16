@@ -121,7 +121,13 @@ let in_scheme sub sch =
 
 let in_ctor_decl sub ctor =
   if is_empty sub then ctor
-  else {
-    ctor_name        = ctor.ctor_name;
-    ctor_arg_schemes = List.map (in_scheme_rec sub) ctor.ctor_arg_schemes
+  else
+    let (sub, tvs) = add_tvars sub ctor.ctor_tvars in
+    let ims =
+      List.map (fun (name, isch) -> (name, in_scheme_rec sub isch))
+        ctor.ctor_implicit in
+    { ctor_name        = ctor.ctor_name;
+      ctor_tvars       = tvs;
+      ctor_implicit    = ims;
+      ctor_arg_schemes = List.map (in_scheme_rec sub) ctor.ctor_arg_schemes
   }

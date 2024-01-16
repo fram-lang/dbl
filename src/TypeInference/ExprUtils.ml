@@ -11,12 +11,12 @@ open Common
 module StrSet = Set.Make(String)
 
 (** Make function that takes parameters of given type schemes *)
-let rec make_fun schs body_f =
+let rec make_fun' schs body_f =
   match schs with
   | [] -> body_f []
   | sch :: schs ->
     let x = Var.fresh () in
-    let body = make_fun schs (fun xs -> body_f (x :: xs)) in
+    let body = make_fun' schs (fun xs -> body_f (x :: xs)) in
     { T.pos  = body.T.pos;
       T.data = T.EFn(x, sch, body)
     }
@@ -38,6 +38,12 @@ let rec make_ifun ims body =
     { T.pos  = body.T.pos;
       T.data = T.EFn(x, sch, make_ifun ims body)
     }
+
+(** Same as make_ifun, but creates fresh variables, and pass them to
+  body-generating function *)
+let make_ifun' ims body_f =
+  let ims = List.map (fun (name, sch) -> (name, Var.fresh (), sch)) ims in
+  make_ifun ims (body_f (List.map (fun (_, x, _) -> x) ims))
 
 let rec make_tapp e tps =
   match tps with
@@ -126,10 +132,14 @@ let ctor_func ~pos idx (info : Env.adt_info) =
   let ctor = List.nth info.adt_ctors idx in
   let proof = make_tapp info.adt_proof (List.map T.Type.t_var info.adt_args) in
   make_tfun info.adt_args (
-  make_fun ctor.ctor_arg_schemes (fun xs ->
+  make_tfun ctor.ctor_tvars (
+  make_ifun' ctor.ctor_implicit (fun xs1 ->
+  make_fun' ctor.ctor_arg_schemes (fun xs2 ->
+    let tps = List.map T.Type.t_var ctor.ctor_tvars in
+    let args = List.map mk_var (xs1 @ xs2) in
     { T.pos  = pos;
-      T.data = T.ECtor(proof, idx, List.map mk_var xs)
-    }))
+      T.data = T.ECtor(proof, idx, tps, args)
+    }))))
 
 (* ========================================================================= *)
 

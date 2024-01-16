@@ -78,7 +78,8 @@ and type_arg_data =
 (** Declaration of constructor of ADT *)
 type ctor_decl = ctor_decl_data node
 and ctor_decl_data =
-  | CtorDecl of ctor_name * scheme_expr list
+  | CtorDecl of
+    ctor_name * type_arg list * implicit_decl list * scheme_expr list
     (** Declaration of constructor of ADT *)
 
 (** Patterns *)

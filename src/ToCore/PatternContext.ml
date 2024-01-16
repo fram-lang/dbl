@@ -4,7 +4,9 @@
 
 (** Building counterexample of non-matched value in pattern-matching *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
+
+open Common
 
 (** Example of not-matched pattern *)
 type ex_pattern =
@@ -14,8 +16,8 @@ type ex_pattern =
   | ExWildcard
     (** Wild-card: any value *)
 
-  | ExCtor of string * ex_pattern list
-    (** Constructor pattern *)
+  | ExCtor of string * (S.name * ex_pattern) list * ex_pattern list
+    (** Constructor pattern, with implicit parameters *)
 
 (** Zipper context of a not-matched counterexample *)
 type ctx =
@@ -25,8 +27,17 @@ type ctx =
   | CtxDone of ex_pattern
     (** Pattern without holes *)
 
-  | CtxCtor of string * ex_pattern list * ctx * ex_pattern list
-    (** ADT constructor contexts. The left list of example patterns is
+  | CtxCtorI of string *
+    (S.name * ex_pattern) list * S.name * ctx * (S.name * ex_pattern) list *
+    ex_pattern list
+    (** ADT constructor contexts, focussed in implicit parameters.
+      The left list of example patterns is
+      in reversed order *)
+
+  | CtxCtorP of string * (S.name * ex_pattern) list *
+    ex_pattern list * ctx * ex_pattern list
+    (** ADT constructor contexts, focussed in regular parameters.
+      The left list of example patterns is
       in reversed order *)
 
 (** Plug given example pattern into the context, and focus on the next hole *)
@@ -34,10 +45,17 @@ let rec refocus_with ctx ex =
   match ctx with
   | CtxRoot   -> CtxDone ex
   | CtxDone _ -> assert false
-  | CtxCtor(name, left, ctx, right) ->
-    begin match try_focus_ctor ctx name (ex :: left) right with
+  | CtxCtorI(name, left, iname, ctx, right, exs) ->
+    begin match try_focus_ctor_i ctx name ((iname, ex) :: left) right exs with
     | None ->
-      refocus_with ctx (ExCtor(name, List.rev_append left (ex :: right)))
+      refocus_with ctx
+        (ExCtor(name, List.rev_append left ((iname, ex) :: right), exs))
+    | Some ctx -> ctx
+    end
+  | CtxCtorP(name, ims, left, ctx, right) ->
+    begin match try_focus_ctor_p ctx name ims (ex :: left) right with
+    | None ->
+      refocus_with ctx (ExCtor(name, ims, List.rev_append left (ex :: right)))
     | Some ctx -> ctx
     end
 
@@ -46,16 +64,27 @@ and try_focus ctx ex =
   match ex with
   | ExHole     -> Some ctx
   | ExWildcard -> None
-  | ExCtor(name, exs) ->
-    try_focus_ctor ctx name [] exs
+  | ExCtor(name, ims, exs) ->
+    try_focus_ctor_i ctx name [] ims exs
 
-and try_focus_ctor ctx name left right =
+and try_focus_ctor_i ctx name left right exs =
+  match right with
+  | [] -> try_focus_ctor_p ctx name (List.rev left) [] exs
+  | (iname, ex) :: right ->
+    begin match 
+      try_focus (CtxCtorI(name, left, iname, ctx, right, exs)) ex
+    with
+    | Some ctx -> Some ctx
+    | None     -> try_focus_ctor_i ctx name ((iname, ex) :: left) right exs
+    end
+
+and try_focus_ctor_p ctx name ims left right =
   match right with
   | [] -> None
   | ex :: right ->
-    begin match try_focus (CtxCtor(name, left, ctx, right)) ex with
+    begin match try_focus (CtxCtorP(name, ims, left, ctx, right)) ex with
     | Some ctx -> Some ctx
-    | None     -> try_focus_ctor ctx name (ex :: left) right
+    | None     -> try_focus_ctor_p ctx name ims (ex :: left) right
     end
 
 (** Refocus given context on the next hole *)

@@ -1,0 +1,34 @@
+data Option X =
+| None
+| Some of X
+
+let option_map f opt =
+  match opt with
+  | None   => None
+  | Some x => Some (f x)
+  end
+
+data Pair X Y =
+| Pair of X, Y
+
+data Stream X =
+| Stream of {type S}, S, (S ->[] Option (Pair X S))
+
+let nil = Stream () (fn _ => None)
+
+let cons x (Stream s f) =
+  let view st =
+    match st with
+    | None   => Some (Pair x (Some s))
+    | Some s => option_map (fn (Pair x st) => Pair x (Some st)) (f s)
+    end
+  in
+  Stream None view
+
+let repeat x = Stream () (fn _ => Some (Pair x ()))
+
+let view (Stream s f) =
+  match f s with
+  | None => None
+  | Some (Pair x s) => Some (Pair x (Stream s f))
+  end

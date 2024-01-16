@@ -92,9 +92,49 @@ and ctor_type = {
   ctor_name      : string;
     (** Name of the constructor *)
 
+  ctor_tvars     : TVar.ex list;
+    (** Existential parameters of the constructor *)
+
   ctor_arg_types : ttype list
     (** Types of constructor arguments *)
 }
+
+(* ========================================================================= *)
+(** Operations on kinds *)
+module Kind : sig
+  (** Existential version of kind, where its kind index is packed *)
+  type ex = Ex : 'k kind -> ex
+
+  (** Check for equality of kinds *)
+  val equal : 'k1 kind -> 'k2 kind -> ('k1, 'k2) Eq.t
+end
+
+(* ========================================================================= *)
+(** Operations on types *)
+module Type : sig
+  (** Get the kind of given type *)
+  val kind : 'k typ -> 'k kind
+
+  (** Create a sequence of pure arrows *)
+  val t_pure_arrows : ttype list -> ttype -> ttype
+
+  (** Create a sequence of universal types *)
+  val t_foralls : TVar.ex list -> ttype -> ttype
+
+  (** Existential version of type representation, where its kind is packed *)
+  type ex = Ex : 'k typ -> ex
+end
+
+(* ========================================================================= *)
+(** Operations on effects *)
+module Effect : sig
+  (** Join of two effects. Same as TEffJoin constructor, but removes
+    duplicates. *)
+  val join : effect -> effect -> effect
+
+  (** Effect of possible non-termination *)
+  val nterm : effect
+end
 
 (* ========================================================================= *)
 
@@ -159,18 +199,24 @@ and value =
   | VTFun : 'k tvar * expr -> value
     (** Type function *)
 
-  | VCtor of expr * int * value list
-    (** Fully-applied constructor of ADT. The first parameter is a
-      computationally irrelevent proof that given that the type of the
-      whole expression is an ADT. The second parameter is an index of the
-      constructor. *)
+  | VCtor of expr * int * Type.ex list * value list
+    (** Fully-applied constructor of ADT. The meaning of the parameters
+      is the following.
+      - Computationally irrelevant proof that given that the type of the
+        whole expression is an ADT.
+      - An index of the constructor.
+      - Existential type parameters of the constructor.
+      - Regular parameters of the constructor. *)
 
 (** Pattern-matching clause *)
 and match_clause = {
-  cl_vars : var list;
+  cl_tvars : TVar.ex list;
+    (** List of existentially quantified type variables *)
+
+  cl_vars  : var list;
     (** List of variables bound by the constructor *)
 
-  cl_body : expr
+  cl_body  : expr
     (** Body of the clause *)
 }
 
@@ -183,43 +229,6 @@ and h_expr =
 
 (** Program *)
 type program = expr
-
-(* ========================================================================= *)
-(** Operations on kinds *)
-module Kind : sig
-  (** Existential version of kind, where its kind index is packed *)
-  type ex = Ex : 'k kind -> ex
-
-  (** Check for equality of kinds *)
-  val equal : 'k1 kind -> 'k2 kind -> ('k1, 'k2) Eq.t
-end
-
-(* ========================================================================= *)
-(** Operations on types *)
-module Type : sig
-  (** Get the kind of given type *)
-  val kind : 'k typ -> 'k kind
-
-  (** Create a sequence of pure arrows *)
-  val t_pure_arrows : ttype list -> ttype -> ttype
-
-  (** Create a sequence of universal types *)
-  val t_foralls : TVar.ex list -> ttype -> ttype
-
-  (** Existential version of type representation, where its kind is packed *)
-  type ex = Ex : 'k typ -> ex
-end
-
-(* ========================================================================= *)
-(** Operations on effects *)
-module Effect : sig
-  (** Join of two effects. Same as TEffJoin constructor, but removes
-    duplicates. *)
-  val join : effect -> effect -> effect
-
-  (** Effect of possible non-termination *)
-  val nterm : effect
-end
 
 (* ========================================================================= *)
 

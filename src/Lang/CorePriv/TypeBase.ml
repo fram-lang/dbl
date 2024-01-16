@@ -93,5 +93,6 @@ and effect = keffect typ
 
 and ctor_type = {
   ctor_name      : string;
+  ctor_tvars     : TVar.ex list;
   ctor_arg_types : ttype list
 }

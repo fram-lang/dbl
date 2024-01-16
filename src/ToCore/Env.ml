@@ -25,6 +25,12 @@ let add_tvar env x =
 let add_tvars env xs =
   List.fold_left_map add_tvar env xs
 
+let add_tvar_ex' env x y =
+  { tvar_map = S.TVar.Map.add x y env.tvar_map }
+
+let add_tvars' env xs ys =
+  List.fold_left2 add_tvar_ex' env xs ys
+
 let lookup_tvar env x =
   try S.TVar.Map.find x env.tvar_map with
   | Not_found ->

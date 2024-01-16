@@ -90,7 +90,10 @@ end = struct
   let lookup_tvar env x =
     try TMap.find x env.tvar_map with
     | Not_found ->
-      failwith "Internal error: unbound type variable"
+      InterpLib.InternalError.report
+        ~reason:"unbound type variable"
+        ~provided:(SExprPrinter.tr_tvar x)
+        ()
 end
 
 (** Ensure well-formedness of a type and refresh its type variables according
@@ -114,9 +117,38 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
     TApp(tr_type env tp1, tr_type env tp2)
 
 and tr_ctor_type env ctor =
+  let (env, tvars) = Env.add_tvars env ctor.ctor_tvars in
   { ctor_name      = ctor.ctor_name;
+    ctor_tvars     = tvars;
     ctor_arg_types = List.map (tr_type env) ctor.ctor_arg_types
   }
+
+let rec tr_types_sub env sub xs tps =
+  match xs, tps with
+  | [], [] -> sub
+  | TVar.Ex x :: xs, Type.Ex tp :: tps ->
+    begin match Kind.equal (TVar.kind x) (Type.kind tp) with
+    | Equal ->
+      tr_types_sub env (Subst.add sub x (tr_type env tp)) xs tps
+    | NotEqual ->
+      failwith "Internal kind error"
+    end
+  | [], _ :: _ | _ :: _, [] ->
+    failwith "Internal type error"
+
+let rec tr_tvars_sub env sub xs ys =
+  match xs, ys with
+  | [], [] -> (env, sub)
+  | TVar.Ex x :: xs, TVar.Ex y :: ys ->
+    begin match Kind.equal (TVar.kind x) (TVar.kind y) with
+    | Equal ->
+      let (env, z) = Env.add_tvar env x in
+      tr_tvars_sub env (Subst.add sub y (TVar z)) xs ys
+    | NotEqual ->
+      failwith "Internal kind error"
+    end
+  | [], _ :: _ | _ :: _, [] ->
+    failwith "Internal type error"
 
 let rec check_data : type k.
     Env.t -> k typ -> TVar.ex list -> ctor_type list ->
@@ -192,7 +224,9 @@ let rec infer_type_eff env e =
       check_vtype env v data_tp;
       List.iter2 (fun cl ctor ->
           let xs  = cl.cl_vars in
-          let tps = ctor.ctor_arg_types in
+          let (env, sub) = 
+            tr_tvars_sub env Subst.empty cl.cl_tvars ctor.ctor_tvars in
+          let tps = List.map (Subst.in_type sub) ctor.ctor_arg_types in
           assert (List.length xs = List.length tps);
           let env = List.fold_left2 Env.add_var env xs tps in
           check_type_eff env cl.cl_body tp eff
@@ -230,15 +264,17 @@ and infer_vtype env v =
   | VTFun(x, body) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, infer_type_check_eff env body TEffPure)
-  | VCtor(proof, n, args) ->
+  | VCtor(proof, n, tps, args) ->
     assert (n >= 0);
     begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
     | TData(tp, ctors) ->
       begin match List.nth_opt ctors n with
       | Some ctor ->
+        let sub = tr_types_sub env Subst.empty ctor.ctor_tvars tps in
         if List.length ctor.ctor_arg_types <> List.length args then
           failwith "Internal type error (constructor arity)";
-        List.iter2 (check_vtype env) args ctor.ctor_arg_types;
+        List.iter2 (check_vtype env) args
+          (List.map (Subst.in_type sub) ctor.ctor_arg_types);
         tp
       | None ->
         failwith "Internal type error"

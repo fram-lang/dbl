@@ -4,7 +4,7 @@
 
 (** Checking uniqueness of various mutual definitions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -39,7 +39,7 @@ let check_uniqueness ~cat ~name_of ~pos_of xs =
   loop StrMap.empty xs
 
 let check_ctor_uniqueness ctors =
-  let name_of { S.data = S.CtorDecl(name, _); _ } = name in
+  let name_of { S.data = S.CtorDecl(name, _, _, _); _ } = name in
   let pos_of (ctor : S.ctor_decl) = ctor.pos in
   check_uniqueness ~cat:Constructor ~name_of ~pos_of ctors
 

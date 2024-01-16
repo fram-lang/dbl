@@ -49,7 +49,7 @@ and tr_value_v (v : S.value) cont =
   | VTFun(_, body) ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr body, cont (T.VVar x))
-  | VCtor(_, n, args) ->
+  | VCtor(_, n, _, args) ->
     tr_value_vs args (fun args ->
     cont (T.VCtor(n, args)))
 

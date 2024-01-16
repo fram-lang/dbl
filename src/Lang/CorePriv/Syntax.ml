@@ -28,11 +28,12 @@ and value =
   | VVar  of var
   | VFn   of var * ttype * expr
   | VTFun  : 'k tvar * expr -> value
-  | VCtor of expr * int * value list
+  | VCtor of expr * int * Type.ex list * value list
 
 and match_clause = {
-  cl_vars : var list;
-  cl_body : expr
+  cl_tvars : TVar.ex list;
+  cl_vars  : var list;
+  cl_body  : expr
 }
 
 and h_expr =

@@ -120,6 +120,16 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   | TWildcard | TParen _ | TPureArrow _ | TArrow _ | TEffect _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
+let tr_ctor_decl (d : Raw.ctor_decl) =
+  let make data = { d with data = data } in
+  match d.data with
+  | CtorDecl(name, { data = TRecord flds; _ } :: schs ) ->
+    let (tvs, implicit) = map_inst_like tr_scheme_field flds in
+    let schs = List.map tr_scheme_expr schs in
+    make (CtorDecl(name, tvs, implicit, schs))
+  | CtorDecl(name, schs) ->
+    make (CtorDecl(name, [], [], List.map tr_scheme_expr schs))
+
 (** Translate a simple pattern, i.e., pattern that cannot be applied to
   the list of parameters. This function makes sure, that the provided list
   of parameters is empty *)
@@ -280,11 +290,6 @@ and tr_def (def : Raw.def) =
     end
 
 and tr_defs defs = List.map tr_def defs
-
-and tr_ctor_decl (d : Raw.ctor_decl) =
-  let make data = { d with data = data } in
-  match d.data with
-  | CtorDecl(name, tps) -> make (CtorDecl(name, List.map tr_scheme_expr tps))
 
 let tr_program (p : Raw.program) =
   let make data = { p with data = data } in

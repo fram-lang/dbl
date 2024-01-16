@@ -33,6 +33,9 @@ let tr_tvar_ex (TVar.Ex x) = tr_tvar x
 let tr_tvar_binder x =
   List [tr_tvar x; tr_kind (TVar.kind x)]
 
+let tr_tvar_binder_ex (TVar.Ex x) =
+  tr_tvar_binder x
+
 let rec tr_type : type k. k typ -> SExpr.t =
   fun tp ->
   match tp with
@@ -83,8 +86,10 @@ and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   | TUnit | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TData _ ->
     List (Sym "app" :: tr_type tp :: args)
 
-and tr_ctor_type { ctor_name; ctor_arg_types } =
-  List (Sym ctor_name :: List.map tr_type ctor_arg_types)
+and tr_ctor_type { ctor_name; ctor_tvars; ctor_arg_types } =
+  List (Sym ctor_name ::
+    List (List.map tr_tvar_binder_ex ctor_tvars) ::
+    List.map tr_type ctor_arg_types)
 
 let rec tr_expr (e : Syntax.expr) =
   match e with
@@ -122,8 +127,10 @@ and tr_value (v : Syntax.value) =
     List (Sym "fn" :: List [ tr_var x; tr_type tp ] :: tr_defs body)
   | VTFun(x, body) ->
     List (Sym "tfun" :: tr_tvar_binder x :: tr_defs body)
-  | VCtor(proof, n, args) ->
-    List (Sym "ctor" :: tr_expr proof :: Num n :: List.map tr_value args)
+  | VCtor(proof, n, tps, args) ->
+    List (Sym "ctor" :: tr_expr proof :: Num n ::
+      (List (List.map (fun (Type.Ex tp) -> tr_type tp) tps)) ::
+      List.map tr_value args)
 
 and tr_defs (e : Syntax.expr) =
   match e with
@@ -146,6 +153,7 @@ and tr_defs (e : Syntax.expr) =
 
 and tr_clause (c : Syntax.match_clause) =
   List (
+    List (Sym "tvars" :: List.map tr_tvar_binder_ex c.cl_tvars) ::
     List (Sym "vars" :: List.map tr_var c.cl_vars) ::
     tr_defs c.cl_body)
 

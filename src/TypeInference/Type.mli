@@ -19,3 +19,6 @@ val tr_ttype : Env.t -> S.type_expr -> T.typ
 
 (** Translate formal type parameters and extend the environment *)
 val tr_type_args : Env.t -> S.type_arg list -> Env.t * T.tvar list
+
+(** Translate declaration of implicit parameter *)
+val tr_implicit_decl : Env.t -> S.implicit_decl -> S.name * T.scheme
