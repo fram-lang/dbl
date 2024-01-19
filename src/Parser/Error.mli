@@ -26,5 +26,6 @@ val eof_in_comment : Position.t -> t
 val desugar_error : Position.t -> t
 val invalid_pattern_arg : Position.t -> t
 val impure_scheme : Position.t -> t
+val anon_type_pattern : Position.t -> t
 
 val value_before_type_param : Position.t -> t

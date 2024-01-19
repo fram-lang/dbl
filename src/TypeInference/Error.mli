@@ -61,7 +61,11 @@ val ctor_redefinition :
 val inst_redefinition :
   pos:Position.t -> ppos:Position.t -> S.name -> t
 
+val multiple_inst_patterns :
+  pos:Position.t -> ppos:Position.t -> S.name -> t
+
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name -> int -> int -> t
 
 val redundant_named_parameter : pos:Position.t -> S.name -> t
+val redundant_named_pattern : pos:Position.t -> S.name -> t

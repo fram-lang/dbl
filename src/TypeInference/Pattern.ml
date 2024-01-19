@@ -8,6 +8,17 @@
 
 open Common
 
+(** Select named pattern for given name. On success returns pattern assigned
+  to given name and list of remaining named patterns *)
+let rec select_inst_pattern name (ips : S.inst_pattern list) =
+  match ips with
+  | [] -> None
+  | { data = IName(n, p); _ } :: ips when n = name -> Some(p, ips)
+  | ip :: ips ->
+    Option.map
+      (fun (p, ips) -> (p, ip :: ips))
+      (select_inst_pattern name ips)
+
 let rec check_ctor_type_args ~env ~scope ~sub tvs =
   match tvs with
   | []        -> (env, scope, sub, [])
@@ -18,16 +29,28 @@ let rec check_ctor_type_args ~env ~scope ~sub tvs =
     let (env, scope, sub, tvs) = check_ctor_type_args ~env ~scope ~sub tvs in
     (env, scope, sub, a :: tvs)
 
-let rec check_ctor_implicit_args ~pos ~env ~scope ims =
+let rec check_ctor_implicit_args ~pos ~env ~scope ips ims =
   match ims with
-  | [] -> (env, [])
+  | [] ->
+    List.iter
+      (fun { S.pos; S.data = S.IName(n, _) } ->
+        Error.warn (Error.redundant_named_pattern ~pos n))
+      ips;
+    (env, [])
   | (name, sch) :: ims ->
-    let (env, x) = Env.add_poly_implicit env name sch ignore in
-    let p = { T.pos = pos; T.data = T.PVar(x, sch) } in
-    let (env, ps) = check_ctor_implicit_args ~pos ~env ~scope ims in
-    (env, p :: ps)
+    begin match select_inst_pattern name ips with
+    | None ->
+      let (env, x) = Env.add_poly_implicit env name sch ignore in
+      let p = { T.pos = pos; T.data = T.PVar(x, sch) } in
+      let (env, ps) = check_ctor_implicit_args ~pos ~env ~scope ips ims in
+      (env, p :: ps)
+    | Some(p, ips) ->
+      let (env, p, _) = check_scheme ~env ~scope p sch in
+      let (env, ps) = check_ctor_implicit_args ~pos ~env ~scope ips ims in
+      (env, p :: ps)
+    end
 
-let rec check_scheme ~env ~scope (pat : S.pattern) sch =
+and check_scheme ~env ~scope (pat : S.pattern) sch =
   let make data = { pat with T.data = data } in
   match pat.data with
   | PWildcard ->
@@ -63,7 +86,7 @@ and check_type ~env ~scope (pat : S.pattern) tp =
     } in
     check_scheme ~env ~scope pat sch
 
-  | PCtor(cname, args) ->
+  | PCtor(cname, ips, args) ->
     begin match Env.lookup_ctor env cname.data with
     | Some(idx, info) ->
       let (sub, tps) = ExprUtils.guess_types env info.adt_args in
@@ -78,8 +101,9 @@ and check_type ~env ~scope (pat : S.pattern) tp =
           ctor.ctor_implicit in
       let ctor_arg_schemes =
         List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
+      Uniqueness.check_inst_pattern_uniqueness ips;
       let (env, ps1) =
-        check_ctor_implicit_args ~pos:pat.pos ~env ~scope ctor_implicit in
+        check_ctor_implicit_args ~pos:pat.pos ~env ~scope ips ctor_implicit in
       if List.length ctor_arg_schemes <> List.length args then
         Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
           cname.data (List.length ctor_arg_schemes) (List.length args))
@@ -151,7 +175,12 @@ let rec fold_implicit f acc (pat : S.pattern) =
   match pat.data with
   | PWildcard | PVar _ -> acc
   | PName n -> f acc n
-  | PCtor(_, ps) ->
+  | PCtor(_, ips, ps) ->
+    let acc = List.fold_left (fold_implicit_i f) acc ips in
     List.fold_left (fold_implicit f) acc ps
   | PAnnot(pat, _) ->
     fold_implicit f acc pat
+
+and fold_implicit_i f acc (ip : S.inst_pattern) =
+  match ip.data with
+  | IName(_, p) -> fold_implicit f acc p

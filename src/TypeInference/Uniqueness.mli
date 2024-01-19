@@ -4,7 +4,7 @@
 
 (** Checking uniqueness of various mutual definitions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 open Common
 
@@ -13,3 +13,6 @@ val check_ctor_uniqueness : S.ctor_decl list -> unit
 
 (** Ensure that each named parameter is instantiated at most once *)
 val check_inst_uniqueness : S.inst list -> unit
+
+(** Ensure that each named pattern is defined at most once *)
+val check_inst_pattern_uniqueness : S.inst_pattern list -> unit

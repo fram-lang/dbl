@@ -154,11 +154,32 @@ and tr_pattern (p : Raw.expr) ps =
   match p.data with
   | EWildcard | EUnit | EParen _ | EVar _ | EName _ | EAnnot _ ->
     tr_simple_pattern p ps
-  | ECtor c -> make (PCtor(make c, List.map (fun p -> tr_pattern p []) ps))
+  | ECtor c ->
+    begin match ps with
+    | { data = Raw.ERecord ips; _ } :: ps ->
+      let (targs, ips) = map_inst_like tr_inst_pattern ips in
+      assert (List.is_empty targs);
+      make (PCtor(make c, ips, List.map (fun p -> tr_pattern p []) ps))
+    | _ ->
+      make (PCtor(make c, [], List.map (fun p -> tr_pattern p []) ps))
+    end
   | EApp(p, p1) -> tr_pattern p (p1 :: ps)
 
   | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
+
+and tr_inst_pattern (fld : Raw.field) =
+  let make data = { fld with data = data } in
+  match fld.data with
+  | FldAnonType _ ->
+    Error.fatal (Error.anon_type_pattern fld.pos)
+  | FldName n ->
+    Either.Right (make (IName(n, make (PName n))))
+  | FldNameVal(n, p) ->
+    Either.Right (make (IName(n, tr_pattern p [])))
+  | FldNameAnnot(n, sch) ->
+    Either.Right
+      (make (IName(n, make (PAnnot(make (PName n), tr_scheme_expr sch)))))
 
 (** Translate a formal parameter of a function *)
 let rec tr_function_arg (arg : Raw.expr) =

@@ -13,6 +13,7 @@ module StrMap = Map.Make(String)
 type cat =
   | Constructor
   | ExplicitInst
+  | InstPattern
 
 let report_error ~cat name pos ppos =
   match cat with
@@ -20,6 +21,8 @@ let report_error ~cat name pos ppos =
     Error.report (Error.ctor_redefinition ~pos ~ppos name)
   | ExplicitInst ->
     Error.report (Error.inst_redefinition ~pos ~ppos name)
+  | InstPattern ->
+    Error.report (Error.multiple_inst_patterns ~pos ~ppos name)
 
 let check_uniqueness ~cat ~name_of ~pos_of xs =
   let rec loop names xs =
@@ -50,3 +53,11 @@ let check_inst_uniqueness insts =
   in
   let pos_of (inst : S.inst) = inst.pos in
   check_uniqueness ~cat:ExplicitInst ~name_of ~pos_of insts
+
+let check_inst_pattern_uniqueness ips =
+  let name_of (ip : S.inst_pattern) =
+    match ip.data with
+    | IName(n, _) -> n
+  in
+  let pos_of (ip : S.inst_pattern) = ip.pos in
+  check_uniqueness ~cat:InstPattern ~name_of ~pos_of ips

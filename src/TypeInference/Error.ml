@@ -131,6 +131,13 @@ let inst_redefinition ~pos ~ppos name =
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
 
+let multiple_inst_patterns ~pos ~ppos name =
+  Printf.eprintf "%s: error: Named parameter %s is provided more than once.\n"
+    (Position.to_string pos)
+    name;
+  Printf.eprintf "%s: note: Here is a previous parameter with this name.\n"
+    (Position.to_string ppos)
+
 let ctor_arity_mismatch ~pos cname req_n prov_n =
   Printf.eprintf
     "%s: error: Constructor %s expects %d parameter(s), but is applied to %d.\n"
@@ -140,5 +147,11 @@ let ctor_arity_mismatch ~pos cname req_n prov_n =
 let redundant_named_parameter ~pos n =
   Printf.eprintf
     "%s: warning: Providing named parameter %s to a function that do not expect it.\n"
+    (Position.to_string pos)
+    n
+
+let redundant_named_pattern ~pos n =
+  Printf.eprintf
+    "%s: warning: Providing named parameter %s to a constructor that do not expect it.\n"
     (Position.to_string pos)
     n

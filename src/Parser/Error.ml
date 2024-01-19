@@ -55,6 +55,12 @@ let impure_scheme pos =
     "%s: error: syntax error. Type schemes must be pure.\n"
     (Position.to_string pos)
 
+let anon_type_pattern pos =
+  (* TODO: not implemented properly *)
+  Printf.eprintf
+    "%s: error: syntax error. Anonymous types cannot be explicitly bound.\n"
+    (Position.to_string pos)
+
 let value_before_type_param pos =
   (* TODO: not implemented properly *)
   Printf.eprintf

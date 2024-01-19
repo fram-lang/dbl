@@ -94,11 +94,14 @@ and pattern_data =
   | PName of name
     (** Pattern that binds a named implicit *)
 
-  | PCtor of ctor_name node * pattern list
+  | PCtor of ctor_name node * inst_pattern list * pattern list
     (** ADT constructor pattern *)
 
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
+
+(** Pattern for named parameter *)
+and inst_pattern = pattern inst_data node
 
 (** Formal argument *)
 type arg =
