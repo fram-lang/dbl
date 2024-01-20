@@ -37,6 +37,8 @@ module Env : sig
   val lookup_var : t -> var -> ttype
 
   val lookup_tvar : t -> 'k tvar -> 'k tvar
+
+  val scope : t -> TVar.Set.t
 end = struct
   module TMap = TVar.Map.Make(TVar)
 
@@ -94,6 +96,8 @@ end = struct
         ~reason:"unbound type variable"
         ~provided:(SExprPrinter.tr_tvar x)
         ()
+
+  let scope env = TMap.dom env.tvar_map
 end
 
 (** Ensure well-formedness of a type and refresh its type variables according
@@ -168,6 +172,19 @@ let rec check_data : type k.
   | _ ->
     failwith "Internal kind error"
 
+let prepare_data_def env (dd : data_def) =
+  let (TVar.Ex a) = dd.dd_tvar in
+  let (env, a) = Env.add_tvar env a in
+  (env, (TVar.Ex a, dd))
+
+let finalize_data_def env (TVar.Ex a, dd) =
+  let (xs, data_tp, ctors) = check_data env (TVar a) dd.dd_args dd.dd_ctors in
+  Env.add_irr_var env dd.dd_proof (Type.t_foralls xs (TData(data_tp, ctors)))
+
+let check_data_defs env dds =
+  let (env, dds) = List.fold_left_map prepare_data_def env dds in
+  List.fold_left finalize_data_def env dds
+
 let rec infer_type_eff env e =
   match e with
   | EValue v -> (infer_vtype env v, TEffPure)
@@ -201,15 +218,12 @@ let rec infer_type_eff env e =
       failwith "Internal type error"
     end
 
-  | EData(a, x, xs, ctors, e) ->
-    let old_env = env in
-    let (env, a) = Env.add_tvar env a in
-    let (xs, data_tp, ctors) = check_data old_env (TVar a) xs ctors in
-    let env = Env.add_irr_var env x
-      (Type.t_foralls xs (TData(data_tp, ctors))) in
+  | EData(dds, e) ->
+    let scope = Env.scope env in
+    let env = check_data_defs env dds in
     let (tp, eff) = infer_type_eff env e in
     begin match
-      Type.supertype_without a tp, Type.supereffect_without a eff
+      Type.supertype_in_scope scope tp, Type.supereffect_in_scope scope eff
     with
     | Some tp, Some eff -> (tp, eff)
     | _ ->

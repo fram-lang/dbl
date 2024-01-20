@@ -97,17 +97,3 @@ and tr_scheme env (sch : S.scheme) =
   T.Type.t_foralls tvars
     (T.Type.t_pure_arrows itps
       (tr_ttype env sch_body))
-
-(** Translate a constructor declaration *)
-let tr_ctor_decl env (ctor : S.ctor_decl) =
-  let (env, tvars) = List.fold_left_map Env.add_tvar env ctor.ctor_tvars in
-  { T.ctor_name      = ctor.ctor_name;
-    T.ctor_tvars     = tvars;
-    T.ctor_arg_types =
-      List.map (fun (_, sch) -> tr_scheme env sch) ctor.ctor_implicit @
-      List.map (tr_scheme env) ctor.ctor_arg_schemes
-  }
-
-(** Translate a list of constructor declarations *)
-let tr_ctor_decls env decls =
-  List.map (tr_ctor_decl env) decls

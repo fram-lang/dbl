@@ -4,7 +4,9 @@
 
 (** Heterogeneous maps with keys with one type parameter. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk,
+    2023 -- base definition
+    2024 -- extended with finite sets *)
 
 (** Ordered type with single type parameter *)
 module type OrderedType1 = sig
@@ -27,6 +29,7 @@ end
 module type S1 = sig
   type 'a key
   type 'a value
+  type key_set
 
   type t
 
@@ -49,6 +52,31 @@ module type S1 = sig
   (** Lookup for value assigned to given key. Returns [None] if there is no
     such a binding *)
   val find_opt : 'a key -> t -> 'a value option
+
+  (** Domain of the map *)
+  val dom : t -> key_set
+end
+
+(** Signature of finite sets of keys with type parameter *)
+module type Set_S = sig
+  type 'a elt
+
+  type t
+
+  (** Empty set *)
+  val empty : t
+
+  (** Singleton set *)
+  val singleton : 'a elt -> t
+
+  (** Extend set with one element *)
+  val add : 'a elt -> t -> t
+
+  (** Check if given set is empty *)
+  val is_empty : t -> bool
+
+  (** Check if given element is a member of given set *)
+  val mem : 'a elt -> t -> bool
 end
 
 (** Signature of a map *)
@@ -77,11 +105,22 @@ module type S = sig
     such a binding *)
   val find_opt : 'a key -> 'v t -> 'v option
 
+  (** Map values of the map using given function *)
+  val map : ('v -> 'w) -> 'v t -> 'w t
+
+  (** Finite sets based on finite maps *)
+  module Set : Set_S
+    with type 'a elt = 'a key
+
+  (** Domain of the map *)
+  val dom : 'v t -> Set.t
+
   (** Make a finite map, where type parameters of key and value are
     correlated. *)
   module Make(Val : Type1) : S1
     with type 'a key   = 'a key
     and  type 'a value = 'a Val.t
+    and  type key_set  = Set.t
 end
 
 (** Finite maps *)
@@ -107,9 +146,31 @@ struct
   let find_opt k m =
     UID.Map.find_opt (Key.uid k) m
 
+  let map f m =
+    UID.Map.map f m
+
+  module Set = struct
+    type 'a elt = 'a key
+
+    type nonrec t = unit t
+
+    let empty       = empty
+    let singleton x = singleton x ()
+    let add x m     = add x () m
+    let is_empty    = is_empty
+
+    let mem x m =
+      match find_opt x m with
+      | None    -> false
+      | Some () -> true
+  end
+
+  let dom m = map ignore m
+
   module Make(Val : Type1) = struct
     type nonrec 'a key = 'a key
     type 'a value = 'a Val.t
+    type key_set = Set.t
 
     type key_value = KV : 'a key * 'a value -> key_value
 
@@ -138,5 +199,7 @@ struct
         | Equal    -> Some v
         | NotEqual -> assert false
         end
+
+    let dom m = dom m
   end
 end

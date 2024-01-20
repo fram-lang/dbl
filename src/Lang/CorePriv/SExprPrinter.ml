@@ -91,6 +91,13 @@ and tr_ctor_type { ctor_name; ctor_tvars; ctor_arg_types } =
     List (List.map tr_tvar_binder_ex ctor_tvars) ::
     List.map tr_type ctor_arg_types)
 
+let tr_data_def (dd : Syntax.data_def) =
+  List (
+    tr_tvar_ex dd.dd_tvar ::
+    tr_var  dd.dd_proof ::
+    List (List.map tr_tvar_ex dd.dd_args) ::
+    List.map tr_ctor_type dd.dd_ctors)
+
 let rec tr_expr (e : Syntax.expr) =
   match e with
   | EValue v -> tr_value v
@@ -140,12 +147,8 @@ and tr_defs (e : Syntax.expr) =
     List [Sym "let-pure"; tr_var x; tr_expr e1] :: tr_defs e2
   | ELetIrr(x, e1, e2) ->
     List [Sym "let-irr"; tr_var x; tr_expr e1] :: tr_defs e2
-  | EData(a, x, args, ctors, e2) ->
-    List
-      (Sym "data" :: tr_tvar a :: tr_var x ::
-        (List (List.map tr_tvar_ex args)) ::
-        List.map tr_ctor_type ctors) ::
-    tr_defs e2
+  | EData(dds, e2) ->
+    List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2
 
   | EValue _ | EApp _ | ETApp _ | EMatch _ | EHandle _ | ERepl _
   | EReplExpr _ ->

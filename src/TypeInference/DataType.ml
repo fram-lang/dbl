@@ -29,3 +29,57 @@ let open_data_ctor adt (env, n) (ctor : T.ctor_decl) =
 let open_data env (adt : Env.adt_info) =
   List.fold_left (open_data_ctor adt) (env, 0) adt.adt_ctors
   |> fst
+
+let check_data_def_main env (dd : S.data_def) kind =
+  let (DD_Data(_, args, ctors)) = dd.data in
+  let (env, args) = Type.tr_type_args env args in
+  let kind' = T.Kind.k_arrows (List.map T.TVar.kind args) T.Kind.k_type in
+  begin match Unification.unify_kind kind kind' with
+  | true -> ()
+  | false -> assert false
+  end;
+  Uniqueness.check_ctor_uniqueness ctors;
+  let ctors = check_ctor_decls env ctors in
+  (args, ctors)
+
+let finalize_data_def env (dd : S.data_def) x args ctors =
+  let (DD_Data(name, _, _)) = dd.data in
+  let px = Var.fresh ~name () in
+  let info = {
+    Env.adt_proof = { T.pos = dd.pos; T.data = T.EVar px };
+    Env.adt_args  = args;
+    Env.adt_ctors = ctors;
+    Env.adt_type  =
+      T.Type.t_apps (T.Type.t_var x) (List.map T.Type.t_var args)
+  } in
+  let env = Env.add_data env x info in
+  let env = open_data env info in
+  let dd = {
+    T.dd_tvar  = x;
+    T.dd_proof = px;
+    T.dd_args  = args;
+    T.dd_ctors = ctors
+  } in
+  (env, dd)
+
+let check_data_def env (dd : S.data_def) =
+  let (DD_Data(name, _, _)) = dd.data in
+  let kind = T.Kind.fresh_uvar () in
+  let (args, ctors) = check_data_def_main env dd kind in
+  let (env, x) = Env.add_tvar env name kind in
+  finalize_data_def env dd x args ctors
+
+let prepare_rec_data_def env (dd : S.data_def) =
+  let (DD_Data(name, args, _)) = dd.data in
+  let (_, args) = Type.tr_type_args env args in
+  let kind = T.Kind.k_arrows (List.map T.TVar.kind args) T.Kind.k_type in
+  let (env, x) = Env.add_tvar env name kind in
+  (env, (x, dd))
+
+let finalize_rec_data_def env (x, dd) =
+  let (args, ctors) = check_data_def_main env dd (T.TVar.kind x) in
+  finalize_data_def env dd x args ctors
+
+let check_rec_data_defs env dds =
+  let (env, dds) = List.fold_left_map prepare_rec_data_def env dds in
+  List.fold_left_map finalize_rec_data_def env dds

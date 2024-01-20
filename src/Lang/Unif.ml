@@ -45,6 +45,13 @@ module Subst = UnifPriv.Subst
 
 type var = Var.t
 
+type data_def = {
+  dd_tvar  : tvar;
+  dd_proof : var;
+  dd_args  : tvar list;
+  dd_ctors : ctor_decl list
+}
+
 type pattern = pattern_data node
 and pattern_data =
   | PWildcard
@@ -62,7 +69,7 @@ and expr_data =
   | ETApp     of expr * typ
   | ELet      of var * scheme * expr * expr
   | ECtor     of expr * int * typ list * expr list
-  | EData     of tvar * var * tvar list * ctor_decl list * expr
+  | EData     of data_def list * expr
   | EMatch    of expr * match_clause list * typ * effect
   | EHandle   of tvar * var * expr * h_expr * typ * effect
   | ERepl     of (unit -> expr) * effect

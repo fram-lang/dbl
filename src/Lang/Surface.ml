@@ -82,6 +82,11 @@ and ctor_decl_data =
     ctor_name * type_arg list * implicit_decl list * scheme_expr list
     (** Declaration of constructor of ADT *)
 
+(** Definition of ADT *)
+type data_def = data_def_data node
+and data_def_data =
+  | DD_Data of tvar * type_arg list * ctor_decl list
+
 (** Patterns *)
 type pattern = pattern_data node
 and pattern_data =
@@ -172,13 +177,16 @@ and def_data =
     (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr
-    (** Let definition combinded with pattern-matching. Always monomorphic *)
+    (** Let definition combined with pattern-matching. Always monomorphic *)
 
   | DImplicit of name
     (** Declaration of implicit *)
 
-  | DData of tvar * type_arg list * ctor_decl list
-    (** Definition of ADT *)
+  | DData of data_def
+    (** Definition of non-recursive ADT *)
+
+  | DDataRec of data_def list
+    (** Definition of mutually recursive ADTs *)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

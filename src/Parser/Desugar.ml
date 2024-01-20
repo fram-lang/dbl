@@ -130,6 +130,15 @@ let tr_ctor_decl (d : Raw.ctor_decl) =
   | CtorDecl(name, schs) ->
     make (CtorDecl(name, [], [], List.map tr_scheme_expr schs))
 
+let tr_data_def (dd : Raw.data_def) =
+  let make data = { dd with data = data } in
+  match dd.data with
+  | DD_Data(tp, cs) ->
+    begin match tr_type_def tp [] with
+    | TD_Id(x, args) ->
+      make (DD_Data(x, List.map tr_type_arg args, List.map tr_ctor_decl cs))
+    end
+
 (** Translate a simple pattern, i.e., pattern that cannot be applied to
   the list of parameters. This function makes sure, that the provided list
   of parameters is empty *)
@@ -304,11 +313,8 @@ and tr_def (def : Raw.def) =
     | LP_Pat p -> make (DLetPat(p, tr_expr e))
     end
   | DImplicit n  -> make (DImplicit n)
-  | DData(tp, cs) ->
-    begin match tr_type_def tp [] with
-    | TD_Id(x, args) ->
-      make (DData(x, List.map tr_type_arg args, List.map tr_ctor_decl cs))
-    end
+  | DData    dd  -> make (DData (tr_data_def dd))
+  | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
 
 and tr_defs defs = List.map tr_def defs
 

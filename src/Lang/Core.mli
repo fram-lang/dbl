@@ -99,6 +99,25 @@ and ctor_type = {
     (** Types of constructor arguments *)
 }
 
+(** Variables *)
+type var = Var.t
+
+(** ADT definition *)
+type data_def = {
+  dd_tvar  : TVar.ex;
+    (** Type variable, that represents this ADT. *)
+
+  dd_proof : var;
+    (** An irrelevant variables that stores the proof that this ADT has
+      the following constructors. *)
+
+  dd_args  : TVar.ex list;
+    (** List of type parameters of this ADT. *)
+
+  dd_ctors : ctor_type list
+    (** List of constructors. *)
+}
+
 (* ========================================================================= *)
 (** Operations on kinds *)
 module Kind : sig
@@ -138,9 +157,6 @@ end
 
 (* ========================================================================= *)
 
-(** Variables *)
-type var = Var.t
-
 (** Expressions *)
 type expr =
   | EValue of value
@@ -161,10 +177,8 @@ type expr =
   | ETApp : value * 'k typ -> expr
     (** Type application *)
 
-  | EData : 'a tvar * var * TVar.ex list * ctor_type list * expr -> expr
-    (** Definition of non-recursive ADT. It binds a type variable, an
-      irrelevant variable that stores the proof that this ADT has given
-      constructors, the list of constructors and the rest of an expression. *)
+  | EData of data_def list * expr
+    (** Mutually recursive datatype definitions *)
 
   | EMatch  of expr * value * match_clause list * ttype * effect
     (** Shallow pattern matching. The first parameter is the proof that the

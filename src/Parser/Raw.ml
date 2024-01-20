@@ -65,6 +65,17 @@ and type_expr_data =
 (** Field of record-like type *)
 and ty_field = (type_expr, type_expr) field_data node
 
+(** Declaration of a constructor *)
+and ctor_decl = ctor_decl_data node
+and ctor_decl_data =
+  | CtorDecl of ctor_name * type_expr list
+    (** Declaration of a constructor *)
+
+(** Definition of ADT *)
+type data_def = data_def_data node
+and data_def_data =
+  | DD_Data of type_expr * ctor_decl list
+
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
@@ -131,14 +142,11 @@ and def_data =
   | DImplicit of name
     (** Declaration of implicit parameter *)
 
-  | DData of type_expr * ctor_decl list
+  | DData of data_def
     (** Definition of ADT *)
 
-(** Declaration of a constructor *)
-and ctor_decl = ctor_decl_data node
-and ctor_decl_data =
-  | CtorDecl of ctor_name * type_expr list
-    (** Declaration of a constructor *)
+  | DDataRec of data_def list
+    (** Definition of mutually recursive ADTs *)
 
 (** Program *)
 type program = def list node

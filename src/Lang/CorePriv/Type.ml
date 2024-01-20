@@ -158,144 +158,131 @@ let rec forall_map f xs =
     | _ -> None
     end
 
-(** Tries to find an equivalent type that do not contain given type
-  variable. *)
-let rec type_without : type k1 k2. k1 tvar -> k2 typ -> k2 typ option =
-  fun a tp ->
+(** Tries to find an equivalent type, such that all free type variables are
+  members of given set ([scope]) *)
+let rec type_in_scope : type k. _ -> k typ -> k typ option =
+  fun scope tp ->
   match tp with
   | TUnit | TEffPure -> Some tp
   | TEffJoin(eff1, eff2) ->
-    begin match type_without a eff1, type_without a eff2 with
+    begin match type_in_scope scope eff1, type_in_scope scope eff2 with
     | Some eff1, Some eff2 -> Some (TEffJoin(eff1, eff2))
     | _ -> None
     end
-  | TVar b ->
-    begin match TVar.hequal a b with
-    | Equal    -> None
-    | NotEqual -> Some tp
-    end
+  | TVar a ->
+    if TVar.Set.mem a scope then Some tp
+    else None
   | TArrow(tp1, tp2, eff) ->
     begin match
-      type_without a tp1, type_without a tp2, type_without a eff
+      type_in_scope scope tp1,
+      type_in_scope scope tp2,
+      type_in_scope scope eff
     with
     | Some tp1, Some tp2, Some eff -> Some (TArrow(tp1, tp2, eff))
     | _ -> None
     end
-  | TForall(b, body) ->
-    begin match TVar.hequal a b with
-    | Equal    -> Some tp
-    | NotEqual ->
-      begin match type_without a body with
-      | Some body -> Some (TForall(b, body))
-      | None      -> None
-      end
+  | TForall(a, body) ->
+    begin match type_in_scope (TVar.Set.add a scope) body with
+    | Some body -> Some (TForall(a, body))
+    | None      -> None
     end
   | TData(tp, ctors) ->
-    begin match type_without a tp, forall_map (ctor_type_without a) ctors with
+    begin match
+      type_in_scope scope tp,
+      forall_map (ctor_type_in_scope scope) ctors
+    with
     | Some tp, Some ctors -> Some (TData(tp, ctors))
     | _ -> None
     end
   | TApp(tp1, tp2) ->
-    begin match type_without a tp1, type_without a tp2 with
+    begin match type_in_scope scope tp1, type_in_scope scope tp2 with
     | Some tp1, Some tp2 -> Some (TApp(tp1, tp2))
     | _ -> None
     end
 
-and ctor_type_without : type k. k tvar -> ctor_type -> ctor_type option =
-  fun a ctor ->
-  if List.exists
-    (fun (TVar.Ex x) ->
-      match TVar.hequal a x with
-      | Equal    -> true
-      | NotEqual -> false)
-    ctor.ctor_tvars
-  then Some ctor
-  else
-    match forall_map (type_without a) ctor.ctor_arg_types with
-    | Some tps ->
-      Some {
-        ctor_name      = ctor.ctor_name;
-        ctor_tvars     = ctor.ctor_tvars;
-        ctor_arg_types = tps
-      }
-    | None -> None
+and ctor_type_in_scope scope ctor =
+  let scope =
+    List.fold_left
+      (fun scope (TVar.Ex a) -> TVar.Set.add a scope)
+      scope
+      ctor.ctor_tvars in
+  match forall_map (type_in_scope scope) ctor.ctor_arg_types with
+  | Some tps ->
+    Some {
+      ctor_name      = ctor.ctor_name;
+      ctor_tvars     = ctor.ctor_tvars;
+      ctor_arg_types = tps
+    }
+  | None -> None
 
-(** Tries to find a supereffect of given type that do not contain given type
-  variable *)
-let supereffect_without : type k. k tvar -> effect -> effect option =
-  type_without 
+(** Tries to find a supereffect of given type, such that all free type
+  variables are members of given set ([scope]) *)
+let supereffect_in_scope scope (eff : effect) =
+  type_in_scope scope eff
 
-(** Finds a subeffect of given type that do not contain given type
-  variable *)
-let rec subeffect_without : type k. k tvar -> effect -> effect =
-  fun a eff ->
+(** Tries to find a subeffect of given type, such that all free type
+  variables are members of given set ([scope]) *)
+let rec subeffect_in_scope scope (eff : effect) =
   match eff with
   | TEffPure -> eff
   | TEffJoin(eff1, eff2) ->
-    begin match subeffect_without a eff1, subeffect_without a eff2 with
+    begin match
+      subeffect_in_scope scope eff1,
+      subeffect_in_scope scope eff2
+    with
     | TEffPure, eff2 -> eff2
     | eff1, TEffPure -> eff1
     | eff1, eff2     -> TEffJoin(eff1, eff2)
     end
-  | TVar b ->
-    begin match TVar.hequal a b with
-    | Equal    -> TEffPure
-    | NotEqual -> eff
-    end
+  | TVar a ->
+    if TVar.Set.mem a scope then eff
+    else TEffPure
   | TApp _ ->
-    begin match type_without a eff with
+    begin match type_in_scope scope eff with
     | None     -> TEffPure
     | Some eff -> eff
     end
 
-(** Tries to find a supertype of given type that do not contain given type
-  variable *)
-let rec supertype_without : type k. k tvar -> ttype -> ttype option =
-  fun a tp ->
+(** Tries to find a supertype of given type, such that all free type variables
+  are members of given set ([scope]) *)
+let rec supertype_in_scope scope (tp : ttype) =
   match tp with
-  | TUnit  -> Some tp
-  | TVar _ | TData _ | TApp _ -> type_without a tp
+  | TUnit -> Some tp
+  | TVar _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
-      subtype_without     a tp1,
-      supertype_without   a tp2,
-      supereffect_without a eff
+      subtype_in_scope     scope tp1,
+      supertype_in_scope   scope tp2,
+      supereffect_in_scope scope eff
     with
     | Some tp1, Some tp2, Some eff -> Some (TArrow(tp1, tp2, eff))
     | _ -> None
     end
-  | TForall(b, body) ->
-    begin match TVar.hequal a b with
-    | Equal    -> Some tp
-    | NotEqual ->
-      begin match supertype_without a body with
-      | Some body -> Some (TForall(b, body))
-      | None      -> None
-      end
+  | TForall(a, body) ->
+    begin match supertype_in_scope (TVar.Set.add a scope) body with
+    | Some body -> Some (TForall(a, body))
+    | None      -> None
     end
 
-(** Tries to find a subtype of given type that do not contain given type
-  variable *)
-and subtype_without : type k. k tvar -> ttype -> ttype option =
-  fun a tp ->
+(** Tries to find a subtype of given type, such that all free type variables
+  are members of given set ([scope]) *)
+and subtype_in_scope scope (tp : ttype) =
   match tp with
-  | TUnit  -> Some tp
-  | TVar _ | TData _ | TApp _ -> type_without a tp
+  | TUnit -> Some tp
+  | TVar _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
-      supertype_without a tp1, subtype_without a tp2, subeffect_without a eff
+      supertype_in_scope scope tp1,
+      subtype_in_scope   scope tp2,
+      subeffect_in_scope scope eff
     with
     | Some tp1, Some tp2, eff -> Some(TArrow(tp1, tp2, eff))
     | _ -> None
     end
-  | TForall(b, body) ->
-    begin match TVar.hequal a b with
-    | Equal    -> Some tp
-    | NotEqual ->
-      begin match subtype_without a body with
-      | Some body -> Some (TForall(b, body))
-      | None      -> None
-      end
+  | TForall(a, body) ->
+    begin match subtype_in_scope (TVar.Set.add a scope) body with
+    | Some body -> Some (TForall(a, body))
+    | None      -> None
     end
 
 type ex = Ex : 'k typ -> ex

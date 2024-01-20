@@ -10,6 +10,13 @@ open TypeBase
 
 type var = Var.t
 
+type data_def = {
+  dd_tvar  : TVar.ex;
+  dd_proof : var;
+  dd_args  : TVar.ex list;
+  dd_ctors : ctor_type list
+}
+
 type expr =
   | EValue    of value
   | ELet      of var * expr * expr
@@ -17,7 +24,7 @@ type expr =
   | ELetIrr   of var * expr * expr
   | EApp      of value * value
   | ETApp      : value * 'k typ -> expr
-  | EData      : 'a tvar * var * TVar.ex list * ctor_type list * expr -> expr
+  | EData     of data_def list * expr
   | EMatch    of expr * value * match_clause list * ttype * effect
   | EHandle   of keffect tvar * var * expr * h_expr * ttype * effect
   | ERepl     of (unit -> expr) * effect

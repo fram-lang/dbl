@@ -1,0 +1,4 @@
+data rec Tree X = Node of X, TreeList X
+and data TreeList X =
+  | Nil
+  | Cons of Tree X, TreeList X

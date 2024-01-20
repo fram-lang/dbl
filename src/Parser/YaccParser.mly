@@ -9,8 +9,8 @@
 %token<string> LID UID TLID
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA EQ SEMICOLON2 SLASH
-%token KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN KW_LET
-%token KW_MATCH KW_OF KW_TYPE KW_WITH
+%token KW_AND KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN
+%token KW_LET KW_MATCH KW_OF KW_REC KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -182,11 +182,28 @@ field_list
 
 /* ========================================================================= */
 
+data_def
+: KW_DATA ty_expr EQ bar_opt ctor_decl_list
+  { make (DD_Data($2, $5)) }
+;
+
+data_rec
+: KW_DATA KW_REC ty_expr EQ bar_opt ctor_decl_list
+  { make (DD_Data($3, $6)) }
+;
+
+data_rec_rest
+: /* empty */                   { []       }
+| KW_AND data_def data_rec_rest { $2 :: $3 }
+;
+
+/* ========================================================================= */
+
 def
-: KW_LET expr EQ expr { make (DLet($2, $4)) }
-| KW_IMPLICIT TLID    { make (DImplicit $2) }
-| KW_DATA ty_expr EQ bar_opt ctor_decl_list
-    { make (DData($2, $5)) }
+: KW_LET expr EQ expr    { make (DLet($2, $4)) }
+| KW_IMPLICIT TLID       { make (DImplicit $2) }
+| data_def               { make (DData $1)     }
+| data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
 ;
 
 def_list
@@ -197,7 +214,6 @@ def_list
 def_list1
 : def def_list { $1 :: $2 }
 ;
-
 
 /* ========================================================================= */
 

@@ -67,9 +67,26 @@ type ctor_decl = {
     (** Type schemes of the regular parameters *)
 }
 
-(* ========================================================================= *)
 (** Variable *)
 type var = Var.t
+
+(** Definition of ADT *)
+type data_def = {
+  dd_tvar  : tvar;
+    (** Defined type (bound here) *)
+
+  dd_proof : var;
+    (** A variables (bound here) that stores computationally irrelevant proof
+      that the type is an ADT. *)
+
+  dd_args  : tvar list;
+    (** Type parameters *)
+
+  dd_ctors : ctor_decl list
+    (** Constructors of an ADT. *)
+}
+
+(* ========================================================================= *)
 
 (** Pattern *)
 type pattern = pattern_data node
@@ -121,10 +138,8 @@ and expr_data =
       - Existential type parameters of the constructor.
       - Regular parameter of the constructor, including named and implicit. *)
 
-  | EData of tvar * var * tvar list * ctor_decl list * expr
-    (** Definition of an ADT. It binds type variable (defined type) and
-      computationally irrelevant variable (the proof that the type is an
-      ADT) *)
+  | EData of data_def list * expr
+    (** Definition of mutually recursive ADTs. *)
 
   | EMatch of expr * match_clause list * typ * effect
     (** Pattern-matching. It stores type and effect of the whole expression. *)

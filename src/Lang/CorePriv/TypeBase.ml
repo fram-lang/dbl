@@ -47,6 +47,7 @@ module TVar : sig
   type ex = Ex : 'k t -> ex
 
   module Map : Map1.S with type 'k key = 'k t
+  module Set = Map.Set
 end = struct
   type 'k t = {
     uid  : UID.t;
@@ -75,6 +76,7 @@ end = struct
     let uid x = x.uid
     let equal = hequal
   end)
+  module Set = Map.Set
 end
 type 'k tvar = 'k TVar.t
 

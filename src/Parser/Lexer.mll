@@ -9,7 +9,8 @@
 {
 let kw_map =
   let open YaccParser in
-  [ "data",     KW_DATA
+  [ "and",      KW_AND
+  ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
   ; "end",      KW_END
   ; "fn",       KW_FN
@@ -19,6 +20,7 @@ let kw_map =
   ; "let",      KW_LET
   ; "match",    KW_MATCH
   ; "of",       KW_OF
+  ; "rec",      KW_REC
   ; "type",     KW_TYPE
   ; "with",     KW_WITH
   ; "_",        UNDERSCORE
