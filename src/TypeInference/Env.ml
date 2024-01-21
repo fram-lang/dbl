@@ -53,7 +53,7 @@ let add_poly_var env x sch =
   }, y
 
 let add_mono_var env x tp =
-  add_poly_var env x { sch_tvars = []; sch_implicit = []; sch_body = tp }
+  add_poly_var env x (T.Scheme.of_type tp)
 
 let add_poly_implicit env name sch on_use =
   let x = Var.fresh ~name () in
@@ -62,9 +62,7 @@ let add_poly_implicit env name sch on_use =
   }, x
 
 let add_mono_implicit env name tp on_use =
-  add_poly_implicit env name
-    { sch_tvars = []; sch_implicit = []; sch_body = tp }
-    on_use
+  add_poly_implicit env name (T.Scheme.of_type tp) on_use
 
 let add_tvar env name kind =
   let x = T.TVar.fresh kind in
@@ -122,8 +120,12 @@ let open_scheme env sch =
   let (env, ims) =
     List.fold_left_map
       (fun env (name, sch) ->
-        let (env, x) = add_poly_implicit env name sch ignore in
+        let (env, x) =
+          match name with
+          | T.NVar x -> add_poly_var env x sch
+          | T.NImplicit n -> add_poly_implicit env n sch ignore
+        in
         (env, (name, x, sch)))
       env
-      sch.sch_implicit in
+      sch.sch_named in
   (env, sch.sch_tvars, ims, sch.sch_body)

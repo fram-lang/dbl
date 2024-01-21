@@ -14,21 +14,21 @@ type tvar = string
 (** Variables *)
 type var = string
 
-(** Names of implicit parameters *)
-type name = string
+(** name of a implicit parameter *)
+type iname = string
 
 (** Name of a ADT constructor *)
 type ctor_name = string
 
-(** Identifier *)
-type ident =
-  | IdVar  of var
-  | IdName of name
+(** Name of a named parameter *)
+type name =
+  | NVar      of var
+  | NImplicit of iname
 
-(** Explicit instantiation. Parametrized by expression representation *)
-type 'e inst_data =
-  | IName of name * 'e
-    (** Explicit instantiation of named implicit parameter *)
+(** Identifier, i.e., object that can be bound in patterns *)
+type ident =
+  | IdVar      of var
+  | IdImplicit of iname
 
 (** Type expressions *)
 type type_expr = type_expr_data node
@@ -59,7 +59,7 @@ and scheme_expr = {
   sch_tvars : type_arg list;
     (** Type parameters *)
 
-  sch_implicit : implicit_decl list;
+  sch_named : named_scheme list;
     (** Named parameters *)
 
   sch_body : type_expr
@@ -67,7 +67,7 @@ and scheme_expr = {
 }
 
 (** Declaration of implicit/named parameter *)
-and implicit_decl = scheme_expr inst_data node
+and named_scheme = (name * scheme_expr) node
 
 (** Type formal parameter *)
 and type_arg = type_arg_data node
@@ -79,7 +79,7 @@ and type_arg_data =
 type ctor_decl = ctor_decl_data node
 and ctor_decl_data =
   | CtorDecl of
-    ctor_name * type_arg list * implicit_decl list * scheme_expr list
+    ctor_name * type_arg list * named_scheme list * scheme_expr list
     (** Declaration of constructor of ADT *)
 
 (** Definition of ADT *)
@@ -93,20 +93,17 @@ and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
-  | PVar of var
-    (** Pattern that binds a variable *)
+  | PId of ident
+    (** Pattern that binds an identifier*)
 
-  | PName of name
-    (** Pattern that binds a named implicit *)
-
-  | PCtor of ctor_name node * inst_pattern list * pattern list
+  | PCtor of ctor_name node * named_pattern list * pattern list
     (** ADT constructor pattern *)
 
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
 
 (** Pattern for named parameter *)
-and inst_pattern = pattern inst_data node
+and named_pattern = (name * pattern) node
 
 (** Formal argument *)
 type arg =
@@ -116,19 +113,19 @@ type arg =
   | ArgPattern of pattern
     (** Argument with pattern-matching *)
 
-(** Implicit formal argument *)
-type inst_arg = arg inst_data node
+(** Named formal argument *)
+type named_arg = (name * arg) node
 
 (** Polymorphic expressions *)
 type poly_expr = poly_expr_data node
 and poly_expr_data =
-  | EVar  of var
+  | EVar      of var
     (** Variable *)
 
-  | EName of name
+  | EImplicit of iname
     (** Implicit parameter *)
 
-  | ECtor of ctor_name
+  | ECtor     of ctor_name
     (** ADT constructor *)
 
 (** Expressions *)
@@ -164,8 +161,8 @@ and expr_data =
     (** Print type, evaluate, and print the first expression, then continue
       to the second one. *)
 
-(** Explicit instantiation of polymorphic expression *)
-and inst = expr inst_data node
+(** Explicit instantiation of named parameters in polymorphic expression *)
+and inst = (name * expr) node
 
 (** Local definitions *)
 and def = def_data node
@@ -173,13 +170,13 @@ and def_data =
   | DLetId of ident * expr
     (** Let definition: monomorphic or polymorphic, depending on effect *)
 
-  | DLetFun of ident * type_arg list * inst_arg list * expr
+  | DLetFun of ident * type_arg list * named_arg list * expr
     (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DImplicit of name
+  | DImplicit of iname
     (** Declaration of implicit *)
 
   | DData of data_def

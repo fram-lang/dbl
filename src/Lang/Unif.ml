@@ -20,6 +20,8 @@ end
 module TVar  = UnifPriv.TVar
 module Scope = UnifPriv.Scope
 
+module Name = UnifPriv.Name
+
 module Type = struct
   include UnifPriv.TypeBase
   include UnifPriv.Type
@@ -35,6 +37,10 @@ module Scheme = struct
   let collect_uvars = UnifPriv.Type.collect_scheme_uvars
   let refresh       = UnifPriv.Type.refresh_scheme
   let subst         = UnifPriv.Subst.in_scheme
+end
+
+module NamedScheme = struct
+  let subst = UnifPriv.Subst.in_named_scheme
 end
 
 module CtorDecl = struct

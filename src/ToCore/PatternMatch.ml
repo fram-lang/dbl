@@ -226,7 +226,7 @@ module Make(Ctx : MatchContext) = struct
           T.TVar.Ex (T.TVar.fresh k))
         ctor.ctor_tvars in
     let xs1 =
-      List.map (fun (name, _) -> (name, Var.fresh ())) ctor.ctor_implicit in
+      List.map (fun (name, _) -> (name, Var.fresh ())) ctor.ctor_named in
     let xs2 = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_schemes in
     let ctx =
       focus_with ctx

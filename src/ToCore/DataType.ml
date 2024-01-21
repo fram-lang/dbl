@@ -14,7 +14,7 @@ let tr_ctor_decl env (ctor : S.ctor_decl) =
   { T.ctor_name      = ctor.ctor_name;
     T.ctor_tvars     = tvars;
     T.ctor_arg_types =
-      List.map (fun (_, sch) -> Type.tr_scheme env sch) ctor.ctor_implicit @
+      List.map (fun (_, sch) -> Type.tr_scheme env sch) ctor.ctor_named @
       List.map (Type.tr_scheme env) ctor.ctor_arg_schemes
   }
 

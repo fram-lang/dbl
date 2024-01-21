@@ -15,4 +15,4 @@ val check_ctor_uniqueness : S.ctor_decl list -> unit
 val check_inst_uniqueness : S.inst list -> unit
 
 (** Ensure that each named pattern is defined at most once *)
-val check_inst_pattern_uniqueness : S.inst_pattern list -> unit
+val check_named_pattern_uniqueness : S.named_pattern list -> unit

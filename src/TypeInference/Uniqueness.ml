@@ -10,21 +10,7 @@ open Common
 
 module StrMap = Map.Make(String)
 
-type cat =
-  | Constructor
-  | ExplicitInst
-  | InstPattern
-
-let report_error ~cat name pos ppos =
-  match cat with
-  | Constructor ->
-    Error.report (Error.ctor_redefinition ~pos ~ppos name)
-  | ExplicitInst ->
-    Error.report (Error.inst_redefinition ~pos ~ppos name)
-  | InstPattern ->
-    Error.report (Error.multiple_inst_patterns ~pos ~ppos name)
-
-let check_uniqueness ~cat ~name_of ~pos_of xs =
+let check_uniqueness ~on_error ~name_of ~pos_of xs =
   let rec loop names xs =
     match xs with
     | [] -> ()
@@ -35,7 +21,7 @@ let check_uniqueness ~cat ~name_of ~pos_of xs =
         let names = StrMap.add name (pos_of x) names in
         loop names xs
       | Some ppos ->
-        report_error ~cat name (pos_of x) ppos;
+        on_error ~pos:(pos_of x) ~ppos x;
         loop names xs
       end
   in
@@ -44,20 +30,26 @@ let check_uniqueness ~cat ~name_of ~pos_of xs =
 let check_ctor_uniqueness ctors =
   let name_of { S.data = S.CtorDecl(name, _, _, _); _ } = name in
   let pos_of (ctor : S.ctor_decl) = ctor.pos in
-  check_uniqueness ~cat:Constructor ~name_of ~pos_of ctors
+  let on_error ~pos ~ppos ctor =
+    Error.report (Error.ctor_redefinition ~pos ~ppos (name_of ctor)) in
+  check_uniqueness ~on_error ~name_of ~pos_of ctors
 
 let check_inst_uniqueness insts =
   let name_of (inst : S.inst) =
     match inst.data with
-    | IName(n, _) -> n
+    | ((NVar n | NImplicit n), _) -> n
   in
   let pos_of (inst : S.inst) = inst.pos in
-  check_uniqueness ~cat:ExplicitInst ~name_of ~pos_of insts
+  let on_error ~pos ~ppos (inst : S.inst) =
+    Error.report (Error.inst_redefinition ~pos ~ppos (fst inst.data)) in
+  check_uniqueness ~on_error ~name_of ~pos_of insts
 
-let check_inst_pattern_uniqueness ips =
-  let name_of (ip : S.inst_pattern) =
-    match ip.data with
-    | IName(n, _) -> n
+let check_named_pattern_uniqueness nps =
+  let name_of (np : S.named_pattern) =
+    match np.data with
+    | ((NVar n | NImplicit n), _) -> n
   in
-  let pos_of (ip : S.inst_pattern) = ip.pos in
-  check_uniqueness ~cat:InstPattern ~name_of ~pos_of ips
+  let pos_of (np : S.named_pattern) = np.pos in
+  let on_error ~pos ~ppos (np : S.named_pattern) =
+    Error.report (Error.multiple_inst_patterns ~pos ~ppos (fst np.data)) in
+  check_uniqueness ~on_error ~name_of ~pos_of nps

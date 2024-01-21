@@ -9,10 +9,10 @@
 
 open Common
 
-type t = S.name list (* in reversed order *)
+type t = S.iname list (* in reversed order *)
 
 type implicit = {
-  i_name : T.name;
+  i_name : string;
   i_var  : T.var;
   i_type : T.typ;
   i_used : Position.t option BRef.t
@@ -48,7 +48,8 @@ let end_generalize_pure ims =
   ims |> List.filter_map
     (fun im ->
       match BRef.get im.i_used with
-      | Some _ -> Some (im.i_name, im.i_var, T.Scheme.of_type im.i_type)
+      | Some _ ->
+        Some (T.NImplicit im.i_name, im.i_var, T.Scheme.of_type im.i_type)
       | None   -> None)
 
 let end_generalize_impure ims =
@@ -69,7 +70,7 @@ let add_poly_id env ienv (id : S.ident) sch =
   | IdVar x ->
     let (env, x) = Env.add_poly_var env x sch in
     (env, ienv, x)
-  | IdName n ->
+  | IdImplicit n ->
     let ienv = shadow ienv n in
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, ienv, x)

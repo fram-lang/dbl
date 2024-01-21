@@ -17,9 +17,6 @@ type kuvar
   This is an abstract type. Use [Kind.view] to view it. *)
 type kind
 
-(** Names of implicit parameters *)
-type name = string
-
 (** Unification variables *)
 type uvar
 
@@ -28,6 +25,11 @@ type tvar
 
 (** Scope of a type *)
 type scope
+
+(** Name of a named parameter *)
+type name =
+  | NVar      of string
+  | NImplicit of string
 
 (** Types.
 
@@ -39,15 +41,18 @@ type effect = typ
 
 (** Polymorphic type scheme *)
 type scheme = {
-  sch_tvars    : tvar list;
+  sch_tvars : tvar list;
     (** universally quantified type variables *)
 
-  sch_implicit : (name * scheme) list;
-    (** Implicit parameters *)
+  sch_named : named_scheme list;
+    (** Named parameters *)
   
-  sch_body     : typ
+  sch_body  : typ
     (** Body of the type scheme *)
 }
+
+(** Scheme with name *)
+and named_scheme = name * scheme
 
 (** Type substitution *)
 type subst
@@ -60,8 +65,8 @@ type ctor_decl = {
   ctor_tvars       : tvar list;
     (** Existential type variables of the constructor *)
 
-  ctor_implicit    : (name * scheme) list;
-    (** Implicit parameters of the constructor *)
+  ctor_named       : named_scheme list;
+    (** Named parameters of the constructor *)
 
   ctor_arg_schemes : scheme list
     (** Type schemes of the regular parameters *)
@@ -287,6 +292,22 @@ module UVar : sig
 end
 
 (* ========================================================================= *)
+(** Operations on parameter names *)
+module Name : sig
+  (** Check names for equality *)
+  val equal : name -> name -> bool
+
+  (** Find value associated to given name on a list *)
+  val assoc : name -> (name * 'a) list -> 'a option
+
+  (** Substitute in name *)
+  val subst : subst -> name -> name
+
+  (** Finite sets of names *)
+  module Set : Set.S with type elt = name
+end
+
+(* ========================================================================= *)
 (** Operations on types *)
 module Type : sig
   (** End of an effect *)
@@ -480,6 +501,13 @@ module Scheme : sig
 
   (** Apply substitution to a scheme *)
   val subst : subst -> scheme -> scheme
+end
+
+(* ========================================================================= *)
+(** Operations on named type schemes *)
+module NamedScheme : sig
+  (** Apply substitution to a named scheme *)
+  val subst : subst -> named_scheme -> named_scheme
 end
 
 (* ========================================================================= *)

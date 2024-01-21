@@ -35,10 +35,9 @@ let infer_ctor_scheme ~pos env c =
     let ctor = List.nth info.adt_ctors idx in
     let targs = info.adt_args @ ctor.ctor_tvars in
     let sch = {
-        T.sch_tvars    = targs;
-        T.sch_implicit = ctor.ctor_implicit;
-        T.sch_body     =
-          T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
+        T.sch_tvars = targs;
+        T.sch_named = ctor.ctor_named;
+        T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
       } in
     (ExprUtils.ctor_func ~pos idx info, sch)
   | None ->
@@ -56,7 +55,7 @@ let infer_poly_scheme env (e : S.poly_expr) eff =
   | EVar  x ->
     let (e, sch) = infer_var_scheme ~pos env x in
     (Fun.id, e, sch, Pure)
-  | EName n ->
+  | EImplicit n ->
     let (e, sch) = infer_implicit_scheme ~pos env n in
     (Fun.id, e, sch, Pure)
   | ECtor c ->
@@ -84,11 +83,9 @@ let rec infer_expr_type env (e : S.expr) eff =
     Uniqueness.check_inst_uniqueness inst;
     let (sub, tps) = ExprUtils.guess_types env sch.sch_tvars in
     let e = ExprUtils.make_tapp e tps in
-    let ims =
-      List.map (fun (n, sch) -> (n, T.Scheme.subst sub sch))
-        sch.sch_implicit in
-    let (i_ctx, inst, r_eff2) = check_explicit_insts env ims inst eff in
-    let e = ExprUtils.instantiate_implicits env e ims inst in
+    let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
+    let (i_ctx, inst, r_eff2) = check_explicit_insts env named inst eff in
+    let e = ExprUtils.instantiate_named_params env e named inst in
     let tp = T.Type.subst sub sch.sch_body in
     (p_ctx (i_ctx e), tp, ret_effect_join r_eff1 r_eff2)
 
@@ -224,9 +221,9 @@ and check_expr_type_default env (e : S.expr) tp eff =
 (* ------------------------------------------------------------------------- *)
 (** Check the scheme of an actual parameter of a function *)
 and check_actual_arg env (arg : S.expr) sch eff =
-  let (env, tvars, ims, body_tp) = Env.open_scheme env sch in
+  let (env, tvars, named, body_tp) = Env.open_scheme env sch in
   let (body, res_eff) =
-    match tvars, ims with
+    match tvars, named with
     | [], [] -> check_expr_type env arg body_tp eff
     | _ ->
       let (body, res_eff) = check_expr_type env arg body_tp T.Effect.pure in
@@ -236,22 +233,23 @@ and check_actual_arg env (arg : S.expr) sch eff =
       end;
       (body, Pure)
   in
-  (ExprUtils.make_tfun tvars (ExprUtils.make_ifun ims body), res_eff)
+  (ExprUtils.make_tfun tvars (ExprUtils.make_nfun named body), res_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Check explicit instantiations against given list of named parameters (from
   type scheme). It returns context (represented as meta-function) that
   preserves the order of computations, list of checked instantiations, and
   the effect. *)
-and check_explicit_insts env ims insts eff =
+and check_explicit_insts env named insts eff =
   match insts with
   | [] -> (Fun.id, [], Pure)
-  | { data = S.IName(n, e); pos } :: insts ->
+  | { data = (n, e); pos } :: insts ->
     let make data = { T.data; T.pos } in
-    begin match List.assoc_opt n ims with
+    let n = Name.tr_name env n in
+    begin match T.Name.assoc n named with
     | Some sch ->
       let (e, r_eff1) = check_actual_arg env e sch eff in
-      let (ctx, insts, r_eff2) = check_explicit_insts env ims insts eff in
+      let (ctx, insts, r_eff2) = check_explicit_insts env named insts eff in
       let x = Var.fresh () in
       let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
       let insts = (n, make (T.EVar x)) :: insts in
@@ -259,8 +257,8 @@ and check_explicit_insts env ims insts eff =
     | None ->
       Error.warn (Error.redundant_named_parameter ~pos n);
       let (e, tp, r_eff1) = infer_expr_type env e eff in
-      let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
-      let (ctx, insts, r_eff2) = check_explicit_insts env ims insts eff in
+      let sch = T.Scheme.of_type tp in
+      let (ctx, insts, r_eff2) = check_explicit_insts env named insts eff in
       let x = Var.fresh () in
       let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
       (ctx, insts, ret_effect_join r_eff1 r_eff2)
@@ -289,11 +287,11 @@ and check_def env ienv (def : S.def) eff =
     let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
     (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
-  | DLetFun(id, targs, iargs, body) ->
+  | DLetFun(id, targs, nargs, body) ->
     let (body_env, tvars) = Type.tr_type_args env targs in 
     let (body_env, ims1) = ImplicitEnv.begin_generalize body_env ienv in
     let (body_env, ims2, r_eff1) =
-      Pattern.infer_inst_arg_schemes body_env iargs in
+      Pattern.infer_named_arg_schemes body_env nargs in
     let (body, tp, r_eff2) = infer_expr_type body_env body T.Effect.pure in
     begin match ret_effect_join r_eff1 r_eff2 with
     | Pure -> ()
@@ -342,7 +340,7 @@ and check_let env ienv body eff =
     (sch, body, Pure)
   | Impure ->
     ImplicitEnv.end_generalize_impure ims;
-    let sch = { T.sch_tvars = []; T.sch_implicit = []; T.sch_body = tp } in
+    let sch = T.Scheme.of_type tp in
     (sch, body, Impure)
 
 (* ------------------------------------------------------------------------- *)

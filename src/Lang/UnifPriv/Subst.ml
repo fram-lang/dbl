@@ -45,6 +45,10 @@ let in_uvar sub p u =
     (fun x -> not (TVar.Map.mem (TVar.Perm.apply p x) sub.sub));
   p
 
+let in_name sub n =
+  match n with
+  | NVar _ | NImplicit _ -> n
+
 (* TODO: write a bit about how substitution in effects is handled *)
 let in_effvar sub x ys =
   let x = TVar.Perm.apply sub.perm x in
@@ -103,13 +107,14 @@ and in_type_rec sub tp =
 
 and in_scheme_rec sub sch =
   let (sub, tvars) = add_tvars sub sch.sch_tvars in
-  let ims =
-    List.map (fun (name, isch) -> (name, in_scheme_rec sub isch))
-      sch.sch_implicit in
-  { sch_tvars    = tvars;
-    sch_implicit = ims;
-    sch_body     = in_type_rec sub sch.sch_body
+  let named = List.map (in_named_scheme_rec sub) sch.sch_named in
+  { sch_tvars = tvars;
+    sch_named = named;
+    sch_body  = in_type_rec sub sch.sch_body
   }
+
+and in_named_scheme_rec sub (n, sch) =
+  (in_name sub n, in_scheme_rec sub sch)
 
 let in_type sub tp =
   if is_empty sub then tp
@@ -119,15 +124,17 @@ let in_scheme sub sch =
   if is_empty sub then sch
   else in_scheme_rec sub sch
 
+let in_named_scheme sub nsch =
+  if is_empty sub then nsch
+  else in_named_scheme_rec sub nsch
+
 let in_ctor_decl sub ctor =
   if is_empty sub then ctor
   else
     let (sub, tvs) = add_tvars sub ctor.ctor_tvars in
-    let ims =
-      List.map (fun (name, isch) -> (name, in_scheme_rec sub isch))
-        ctor.ctor_implicit in
+    let named = List.map (in_named_scheme sub) ctor.ctor_named in
     { ctor_name        = ctor.ctor_name;
       ctor_tvars       = tvs;
-      ctor_implicit    = ims;
+      ctor_named       = named;
       ctor_arg_schemes = List.map (in_scheme_rec sub) ctor.ctor_arg_schemes
   }

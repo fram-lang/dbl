@@ -25,9 +25,10 @@ val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 val type_not_function : pos:Position.t -> env:Env.t -> T.kind -> t
 
 val unbound_var : pos:Position.t -> S.var -> t
-val unbound_implicit : pos:Position.t -> S.name -> t
+val unbound_implicit : pos:Position.t -> S.iname -> t
 val unbound_constructor : pos:Position.t -> S.ctor_name -> t
 val unbound_type_var : pos:Position.t -> S.tvar -> t
+val unbound_named_param : pos:Position.t -> S.var -> t
 
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
@@ -47,13 +48,13 @@ val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
 
-val ungeneralizable_implicit : pos:Position.t -> S.name -> t
+val ungeneralizable_implicit : pos:Position.t -> S.iname -> t
 val non_polymorphic_pattern : pos:Position.t -> t
 
-val looping_implicit : pos:Position.t -> S.name -> t
+val looping_named_param : pos:Position.t -> T.name -> t
 
 val implicit_type_mismatch :
-  pos:Position.t -> env:Env.t -> S.name -> T.typ -> T.typ -> t
+  pos:Position.t -> env:Env.t -> S.iname -> T.typ -> T.typ -> t
 
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t
@@ -67,5 +68,5 @@ val multiple_inst_patterns :
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name -> int -> int -> t
 
-val redundant_named_parameter : pos:Position.t -> S.name -> t
-val redundant_named_pattern : pos:Position.t -> S.name -> t
+val redundant_named_parameter : pos:Position.t -> T.name -> t
+val redundant_named_pattern : pos:Position.t -> T.name -> t

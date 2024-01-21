@@ -16,7 +16,12 @@ type tvar = string
 type var = string
 
 (** Names of implicit parameters *)
-type name = string
+type iname = string
+
+(** Name of a named parameter *)
+type name = Lang.Surface.name =
+  | NVar      of var
+  | NImplicit of iname
 
 (** Names of constructors of ADTs *)
 type ctor_name = string
@@ -27,7 +32,7 @@ type ('tp, 'e) field_data =
   | FldAnonType of 'tp
 
   | FldName of name
-    (** Single named implicit parameter *)
+    (** Single named parameter *)
 
   | FldNameVal of name * 'e
     (** Named implicit parameter together with a value *)
@@ -91,7 +96,7 @@ and expr_data =
   | EVar  of var
     (** Variable *)
 
-  | EName of name
+  | EImplicit of iname
     (** Named implicit parameter *)
 
   | ECtor of ctor_name
@@ -139,7 +144,7 @@ and def_data =
   | DLet of expr * expr
     (** Let-definition *)
 
-  | DImplicit of name
+  | DImplicit of iname
     (** Declaration of implicit parameter *)
 
   | DData of data_def

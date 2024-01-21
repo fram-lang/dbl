@@ -25,11 +25,17 @@ val add_tvars : t -> tvar list -> t * tvar list
 (** Extend substitution *)
 val add_type : t -> tvar -> typ -> t
 
+(** Substitute in name *)
+val in_name : t -> name -> name
+
 (** Substitute in type *)
 val in_type : t -> typ -> typ
 
 (** Substitute in a type scheme *)
 val in_scheme : t -> scheme -> scheme
+
+(** Substitute in a named type scheme *)
+val in_named_scheme : t -> named_scheme -> named_scheme
 
 (** Substitute in constructor definition *)
 val in_ctor_decl : t -> ctor_decl -> ctor_decl

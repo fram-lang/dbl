@@ -8,11 +8,13 @@
 
 open KindBase
 
-type name = string
-
 type tvar = TVar.t
 
 type scope = TVar.Set.t
+
+type name =
+  | NVar      of string
+  | NImplicit of string
 
 type uvar = {
   uid   : UID.t;
@@ -43,15 +45,17 @@ and effect_end =
   | EEApp  of typ * typ
 
 and scheme = {
-  sch_tvars    : tvar list;
-  sch_implicit : (name * scheme) list;
-  sch_body     : typ
+  sch_tvars : tvar list;
+  sch_named : named_scheme list;
+  sch_body  : typ
 }
+
+and named_scheme = name * scheme
 
 type ctor_decl = {
   ctor_name        : string;
   ctor_tvars       : tvar list;
-  ctor_implicit    : (name * scheme) list;
+  ctor_named       : named_scheme list;
   ctor_arg_schemes : scheme list
 }
 
@@ -70,6 +74,10 @@ let t_pure_arrow sch tp2 = TPureArrow(sch, tp2)
 let t_arrow sch tp2 eff = TArrow(sch, tp2, eff)
 
 let t_app tp1 tp2 = TApp(tp1, tp2)
+
+let perm_name p n =
+  match n with
+  | NVar _ | NImplicit _ -> n
 
 let rec view tp =
   match tp with
@@ -127,12 +135,13 @@ and perm_effect_end_rec p ee =
     EEApp(perm_rec p tp1, perm_rec p tp2)
 
 and perm_scheme_rec p sch =
-  { sch_tvars    = List.map (TVar.Perm.apply p) sch.sch_tvars;
-    sch_implicit =
-      List.map (fun (name, sch) -> (name, perm_scheme_rec p sch))
-        sch.sch_implicit;
-    sch_body     = perm_rec p sch.sch_body
+  { sch_tvars = List.map (TVar.Perm.apply p) sch.sch_tvars;
+    sch_named = List.map (perm_named_scheme_rec p) sch.sch_named;
+    sch_body  = perm_rec p sch.sch_body
   }
+
+and perm_named_scheme_rec p (n, sch) =
+  (perm_name p n, perm_scheme_rec p sch)
 
 let effect_view eff =
   match view eff with

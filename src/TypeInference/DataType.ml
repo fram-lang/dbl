@@ -10,12 +10,12 @@ open Common
 
 let check_ctor_decl env (ctor : S.ctor_decl) =
   match ctor.data with
-  | CtorDecl(name, tvs, ims, schs) ->
+  | CtorDecl(name, tvs, named, schs) ->
     let (env, tvs) = Type.tr_type_args env tvs in
-    let ims = List.map (Type.tr_implicit_decl env) ims in
+    let named = List.map (Type.tr_named_scheme env) named in
     { T.ctor_name        = name;
       T.ctor_tvars       = tvs;
-      T.ctor_implicit    = ims;
+      T.ctor_named       = named;
       T.ctor_arg_schemes = List.map (Type.tr_scheme env) schs
     }
 

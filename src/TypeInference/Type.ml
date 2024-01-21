@@ -100,15 +100,18 @@ and check_cl_effect_it env tvs tp =
 
 and tr_scheme env (sch : S.scheme_expr) =
   let (env, tvs) = tr_type_args env sch.sch_tvars in
-  let ims = List.map (tr_implicit_decl env) sch.sch_implicit in
-  { T.sch_tvars    = tvs;
-    T.sch_implicit = ims;
-    T.sch_body     = tr_ttype env sch.sch_body
+  let named = List.map (tr_named_scheme env) sch.sch_named in
+  { T.sch_tvars = tvs;
+    T.sch_named = named;
+    T.sch_body  = tr_ttype env sch.sch_body
   }
 
-and tr_implicit_decl env (im : S.implicit_decl) =
-  match im.data with
-  | IName(n, sch) -> (n, tr_scheme env sch)
+and tr_named_scheme env (nsch : S.named_scheme) =
+  let (name, sch) = nsch.data in
+  let sch = tr_scheme env sch in
+  match name with
+  | NVar      x -> (T.NVar x, sch)
+  | NImplicit n -> (T.NImplicit n, sch)
 
 and tr_ttype env tp =
   check_kind env tp T.Kind.k_type

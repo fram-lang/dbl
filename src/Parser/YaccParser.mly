@@ -45,6 +45,13 @@ bar_opt
 
 /* ========================================================================= */
 
+name
+: LID  { NVar $1      }
+| TLID { NImplicit $1 }
+;
+
+/* ========================================================================= */
+
 ty_expr
 : ty_expr_app ARROW ty_expr { make (TPureArrow($1, $3)) }
 | ty_expr_app ARROW SBR_OPN effect SBR_CLS ty_expr
@@ -85,8 +92,8 @@ ty_expr_list1
 
 ty_field
 : KW_TYPE ty_expr    { make (FldAnonType $2)     }
-| TLID               { make (FldName $1)         }
-| TLID COLON ty_expr { make (FldNameVal($1, $3)) }
+| name               { make (FldName $1)         }
+| name COLON ty_expr { make (FldNameVal($1, $3)) }
 ;
 
 ty_field_list
@@ -131,12 +138,12 @@ expr_200
 ;
 
 expr_simple
-: LID                { make (EVar $1)   }
-| TLID               { make (EName $1)  }
-| UID                { make (ECtor $1)  }
-| UNDERSCORE         { make EWildcard   }
-| BR_OPN BR_CLS      { make EUnit       }
-| BR_OPN expr BR_CLS { make (EParen $2) }
+: LID                { make (EVar $1)      }
+| TLID               { make (EImplicit $1) }
+| UID                { make (ECtor $1)     }
+| UNDERSCORE         { make EWildcard      }
+| BR_OPN BR_CLS      { make EUnit          }
+| BR_OPN expr BR_CLS { make (EParen $2)    }
 | KW_MATCH expr KW_WITH KW_END { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
@@ -170,9 +177,9 @@ h_expr
 
 field
 : KW_TYPE ty_expr    { make (FldAnonType $2)       }
-| TLID               { make (FldName $1)           }
-| TLID EQ expr       { make (FldNameVal($1, $3))   }
-| TLID COLON ty_expr { make (FldNameAnnot($1, $3)) }
+| name               { make (FldName $1)           }
+| name EQ expr       { make (FldNameVal($1, $3))   }
+| name COLON ty_expr { make (FldNameAnnot($1, $3)) }
 ;
 
 field_list

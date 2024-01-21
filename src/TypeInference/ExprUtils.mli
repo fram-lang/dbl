@@ -11,8 +11,8 @@ open Common
 (** Make polymorphic function with given type parameters *)
 val make_tfun : T.tvar list -> T.expr -> T.expr
 
-(** Make function polymorphic in implicit parameters *)
-val make_ifun : (S.name * T.var * T.scheme) list -> T.expr -> T.expr
+(** Make function polymorphic in named parameters *)
+val make_nfun : (T.name * T.var * T.scheme) list -> T.expr -> T.expr
 
 (** Generate a type application to given list of types *)
 val make_tapp : T.expr -> T.typ list -> T.expr
@@ -20,7 +20,7 @@ val make_tapp : T.expr -> T.typ list -> T.expr
 (** Generalize type to polymorphic scheme. The second parameter is a list
   of explicit type parameters, and the third parameter is a list of
   implicit parameters. *)
-val generalize : Env.t -> T.tvar list -> (S.name * T.var * T.scheme) list ->
+val generalize : Env.t -> T.tvar list -> (T.name * T.var * T.scheme) list ->
   T.expr -> T.typ -> T.expr * T.scheme
 
 (** Guess types used to instantiate polymorphic function. Returns substitution
@@ -31,8 +31,8 @@ val guess_types : Env.t -> T.tvar list -> T.subst * T.typ list
 (** Instantiate named parameters of polymorphic expression. It takes possibly
   empty list of explicit instantiations. These instantiations are pure, so
   their order doesn't matter. *)
-val instantiate_implicits :
-  Env.t -> T.expr -> (T.name * T.scheme) list -> (S.name * T.expr) list -> T.expr
+val instantiate_named_params :
+  Env.t -> T.expr -> T.named_scheme list -> (T.name * T.expr) list -> T.expr
 
 (** Create a function that represents ADT constructor of given index,
   not applied to any parameters yet, even the type parameters of the ADT. *)
@@ -52,5 +52,5 @@ val arg_match : T.pattern -> T.expr -> T.typ -> T.effect -> T.var * T.expr
 
 (** Same as [arg_match], but take multiple binders of named parameters. *)
 val inst_args_match :
-  (S.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effect ->
-    (S.name * T.var * T.scheme) list * T.expr
+  (T.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effect ->
+    (T.name * T.var * T.scheme) list * T.expr

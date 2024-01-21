@@ -8,11 +8,14 @@
 
 open KindBase
 
-type name = string
-
 type uvar
 type tvar  = TVar.t
 type scope = TVar.Set.t
+
+type name =
+  | NVar      of string
+  | NImplicit of string
+
 type typ
 
 type effect = typ
@@ -33,15 +36,17 @@ type type_view =
   | TApp       of typ * typ
 
 and scheme = {
-  sch_tvars    : tvar list;
-  sch_implicit : (name * scheme) list;
-  sch_body     : typ
+  sch_tvars : tvar list;
+  sch_named : named_scheme list;
+  sch_body  : typ
 }
+
+and named_scheme = name * scheme
 
 type ctor_decl = {
   ctor_name        : string;
   ctor_tvars       : tvar list;
-  ctor_implicit    : (name * scheme) list;
+  ctor_named       : named_scheme list;
   ctor_arg_schemes : scheme list
 }
 

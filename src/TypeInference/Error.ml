@@ -44,6 +44,10 @@ let unbound_type_var ~pos x =
   Printf.eprintf "%s: error: Unbound type %s\n"
     (Position.to_string pos) x
 
+let unbound_named_param ~pos x =
+  Printf.eprintf "%s: error: Cannot implicitly provide a parameter of name %s\n"
+    (Position.to_string pos) x
+
 let expr_type_mismatch ~pos ~env tp1 tp2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Type mismatch\n"
@@ -104,12 +108,17 @@ let non_polymorphic_pattern ~pos =
     "%s: error: This pattern cannot match polymorphic values.\n"
     (Position.to_string pos)
 
-let looping_implicit ~pos name =
+let looping_named_param ~pos (name : Lang.Unif.name) =
+  let nn =
+    match name with
+    | NVar x -> Printf.sprintf "named parameter %s" x
+    | NImplicit n -> Printf.sprintf "implicit %s" n
+  in
   (* TODO: better message *)
   Printf.eprintf
-    "%s: error: Resolving of implicit %s leads to an infinite loop.\n"
+    "%s: error: Resolving of %s leads to an infinite loop.\n"
     (Position.to_string pos)
-    name
+    nn
 
 let implicit_type_mismatch ~pos ~env name tp1 tp2 =
   (* TODO: better message *)
@@ -124,17 +133,27 @@ let ctor_redefinition ~pos ~ppos name =
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
 
-let inst_redefinition ~pos ~ppos name =
-  Printf.eprintf "%s: error: Named parameter %s is provided more than once.\n"
+let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
+  let nn =
+    match name with
+    | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar      x -> Printf.sprintf "Named parameter %s" x
+  in
+  Printf.eprintf "%s: error: %s is provided more than once.\n"
     (Position.to_string pos)
-    name;
+    nn;
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
 
-let multiple_inst_patterns ~pos ~ppos name =
-  Printf.eprintf "%s: error: Named parameter %s is provided more than once.\n"
+let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
+  let nn =
+    match name with
+    | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar      x -> Printf.sprintf "Named parameter %s" x
+  in
+  Printf.eprintf "%s: error: %s is provided more than once.\n"
     (Position.to_string pos)
-    name;
+    nn;
   Printf.eprintf "%s: note: Here is a previous parameter with this name.\n"
     (Position.to_string ppos)
 
@@ -144,14 +163,24 @@ let ctor_arity_mismatch ~pos cname req_n prov_n =
     (Position.to_string pos)
     cname req_n prov_n
 
-let redundant_named_parameter ~pos n =
+let redundant_named_parameter ~pos (name : Lang.Unif.name) =
+  let nn =
+    match name with
+    | NImplicit n -> Printf.sprintf "implicit parameter %s" n
+    | NVar      x -> Printf.sprintf "named parameter %s" x
+  in
   Printf.eprintf
-    "%s: warning: Providing named parameter %s to a function that do not expect it.\n"
+    "%s: warning: Providing %s to a function that do not expect it.\n"
     (Position.to_string pos)
-    n
+    nn
 
-let redundant_named_pattern ~pos n =
+let redundant_named_pattern ~pos (name : Lang.Unif.name) =
+  let nn =
+    match name with
+    | NImplicit n -> Printf.sprintf "implicit parameter %s" n
+    | NVar      x -> Printf.sprintf "named parameter %s" x
+  in
   Printf.eprintf
-    "%s: warning: Providing named parameter %s to a constructor that do not expect it.\n"
+    "%s: warning: Providing %s to a constructor that do not expect it.\n"
     (Position.to_string pos)
-    n
+    nn

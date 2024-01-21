@@ -38,12 +38,12 @@ val add_mono_var : t -> S.var -> T.typ -> t * T.var
 (** Extend an environment with a polymorphic named implicit.
   The last parameter is a function called on each use of implicit parameter *)
 val add_poly_implicit :
-  t -> S.name -> T.scheme -> (Position.t -> unit) -> t * T.var
+  t -> S.iname -> T.scheme -> (Position.t -> unit) -> t * T.var
 
 (** Extend an environment with a monomorphic named implicit.
   The last parameter is a function called on each use of implicit parameter *)
 val add_mono_implicit :
-  t -> S.name -> T.typ -> (Position.t -> unit) -> t * T.var
+  t -> S.iname -> T.typ -> (Position.t -> unit) -> t * T.var
 
 (** Extend an environment with a named type variable *)
 val add_tvar : t -> S.tvar -> T.kind -> t * T.tvar
@@ -88,4 +88,4 @@ val fresh_uvar : t -> T.kind -> T.typ
   Returns extended environment, list of type variables, list of introduced
   named parameters, and the type of the scheme body. *)
 val open_scheme : t -> T.scheme ->
-  t * T.tvar list * (S.name * T.var * T.scheme) list * T.typ
+  t * T.tvar list * (T.name * T.var * T.scheme) list * T.typ
