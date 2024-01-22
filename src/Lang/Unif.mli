@@ -305,6 +305,9 @@ module Name : sig
 
   (** Finite sets of names *)
   module Set : Set.S with type elt = name
+
+  (** Finite maps with names as keys *)
+  module Map : Map.S with type key = name
 end
 
 (* ========================================================================= *)

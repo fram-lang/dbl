@@ -34,3 +34,4 @@ let assoc n xs =
 let subst = Subst.in_name
 
 module Set = Set.Make(Ordered)
+module Map = Map.Make(Ordered)

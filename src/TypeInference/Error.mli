@@ -65,6 +65,9 @@ val inst_redefinition :
 val multiple_inst_patterns :
   pos:Position.t -> ppos:Position.t -> S.name -> t
 
+val multiple_name_binders :
+  pos1:Position.t -> pos2:Position.t -> T.name -> t
+
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name -> int -> int -> t
 

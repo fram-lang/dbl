@@ -140,7 +140,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
     (* TODO: effect capability may have a scheme instead of type *)
     let (h, x_tp) = infer_h_expr_type env h h_eff res_tp res_eff in
-    let (env1, pat, _) =
+    let (env1, pat, _, _) =
       Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat x_tp in
     let e1_eff = T.Effect.cons h_eff res_eff in
     let (e1, _) = check_expr_type env1 e1 res_tp e1_eff in
@@ -306,11 +306,11 @@ and check_def env ienv (def : S.def) eff =
 
   | DLetPat(pat, e1) ->
     let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
-    let ienv = Pattern.fold_implicit ImplicitEnv.shadow ienv pat in
     let scope = Env.scope env1 in
     let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
     ImplicitEnv.end_generalize_impure ims;
-    let (env, pat, r_eff2) = Pattern.check_type ~env ~scope pat tp in
+    let (env, pat, names, r_eff2) = Pattern.check_type ~env ~scope pat tp in
+    let ienv = ImplicitEnv.shadow_names ienv names in
     let ctx e res_tp = make e (T.EMatch(e1, [(pat, e)], res_tp, eff)) in
     (env, ienv, ctx, ret_effect_join r_eff1 r_eff2)
 
@@ -356,7 +356,7 @@ and check_match_clause env tp (cl : S.match_clause) res_tp res_eff =
   match cl.data with
   | Clause(pat, body) ->
     let scope = Env.scope env in
-    let (env, pat, r_eff1) = Pattern.check_type ~env ~scope pat tp in
+    let (env, pat, _, r_eff1) = Pattern.check_type ~env ~scope pat tp in
     let (body, r_eff2) = check_expr_type env body res_tp res_eff in
     (pat, body, ret_effect_join r_eff1 r_eff2)
 

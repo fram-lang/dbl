@@ -14,6 +14,17 @@ let tr_named_pattern env (np : S.named_pattern) =
   let (name, pat) = np.data in
   { np with data = (Name.tr_name env name, pat) }
 
+let union_bound_names bn1 bn2 =
+  T.Name.Map.merge
+    (fun name p1 p2 ->
+      match p1, p2 with
+      | None, _ -> p2
+      | _, None -> p1
+      | Some pos1, Some pos2 ->
+        Error.report (Error.multiple_name_binders ~pos1 ~pos2 name);
+        Some pos1)
+    bn1 bn2
+
 (** Select named pattern for given name. On success returns pattern assigned
   to given name and list of remaining named patterns *)
 let rec select_named_pattern name (nps : named_pattern list) =
@@ -36,18 +47,20 @@ let rec check_ctor_type_args ~env ~scope ~sub tvs =
     (env, scope, sub, a :: tvs)
 
 (** Extend the environment by a named parameter that is not explicitly
-  mentioned *)
-let introduce_implicit_name env (name : T.name) sch =
+  mentioned. The middle element of returned trpiple is a set of names
+  implicity bound. *)
+let introduce_implicit_name ~pos env (name : T.name) sch =
   match name with
   | NVar x ->
     (* Do not introduce anything. Just create a fresh variable *)
-    (env, Var.fresh ~name:x ())
+    (env, T.Name.Map.empty, Var.fresh ~name:x ())
 
   | NImplicit n ->
     (* Implicit parameters are implicitly introduced to the environment.
      This behavior might be considered controversial. We will see how it works
      in practice. *)
-    Env.add_poly_implicit env n sch ignore
+    let (env, x) = Env.add_poly_implicit env n sch ignore in
+    (env, T.Name.Map.singleton name pos, x)
 
 let rec check_ctor_named_args ~pos ~env ~scope nps named =
   match named with
@@ -56,31 +69,35 @@ let rec check_ctor_named_args ~pos ~env ~scope nps named =
       (fun { S.pos; S.data = (n, _) } ->
         Error.warn (Error.redundant_named_pattern ~pos n))
       nps;
-    (env, [])
+    (env, T.Name.Map.empty, [])
   | (name, sch) :: named ->
     begin match select_named_pattern name nps with
     | None ->
-      let (env, x) = introduce_implicit_name env name sch in
+      let (env, bn1, x) = introduce_implicit_name ~pos env name sch in
       let p = { T.pos = pos; T.data = T.PVar(x, sch) } in
-      let (env, ps) = check_ctor_named_args ~pos ~env ~scope nps named in
-      (env, p :: ps)
+      let (env, bn2, ps) = check_ctor_named_args ~pos ~env ~scope nps named in
+      let bn = union_bound_names bn1 bn2 in
+      (env, bn, p :: ps)
     | Some(p, nps) ->
-      let (env, p, _) = check_scheme ~env ~scope p sch in
-      let (env, ps) = check_ctor_named_args ~pos ~env ~scope nps named in
-      (env, p :: ps)
+      let (env, p, bn1, _) = check_scheme ~env ~scope p sch in
+      let (env, bn2, ps) = check_ctor_named_args ~pos ~env ~scope nps named in
+      let bn = union_bound_names bn1 bn2 in
+      (env, bn, p :: ps)
     end
 
 and check_scheme ~env ~scope (pat : S.pattern) sch =
   let make data = { pat with T.data = data } in
   match pat.data with
   | PWildcard ->
-    (env, make T.PWildcard, Pure)
+    (env, make T.PWildcard, T.Name.Map.empty, Pure)
   | PId (IdVar x) ->
+    let bn = T.Name.Map.singleton (T.NVar x) pat.pos in
     let (env, x) = Env.add_poly_var env x sch in
-    (env, make (T.PVar(x, sch)), Pure)
+    (env, make (T.PVar(x, sch)), bn, Pure)
   | PId (IdImplicit n) ->
+    let bn = T.Name.Map.singleton (T.NImplicit n) pat.pos in
     let (env, x) = Env.add_poly_implicit env n sch ignore in
-    (env, make (T.PVar(x, sch)), Pure)
+    (env, make (T.PVar(x, sch)), bn, Pure)
   | PCtor _ ->
     begin match sch with
     | { sch_tvars = []; sch_named = []; sch_body = tp } ->
@@ -118,7 +135,7 @@ and check_type ~env ~scope (pat : S.pattern) tp =
         List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
       Uniqueness.check_named_pattern_uniqueness nps;
       let nps = List.map (tr_named_pattern env) nps in
-      let (env, ps1) =
+      let (env, bn1, ps1) =
         check_ctor_named_args ~pos:pat.pos ~env ~scope nps ctor_named in
       if List.length ctor_arg_schemes <> List.length args then
         Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
@@ -127,13 +144,13 @@ and check_type ~env ~scope (pat : S.pattern) tp =
         Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
           res_tp tp)
       else
-        let (env, ps2, _) =
+        let (env, ps2, bn2, _) =
           check_pattern_schemes ~env ~scope args ctor_arg_schemes in
         let pat = make
           (T.PCtor(cname.data, idx, proof, ctors, tvars, ps1 @ ps2)) in
         (* Pattern matching is always impure, as due to recursive types it can
           be used to encode non-termination *)
-        (env, pat, Impure)
+        (env, pat, union_bound_names bn1 bn2, Impure)
 
     | None ->
       Error.fatal (Error.unbound_constructor ~pos:cname.pos cname.data)
@@ -141,12 +158,14 @@ and check_type ~env ~scope (pat : S.pattern) tp =
 
 and check_pattern_schemes ~env ~scope pats schs =
   match pats, schs with
-  | [], [] -> (env, [], Pure)
+  | [], [] -> (env, [], T.Name.Map.empty, Pure)
 
   | pat :: pats, sch :: schs ->
-    let (env, pat, r_eff1)  = check_scheme ~env ~scope pat sch in
-    let (env, pats, r_eff2) = check_pattern_schemes ~env ~scope pats schs in
-    (env, pat :: pats, ret_effect_join r_eff1 r_eff2)
+    let (env, pat, bn1, r_eff1)  = check_scheme ~env ~scope pat sch in
+    let (env, pats, bn2, r_eff2) =
+      check_pattern_schemes ~env ~scope pats schs in
+    let bn = union_bound_names bn1 bn2 in
+    (env, pat :: pats, bn, ret_effect_join r_eff1 r_eff2)
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
@@ -155,12 +174,12 @@ let infer_arg_scheme env (arg : S.arg) =
   | ArgAnnot(pat, sch) ->
     let sch = Type.tr_scheme env sch in
     let scope = Env.scope env in
-    let (env, pat, r_eff) = check_scheme ~env ~scope pat sch in
+    let (env, pat, _, r_eff) = check_scheme ~env ~scope pat sch in
     (env, pat, sch, r_eff)
   | ArgPattern pat ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let scope = Env.scope env in
-    let (env, pat, r_eff) = check_type ~env ~scope pat tp in
+    let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
     (env, pat, T.Scheme.of_type tp, r_eff)
 
 let check_arg_scheme env (arg : S.arg) sch =
@@ -170,8 +189,13 @@ let check_arg_scheme env (arg : S.arg) sch =
     let sch' = Type.tr_scheme env sch' in
     if not (Unification.subscheme env sch sch') then
       Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
-    check_scheme ~env ~scope:(Env.scope env) pat sch'
-  | ArgPattern pat -> check_scheme ~env ~scope:(Env.scope env) pat sch
+    let (env, pat, _, r_eff) =
+      check_scheme ~env ~scope:(Env.scope env) pat sch' in
+    (env, pat, r_eff)
+  | ArgPattern pat ->
+    let (env, pat, _, r_eff) =
+      check_scheme ~env ~scope:(Env.scope env) pat sch in
+    (env, pat, r_eff)
 
 let infer_named_arg_scheme env (na : S.named_arg) =
   let (name, arg) = na.data in
@@ -186,17 +210,3 @@ let rec infer_named_arg_schemes env ims =
     let (env, im, r_eff1)  = infer_named_arg_scheme env im in
     let (env, ims, r_eff2) = infer_named_arg_schemes env ims in
     (env, im :: ims, ret_effect_join r_eff1 r_eff2)
-
-let rec fold_implicit f acc (pat : S.pattern) =
-  match pat.data with
-  | PWildcard | PId (IdVar _) -> acc
-  | PId (IdImplicit n) -> f acc n
-  | PCtor(_, named, ps) ->
-    let acc = List.fold_left (fold_implicit_n f) acc named in
-    List.fold_left (fold_implicit f) acc ps
-  | PAnnot(pat, _) ->
-    fold_implicit f acc pat
-
-and fold_implicit_n f acc (np : S.named_pattern) =
-  match np.data with
-  | (_, p) -> fold_implicit f acc p

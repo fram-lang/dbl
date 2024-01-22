@@ -65,6 +65,14 @@ let declare_implicit ienv name = name :: ienv
 
 let shadow ienv name = List.filter ((<>) name) ienv
 
+let shadow_names ienv names =
+  T.Name.Map.fold
+    (fun name _ ienv ->
+      match name with
+      | T.NVar _      -> ienv
+      | T.NImplicit n -> shadow ienv n)
+    names ienv
+
 let add_poly_id env ienv (id : S.ident) sch =
   match id with
   | IdVar x ->

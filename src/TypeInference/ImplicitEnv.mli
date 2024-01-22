@@ -35,6 +35,9 @@ val declare_implicit : t -> S.iname -> t
 (** Shadow existing implicit name *)
 val shadow : t -> S.iname -> t
 
+(** Shadow all implicit names bound in given man *)
+val shadow_names : t -> 'a T.Name.Map.t -> t
+
 (** Extend environment with a polymorphic identifier. If it is a name, then
   it will be shadowed in implicit environment *)
 val add_poly_id : Env.t -> t -> S.ident -> T.scheme -> Env.t * t * T.var

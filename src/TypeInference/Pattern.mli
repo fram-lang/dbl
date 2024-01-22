@@ -9,14 +9,15 @@
 open Common
 
 (** Check if given pattern fits in given scope and has given type.
-  Returns extended environment, translated pattern, and the effect of
-  pattern-matching (matching against ADT constructors is impure). The scope
-  is passed separately from environment, since the scope of the pattern flows
+  Returns extended environment, translated pattern, set of bound names (as
+  a map from names, to binding occurrence), and the effect of
+  pattern-matching (matching against ADT constructors is impure). The scope is
+  passed separately from environment, since the scope of the pattern flows
   top-down in a complex patterns, while the environment flows left-to-right.
   *)
 val check_type :
   env:Env.t -> scope:T.scope -> S.pattern -> T.typ ->
-    Env.t * T.pattern * ret_effect
+    Env.t * T.pattern * Position.t T.Name.Map.t * ret_effect
 
 (** Infer type-scheme of given formal argument. Returns extended environment,
   a pattern that represents an argument, its scheme, and the effect of
@@ -36,7 +37,3 @@ val check_arg_scheme :
 val infer_named_arg_schemes :
   Env.t -> S.named_arg list ->
     Env.t * (T.name * T.pattern * T.scheme) list * ret_effect
-
-(** Accumulate all results of given function called on all names of implicit
-  parameters bound by given pattern *)
-val fold_implicit : ('a -> S.iname -> 'a) -> 'a -> S.pattern -> 'a

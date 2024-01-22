@@ -157,6 +157,18 @@ let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   Printf.eprintf "%s: note: Here is a previous parameter with this name.\n"
     (Position.to_string ppos)
 
+let multiple_name_binders ~pos1 ~pos2 (name : Lang.Unif.name) =
+  let nn =
+    match name with
+    | NImplicit n -> Printf.sprintf "Implicit %s" n
+    | NVar      x -> Printf.sprintf "Variable %s" x
+  in
+  Printf.eprintf "%s: error: %s is bound more than once in the same pattern.\n"
+    (Position.to_string pos2)
+    nn;
+  Printf.eprintf "%s: note: Here is a previous binding.\n"
+    (Position.to_string pos1)
+
 let ctor_arity_mismatch ~pos cname req_n prov_n =
   Printf.eprintf
     "%s: error: Constructor %s expects %d parameter(s), but is applied to %d.\n"
