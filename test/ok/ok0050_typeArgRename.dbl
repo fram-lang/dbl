@@ -1,0 +1,3 @@
+let id {X=Y} (x : Y) = x
+
+let id2 {Z} = id {X=Z}

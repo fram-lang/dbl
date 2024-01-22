@@ -30,6 +30,13 @@ type ctor_name = string
   instantiation *)
 type ('tp, 'e) field_data =
   | FldAnonType of 'tp
+    (** Anonymous type *)
+
+  | FldType of tvar
+    (** Named type *)
+
+  | FldTypeVal of tvar * 'tp
+    (** Named type with a value *)
 
   | FldName of name
     (** Single named parameter *)

@@ -8,7 +8,12 @@
 
 open Common
 
+type named_type    = (T.tname * S.type_arg) S.node
 type named_pattern = (T.name * S.pattern) S.node
+
+let tr_named_type (ntp : S.named_type_arg) =
+  let (name, arg) = ntp.data in
+  { ntp with data = (Name.tr_tname name, arg) }
 
 let tr_named_pattern env (np : S.named_pattern) =
   let (name, pat) = np.data in
@@ -25,25 +30,51 @@ let union_bound_names bn1 bn2 =
         Some pos1)
     bn1 bn2
 
+(** Select named type for given name. On success returns type argument assigned
+  to given name and list of remaining named types *)
+let rec select_named_type name (ntps : named_type list) =
+  match ntps with
+  | [] -> None
+  | { data = (n, a); _ } :: ntps when n = name -> Some(a, ntps)
+  | ntp :: ntps ->
+    Option.map
+      (fun (a, npts) -> (a, ntp :: ntps))
+      (select_named_type name ntps)
+
 (** Select named pattern for given name. On success returns pattern assigned
   to given name and list of remaining named patterns *)
 let rec select_named_pattern name (nps : named_pattern list) =
   match nps with
   | [] -> None
-  | { data = (n, p); _ } :: nps when n = name -> Some(p, nps)
+  | { data = (n, p); _ } :: nps when T.Name.equal n name -> Some(p, nps)
   | np :: nps ->
     Option.map
       (fun (p, nps) -> (p, np :: nps))
       (select_named_pattern name nps)
 
-let rec check_ctor_type_args ~env ~scope ~sub tvs =
+let rec check_ctor_type_args ~env ~scope ~sub
+    (ntps : named_type list) (tvs : T.named_tvar list) =
   match tvs with
-  | []        -> (env, scope, sub, [])
-  | tv :: tvs ->
-    let (env, a) = Env.add_anon_tvar env (T.TVar.kind tv) in
+  | []        ->
+    List.iter
+      (fun {S.pos; S.data = (n, _) } ->
+        Error.warn (Error.redundant_named_type ~pos n))
+      ntps;
+    (env, scope, sub, [])
+  | (name, tv) :: tvs ->
+    let (env, a, ntps) =
+      match select_named_type name ntps with
+      | None ->
+        let (env, a) = Env.add_anon_tvar env (T.TVar.kind tv) in
+        (env, a, ntps)
+      | Some(arg, ntps) ->
+        let (env, a) = Type.check_type_arg env arg (T.TVar.kind tv) in
+        (env, a, ntps)
+    in
     let scope = T.Scope.add scope a in
     let sub   = T.Subst.rename_to_fresh sub tv a in
-    let (env, scope, sub, tvs) = check_ctor_type_args ~env ~scope ~sub tvs in
+    let (env, scope, sub, tvs) =
+      check_ctor_type_args ~env ~scope ~sub ntps tvs in
     (env, scope, sub, a :: tvs)
 
 (** Extend the environment by a named parameter that is not explicitly
@@ -100,7 +131,7 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
     (env, make (T.PVar(x, sch)), bn, Pure)
   | PCtor _ ->
     begin match sch with
-    | { sch_tvars = []; sch_named = []; sch_body = tp } ->
+    | { sch_targs = []; sch_named = []; sch_body = tp } ->
       check_type ~env ~scope pat tp
     | _ ->
       Error.fatal (Error.non_polymorphic_pattern ~pos:pat.pos)
@@ -119,7 +150,7 @@ and check_type ~env ~scope (pat : S.pattern) tp =
     let sch = T.Scheme.of_type tp in
     check_scheme ~env ~scope pat sch
 
-  | PCtor(cname, nps, args) ->
+  | PCtor(cname, targs, nps, args) ->
     begin match Env.lookup_ctor env cname.data with
     | Some(idx, info) ->
       let (sub, tps) = ExprUtils.guess_types env info.adt_args in
@@ -127,8 +158,11 @@ and check_type ~env ~scope (pat : S.pattern) tp =
       let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
       let ctor   = List.nth ctors idx in
       let res_tp = T.Type.subst sub info.adt_type in
+      Uniqueness.check_named_type_arg_uniqueness targs;
+      let targs = List.map tr_named_type targs in
       let (env, scope, sub2, tvars) =
-        check_ctor_type_args ~env ~scope ~sub:T.Subst.empty ctor.ctor_tvars in
+        check_ctor_type_args ~env ~scope ~sub:T.Subst.empty
+          targs ctor.ctor_targs in
       let ctor_named =
         List.map (T.NamedScheme.subst sub2) ctor.ctor_named in
       let ctor_arg_schemes =

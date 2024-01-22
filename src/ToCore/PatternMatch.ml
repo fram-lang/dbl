@@ -221,10 +221,10 @@ module Make(Ctx : MatchContext) = struct
   let rec simplify_ctor ctx v vs cls idx (ctor : S.ctor_decl) =
     let tvs =
       List.map
-        (fun a ->
+        (fun (_, a) ->
           let (T.Kind.Ex k) = tr_kind (S.TVar.kind a) in
           T.TVar.Ex (T.TVar.fresh k))
-        ctor.ctor_tvars in
+        ctor.ctor_targs in
     let xs1 =
       List.map (fun (name, _) -> (name, Var.fresh ())) ctor.ctor_named in
     let xs2 = List.map (fun _ -> Var.fresh ()) ctor.ctor_arg_schemes in

@@ -28,8 +28,15 @@ let add_tvar sub x =
   let y = TVar.clone x in
   (rename_to_fresh sub x y, y)
 
+let add_named_tvar sub (n, x) =
+  let (sub, x) = add_tvar sub x in
+  (sub, (n, x))
+
 let add_tvars sub xs =
   List.fold_left_map add_tvar sub xs
+
+let add_named_tvars sub xs =
+  List.fold_left_map add_named_tvar sub xs
 
 let add_type sub x tp =
   { sub with sub = TVar.Map.add x tp sub.sub }
@@ -106,9 +113,9 @@ and in_type_rec sub tp =
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
 
 and in_scheme_rec sub sch =
-  let (sub, tvars) = add_tvars sub sch.sch_tvars in
+  let (sub, tvars) = add_named_tvars sub sch.sch_targs in
   let named = List.map (in_named_scheme_rec sub) sch.sch_named in
-  { sch_tvars = tvars;
+  { sch_targs = tvars;
     sch_named = named;
     sch_body  = in_type_rec sub sch.sch_body
   }
@@ -131,10 +138,10 @@ let in_named_scheme sub nsch =
 let in_ctor_decl sub ctor =
   if is_empty sub then ctor
   else
-    let (sub, tvs) = add_tvars sub ctor.ctor_tvars in
+    let (sub, tvs) = add_named_tvars sub ctor.ctor_targs in
     let named = List.map (in_named_scheme sub) ctor.ctor_named in
     { ctor_name        = ctor.ctor_name;
-      ctor_tvars       = tvs;
+      ctor_targs       = tvs;
       ctor_named       = named;
       ctor_arg_schemes = List.map (in_scheme_rec sub) ctor.ctor_arg_schemes
   }

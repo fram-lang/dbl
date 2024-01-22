@@ -22,6 +22,9 @@ val rename_to_fresh : t -> tvar -> tvar -> t
   refreshed type variables *)
 val add_tvars : t -> tvar list -> t * tvar list
 
+(** Same as [add_tvars], but works on named type variables *)
+val add_named_tvars : t -> named_tvar list -> t * named_tvar list
+
 (** Extend substitution *)
 val add_type : t -> tvar -> typ -> t
 

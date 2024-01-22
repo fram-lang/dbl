@@ -1,0 +1,11 @@
+data Pair X Y = Pair of X, Y
+
+data Stream X = Stream of {St}, St, (St ->[] Pair X St)
+
+let fst (Pair x _) = x
+let snd (Pair _ y) = y
+
+let head (Stream {St} (st : St) f) = fst (f st)
+
+let suffixes {X=Z} (Stream {St=X} st f) =
+  Stream {St=X,X=Stream Z} st (fn st => Pair (Stream st f) (snd (f st)))

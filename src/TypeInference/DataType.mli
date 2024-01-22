@@ -8,9 +8,6 @@
 
 open Common
 
-(** Check declarations of constructors *)
-val check_ctor_decls : Env.t -> S.ctor_decl list -> T.ctor_decl list
-
 (** Open ADT making its constructors immediately available. *)
 val open_data : Env.t -> Env.adt_info -> Env.t
 

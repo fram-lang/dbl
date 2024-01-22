@@ -16,7 +16,7 @@ type adt_info = {
     (** A computationally irrelevant expression that give a proof that given
       type is an ADT. It is polymorphic in the type parameters of an ADT. *)
 
-  adt_args  : T.tvar list;
+  adt_args  : T.named_tvar list;
     (** Type parameter of an ADT *)
 
   adt_ctors : T.ctor_decl list;
@@ -88,4 +88,4 @@ val fresh_uvar : t -> T.kind -> T.typ
   Returns extended environment, list of type variables, list of introduced
   named parameters, and the type of the scheme body. *)
 val open_scheme : t -> T.scheme ->
-  t * T.tvar list * (T.name * T.var * T.scheme) list * T.typ
+  t * T.named_tvar list * (T.name * T.var * T.scheme) list * T.typ

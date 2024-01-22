@@ -30,13 +30,13 @@ let rec kind tp =
     end
 
 let refresh_scheme sch =
-  let (sub, tvars) = Subst.add_tvars Subst.empty sch.sch_tvars in
+  let (sub, tvars) = Subst.add_named_tvars Subst.empty sch.sch_targs in
   let ims =
     List.map
       (fun (name, isch) -> (Subst.in_name sub name, Subst.in_scheme sub isch))
       sch.sch_named
   in
-  { sch_tvars = tvars;
+  { sch_targs = tvars;
     sch_named = ims;
     sch_body  = Subst.in_type sub sch.sch_body
   }
@@ -61,8 +61,8 @@ let rec open_down ~scope tp =
 
 and open_scheme_down ~scope sch =
   let sch = refresh_scheme sch in
-  let scope = List.fold_left Scope.add scope sch.sch_tvars in
-  { sch_tvars = sch.sch_tvars;
+  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
+  { sch_targs = sch.sch_targs;
     sch_named =
       List.map (fun (name, isch) -> (name, open_scheme_up ~scope isch))
         sch.sch_named;
@@ -85,8 +85,8 @@ and open_up ~scope tp =
 
 and open_scheme_up ~scope sch =
   let sch = refresh_scheme sch in
-  let scope = List.fold_left Scope.add scope sch.sch_tvars in
-  { sch_tvars = sch.sch_tvars;
+  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
+  { sch_targs = sch.sch_targs;
     sch_named =
       List.map (fun (name, isch) -> (name, open_scheme_down ~scope isch))
         sch.sch_named;
@@ -171,7 +171,7 @@ and shrink_scope ~scope tp =
     shrink_scope ~scope tp1
 
 and shrink_scheme_scope ~scope sch =
-  let scope = List.fold_left Scope.add scope sch.sch_tvars in
+  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
   List.iter (fun (_, isch) -> shrink_scheme_scope ~scope isch)
     sch.sch_named;
   shrink_scope ~scope sch.sch_body
@@ -185,7 +185,7 @@ let try_shrink_scope ~scope tp =
 (* ========================================================================= *)
 
 let mono_scheme tp =
-  { sch_tvars = [];
+  { sch_targs = [];
     sch_named = [];
     sch_body  = tp
   }

@@ -133,6 +133,18 @@ let ctor_redefinition ~pos ~ppos name =
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
 
+let type_inst_redefinition ~pos ~ppos (name : Lang.Surface.tname) =
+  let nn =
+    match name with
+    | TNAnon  -> assert false
+    | TNVar x -> x
+  in
+  Printf.eprintf "%s: error: Type %s is provided more than once.\n"
+    (Position.to_string pos)
+    nn;
+  Printf.eprintf "%s: note: Here is a previous definition.\n"
+    (Position.to_string ppos)
+
 let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
@@ -144,6 +156,30 @@ let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
     nn;
   Printf.eprintf "%s: note: Here is a previous definition.\n"
     (Position.to_string ppos)
+
+let multiple_named_type_args ~pos ~ppos (name : Lang.Surface.tname) =
+  let nn =
+    match name with
+    | TNAnon  -> assert false
+    | TNVar x -> x
+  in
+  Printf.eprintf
+    "%s: error: Named type %s is bound more than once in single definition.\n"
+    (Position.to_string pos)
+    nn;
+  Printf.eprintf "%s: note: Here is a previous type binder with this name.\n"
+    (Position.to_string ppos)
+
+let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
+  let nn =
+    match name with
+    | TNAnon  -> assert false
+    | TNVar x -> x
+  in
+  Printf.eprintf
+    "%s: error: Named type %s is already bound by datatype itself.\n"
+    (Position.to_string pos)
+    nn
 
 let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
@@ -174,6 +210,17 @@ let ctor_arity_mismatch ~pos cname req_n prov_n =
     "%s: error: Constructor %s expects %d parameter(s), but is applied to %d.\n"
     (Position.to_string pos)
     cname req_n prov_n
+
+let redundant_named_type ~pos (name : Lang.Unif.tname) =
+  let nn =
+    match name with
+    | TNAnon  -> assert false
+    | TNVar x -> x
+  in
+  Printf.eprintf
+    "%s: warning: Providing type %s to a function that do not expect it.\n"
+    (Position.to_string pos)
+    nn
 
 let redundant_named_parameter ~pos (name : Lang.Unif.name) =
   let nn =

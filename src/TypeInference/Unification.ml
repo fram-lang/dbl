@@ -66,6 +66,19 @@ let set_uvar env p u tp =
   | Ok   () -> ()
   | Error _ -> raise Error
 
+let rec unify_named_type_args env sub1 sub2 args1 args2 =
+  match args1, args2 with
+  | [], [] -> (env, sub1, sub2)
+  | (n1, x1) :: args1, (n2, x2) :: args2 ->
+    if n1 <> n2 then raise Error;
+    let kind = T.TVar.kind x1 in
+    check_kind_equal kind (T.TVar.kind x2);
+    let (env, x) = Env.add_anon_tvar env kind in
+    let sub1 = T.Subst.rename_to_fresh sub1 x1 x in
+    let sub2 = T.Subst.rename_to_fresh sub2 x2 x in
+    unify_named_type_args env sub1 sub2 args1 args2
+  | [], _ :: _ | _ :: _, [] -> raise Error
+
 let rec check_effect_mem env x eff =
   match T.Effect.view eff with
   | EffPure | EffVar _ | EffApp _ -> raise Error
@@ -164,20 +177,11 @@ and unify env tp1 tp2 =
     assert false
 
 and unify_scheme env sch1 sch2 =
-  if List.length sch1.sch_tvars <> List.length sch2.sch_tvars then
-    raise Error;
   if List.length sch1.sch_named <> List.length sch2.sch_named then
     raise Error;
   let (env, sub1, sub2) =
-    List.fold_left2
-      (fun (env, sub1, sub2) x1 x2 ->
-        let kind = T.TVar.kind x1 in
-        check_kind_equal kind (T.TVar.kind x2);
-        let (env, x) = Env.add_anon_tvar env kind in
-        let sub1 = T.Subst.rename_to_fresh sub1 x1 x in
-        let sub2 = T.Subst.rename_to_fresh sub2 x2 x in
-        (env, sub1, sub2))
-      (env, T.Subst.empty, T.Subst.empty) sch1.sch_tvars sch2.sch_tvars in
+    unify_named_type_args env T.Subst.empty T.Subst.empty
+      sch1.sch_targs sch2.sch_targs in
   List.iter2
     (fun (name1, isch1) (name2, isch2) ->
       let name1 = T.Name.subst sub1 name1 in
@@ -233,20 +237,11 @@ let rec check_subtype env tp1 tp2 =
     failwith "Internal kind error"
 
 and check_subscheme env sch1 sch2 =
-  if List.length sch1.sch_tvars <> List.length sch2.sch_tvars then
-    raise Error;
   if List.length sch1.sch_named <> List.length sch2.sch_named then
     raise Error;
   let (env, sub1, sub2) =
-    List.fold_left2
-      (fun (env, sub1, sub2) x1 x2 ->
-        let kind = T.TVar.kind x1 in
-        check_kind_equal kind (T.TVar.kind x2);
-        let (env, x) = Env.add_anon_tvar env kind in
-        let sub1 = T.Subst.rename_to_fresh sub1 x1 x in
-        let sub2 = T.Subst.rename_to_fresh sub2 x2 x in
-        (env, sub1, sub2))
-      (env, T.Subst.empty, T.Subst.empty) sch1.sch_tvars sch2.sch_tvars in
+    unify_named_type_args env T.Subst.empty T.Subst.empty
+      sch1.sch_targs sch2.sch_targs in
   List.iter2
     (fun (name1, isch1) (name2, isch2) ->
       let name1 = T.Name.subst sub1 name1 in

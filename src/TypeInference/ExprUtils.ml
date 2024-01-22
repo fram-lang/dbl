@@ -23,7 +23,7 @@ let rec make_fun' schs body_f =
 let rec make_tfun tvs body =
   match tvs with
   | [] -> body
-  | x :: tvs ->
+  | (_, x) :: tvs ->
     { T.pos  = body.T.pos;
       T.data = T.ETFun(x, make_tfun tvs body)
     }
@@ -62,11 +62,11 @@ let generalize env tvs2 named e tp =
       named
     |> Fun.flip T.UVar.Set.diff (Env.uvars env)
     |> T.UVar.Set.elements
-    |> List.map T.UVar.fix
+    |> List.map (fun x -> (T.TNAnon, T.UVar.fix x))
   in
   let tvs = tvs1 @ tvs2 in
   let sch =
-    { T.sch_tvars = tvs
+    { T.sch_targs = tvs
     ; T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named
     ; T.sch_body  = tp
     }
@@ -75,18 +75,22 @@ let generalize env tvs2 named e tp =
 
 (* ========================================================================= *)
 
-let guess_type env sub tv =
-  let tp = Env.fresh_uvar env (T.TVar.kind tv) in
+let guess_type env sub ~tinst (n, tv) =
+  let tp =
+    match List.assoc_opt n tinst with
+    | None    -> Env.fresh_uvar env (T.TVar.kind tv)
+    | Some tp -> tp
+  in
   (T.Subst.add_type sub tv tp, tp)
 
-let guess_types env tvars =
-  List.fold_left_map (guess_type env) T.Subst.empty tvars
+let guess_types env ?(tinst=[]) tvars =
+  List.fold_left_map (guess_type env ~tinst) T.Subst.empty tvars
 
 (** The main instantiation function. [nset] parameter is a set of names
   currently instantiated, used to avoid infinite loops, e.g., in
   [`n : {`n : _} -> _]. *)
 let rec instantiate_loop ~nset env e (sch : T.scheme) =
-  let (sub, tps) = guess_types env sch.sch_tvars in
+  let (sub, tps) = guess_types env sch.sch_targs in
   let e = make_tapp e tps in
   let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
   let e = instantiate_named_params_loop ~nset env e named in
@@ -128,14 +132,16 @@ let instantiate_named_params env e ims inst =
 (* ========================================================================= *)
 
 let ctor_func ~pos idx (info : Env.adt_info) =
+  let type_of_named_targ (_, x) = T.Type.t_var x in
   let mk_var x = { T.pos = pos; T.data = T.EVar x } in
   let ctor = List.nth info.adt_ctors idx in
-  let proof = make_tapp info.adt_proof (List.map T.Type.t_var info.adt_args) in
+  let proof = make_tapp info.adt_proof
+    (List.map type_of_named_targ info.adt_args) in
   make_tfun info.adt_args (
-  make_tfun ctor.ctor_tvars (
+  make_tfun ctor.ctor_targs (
   make_nfun' ctor.ctor_named (fun xs1 ->
   make_fun' ctor.ctor_arg_schemes (fun xs2 ->
-    let tps = List.map T.Type.t_var ctor.ctor_tvars in
+    let tps = List.map type_of_named_targ ctor.ctor_targs in
     let args = List.map mk_var (xs1 @ xs2) in
     { T.pos  = pos;
       T.data = T.ECtor(proof, idx, tps, args)

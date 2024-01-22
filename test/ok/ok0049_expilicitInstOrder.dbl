@@ -1,0 +1,3 @@
+data Pair X Y = Pair of X, Y
+
+let swap {A,B} (Pair x y) = Pair {Y=A,X=B} y x

@@ -8,4 +8,6 @@
 
 open Common
 
+val tr_tname : S.tname -> T.tname
+
 val tr_name : Env.t -> S.name -> T.name

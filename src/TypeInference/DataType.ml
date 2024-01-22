@@ -8,19 +8,20 @@
 
 open Common
 
-let check_ctor_decl env (ctor : S.ctor_decl) =
+let check_ctor_decl ~data_targs env (ctor : S.ctor_decl) =
   match ctor.data with
   | CtorDecl(name, tvs, named, schs) ->
-    let (env, tvs) = Type.tr_type_args env tvs in
+    Uniqueness.check_ctor_named_types data_targs tvs;
+    let (env, tvs) = Type.tr_named_type_args env tvs in
     let named = List.map (Type.tr_named_scheme env) named in
     { T.ctor_name        = name;
-      T.ctor_tvars       = tvs;
+      T.ctor_targs       = tvs;
       T.ctor_named       = named;
       T.ctor_arg_schemes = List.map (Type.tr_scheme env) schs
     }
 
-let check_ctor_decls env ctors =
-  List.map (check_ctor_decl env) ctors
+let check_ctor_decls ~data_targs env ctors =
+  List.map (check_ctor_decl ~data_targs env) ctors
 
 let open_data_ctor adt (env, n) (ctor : T.ctor_decl) =
   let env = Env.add_ctor env ctor.ctor_name n adt in
@@ -32,14 +33,17 @@ let open_data env (adt : Env.adt_info) =
 
 let check_data_def_main env (dd : S.data_def) kind =
   let (DD_Data(_, args, ctors)) = dd.data in
-  let (env, args) = Type.tr_type_args env args in
-  let kind' = T.Kind.k_arrows (List.map T.TVar.kind args) T.Kind.k_type in
+  let (env, args) = Type.tr_named_type_args env args in
+  let kind' =
+    T.Kind.k_arrows
+      (List.map (fun (_, x) -> T.TVar.kind x) args)
+      T.Kind.k_type in
   begin match Unification.unify_kind kind kind' with
   | true -> ()
   | false -> assert false
   end;
   Uniqueness.check_ctor_uniqueness ctors;
-  let ctors = check_ctor_decls env ctors in
+  let ctors = check_ctor_decls ~data_targs:args env ctors in
   (args, ctors)
 
 let finalize_data_def env (dd : S.data_def) x args ctors =
@@ -50,7 +54,8 @@ let finalize_data_def env (dd : S.data_def) x args ctors =
     Env.adt_args  = args;
     Env.adt_ctors = ctors;
     Env.adt_type  =
-      T.Type.t_apps (T.Type.t_var x) (List.map T.Type.t_var args)
+      T.Type.t_apps (T.Type.t_var x)
+        (List.map (fun (_, x) -> T.Type.t_var x) args)
   } in
   let env = Env.add_data env x info in
   let env = open_data env info in
@@ -71,8 +76,11 @@ let check_data_def env (dd : S.data_def) =
 
 let prepare_rec_data_def env (dd : S.data_def) =
   let (DD_Data(name, args, _)) = dd.data in
-  let (_, args) = Type.tr_type_args env args in
-  let kind = T.Kind.k_arrows (List.map T.TVar.kind args) T.Kind.k_type in
+  let (_, args) = Type.tr_named_type_args env args in
+  let kind =
+    T.Kind.k_arrows
+      (List.map (fun (_, x) -> T.TVar.kind x) args)
+      T.Kind.k_type in
   let (env, x) = Env.add_tvar env name kind in
   (env, (x, dd))
 

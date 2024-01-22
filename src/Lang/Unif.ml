@@ -54,7 +54,7 @@ type var = Var.t
 type data_def = {
   dd_tvar  : tvar;
   dd_proof : var;
-  dd_args  : tvar list;
+  dd_args  : named_tvar list;
   dd_ctors : ctor_decl list
 }
 

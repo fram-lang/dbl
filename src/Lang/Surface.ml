@@ -20,6 +20,11 @@ type iname = string
 (** Name of a ADT constructor *)
 type ctor_name = string
 
+(** Name of a named type parameter *)
+type tname =
+  | TNAnon
+  | TNVar of tvar
+
 (** Name of a named parameter *)
 type name =
   | NVar      of var
@@ -56,7 +61,7 @@ and scheme_expr = {
   sch_pos : Position.t;
     (** Location of the scheme expression *)
 
-  sch_tvars : type_arg list;
+  sch_targs : named_type_arg list;
     (** Type parameters *)
 
   sch_named : named_scheme list;
@@ -75,17 +80,19 @@ and type_arg_data =
   | TA_Var of tvar
     (** Type variable *)
 
+and named_type_arg = (tname * type_arg) node
+
 (** Declaration of constructor of ADT *)
 type ctor_decl = ctor_decl_data node
 and ctor_decl_data =
   | CtorDecl of
-    ctor_name * type_arg list * named_scheme list * scheme_expr list
+    ctor_name * named_type_arg list * named_scheme list * scheme_expr list
     (** Declaration of constructor of ADT *)
 
 (** Definition of ADT *)
 type data_def = data_def_data node
 and data_def_data =
-  | DD_Data of tvar * type_arg list * ctor_decl list
+  | DD_Data of tvar * named_type_arg list * ctor_decl list
 
 (** Patterns *)
 type pattern = pattern_data node
@@ -96,7 +103,8 @@ and pattern_data =
   | PId of ident
     (** Pattern that binds an identifier*)
 
-  | PCtor of ctor_name node * named_pattern list * pattern list
+  | PCtor of ctor_name node * named_type_arg list *
+             named_pattern list * pattern list
     (** ADT constructor pattern *)
 
   | PAnnot of pattern * scheme_expr
@@ -116,6 +124,9 @@ type arg =
 (** Named formal argument *)
 type named_arg = (name * arg) node
 
+(** Explicit type instantiation *)
+type type_inst = (tname * type_expr) node
+
 (** Polymorphic expressions *)
 type poly_expr = poly_expr_data node
 and poly_expr_data =
@@ -134,7 +145,7 @@ and expr_data =
   | EUnit
     (** Unit expression *)
 
-  | EPoly of poly_expr * inst list
+  | EPoly of poly_expr * type_inst list * inst list
     (** Polymorphic expression with patrtial explicit instantiation, possibly
       empty *)
 
@@ -170,7 +181,7 @@ and def_data =
   | DLetId of ident * expr
     (** Let definition: monomorphic or polymorphic, depending on effect *)
 
-  | DLetFun of ident * type_arg list * named_arg list * expr
+  | DLetFun of ident * named_type_arg list * named_arg list * expr
     (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr

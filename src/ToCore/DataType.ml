@@ -10,7 +10,8 @@ open Common
 
 (** Translate a constructor declaration *)
 let tr_ctor_decl env (ctor : S.ctor_decl) =
-  let (env, tvars) = List.fold_left_map Env.add_tvar env ctor.ctor_tvars in
+  let (env, tvars) =
+    List.fold_left_map Env.add_named_tvar env ctor.ctor_targs in
   { T.ctor_name      = ctor.ctor_name;
     T.ctor_tvars     = tvars;
     T.ctor_arg_types =
@@ -27,7 +28,7 @@ let prepare_data_def env (dd : S.data_def) =
   (env, (x, dd))
 
 let finalize_data_def env (x, (dd : S.data_def)) =
-  let (env, args) = Env.add_tvars env dd.dd_args in
+  let (env, args) = List.fold_left_map Env.add_named_tvar env dd.dd_args in
   let ctors = tr_ctor_decls env dd.dd_ctors in
   { T.dd_tvar  = x;
     T.dd_proof = dd.dd_proof;

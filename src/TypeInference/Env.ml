@@ -12,7 +12,7 @@ module StrMap = Map.Make(String)
 
 type adt_info = {
   adt_proof : T.expr;
-  adt_args  : T.tvar list;
+  adt_args  : T.named_tvar list;
   adt_ctors : T.ctor_decl list;
   adt_type  : T.typ
 }
@@ -115,7 +115,7 @@ let open_scheme env sch =
   let sch = T.Scheme.refresh sch in
   let env = 
     { env with
-      scope = List.fold_left T.Scope.add env.scope sch.sch_tvars
+      scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs
     } in
   let (env, ims) =
     List.fold_left_map
@@ -128,4 +128,4 @@ let open_scheme env sch =
         (env, (name, x, sch)))
       env
       sch.sch_named in
-  (env, sch.sch_tvars, ims, sch.sch_body)
+  (env, sch.sch_targs, ims, sch.sch_body)

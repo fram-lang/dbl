@@ -22,6 +22,9 @@ let add_tvar env x =
   { tvar_map = S.TVar.Map.add x y env.tvar_map
   }, y
 
+let add_named_tvar env (_, x) =
+  add_tvar env x
+
 let add_tvars env xs =
   List.fold_left_map add_tvar env xs
 

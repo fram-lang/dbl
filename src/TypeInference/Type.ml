@@ -99,9 +99,9 @@ and check_cl_effect_it env tvs tp =
     T.TVar.Set.union tvs tvs'
 
 and tr_scheme env (sch : S.scheme_expr) =
-  let (env, tvs) = tr_type_args env sch.sch_tvars in
+  let (env, tvs) = tr_named_type_args env sch.sch_targs in
   let named = List.map (tr_named_scheme env) sch.sch_named in
-  { T.sch_tvars = tvs;
+  { T.sch_targs = tvs;
     T.sch_named = named;
     T.sch_body  = tr_ttype env sch.sch_body
   }
@@ -123,5 +123,28 @@ and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
   | TA_Var x -> Env.add_tvar env x (T.Kind.fresh_uvar ())
 
-and tr_type_args env args =
-  List.fold_left_map tr_type_arg env args
+and check_type_arg env (arg : S.type_arg) kind =
+  match arg.data with
+  | TA_Var x -> Env.add_tvar env x kind
+
+and tr_named_type_arg env (arg : S.named_type_arg) =
+  let (env, x) = tr_type_arg env (snd arg.data) in
+  (env, (Name.tr_tname (fst arg.data), x))
+
+and tr_named_type_args env args =
+  Uniqueness.check_named_type_arg_uniqueness args;
+  List.fold_left_map tr_named_type_arg env args
+
+let check_type_inst env targs (inst : S.type_inst) =
+  let name = Name.tr_tname (fst inst.data) in
+  match List.assoc_opt name targs with
+  | None ->
+    Error.warn (Error.redundant_named_type ~pos:inst.pos name);
+    let _ : T.typ = check_kind env (snd inst.data) (T.Kind.fresh_uvar ()) in
+    None
+  | Some x ->
+    let tp = check_kind env (snd inst.data) (T.TVar.kind x) in
+    Some (name, tp)
+
+let check_type_insts env tinst targs =
+  List.filter_map (check_type_inst env targs) tinst

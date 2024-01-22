@@ -12,6 +12,12 @@ type tvar = TVar.t
 
 type scope = TVar.Set.t
 
+type tname =
+  | TNAnon
+  | TNVar of string
+
+type named_tvar = tname * tvar
+
 type name =
   | NVar      of string
   | NImplicit of string
@@ -45,7 +51,7 @@ and effect_end =
   | EEApp  of typ * typ
 
 and scheme = {
-  sch_tvars : tvar list;
+  sch_targs : named_tvar list;
   sch_named : named_scheme list;
   sch_body  : typ
 }
@@ -54,7 +60,7 @@ and named_scheme = name * scheme
 
 type ctor_decl = {
   ctor_name        : string;
-  ctor_tvars       : tvar list;
+  ctor_targs       : named_tvar list;
   ctor_named       : named_scheme list;
   ctor_arg_schemes : scheme list
 }
@@ -78,6 +84,9 @@ let t_app tp1 tp2 = TApp(tp1, tp2)
 let perm_name p n =
   match n with
   | NVar _ | NImplicit _ -> n
+
+let perm_named_tvar p (n, x) =
+  (n, TVar.Perm.apply p x)
 
 let rec view tp =
   match tp with
@@ -135,7 +144,7 @@ and perm_effect_end_rec p ee =
     EEApp(perm_rec p tp1, perm_rec p tp2)
 
 and perm_scheme_rec p sch =
-  { sch_tvars = List.map (TVar.Perm.apply p) sch.sch_tvars;
+  { sch_targs = List.map (perm_named_tvar p) sch.sch_targs;
     sch_named = List.map (perm_named_scheme_rec p) sch.sch_named;
     sch_body  = perm_rec p sch.sch_body
   }

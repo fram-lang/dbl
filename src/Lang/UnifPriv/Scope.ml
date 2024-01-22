@@ -4,10 +4,12 @@
 
 (** Operations on scopes *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 let initial = TVar.Set.empty
 
 let add scope x = TVar.Set.add x scope
+
+let add_named scope (_, x) = add scope x
 
 let mem scope x = TVar.Set.mem x scope

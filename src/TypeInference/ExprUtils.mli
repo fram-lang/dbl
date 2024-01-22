@@ -9,7 +9,7 @@
 open Common
 
 (** Make polymorphic function with given type parameters *)
-val make_tfun : T.tvar list -> T.expr -> T.expr
+val make_tfun : T.named_tvar list -> T.expr -> T.expr
 
 (** Make function polymorphic in named parameters *)
 val make_nfun : (T.name * T.var * T.scheme) list -> T.expr -> T.expr
@@ -20,13 +20,17 @@ val make_tapp : T.expr -> T.typ list -> T.expr
 (** Generalize type to polymorphic scheme. The second parameter is a list
   of explicit type parameters, and the third parameter is a list of
   implicit parameters. *)
-val generalize : Env.t -> T.tvar list -> (T.name * T.var * T.scheme) list ->
+val generalize :
+  Env.t -> T.named_tvar list -> (T.name * T.var * T.scheme) list ->
   T.expr -> T.typ -> T.expr * T.scheme
 
-(** Guess types used to instantiate polymorphic function. Returns substitution
+(** Guess types used to instantiate polymorphic function. Some of these types
+  may be provided by optional [tinst] parameter. Returns substitution
   from given type variables to guessed types together with list of these types.
   *)
-val guess_types : Env.t -> T.tvar list -> T.subst * T.typ list
+val guess_types :
+  Env.t -> ?tinst:(T.tname * T.typ) list -> T.named_tvar list ->
+    T.subst * T.typ list
 
 (** Instantiate named parameters of polymorphic expression. It takes possibly
   empty list of explicit instantiations. These instantiations are pure, so

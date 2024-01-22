@@ -33,9 +33,9 @@ let infer_ctor_scheme ~pos env c =
   match Env.lookup_ctor env c with
   | Some (idx, info) ->
     let ctor = List.nth info.adt_ctors idx in
-    let targs = info.adt_args @ ctor.ctor_tvars in
+    let targs = info.adt_args @ ctor.ctor_targs in
     let sch = {
-        T.sch_tvars = targs;
+        T.sch_targs = targs;
         T.sch_named = ctor.ctor_named;
         T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
       } in
@@ -78,10 +78,12 @@ let rec infer_expr_type env (e : S.expr) eff =
   | EUnit ->
     (make T.EUnit, T.Type.t_unit, Pure)
 
-  | EPoly(e, inst) ->
+  | EPoly(e, tinst, inst) ->
     let (p_ctx, e, sch, r_eff1) = infer_poly_scheme env e eff in
+    Uniqueness.check_type_inst_uniqueness tinst;
     Uniqueness.check_inst_uniqueness inst;
-    let (sub, tps) = ExprUtils.guess_types env sch.sch_tvars in
+    let tinst = Type.check_type_insts env tinst sch.sch_targs in
+    let (sub, tps) = ExprUtils.guess_types ~tinst env sch.sch_targs in
     let e = ExprUtils.make_tapp e tps in
     let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
     let (i_ctx, inst, r_eff2) = check_explicit_insts env named inst eff in
@@ -288,7 +290,7 @@ and check_def env ienv (def : S.def) eff =
     (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
 
   | DLetFun(id, targs, nargs, body) ->
-    let (body_env, tvars) = Type.tr_type_args env targs in 
+    let (body_env, tvars) = Type.tr_named_type_args env targs in 
     let (body_env, ims1) = ImplicitEnv.begin_generalize body_env ienv in
     let (body_env, ims2, r_eff1) =
       Pattern.infer_named_arg_schemes body_env nargs in

@@ -59,8 +59,16 @@ val implicit_type_mismatch :
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t
 
+val type_inst_redefinition :
+  pos:Position.t -> ppos:Position.t -> S.tname -> t
+
 val inst_redefinition :
   pos:Position.t -> ppos:Position.t -> S.name -> t
+
+val multiple_named_type_args :
+  pos:Position.t -> ppos:Position.t -> S.tname -> t
+
+val ctor_type_arg_same_as_data_arg : pos:Position.t -> S.tname -> t
 
 val multiple_inst_patterns :
   pos:Position.t -> ppos:Position.t -> S.name -> t
@@ -71,5 +79,6 @@ val multiple_name_binders :
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name -> int -> int -> t
 
+val redundant_named_type : pos:Position.t -> T.tname -> t
 val redundant_named_parameter : pos:Position.t -> T.name -> t
 val redundant_named_pattern : pos:Position.t -> T.name -> t

@@ -16,7 +16,7 @@ type let_pattern =
   | LP_Id of ident * Raw.expr list
     (** identifier definition with a list of formal parameters. *)
 
-  | LP_Fun of ident * type_arg list * named_arg list * Raw.expr list
+  | LP_Fun of ident * named_type_arg list * named_arg list * Raw.expr list
     (** Function definition with list of formal type, named, and explicit
       parameters *)
 
@@ -72,7 +72,7 @@ and tr_scheme_expr (tp : Raw.type_expr) =
   | TPureArrow({ data = TRecord flds; _}, tp) ->
     let (tvs, named) = map_inst_like tr_scheme_field flds in
     { sch_pos   = pos;
-      sch_tvars = tvs;
+      sch_targs = tvs;
       sch_named = named;
       sch_body  = tr_type_expr tp
     }
@@ -81,7 +81,7 @@ and tr_scheme_expr (tp : Raw.type_expr) =
 
   | TWildcard | TVar _ | TPureArrow _ | TArrow _ | TEffect _ | TApp _ ->
     { sch_pos   = pos;
-      sch_tvars = [];
+      sch_targs = [];
       sch_named = [];
       sch_body  = tr_type_expr tp
     }
@@ -92,11 +92,15 @@ and tr_scheme_field (fld : Raw.ty_field) =
   let make data = { fld with data = data } in
   match fld.data with
   | FldAnonType tp ->
-    Either.Left (tr_type_arg tp)
+    Either.Left (make (TNAnon, tr_type_arg tp))
+  | FldType x ->
+    Either.Left (make (TNVar x, make (TA_Var x)))
+  | FldTypeVal(x, arg) ->
+    Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
     let sch =
       { sch_pos   = fld.pos;
-        sch_tvars = [];
+        sch_targs = [];
         sch_named = [];
         sch_body  = make TWildcard
       }
@@ -113,6 +117,15 @@ and tr_type_arg (tp : Raw.type_expr) =
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
   | TVar x    -> make (TA_Var x)
+  | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+    Error.fatal (Error.desugar_error tp.pos)
+
+(** Translate a type expression as a named type parameter *)
+let rec tr_named_type_arg (tp : Raw.type_expr) =
+  let make data = { tp with data = data } in
+  match tp.data with
+  | TParen tp -> make (tr_named_type_arg tp).data
+  | TVar x    -> make (TNVar x, make (TA_Var x))
   | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -141,7 +154,8 @@ let tr_data_def (dd : Raw.data_def) =
   | DD_Data(tp, cs) ->
     begin match tr_type_def tp [] with
     | TD_Id(x, args) ->
-      make (DD_Data(x, List.map tr_type_arg args, List.map tr_ctor_decl cs))
+      make (DD_Data(x, List.map tr_named_type_arg args,
+                       List.map tr_ctor_decl cs))
     end
 
 (** Translate a simple pattern, i.e., pattern that cannot be applied to
@@ -172,10 +186,9 @@ and tr_pattern (p : Raw.expr) ps =
     begin match ps with
     | { data = Raw.ERecord ips; _ } :: ps ->
       let (targs, ips) = map_inst_like tr_named_pattern ips in
-      assert (List.is_empty targs);
-      make (PCtor(make c, ips, List.map (fun p -> tr_pattern p []) ps))
+      make (PCtor(make c, targs, ips, List.map (fun p -> tr_pattern p []) ps))
     | _ ->
-      make (PCtor(make c, [], List.map (fun p -> tr_pattern p []) ps))
+      make (PCtor(make c, [], [], List.map (fun p -> tr_pattern p []) ps))
     end
   | EApp(p, p1) -> tr_pattern p (p1 :: ps)
 
@@ -187,6 +200,10 @@ and tr_named_pattern (fld : Raw.field) =
   match fld.data with
   | FldAnonType _ ->
     Error.fatal (Error.anon_type_pattern fld.pos)
+  | FldType x ->
+    Either.Left (make (TNVar x, make (TA_Var x)))
+  | FldTypeVal(x, arg) ->
+    Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
     Either.Right (make (n, make (PId (ident_of_name n))))
   | FldNameVal(n, p) ->
@@ -212,7 +229,11 @@ let tr_named_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
   | FldAnonType arg ->
-    Either.Left (tr_type_arg arg)
+    Either.Left (make (TNAnon, tr_type_arg arg))
+  | FldType x ->
+    Either.Left (make (TNVar x, make (TA_Var x)))
+  | FldTypeVal(x, arg) ->
+    Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
     Either.Right (make (n, ArgPattern(make (PId (ident_of_name n)))))
   | FldNameVal(n, e) ->
@@ -271,10 +292,11 @@ let rec tr_expr (e : Raw.expr) =
   match e.data with
   | EUnit          -> make EUnit
   | EParen e       -> make (tr_expr e).data
-  | EVar _ | EImplicit _ | ECtor _ -> make (EPoly(tr_poly_expr e, []))
+  | EVar _ | EImplicit _ | ECtor _ -> make (EPoly(tr_poly_expr e, [], []))
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
   | EApp(e, { data = ERecord flds; _ }) ->
-    make (EPoly(tr_poly_expr e, List.map tr_explicit_inst flds))
+    let (tinst, inst) = map_inst_like tr_explicit_inst flds in
+    make (EPoly(tr_poly_expr e, tinst, inst))
   | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
@@ -300,15 +322,19 @@ and tr_explicit_inst (fld : Raw.field) =
   match fld.data with
   | FldAnonType _ ->
     Error.fatal (Error.desugar_error fld.pos)
+  | FldType x ->
+    Either.Left (make (TNVar x, make (TVar x)))
+  | FldTypeVal(x, tp) ->
+    Either.Left (make (TNVar x, tr_type_expr tp))
   | FldName n ->
     let pe =
       match n with
       | NVar      x -> make (EVar x)
       | NImplicit n -> make (EImplicit n)
     in
-    make (n, make (EPoly(pe, [])))
+    Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
-    make (n, tr_expr e)
+    Either.Right (make (n, tr_expr e))
   | FldNameAnnot _ ->
     Error.fatal (Error.desugar_error fld.pos)
 

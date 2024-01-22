@@ -26,6 +26,14 @@ type tvar
 (** Scope of a type *)
 type scope
 
+(** Name of a named type parameter *)
+type tname =
+  | TNAnon
+  | TNVar of string
+
+(** Named type parameter *)
+type named_tvar = tname * tvar
+
 (** Name of a named parameter *)
 type name =
   | NVar      of string
@@ -41,7 +49,7 @@ type effect = typ
 
 (** Polymorphic type scheme *)
 type scheme = {
-  sch_tvars : tvar list;
+  sch_targs : named_tvar list;
     (** universally quantified type variables *)
 
   sch_named : named_scheme list;
@@ -62,7 +70,7 @@ type ctor_decl = {
   ctor_name        : string;
     (** Name of the constructor *)
 
-  ctor_tvars       : tvar list;
+  ctor_targs       : named_tvar list;
     (** Existential type variables of the constructor *)
 
   ctor_named       : named_scheme list;
@@ -84,7 +92,7 @@ type data_def = {
     (** A variables (bound here) that stores computationally irrelevant proof
       that the type is an ADT. *)
 
-  dd_args  : tvar list;
+  dd_args  : named_tvar list;
     (** Type parameters *)
 
   dd_ctors : ctor_decl list
@@ -265,6 +273,9 @@ module Scope : sig
 
   (** Extend scope with a variable *)
   val add : scope -> tvar -> scope
+
+  (** Extend scope with a named type variable *)
+  val add_named : scope -> named_tvar -> scope
 end
 
 (* ========================================================================= *)

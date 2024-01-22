@@ -91,8 +91,8 @@ and tr_effect env eff : T.effect =
 
 (** Translate a type scheme *)
 and tr_scheme env (sch : S.scheme) =
-  let { S.sch_tvars; sch_named; sch_body } = sch in
-  let (env, tvars) = List.fold_left_map Env.add_tvar env sch_tvars in
+  let { S.sch_targs; sch_named; sch_body } = sch in
+  let (env, tvars) = List.fold_left_map Env.add_named_tvar env sch_targs in
   let itps = List.map (fun (_, tp) -> tr_scheme env tp) sch_named in
   T.Type.t_foralls tvars
     (T.Type.t_pure_arrows itps

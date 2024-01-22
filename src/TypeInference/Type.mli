@@ -18,7 +18,18 @@ val tr_scheme : Env.t -> S.scheme_expr -> T.scheme
 val tr_ttype : Env.t -> S.type_expr -> T.typ
 
 (** Translate formal type parameters and extend the environment *)
-val tr_type_args : Env.t -> S.type_arg list -> Env.t * T.tvar list
+val tr_named_type_args :
+  Env.t -> S.named_type_arg list -> Env.t * T.named_tvar list
+
+(** Check if given type argument has given kind. Returns extended environment
+  and freshly bound type variable *)
+val check_type_arg : Env.t -> S.type_arg -> T.kind -> Env.t * T.tvar
 
 (** Translate named type scheme *)
 val tr_named_scheme : Env.t -> S.named_scheme -> T.named_scheme
+
+(** Translate explicit type instantiations. The last parameter is a list
+  of named type parameters of expected type scheme (only names and kinds
+  matter). *)
+val check_type_insts :
+  Env.t -> S.type_inst list -> T.named_tvar list -> (T.tname * T.typ) list

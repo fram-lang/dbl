@@ -92,6 +92,8 @@ ty_expr_list1
 
 ty_field
 : KW_TYPE ty_expr    { make (FldAnonType $2)     }
+| UID                { make (FldType $1)         }
+| UID EQ ty_expr     { make (FldTypeVal($1, $3)) }
 | name               { make (FldName $1)         }
 | name COLON ty_expr { make (FldNameVal($1, $3)) }
 ;
@@ -177,6 +179,8 @@ h_expr
 
 field
 : KW_TYPE ty_expr    { make (FldAnonType $2)       }
+| UID                { make (FldType $1)           }
+| UID EQ ty_expr     { make (FldTypeVal($1, $3))   }
 | name               { make (FldName $1)           }
 | name EQ expr       { make (FldNameVal($1, $3))   }
 | name COLON ty_expr { make (FldNameAnnot($1, $3)) }

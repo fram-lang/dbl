@@ -16,6 +16,9 @@ val empty : t
 (** Extend environment with type variable. *)
 val add_tvar : t -> S.tvar -> t * T.TVar.ex
 
+(** Extend environment with a named type variable. *)
+val add_named_tvar : t -> S.named_tvar -> t * T.TVar.ex
+
 (** Extend environment with multiple type variables. *)
 val add_tvars : t -> S.tvar list -> t * T.TVar.ex list
 

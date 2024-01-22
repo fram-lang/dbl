@@ -12,6 +12,12 @@ type uvar
 type tvar  = TVar.t
 type scope = TVar.Set.t
 
+type tname =
+  | TNAnon
+  | TNVar of string
+
+type named_tvar = tname * tvar
+
 type name =
   | NVar      of string
   | NImplicit of string
@@ -36,7 +42,7 @@ type type_view =
   | TApp       of typ * typ
 
 and scheme = {
-  sch_tvars : tvar list;
+  sch_targs : named_tvar list;
   sch_named : named_scheme list;
   sch_body  : typ
 }
@@ -45,7 +51,7 @@ and named_scheme = name * scheme
 
 type ctor_decl = {
   ctor_name        : string;
-  ctor_tvars       : tvar list;
+  ctor_targs       : named_tvar list;
   ctor_named       : named_scheme list;
   ctor_arg_schemes : scheme list
 }
