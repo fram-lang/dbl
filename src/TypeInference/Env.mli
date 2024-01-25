@@ -75,6 +75,9 @@ val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
   variable is not bound. *)
 val lookup_tvar : t -> S.tvar -> T.tvar option
 
+(** Lookup for ADT definition assigned for given type variable *)
+val lookup_adt : t -> T.tvar -> adt_info option
+
 (** Set of unification variables in the environment *)
 val uvars : t -> T.UVar.Set.t
 

@@ -31,6 +31,13 @@ let rec tr_expr env (e : S.expr) =
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr env e)
 
+  | EMatchEmpty(proof, me, tp, eff) ->
+    let proof = tr_expr env proof in
+    let tp  = Type.tr_ttype env tp in
+    let eff = Type.tr_effect env eff in
+    tr_expr_v env me (fun v ->
+    T.EMatch(proof, v, [], tp, eff))
+
   | EMatch(me, cls, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
     let eff = Type.tr_effect env eff in
@@ -60,8 +67,8 @@ and tr_expr_as env (e : S.expr) x rest =
   | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
-  | EApp _ | ETApp _ | ELet _ | EData _ | EMatch _ | EHandle _ | ERepl _
-  | EReplExpr _ ->
+  | EApp _ | ETApp _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _ | EHandle _
+  | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -79,7 +86,7 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, Ex x) = Env.add_tvar env x in
     cont (VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ | EMatch _ | EHandle _ | ERepl _ ->
+  | EApp _ | ETApp _ | EMatchEmpty _ | EMatch _ | EHandle _ | ERepl _ ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr env e, cont (VVar x))
 

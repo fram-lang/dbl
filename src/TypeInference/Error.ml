@@ -91,6 +91,18 @@ let expr_not_function_ctx ~pos ~env tp =
     (* the expected type is tp *)
     (Position.to_string pos)
 
+let empty_match_on_non_adt ~pos ~env tp =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: Empty pattern-matching on a type which is not known to be an ADT.\n"
+    (Position.to_string pos)
+
+let empty_match_on_nonempty_adt ~pos ~env tp =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: Empty pattern-matching on a type which is not known to be an empty ADT.\n"
+    (Position.to_string pos)
+
 let type_escapes_its_scope ~pos ~env x =
   (* TODO: better message *)
   Printf.eprintf

@@ -154,6 +154,11 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
+  | EMatchEmpty of expr * expr * typ * effect
+    (** Pattern-matching of an empty type. The first parameter is an
+      irrelevant expression, that is a witness that the type of the second
+      parameter is an empty ADT *)
+
   | EMatch of expr * match_clause list * typ * effect
     (** Pattern-matching. It stores type and effect of the whole expression. *)
 
@@ -367,6 +372,31 @@ module Type : sig
     | TApp of typ * typ
       (** Type application *)
 
+  (** Head of a neutral type *)
+  type neutral_head =
+    | NH_UVar of TVar.Perm.t * uvar
+      (** Unification variable *)
+
+    | NH_Var  of tvar
+      (** Regular variable *)
+
+  (** Weak head normal form of a type *)
+  type whnf =
+    | Whnf_Unit
+      (** Unit type *)
+
+    | Whnf_Neutral of neutral_head * typ list
+      (** Neutral type. Its parameters are in reversed order. *)
+
+    | Whnf_Effect  of effect
+      (** Effect *)
+
+    | Whnf_PureArrow of scheme * typ
+      (** Pure arrow *)
+  
+    | Whnf_Arrow of scheme * typ * effect
+      (** Impure arrow *)
+
   (** Unit type *)
   val t_unit : typ
 
@@ -402,6 +432,9 @@ module Type : sig
 
   (** Reveal a top-most constructor of a type *)
   val view : typ -> type_view
+
+  (** Compute weak head normal form of a type *)
+  val whnf : typ -> whnf
 
   (** Reveal a representation of an effect: a set of effect variables together
     with a way of closing an effect. *)

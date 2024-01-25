@@ -46,6 +46,9 @@ val func_not_pure : pos:Position.t -> t
 val expr_not_function     : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
+val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
+val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
+
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
 
 val ungeneralizable_implicit : pos:Position.t -> S.iname -> t

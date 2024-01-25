@@ -203,6 +203,30 @@ and check_expr_type env (e : S.expr) tp eff =
     let (e, r_eff2) = check_expr_type env e tp eff in
     (e_gen e tp, ret_effect_join r_eff1 r_eff2)
 
+  | EMatch(me, []) ->
+    let (me, me_tp, _) = infer_expr_type env me eff in
+    begin match T.Type.whnf me_tp with
+    | Whnf_Neutral(NH_Var x, targs_rev) ->
+      begin match Env.lookup_adt env x with
+      | Some { adt_ctors = []; adt_proof; _ } ->
+        let targs = List.rev targs_rev in
+        let proof = ExprUtils.make_tapp adt_proof targs in
+        (make (T.EMatchEmpty(proof, me, tp, eff)), Impure)
+
+      | Some { adt_ctors = _ :: _; _ } ->
+        Error.fatal (Error.empty_match_on_nonempty_adt ~pos:e.pos ~env me_tp)
+      | None ->
+        Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
+      end
+
+    | Whnf_Unit | Whnf_Neutral(NH_UVar _, _) | Whnf_PureArrow _
+    | Whnf_Arrow _ ->
+      Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
+
+    | Whnf_Effect _ ->
+      failwith "Internal kind error"
+    end
+
   | EMatch(e, cls) ->
     let (e, e_tp, _) = infer_expr_type env e eff in
     let (cls, r_eff) = check_match_clauses env e_tp cls tp eff in

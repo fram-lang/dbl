@@ -100,6 +100,9 @@ let lookup_ctor env c =
 let lookup_tvar env x =
   StrMap.find_opt x env.tvar_map
 
+let lookup_adt env x =
+  T.TVar.Map.find_opt x env.adt_map
+
 let uvars env =
   T.UVar.Set.empty
   |> StrMap.fold

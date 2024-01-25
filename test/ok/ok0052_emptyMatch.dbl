@@ -1,0 +1,8 @@
+data Empty =
+
+let ofEmpty (x : Empty) =
+  match x with end
+
+data rec T = C of T
+
+let foo x = C (ofEmpty x)

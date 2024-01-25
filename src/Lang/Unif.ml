@@ -25,6 +25,7 @@ module Name = UnifPriv.Name
 module Type = struct
   include UnifPriv.TypeBase
   include UnifPriv.Type
+  include UnifPriv.TypeWhnf
 
   let subst = UnifPriv.Subst.in_type
 end
@@ -67,19 +68,20 @@ and pattern_data =
 and expr = expr_data node
 and expr_data =
   | EUnit
-  | EVar      of var
-  | EPureFn   of var * scheme * expr
-  | EFn       of var * scheme * expr
-  | ETFun     of tvar * expr
-  | EApp      of expr * expr
-  | ETApp     of expr * typ
-  | ELet      of var * scheme * expr * expr
-  | ECtor     of expr * int * typ list * expr list
-  | EData     of data_def list * expr
-  | EMatch    of expr * match_clause list * typ * effect
-  | EHandle   of tvar * var * expr * h_expr * typ * effect
-  | ERepl     of (unit -> expr) * effect
-  | EReplExpr of expr * string * expr
+  | EVar        of var
+  | EPureFn     of var * scheme * expr
+  | EFn         of var * scheme * expr
+  | ETFun       of tvar * expr
+  | EApp        of expr * expr
+  | ETApp       of expr * typ
+  | ELet        of var * scheme * expr * expr
+  | ECtor       of expr * int * typ list * expr list
+  | EData       of data_def list * expr
+  | EMatchEmpty of expr * expr * typ * effect
+  | EMatch      of expr * match_clause list * typ * effect
+  | EHandle     of tvar * var * expr * h_expr * typ * effect
+  | ERepl       of (unit -> expr) * effect
+  | EReplExpr   of expr * string * expr
 
 and match_clause = pattern * expr
 
