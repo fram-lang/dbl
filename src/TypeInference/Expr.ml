@@ -8,6 +8,29 @@
 
 open Common
 
+(** Type of continuation used to type-checking of definitions. It is defined
+  as record, in order to allow it to be polymorphic in a direction of type
+  checking. *)
+type def_cont =
+  { run : 'dir.
+      Env.t -> ImplicitEnv.t -> (T.typ, 'dir) request -> T.effect ->
+        T.expr * (T.typ, 'dir) response * ret_effect
+  }
+
+(** Shrink scope of type response. On error, raise escaping scope error
+  for given position *)
+let type_resp_in_scope (type dir) ~env ~pos ~scope
+    (resp : (T.typ, dir) response) : (T.typ, dir) response =
+  match resp with
+  | Infered tp ->
+    (* TODO: tp can be raised to some supertype in the scope *)
+    begin match T.Type.try_shrink_scope ~scope tp with
+    | Ok   () -> Infered tp
+    | Error x ->
+      Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
+    end
+  | Checked -> Checked
+
 (* ------------------------------------------------------------------------- *)
 (** Infer scheme of type variable *)
 let infer_var_scheme ~pos env x =
@@ -123,15 +146,11 @@ let rec infer_expr_type env (e : S.expr) eff =
     end
 
   | EDefs(defs, e) ->
-    let scope = Env.scope env in
-    let (env, e_gen, r_eff1) = check_defs env ImplicitEnv.empty defs eff in
-    let (e, tp, r_eff2) = infer_expr_type env e eff in
-    (* TODO: tp can be raised to some supertype in the scope *)
-    begin match T.Type.try_shrink_scope ~scope tp with
-    | Ok   () -> (e_gen e tp, tp, ret_effect_join r_eff1 r_eff2)
-    | Error x ->
-      Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
-    end
+    let (e, Infered tp, r_eff) =
+      check_defs env ImplicitEnv.empty defs Infer eff
+        { run = fun env _ req eff -> tr_expr env e req eff }
+    in
+    (e, tp, r_eff)
 
   | EHandle(pat, e1, h) ->
     (* Since type and effect of e1 is used both on covariant and contravariant
@@ -199,9 +218,11 @@ and check_expr_type env (e : S.expr) tp eff =
     end
 
   | EDefs(defs, e) ->
-    let (env, e_gen, r_eff1) = check_defs env ImplicitEnv.empty defs eff in
-    let (e, r_eff2) = check_expr_type env e tp eff in
-    (e_gen e tp, ret_effect_join r_eff1 r_eff2)
+    let (e, Checked, r_eff) =
+      check_defs env ImplicitEnv.empty defs (Check tp) eff
+        { run = fun env _ req eff -> tr_expr env e req eff }
+    in
+    (e, r_eff)
 
   | EMatch(me, []) ->
     let (me, me_tp, _) = infer_expr_type env me eff in
@@ -237,12 +258,26 @@ and check_expr_type env (e : S.expr) tp eff =
     let (e2, r_eff2) = check_expr_type env e2 tp eff in
     (make (T.EReplExpr(e1, tp1, e2)), ret_effect_join r_eff1 r_eff2)
 
+(** Default action in type-check mode: switching to infer mode *)
 and check_expr_type_default env (e : S.expr) tp eff =
   let pos = e.pos in
   let (e, tp', r_eff) = infer_expr_type env e eff in
   if not (Unification.subtype env tp' tp) then
     Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
   (e, r_eff)
+
+(** Bidirectional type-checker of expressions *)
+and tr_expr :
+  type dir. Env.t -> S.expr -> (T.typ, dir) request -> T.effect ->
+    (T.expr * (T.typ, dir) response * ret_effect) =
+  fun env e tp_req eff ->
+  match tp_req with
+  | Infer ->
+    let (e, tp, r_eff) = infer_expr_type env e eff in
+    (e, Infered tp, r_eff)
+  | Check tp ->
+    let (e, r_eff) = check_expr_type env e tp eff in
+    (e, Checked, r_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Check the scheme of an actual parameter of a function *)
@@ -291,27 +326,35 @@ and check_explicit_insts env named insts eff =
     end
 
 (* ------------------------------------------------------------------------- *)
-(** Check effect of a block of definitions. Returns extended environment, a
-  function that extends expression with given list of definitions, and the
-  effect of a definition block. *)
-and check_defs env ienv (defs : S.def list) eff =
+(** Check type and effect of a block of definitions. It uses bidirectional
+  type checking, and pass the extended environment to the body-generating
+  continuation. *)
+and check_defs : type dir.
+  Env.t -> ImplicitEnv.t -> S.def list ->
+    (T.typ, dir) request -> T.effect -> def_cont ->
+      T.expr * (T.typ, dir) response * ret_effect =
+  fun env ienv defs req eff cont ->
   match defs with
-  | [] -> (env, (fun e _ -> e), Pure)
+  | [] -> cont.run env ienv req eff
   | def :: defs ->
-    let (env, ienv, e_gen1, r_eff1) = check_def env ienv def eff in
-    let (env, e_gen2, r_eff2) = check_defs env ienv defs eff in
-    (env, (fun e tp -> e_gen1 (e_gen2 e tp) tp), ret_effect_join r_eff1 r_eff2)
+    check_def env ienv def req eff
+      { run = fun env ienv req eff -> check_defs env ienv defs req eff cont }
 
-and check_def env ienv (def : S.def) eff =
+and check_def : type dir.
+  Env.t -> ImplicitEnv.t -> S.def ->
+    (T.typ, dir) request -> T.effect -> def_cont ->
+      T.expr * (T.typ, dir) response * ret_effect =
+  fun env ienv def req eff cont ->
   let make (e : T.expr) data =
     { T.pos  = Position.join def.pos e.pos;
       T.data = data
     } in
   match def.data with
   | DLetId(id, e1) ->
-    let (sch, e1, r_eff) = check_let env ienv e1 eff in
+    let (sch, e1, r_eff1) = check_let env ienv e1 eff in
     let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
-    (env, ienv, (fun e _ -> make e (T.ELet(x, sch, e1, e))), r_eff)
+    let (e2, resp, r_eff2) = cont.run env ienv req eff in
+    (make e2 (T.ELet(x, sch, e1, e2)), resp, ret_effect_join r_eff1 r_eff2)
 
   | DLetFun(id, targs, nargs, body) ->
     let (body_env, tvars) = Type.tr_named_type_args env targs in 
@@ -328,7 +371,8 @@ and check_def env ienv (def : S.def) eff =
     let ims1 = ImplicitEnv.end_generalize_pure ims1 in
     let (body, sch) = ExprUtils.generalize env tvars (ims1 @ ims2) body tp in
     let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
-    (env, ienv, (fun e _ -> make e (T.ELet(x, sch, body, e))), Pure)
+    let (e2, resp, r_eff) = cont.run env ienv req eff in
+    (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
 
   | DLetPat(pat, e1) ->
     let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
@@ -337,20 +381,29 @@ and check_def env ienv (def : S.def) eff =
     ImplicitEnv.end_generalize_impure ims;
     let (env, pat, names, r_eff2) = Pattern.check_type ~env ~scope pat tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
-    let ctx e res_tp = make e (T.EMatch(e1, [(pat, e)], res_tp, eff)) in
-    (env, ienv, ctx, ret_effect_join r_eff1 r_eff2)
+    let (e2, resp, r_eff3) = cont.run env ienv req eff in
+    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
+    let res_tp = bidir_result req resp in
+    (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
+      ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
   | DImplicit n ->
     let ienv = ImplicitEnv.declare_implicit ienv n in
-    (env, ienv, (fun e _ -> e), Pure)
+    cont.run env ienv req eff
 
   | DData dd ->
+    let scope = Env.scope env in
     let (env, dd) = DataType.check_data_def env dd in
-    (env, ienv, (fun e _ -> make e (T.EData([dd], e))), Pure)
+    let (e, resp, r_eff) = cont.run env ienv req eff in
+    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
+    (make e (T.EData([dd], e)), resp, r_eff)
 
   | DDataRec dds ->
+    let scope = Env.scope env in
     let (env, dds) = DataType.check_rec_data_defs env dds in
-    (env, ienv, (fun e _ -> make e (T.EData(dds, e))), Pure)
+    let (e, resp, r_eff) = cont.run env ienv req eff in
+    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
+    (make e (T.EData(dds, e)), resp, r_eff)
 
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)
