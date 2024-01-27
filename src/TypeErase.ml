@@ -25,8 +25,14 @@ let rec tr_expr (e : S.expr) =
   | EMatch(_, v, cls, _, _) ->
     tr_value_v v (fun v ->
     T.EMatch(v, List.map tr_clause cls))
-  | EHandle(_, x, e, h, _, _) ->
-    T.EHandle(x, tr_expr e, tr_h_expr h)
+  | ELabel(_, x, _, _, e) ->
+    T.ELabel(x, tr_expr e)
+  | EShift(v, x, e, _) ->
+    tr_value_v v (fun v ->
+    T.EShift(v, x, tr_expr e))
+  | EReset(v, body, x, ret) ->
+    tr_value_v v (fun v ->
+    T.EReset(v, tr_expr body, x, tr_expr ret))
   | ERepl(func, _, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
   | EReplExpr(e1, tp, e2) ->
@@ -66,12 +72,6 @@ and tr_value_vs vs cont =
 (** Translate a clause of pattern-matching *)
 and tr_clause (cl : S.match_clause) =
   (cl.cl_vars, tr_expr cl.cl_body)
-
-(** Translate a handler expression *)
-and tr_h_expr (h : S.h_expr) =
-  match h with
-  | HEffect(_, _, x, r, body) ->
-    T.HEffect(x, r, tr_expr body)
 
 let tr_program p =
   tr_expr p

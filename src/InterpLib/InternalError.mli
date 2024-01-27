@@ -4,7 +4,7 @@
 
 (** Main module for reporting internal errors errors *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 (** Flag that indicate that internal error should be more verbose *)
 val verbose : bool ref
@@ -16,10 +16,16 @@ val verbose : bool ref
   - [requested]: requested metadata of the erroneous entity, e.g., its
                  requested type;
   - [provided]:  provided metadata of the erroneous entity, e.g., its actual
-                 type. *)
+                 type.
+  - [var]:       variable associated with the error (e.g., escaping variable)
+  - [in_type]:   type of an erroneous entity.
+  - [in_effect]: effect of an erroneous entity. *)
 val report :
   reason:     string ->
   ?sloc:      SExpr.t ->
   ?requested: SExpr.t ->
   ?provided:  SExpr.t ->
+  ?var:       SExpr.t ->
+  ?in_type:   SExpr.t ->
+  ?in_effect: SExpr.t ->
   unit -> 'a

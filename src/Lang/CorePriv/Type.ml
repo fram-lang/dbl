@@ -17,6 +17,7 @@ let rec kind : type k. k typ -> k kind =
   | TVar     x -> TVar.kind x
   | TArrow   _ -> KType
   | TForall  _ -> KType
+  | TLabel  _  -> KType
   | TData    _ -> KType
   | TApp(tp, _) ->
     begin match kind tp with
@@ -57,6 +58,10 @@ let rec equal : type k. k typ -> k typ -> bool =
     | NotEqual -> false
     end
   | TForall _, _ -> false
+
+  | TLabel(eff1', tp1, eff1), TLabel(eff2', tp2, eff2) ->
+    effect_equal eff1' eff2' && equal tp1 tp2 && effect_equal eff1 eff2
+  | TLabel _, _ -> false
 
   | TData(tp1, ctors1), TData(tp2, ctors2) ->
     equal tp1 tp2 &&
@@ -124,14 +129,17 @@ and simple_subeffect eff1 eff2 =
 let rec subtype tp1 tp2 =
   match tp1, tp2 with
   | TUnit, TUnit  -> true
-  | TUnit, (TVar _ | TArrow _ | TForall _ | TData _ | TApp _) -> false
+  | TUnit, (TVar _ | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+    false
 
   | TVar x, TVar y -> x == y
-  | TVar _, (TUnit | TArrow _ | TForall _ | TData _ | TApp _) -> false
+  | TVar _, (TUnit | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+    false
 
   | TArrow(atp1, vtp1, eff1), TArrow(atp2, vtp2, eff2) ->
     subtype atp2 atp1 && subtype vtp1 vtp2 && subeffect eff1 eff2
-  | TArrow _, (TUnit | TVar _ | TForall _ | TData _ | TApp _) -> false
+  | TArrow _, (TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+    false
 
   | TForall(x1, tp1), TForall(x2, tp2) ->
     (* TODO: it can be done better than O(n^2) time. *)
@@ -141,13 +149,20 @@ let rec subtype tp1 tp2 =
       subtype (subst_type x1 x tp1) (subst_type x2 x tp2)
     | NotEqual -> false
     end
-  | TForall _, (TUnit | TVar _ | TArrow _ | TData _ | TApp _) -> false
+  | TForall _, (TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _) ->
+    false
+
+  | TLabel(_, _, _), TLabel(_, _, _) -> equal tp1 tp2
+  | TLabel _, (TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
+    false
 
   | TData _, TData _ -> equal tp1 tp2
-  | TData _, (TUnit | TVar _ | TArrow _ | TForall _ | TApp _) -> false
+  | TData _, (TUnit | TVar _ | TArrow _ | TForall _ | TLabel _ | TApp _) ->
+    false
 
   | TApp _, TApp _ -> equal tp1 tp2
-  | TApp _, (TUnit | TVar _ | TArrow _ | TForall _ | TData _) -> false
+  | TApp _, (TUnit | TVar _ | TArrow _ | TForall _ | TLabel _ | TData _) ->
+    false
 
 let rec forall_map f xs =
   match xs with
@@ -185,6 +200,15 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
     begin match type_in_scope (TVar.Set.add a scope) body with
     | Some body -> Some (TForall(a, body))
     | None      -> None
+    end
+  | TLabel(eff, tp0, eff0) ->
+    begin match
+      type_in_scope scope eff,
+      type_in_scope scope tp0,
+      type_in_scope scope eff0
+    with
+    | Some eff, Some tp0, Some eff0 -> Some (TLabel(eff, tp0, eff0))
+    | _ -> None
     end
   | TData(tp, ctors) ->
     begin match
@@ -248,7 +272,7 @@ let rec subeffect_in_scope scope (eff : effect) =
 let rec supertype_in_scope scope (tp : ttype) =
   match tp with
   | TUnit -> Some tp
-  | TVar _ | TData _ | TApp _ -> type_in_scope scope tp
+  | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       subtype_in_scope     scope tp1,
@@ -269,7 +293,7 @@ let rec supertype_in_scope scope (tp : ttype) =
 and subtype_in_scope scope (tp : ttype) =
   match tp with
   | TUnit -> Some tp
-  | TVar _ | TData _ | TApp _ -> type_in_scope scope tp
+  | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       supertype_in_scope scope tp1,

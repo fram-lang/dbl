@@ -45,12 +45,14 @@ end = struct
   type t = {
     var_map    : (bool * ttype) Var.Map.t;
     tvar_map   : TMap.t;
+    scope      : TVar.Set.t;
     irrelevant : bool
   }
 
   let empty =
     { var_map    = Var.Map.empty
     ; tvar_map   = TMap.empty
+    ; scope      = TVar.Set.empty
     ; irrelevant = false
     }
 
@@ -67,7 +69,8 @@ end = struct
   let add_tvar env x =
     let y = TVar.clone x in
     { env with
-      tvar_map = TMap.add x y env.tvar_map
+      tvar_map = TMap.add x y env.tvar_map;
+      scope    = TVar.Set.add y env.scope
     }, y
 
   let add_tvar_ex env (TVar.Ex x) =
@@ -97,7 +100,7 @@ end = struct
         ~provided:(SExprPrinter.tr_tvar x)
         ()
 
-  let scope env = TMap.dom env.tvar_map
+  let scope env = env.scope
 end
 
 (** Ensure well-formedness of a type and refresh its type variables according
@@ -115,6 +118,8 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, tr_type env tp)
+  | TLabel(eff, tp0, eff0) ->
+    TLabel(tr_type env eff, tr_type env tp0, tr_type env eff0)
   | TData(tp, ctors) ->
     TData(tr_type env tp, List.map (tr_ctor_type env) ctors)
   | TApp(tp1, tp2) ->
@@ -203,7 +208,7 @@ let rec infer_type_eff env e =
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
-    | TUnit | TVar _ | TForall _ | TData _ | TApp _ ->
+    | TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
   | ETApp(v, tp) ->
@@ -214,7 +219,7 @@ let rec infer_type_eff env e =
       | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
-    | TUnit | TVar _ | TArrow _ | TData _ | TApp _ ->
+    | TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -249,13 +254,51 @@ let rec infer_type_eff env e =
     | _ ->
       failwith "Internal type error"
     end
-  | EHandle(a, x, e, h, tp, eff) ->
-    let tp  = tr_type env tp in
+
+  | ELabel(a, x, tp, eff, e) ->
+    let scope = Env.scope env in
+    let (env, a) = Env.add_tvar env a in
+    let tp  = tr_type env tp  in
     let eff = tr_type env eff in
-    let (env', a) = Env.add_tvar env a in
-    let htp = infer_h_type env a h tp eff in
-    check_type_eff (Env.add_var env' x htp) e tp (TEffJoin(TVar a, eff));
-    (tp, eff)
+    let env = Env.add_var env x (TLabel(TVar a, tp, eff)) in
+    let (tp, eff) = infer_type_eff env e in
+    begin match
+      Type.supertype_in_scope scope tp, Type.supereffect_in_scope scope eff
+    with
+    | Some tp, Some eff -> (tp, eff)
+    | _ ->
+      InterpLib.InternalError.report
+        ~reason:"escaping type variable"
+        ~sloc:(SExprPrinter.tr_expr e)
+        ~var:(SExprPrinter.tr_tvar a)
+        ~in_type:(SExprPrinter.tr_type tp)
+        ~in_effect:(SExprPrinter.tr_type eff)
+        ()
+    end
+
+  | EShift(v, k, body, tp) ->
+    begin match infer_vtype env v with
+    | TLabel(eff, tp0, eff0) ->
+      let tp = tr_type env tp in
+      let env = Env.add_var env k (TArrow(tp, tp0, eff0)) in
+      check_type_eff env body tp0 eff0;
+      (tp, eff)
+
+    | TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
+      failwith "Internal type error"
+    end
+
+  | EReset(v, body, x, ret) ->
+    begin match infer_vtype env v with
+    | TLabel(eff, tp0, eff0) ->
+      let x_tp = infer_type_check_eff env body (TEffJoin(eff, eff0)) in
+      let env = Env.add_var env x x_tp in
+      check_type_eff env ret tp0 eff0;
+      (tp0, eff0)
+
+    | TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
+      failwith "Internal type error"
+    end
 
   | ERepl(_, tp, eff) ->
     (* In this case we have no means to check types further. *)
@@ -296,16 +339,6 @@ and infer_vtype env v =
     | _ ->
       failwith "Internal type error"
     end
-
-and infer_h_type env a h tp eff =
-  match h with
-  | HEffect(tp_in, tp_out, x, r, body) ->
-    let tp_in  = tr_type env tp_in  in
-    let tp_out = tr_type env tp_out in
-    let env = Env.add_var env x tp_in in
-    let env = Env.add_var env r (TArrow(tp_out, tp, eff)) in
-    check_type_eff env body tp eff;
-    TArrow(tp_in, tp_out, TVar a)
 
 and infer_type_check_eff env e eff =
   let (tp, eff') = infer_type_eff env e in

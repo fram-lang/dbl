@@ -4,7 +4,7 @@
 
 (** Main module for reporting internal errors errors *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 let verbose = ref false
 
@@ -15,11 +15,14 @@ let sexpr_info name s =
     Printf.eprintf "%s\n" name;
     SExpr.pretty_stderr s
 
-let report ~reason ?sloc ?requested ?provided () =
+let report ~reason ?sloc ?requested ?provided ?var ?in_type ?in_effect () =
   if !verbose then begin
     Printf.eprintf "Internal error: %s\n" reason;
     sexpr_info "at:"        sloc;
     sexpr_info "requested:" requested;
-    sexpr_info "provided:"  provided
+    sexpr_info "provided:"  provided;
+    sexpr_info "var:"       var;
+    sexpr_info "type:"      in_type;
+    sexpr_info "effect:"    in_effect
   end;
   failwith (Printf.sprintf "Internal error: %s" reason)

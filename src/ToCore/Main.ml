@@ -45,12 +45,18 @@ let rec tr_expr env (e : S.expr) =
     PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 
   | EHandle(a, x, e, h, tp, eff) ->
+    let l   = Var.fresh () in
     let tp  = Type.tr_ttype env tp in
     let eff = Type.tr_effect env eff in
-    let h   = tr_h_expr env h in
+    let h   = tr_h_expr env (T.VVar l) h in
     let (env, Ex a) = Env.add_tvar env a in
+    let rx     = Var.fresh () in
+    let r_body = T.EValue (T.VVar rx) in
     begin match T.TVar.kind a with
-    | KEffect -> T.EHandle(a, x, tr_expr env e, h, tp, eff)
+    | KEffect ->
+      T.ELabel(a, l, tp, eff,
+        T.ELet(x, h,
+          T.EReset(T.VVar l, tr_expr env e, rx, r_body)))
     | KType | KArrow _ -> failwith "Internal kind error"
     end
 
@@ -118,12 +124,12 @@ and tr_expr_vs env es cont =
     cont (v :: vs)))
 
 (** Translate a handler expression *)
-and tr_h_expr env h =
+and tr_h_expr env lbl (h : S.h_expr) =
   match h.data with
   | HEffect(tp_in, tp_out, x, r, body) ->
     let tp_in  = Type.tr_ttype env tp_in  in
     let tp_out = Type.tr_ttype env tp_out in
-    T.HEffect(tp_in, tp_out, x, r, tr_expr env body)
+    T.EValue (T.VFn(x, tp_in, T.EShift(lbl, r, tr_expr env body, tp_out)))
 
 (* ========================================================================= *)
 

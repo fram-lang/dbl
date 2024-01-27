@@ -26,7 +26,9 @@ type expr =
   | ETApp      : value * 'k typ -> expr
   | EData     of data_def list * expr
   | EMatch    of expr * value * match_clause list * ttype * effect
-  | EHandle   of keffect tvar * var * expr * h_expr * ttype * effect
+  | ELabel    of keffect tvar * var * ttype * effect * expr
+  | EShift    of value * var * expr * ttype
+  | EReset    of value * expr * var * expr
   | ERepl     of (unit -> expr) * ttype * effect
   | EReplExpr of expr * string * expr
 
@@ -42,8 +44,5 @@ and match_clause = {
   cl_vars  : var list;
   cl_body  : expr
 }
-
-and h_expr =
-  | HEffect of ttype * ttype * var * var * expr
 
 type program = expr

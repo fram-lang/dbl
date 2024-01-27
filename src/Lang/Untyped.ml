@@ -4,7 +4,7 @@
 
 (** Untyped language. In A-normal form. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 (** Variables *)
 type var = Var.t
@@ -20,11 +20,17 @@ type expr =
   | EApp of value * value
     (** Function application *)
 
-  | EMatch  of value * clause list
+  | EMatch of value * clause list
     (** Pattern-matching *)
 
-  | EHandle of var * expr * h_expr
-    (** Handler *)
+  | ELabel of var * expr
+    (** Generating fresh runtime label *)
+
+  | EShift of value * var * expr
+    (** Shift-0 operator at given runtime label *)
+
+  | EReset of value * expr * var * expr
+    (** Shift-0 operator at given runtime label and with a return clause *)
 
   | ERepl of (unit -> expr)
     (** REPL. It is a function that prompts user for another input. It returns
@@ -50,11 +56,5 @@ and value =
 
 (** Pattern-matching clause *)
 and clause = var list * expr
-
-(** Handler expressions *)
-and h_expr =
-  | HEffect of var * var * expr
-    (** Handler of effectful functional operation. It stores formal parameter,
-      resumption formal parameter, and the body. *)
 
 type program = expr

@@ -69,6 +69,10 @@ type _ typ =
   | TForall : 'k tvar * ttype -> ktype typ
     (** Polymorphic type *)
 
+  | TLabel   : effect * ttype * effect -> ktype typ
+    (** Type of first class label. It stores effect of a label as well as
+      type and effect of the context of the delimiter ([EReset]) *)
+
   | TData    : ttype * ctor_type list -> ktype typ
     (** Proof of the shape of ADT.
       
@@ -184,10 +188,16 @@ type expr =
     (** Shallow pattern matching. The first parameter is the proof that the
       type of the matched value is an ADT *)
 
-  | EHandle of keffect tvar * var * expr * h_expr * ttype * effect
-    (** Handler. It stores handled (abstract) effect, capability variable,
-      handled expression, handler body, and type and effect of the whole
-      handler expression *)
+  | ELabel of keffect tvar * var * ttype * effect * expr
+    (** Create a fresh runtime tag for control operators. *)
+
+  | EShift of value * var * expr * ttype
+    (** Shift-0 operator parametrized by runtime tag, binder for continuation
+      variable, body, and the type of the whole expression. *)
+
+  | EReset of value * expr * var * expr
+    (** Reset-0 operator parametrized by runtime tag, body, and the return
+      clause *)
 
   | ERepl of (unit -> expr) * ttype * effect
     (** REPL. It is a function that prompts user for another input. It returns
@@ -233,13 +243,6 @@ and match_clause = {
   cl_body  : expr
     (** Body of the clause *)
 }
-
-(** Handler expressions *)
-and h_expr =
-  | HEffect of ttype * ttype * var * var * expr
-    (** Handler of effectful functional operation. It stores input type,
-      output type, formal parameter, resumption formal parameter, and the 
-      body. *)
 
 (** Program *)
 type program = expr

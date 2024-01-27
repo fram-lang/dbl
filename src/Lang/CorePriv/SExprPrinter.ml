@@ -45,6 +45,8 @@ let rec tr_type : type k. k typ -> SExpr.t =
   | TVar x -> tr_tvar x
   | TArrow  _ -> List (tr_arrow tp)
   | TForall _ -> List (Sym "forall" :: tr_forall tp)
+  | TLabel(eff, tp0, eff0) ->
+    List [Sym "label"; tr_type eff; tr_type tp0; tr_type eff0 ]
   | TData(tp, ctors) ->
     List (Sym "data" :: tr_type tp :: List.map tr_ctor_type ctors)
   | TApp _ -> tr_type_app tp []
@@ -66,7 +68,7 @@ and tr_arrow : ttype -> SExpr.t list =
   | TArrow(tp1, tp2, eff) ->
     [ tr_type tp1; Sym "->"; tr_type tp2; tr_type eff ]
 
-  | TUnit | TVar _ | TForall _ | TData _ | TApp _ ->
+  | TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
     [ Sym "->"; tr_type tp ]
 
 and tr_forall : ttype -> SExpr.t list =
@@ -75,7 +77,7 @@ and tr_forall : ttype -> SExpr.t list =
   | TForall(x, body) ->
     tr_tvar_binder x :: tr_forall body
 
-  | TUnit | TVar _ | TArrow _ | TData _ | TApp _ -> [ tr_type tp ]
+  | TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ -> [ tr_type tp ]
 
 and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   fun tp args ->
@@ -83,7 +85,8 @@ and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   | TApp(tp1, tp2) ->
     tr_type_app tp1 (tr_type tp2 :: args)
 
-  | TUnit | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TData _ ->
+  | TUnit | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TLabel _
+  | TData _ ->
     List (Sym "app" :: tr_type tp :: args)
 
 and tr_ctor_type { ctor_name; ctor_tvars; ctor_arg_types } =
@@ -101,7 +104,7 @@ let tr_data_def (dd : Syntax.data_def) =
 let rec tr_expr (e : Syntax.expr) =
   match e with
   | EValue v -> tr_value v
-  | ELet _ | ELetPure _ | ELetIrr _ | EData _ ->
+  | ELet _ | ELetPure _ | ELetIrr _ | EData _ | ELabel _ | EReset _ ->
     List (Sym "defs" :: tr_defs e)
   | EApp(v1, v2) ->
     List [ Sym "app"; tr_value v1; tr_value v2 ]
@@ -111,16 +114,8 @@ let rec tr_expr (e : Syntax.expr) =
     List [ Sym "match"; tr_expr proof; tr_value v;
       List (Sym "clauses" :: List.map tr_clause cls);
       tr_type tp; tr_type eff ]
-  | EHandle(a, x, e, h, tp, eff) ->
-    List [
-      Sym "handle";
-      tr_tvar   a;
-      tr_var    x;
-      tr_expr   e;
-      tr_h_expr h;
-      tr_type   tp;
-      tr_type   eff
-    ]
+  | EShift(v, k, body, tp) ->
+    List [ Sym "shift"; tr_var k; tr_type tp; tr_expr body ]
   | ERepl(_, tp, eff) ->
     List [ Sym "repl"; tr_type tp; tr_type eff ]
   | EReplExpr(e1, tp, e2) ->
@@ -149,8 +144,13 @@ and tr_defs (e : Syntax.expr) =
     List [Sym "let-irr"; tr_var x; tr_expr e1] :: tr_defs e2
   | EData(dds, e2) ->
     List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2
+  | ELabel(a, x, tp, eff, e2) ->
+    List [Sym "label"; tr_tvar a; tr_var x; tr_type tp; tr_type eff ] ::
+      tr_defs e2
+  | EReset(v, body, x, ret) ->
+    List [Sym "reset"; tr_value v; tr_var x; tr_expr ret] :: tr_defs body
 
-  | EValue _ | EApp _ | ETApp _ | EMatch _ | EHandle _ | ERepl _
+  | EValue _ | EApp _ | ETApp _ | EMatch _ | EShift _ | ERepl _
   | EReplExpr _ ->
     [ tr_expr e ]
 
@@ -159,16 +159,5 @@ and tr_clause (c : Syntax.match_clause) =
     List (Sym "tvars" :: List.map tr_tvar_binder_ex c.cl_tvars) ::
     List (Sym "vars" :: List.map tr_var c.cl_vars) ::
     tr_defs c.cl_body)
-
-and tr_h_expr (h : Syntax.h_expr) =
-  match h with
-  | HEffect(tp_in, tp_out, x, res, body) ->
-    List (
-      Sym "effect" ::
-      tr_type tp_in ::
-      tr_type tp_out ::
-      tr_var x ::
-      tr_var res ::
-      tr_defs body)
 
 let tr_program = tr_expr

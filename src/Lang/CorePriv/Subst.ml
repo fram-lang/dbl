@@ -48,6 +48,8 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (sub, x) = add_tvar sub x in
     TForall(x, in_type_rec sub tp)
+  | TLabel(eff, tp0, eff0) ->
+    TLabel(in_type_rec sub eff, in_type_rec sub tp0, in_type_rec sub eff0)
   | TData(tp, ctors) ->
     TData(in_type_rec sub tp, List.map (in_ctor_type_rec sub) ctors)
   | TApp(tp1, tp2) ->
