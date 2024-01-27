@@ -4,7 +4,7 @@
 
 (** Main module of the parser *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 type fname = string
 
@@ -44,7 +44,7 @@ let make_nowhere data =
   ; Lang.Surface.data = data
   }
 
-let rec repl_func () =
+let rec repl_seq () =
   flush stderr;
   Printf.printf "> %!";
   let lexbuf = Lexing.from_channel stdin in
@@ -58,15 +58,12 @@ let rec repl_func () =
     exit 0
 
   | Raw.REPL_Expr e ->
-    make_nowhere (Lang.Surface.EReplExpr(Desugar.tr_expr e,
-      make_nowhere (Lang.Surface.ERepl repl_func)))
+    let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
+    Seq.Cons(def, repl_seq)
 
   | Raw.REPL_Def def ->
     let def = Desugar.tr_def def in
-    { def with data =
-        Lang.Surface.EDefs([def],
-          (make_nowhere (Lang.Surface.ERepl repl_func)))
-    }
+    Seq.Cons(def, repl_seq)
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token
@@ -75,4 +72,4 @@ let rec repl_func () =
         lexbuf.Lexing.lex_curr_p)
       (Lexing.lexeme lexbuf))
 
-let repl = make_nowhere (Lang.Surface.ERepl repl_func)
+let repl = make_nowhere (Lang.Surface.ERepl repl_seq)

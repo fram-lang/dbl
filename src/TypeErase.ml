@@ -27,7 +27,7 @@ let rec tr_expr (e : S.expr) =
     T.EMatch(v, List.map tr_clause cls))
   | EHandle(_, x, e, h, _, _) ->
     T.EHandle(x, tr_expr e, tr_h_expr h)
-  | ERepl(func, _) ->
+  | ERepl(func, _, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
   | EReplExpr(e1, tp, e2) ->
     T.EReplExpr(tr_expr e1, tp, tr_expr e2)

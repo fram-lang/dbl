@@ -164,13 +164,8 @@ and expr_data =
   | EHandle of pattern * expr * h_expr
     (** Effect handler *)
 
-  | ERepl of (unit -> expr)
-    (** REPL. It is a function that prompts user for another input. It returns
-      an expression to evaluate, usually containing another REPL expression. *)
-
-  | EReplExpr of expr * expr
-    (** Print type, evaluate, and print the first expression, then continue
-      to the second one. *)
+  | ERepl of def Seq.t
+    (** REPL. It is a lazy sequence of definitions provided by a user. *)
 
 (** Explicit instantiation of named parameters in polymorphic expression *)
 and inst = (name * expr) node
@@ -195,6 +190,10 @@ and def_data =
 
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
+
+  | DReplExpr of expr
+    (** Print type, evaluate, and print the expression, provided by a user in
+      REPL. *)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

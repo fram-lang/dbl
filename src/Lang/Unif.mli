@@ -167,10 +167,10 @@ and expr_data =
       handled expression, handler body, and type and effect of the whole
       handler expression *)
 
-  | ERepl of (unit -> expr) * effect
+  | ERepl of (unit -> expr) * typ * effect
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
-      This constructor stores also an effect of a REPL expression. *)
+      This constructor stores also type and effect of a REPL expression. *)
 
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,

@@ -80,7 +80,7 @@ and expr_data =
   | EMatchEmpty of expr * expr * typ * effect
   | EMatch      of expr * match_clause list * typ * effect
   | EHandle     of tvar * var * expr * h_expr * typ * effect
-  | ERepl       of (unit -> expr) * effect
+  | ERepl       of (unit -> expr) * typ * effect
   | EReplExpr   of expr * string * expr
 
 and match_clause = pattern * expr

@@ -54,9 +54,10 @@ let rec tr_expr env (e : S.expr) =
     | KType | KArrow _ -> failwith "Internal kind error"
     end
 
-  | ERepl(func, eff) ->
+  | ERepl(func, tp, eff) ->
+    let tp  = Type.tr_ttype  env tp  in
     let eff = Type.tr_effect env eff in
-    ERepl((fun () -> tr_expr env (func ())), eff)
+    ERepl((fun () -> tr_expr env (func ())), tp, eff)
 
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr env e2)

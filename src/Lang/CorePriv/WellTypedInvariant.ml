@@ -257,9 +257,9 @@ let rec infer_type_eff env e =
     check_type_eff (Env.add_var env' x htp) e tp (TEffJoin(TVar a, eff));
     (tp, eff)
 
-  | ERepl(_, eff) ->
+  | ERepl(_, tp, eff) ->
     (* In this case we have no means to check types further. *)
-    (TUnit, tr_type env eff)
+    (tr_type env tp, tr_type env eff)
 
   | EReplExpr(e1, _, e2) ->
     let (_, eff1) = infer_type_eff env e1 in

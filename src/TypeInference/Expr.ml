@@ -93,7 +93,7 @@ let rec infer_expr_type env (e : S.expr) eff =
   let pos = e.pos in
   let make data = { e with data = data } in
   match e.data with
-  | EMatch _ ->
+  | EMatch _ | ERepl _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let (e, r_eff) = check_expr_type env e tp eff in
     (e, tp, r_eff)
@@ -170,26 +170,13 @@ let rec infer_expr_type env (e : S.expr) eff =
       Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
     (make (T.EHandle(h_eff, x, e1, h, res_tp, res_eff)), res_tp, Impure)
 
-  | ERepl func ->
-    let tp = T.Type.t_unit in
-    let e =
-      make (T.ERepl(
-        (fun () -> fst (check_expr_type env (func ()) tp eff)),
-        eff))
-    in (e, tp, Impure)
-
-  | EReplExpr(e1, e2) ->
-    let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
-    let (e2, tp2, r_eff2) = infer_expr_type env e2 eff in
-    (make (T.EReplExpr(e1, tp1, e2)), tp2, ret_effect_join r_eff1 r_eff2)
-
 (* ------------------------------------------------------------------------- *)
 (** Check type and effect of an expression. Returns also information about
   the purity of an expression. *)
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | EPoly _ | EApp _ | EHandle _ | ERepl _ ->
+  | EUnit | EPoly _ | EApp _ | EHandle _ ->
     check_expr_type_default env e tp eff
 
   | EFn(arg, body) ->
@@ -253,10 +240,8 @@ and check_expr_type env (e : S.expr) tp eff =
     let (cls, r_eff) = check_match_clauses env e_tp cls tp eff in
     (make (T.EMatch(e, cls, tp, eff)), r_eff)
 
-  | EReplExpr(e1, e2) ->
-    let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
-    let (e2, r_eff2) = check_expr_type env e2 tp eff in
-    (make (T.EReplExpr(e1, tp1, e2)), ret_effect_join r_eff1 r_eff2)
+  | ERepl def_seq ->
+    (check_repl_def_seq env ImplicitEnv.empty def_seq tp eff, Impure)
 
 (** Default action in type-check mode: switching to infer mode *)
 and check_expr_type_default env (e : S.expr) tp eff =
@@ -405,6 +390,15 @@ and check_def : type dir.
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData(dds, e)), resp, r_eff)
 
+  | DReplExpr e1 ->
+    let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
+    let scope = Env.scope env1 in
+    let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
+    ImplicitEnv.end_generalize_impure ims;
+    let (e, resp, r_eff2) = cont.run env ienv req eff in
+    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
+    (make e (T.EReplExpr(e1, tp1, e)), resp, ret_effect_join r_eff1 r_eff2)
+
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)
 and check_let env ienv body eff =
@@ -471,6 +465,35 @@ and infer_h_expr_type env h h_eff res_tp res_eff =
     (make (T.HEffect(in_tp, out_tp, x, r, body)),
       T.Type.t_arrow (T.Scheme.of_type in_tp) out_tp
         (T.Effect.singleton h_eff))
+
+(* ------------------------------------------------------------------------- *)
+(** Check the sequence of REPL definitions, provided by a user. Always
+  in type-check mode. *)
+and check_repl_def_seq env ienv def_seq tp eff =
+  let func () =
+    match def_seq () with
+    | Seq.Nil -> assert false
+    | Seq.Cons(def, def_seq) ->
+      let cont (type dir) env ienv (tp_req : (_, dir) request) eff :
+          _ * (_, dir) response * _ =
+        match tp_req with
+        | Check tp ->
+          let e = check_repl_def_seq env ienv def_seq tp eff in
+          (e, Checked, Impure)
+        | Infer ->
+          let tp = Env.fresh_uvar env T.Kind.k_type in
+          let e = check_repl_def_seq env ienv def_seq tp eff in
+          (e, Infered tp, Impure)
+      in
+      let (e, Checked, _) =
+        check_def env ienv def (Check tp) eff { run = cont } in
+      e
+  in
+  let e =
+    { T.pos  = Position.nowhere;
+      T.data = T.ERepl(func, tp, eff)
+    } in
+  e
 
 (* ------------------------------------------------------------------------- *)
 (** Check expression put into REPL *)

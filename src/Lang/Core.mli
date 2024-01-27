@@ -189,11 +189,11 @@ type expr =
       handled expression, handler body, and type and effect of the whole
       handler expression *)
 
-  | ERepl of (unit -> expr) * effect
+  | ERepl of (unit -> expr) * ttype * effect
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
-      The second parameter is an effect of an expression returned by the
-      function. *)
+      The second and third parameters are type and effect of an expression
+      returned by the function. *)
 
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,

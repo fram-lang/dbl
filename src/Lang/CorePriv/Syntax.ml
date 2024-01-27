@@ -27,7 +27,7 @@ type expr =
   | EData     of data_def list * expr
   | EMatch    of expr * value * match_clause list * ttype * effect
   | EHandle   of keffect tvar * var * expr * h_expr * ttype * effect
-  | ERepl     of (unit -> expr) * effect
+  | ERepl     of (unit -> expr) * ttype * effect
   | EReplExpr of expr * string * expr
 
 and value =
