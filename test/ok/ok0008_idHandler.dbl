@@ -1,1 +1,1 @@
-let _ = handle id in id () with effect x / r => r x
+let _ = handle id = effect x / r => r x in id ()

@@ -29,8 +29,7 @@ let test f =
   f (`flip ()) (`flip ()) (`flip ())
 
 let tauto _ =
-  handle `flip
+  handle `flip = effect x / r => band (r True) (r False)
   in test form
-  with effect x / r => band (r True) (r False)
 
 let _ = tauto ()

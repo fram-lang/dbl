@@ -170,7 +170,7 @@ let rec tr_simple_pattern (p : Raw.expr) ps =
   | [], EVar  x   -> make (PId (IdVar x))
   | [], EImplicit n -> make (PId (IdImplicit n))
   | [], EAnnot(p, sch) -> make (PAnnot(tr_pattern p [], tr_scheme_expr sch))
-  | [], (ECtor _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandle _
+  | [], (ECtor _ | EFn _ | EApp _ | EEffect _ | EDefs _ | EMatch _
     | ERecord _) ->
     assert false
   | p1 :: _, _ ->
@@ -192,7 +192,7 @@ and tr_pattern (p : Raw.expr) ps =
     end
   | EApp(p, p1) -> tr_pattern p (p1 :: ps)
 
-  | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
+  | EFn _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 and tr_named_pattern (fld : Raw.field) =
@@ -222,7 +222,7 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EWildcard | EUnit | EVar _ | EImplicit _ | ECtor _ | EApp _ ->
     ArgPattern (tr_pattern arg [])
 
-  | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
+  | EFn _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ ->
     Error.fatal (Error.desugar_error arg.pos)
 
 let tr_named_arg (fld : Raw.field) =
@@ -264,7 +264,7 @@ let rec tr_let_pattern (p : Raw.expr) ps =
     end
   | EApp(p, p1) -> tr_let_pattern p (p1 :: ps)
 
-  | EFn _ | EDefs _ | EMatch _ | EHandle _ | ERecord _ ->
+  | EFn _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a function, given a list of formal parameters *)
@@ -283,8 +283,8 @@ let tr_poly_expr (e : Raw.expr) =
   | EImplicit n -> make (EImplicit n)
   | ECtor     c -> make (ECtor     c)
 
-  | EWildcard | EUnit | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _
-  | EHandle _ | ERecord _ | EAnnot _ ->
+  | EWildcard | EUnit | EParen _ | EFn _ | EApp _ | EEffect _ | EDefs _
+  | EMatch _ | ERecord _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 let rec tr_expr (e : Raw.expr) =
@@ -300,9 +300,7 @@ let rec tr_expr (e : Raw.expr) =
   | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
-  | EHandle(pat, e, h) ->
-    make (EHandle(tr_pattern pat [], tr_expr e, tr_h_expr h))
-  | EWildcard | ERecord _ | EAnnot _ ->
+  | EWildcard | EEffect _ | ERecord _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_match_clause (cl : Raw.match_clause) =
@@ -311,11 +309,16 @@ and tr_match_clause (cl : Raw.match_clause) =
   | Clause(pat, body) ->
     make (Clause(tr_pattern pat [], tr_expr body))
 
-and tr_h_expr (h : Raw.h_expr) =
+and tr_h_expr (h : Raw.expr) =
   let make data = { h with data = data } in
   match h.data with
-  | HEffect(x, r, e) ->
+  | EParen h -> make (tr_h_expr h).data
+  | EEffect(x, r, e) ->
     make (HEffect(x, r, tr_expr e))
+
+  | EWildcard | EUnit | EVar _ | EImplicit _ | ECtor _ | EFn _ | EApp _
+  | EDefs _ | EMatch _ | ERecord _ | EAnnot _ ->
+    Error.fatal (Error.desugar_error h.pos)
 
 and tr_explicit_inst (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -352,6 +355,8 @@ and tr_def (def : Raw.def) =
   | DImplicit n  -> make (DImplicit n)
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
+  | DHandle(pat, h) ->
+    make (DHandlePat(tr_pattern pat [], tr_h_expr h))
 
 and tr_defs defs = List.map tr_def defs
 

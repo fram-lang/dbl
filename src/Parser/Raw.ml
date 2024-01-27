@@ -115,14 +115,14 @@ and expr_data =
   | EApp  of expr * expr
     (** Function application *)
 
+  | EEffect of var * var * expr
+    (** Handler of a single operation *)
+
   | EDefs of def list * expr
     (** Local definitions *)
 
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
-
-  | EHandle of expr * expr * h_expr
-    (** Effect handler *)
 
   | ERecord of field list
     (** Record-like expression, e.g., explicit instantiation of named
@@ -135,12 +135,6 @@ and expr_data =
 and match_clause = match_clause_data node
 and match_clause_data =
   | Clause of expr * expr
-
-(** Handler expressions *)
-and h_expr = h_expr_data node
-and h_expr_data =
-  | HEffect of var * var * expr
-    (** Handler of a single operation *)
 
 (** Field of record-like expression *)
 and field = (type_expr, expr) field_data node
@@ -159,6 +153,9 @@ and def_data =
 
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
+
+  | DHandle of expr * expr
+    (** Effect handler *)
 
 (** Program *)
 type program = def list node

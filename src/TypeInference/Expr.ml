@@ -90,7 +90,6 @@ let infer_poly_scheme env (e : S.poly_expr) eff =
   the check mode. However, pure expressions may returns an information that
   they are pure (see [ret_effect] type). *)
 let rec infer_expr_type env (e : S.expr) eff =
-  let pos = e.pos in
   let make data = { e with data = data } in
   match e.data with
   | EMatch _ | ERepl _ ->
@@ -152,31 +151,13 @@ let rec infer_expr_type env (e : S.expr) eff =
     in
     (e, tp, r_eff)
 
-  | EHandle(pat, e1, h) ->
-    (* Since type and effect of e1 is used both on covariant and contravariant
-     position (return type and resumption respectively), we should guess
-     them even in type-check mode. *)
-    let res_tp  = Env.fresh_uvar env T.Kind.k_type   in
-    let res_eff = Env.fresh_uvar env T.Kind.k_effect in
-    let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
-    (* TODO: effect capability may have a scheme instead of type *)
-    let (h, x_tp) = infer_h_expr_type env h h_eff res_tp res_eff in
-    let (env1, pat, _, _) =
-      Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat x_tp in
-    let e1_eff = T.Effect.cons h_eff res_eff in
-    let (e1, _) = check_expr_type env1 e1 res_tp e1_eff in
-    let (x, e1) = ExprUtils.arg_match pat e1 res_tp e1_eff in
-    if not (Unification.subeffect env res_eff eff) then
-      Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
-    (make (T.EHandle(h_eff, x, e1, h, res_tp, res_eff)), res_tp, Impure)
-
 (* ------------------------------------------------------------------------- *)
 (** Check type and effect of an expression. Returns also information about
   the purity of an expression. *)
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | EPoly _ | EApp _ | EHandle _ ->
+  | EUnit | EPoly _ | EApp _ ->
     check_expr_type_default env e tp eff
 
   | EFn(arg, body) ->
@@ -372,6 +353,34 @@ and check_def : type dir.
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
+  | DHandlePat(pat, h) ->
+    (* Since type and effect of rest of expression is used both on covariant
+      and contravariant position (return type and resumption respectively), we
+      should guess them even in type-check mode. *)
+    let res_tp  = Env.fresh_uvar env T.Kind.k_type   in
+    let res_eff = Env.fresh_uvar env T.Kind.k_effect in
+    let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
+    (* TODO: effect capability may have a scheme instead of type *)
+    let (h, x_tp) = infer_h_expr_type env h h_eff res_tp res_eff in
+    let (env1, pat, names, _) =
+      Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat x_tp in
+    let ienv = ImplicitEnv.shadow_names ienv names in
+    let body_eff = T.Effect.cons h_eff res_eff in
+    let (e, Checked, _) = cont.run env1 ienv (Check res_tp) body_eff in
+    let (x, e) = ExprUtils.arg_match pat e res_tp body_eff in
+    let pos = Position.join def.pos e.pos in
+    if not (Unification.subeffect env res_eff eff) then
+      Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
+    let resp : (_, dir) response =
+      match req with
+      | Infer    -> Infered (res_tp)
+      | Check tp ->
+        if not (Unification.subtype env res_tp tp) then
+          Error.report (Error.expr_type_mismatch ~pos ~env res_tp tp);
+        Checked
+    in
+    (make e (T.EHandle(h_eff, x, e, h, res_tp, res_eff)), resp, Impure)
+
   | DImplicit n ->
     let ienv = ImplicitEnv.declare_implicit ienv n in
     cont.run env ienv req eff
@@ -452,8 +461,8 @@ and check_match_clauses env tp cls res_tp res_eff =
   - [h_eff]   -- a handled effect
   - [res_tp]  -- returned type
   - [res_eff] -- returned effect *)
-and infer_h_expr_type env h h_eff res_tp res_eff =
-  let make data = { h with data = data } in
+and infer_h_expr_type env (h : S.h_expr) h_eff res_tp res_eff =
+  let make data = { h with T.data = data } in
   match h.data with
   | HEffect(x, r, body) ->
     let in_tp  = Env.fresh_uvar env T.Kind.k_type in

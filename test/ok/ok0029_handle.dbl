@@ -6,6 +6,5 @@ let test f =
   f (`f ())
 
 let tauto _ =
-  handle x
+  handle x = effect x / r => ()
   in test {`f=x} f
-  with effect x / r => ()

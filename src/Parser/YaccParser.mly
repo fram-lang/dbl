@@ -125,7 +125,7 @@ ctor_decl_list
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_simple_list1 ARROW2 expr { make (EFn($2, $4))   }
-| KW_HANDLE expr KW_IN expr KW_WITH h_expr { make (EHandle($2, $4, $6)) }
+| KW_EFFECT LID SLASH LID ARROW2 expr { make (EEffect($2, $4, $6)) }
 | expr_10 { $1 }
 ;
 
@@ -170,13 +170,6 @@ match_clause_list
 
 /* ========================================================================= */
 
-h_expr
-: KW_EFFECT LID SLASH LID ARROW2 expr
-    { make (HEffect($2, $4, $6)) }
-;
-
-/* ========================================================================= */
-
 field
 : KW_TYPE ty_expr    { make (FldAnonType $2)       }
 | UID                { make (FldType $1)           }
@@ -215,6 +208,7 @@ def
 | KW_IMPLICIT TLID       { make (DImplicit $2) }
 | data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
+| KW_HANDLE expr EQ expr { make (DHandle($2, $4)) }
 ;
 
 def_list
