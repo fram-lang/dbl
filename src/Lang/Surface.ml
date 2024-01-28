@@ -161,6 +161,9 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
+  | EHandler of h_expr
+    (** First-class handler *)
+
   | ERepl of def Seq.t
     (** REPL. It is a lazy sequence of definitions provided by a user. *)
 
@@ -179,7 +182,7 @@ and def_data =
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DHandlePat of pattern * h_expr
+  | DHandlePat of pattern * expr
     (** Effect handler combined with pattern-matching on capability.
       Always monomorphic *)
 

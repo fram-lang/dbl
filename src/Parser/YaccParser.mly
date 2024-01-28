@@ -9,8 +9,8 @@
 %token<string> LID UID TLID
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA EQ SEMICOLON2 SLASH
-%token KW_AND KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_IMPLICIT KW_IN
-%token KW_LET KW_MATCH KW_OF KW_REC KW_TYPE KW_WITH
+%token KW_AND KW_DATA KW_EFFECT KW_END KW_FN KW_HANDLE KW_HANDLER KW_IMPLICIT
+%token KW_IN KW_LET KW_MATCH KW_OF KW_REC KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -126,6 +126,7 @@ expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_simple_list1 ARROW2 expr { make (EFn($2, $4))   }
 | KW_EFFECT LID SLASH LID ARROW2 expr { make (EEffect($2, $4, $6)) }
+| KW_HANDLER expr { make (EHandler $2) }
 | expr_10 { $1 }
 ;
 
@@ -204,11 +205,12 @@ data_rec_rest
 /* ========================================================================= */
 
 def
-: KW_LET expr EQ expr    { make (DLet($2, $4)) }
-| KW_IMPLICIT TLID       { make (DImplicit $2) }
-| data_def               { make (DData $1)     }
-| data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
-| KW_HANDLE expr EQ expr { make (DHandle($2, $4)) }
+: KW_LET expr EQ expr         { make (DLet($2, $4)) }
+| KW_IMPLICIT TLID            { make (DImplicit $2) }
+| data_def                    { make (DData $1)     }
+| data_rec data_rec_rest      { make (DDataRec ($1 :: $2)) }
+| KW_HANDLE expr EQ expr      { make (DHandle($2, $4)) }
+| KW_HANDLE expr KW_WITH expr { make (DHandleWith($2, $4)) }
 ;
 
 def_list

@@ -39,6 +39,7 @@ type type_view =
   | TEffect    of TVar.Set.t * effect_end
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effect
+  | THandler   of tvar * typ * typ * effect
   | TApp       of typ * typ
 
 and scheme = {
@@ -70,6 +71,9 @@ val t_pure_arrow : scheme -> typ -> typ
 
 (** Arrow type *)
 val t_arrow : scheme -> typ -> effect -> typ
+
+(** Type of first class handlers *)
+val t_handler : tvar -> typ -> typ -> effect -> typ
 
 (** Create an effect *)
 val t_effect : TVar.Set.t -> effect_end -> effect

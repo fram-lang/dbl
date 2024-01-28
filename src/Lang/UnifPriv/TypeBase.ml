@@ -42,6 +42,7 @@ and type_view =
   | TEffect    of TVar.Set.t * effect_end
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effect
+  | THandler   of tvar * typ * typ * effect
   | TApp       of typ * typ
 
 and effect_end =
@@ -79,6 +80,8 @@ let t_pure_arrow sch tp2 = TPureArrow(sch, tp2)
 
 let t_arrow sch tp2 eff = TArrow(sch, tp2, eff)
 
+let t_handler a tp tp0 eff0 = THandler(a, tp, tp0, eff0)
+
 let t_app tp1 tp2 = TApp(tp1, tp2)
 
 let perm_name p n =
@@ -106,12 +109,12 @@ let rec view tp =
     | TApp(tp1, tp2) -> TEffect(xs, EEApp(tp1, tp2))
     | TEffect(ys, ee) -> TEffect(TVar.Set.union xs ys, ee)
 
-    | TUnit | TPureArrow _ | TArrow _ ->
+    | TUnit | TPureArrow _ | TArrow _ | THandler _ ->
       failwith "Internal kind error"
     end
   | TEffect(xs, ee) -> tp
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _ -> tp
+  | TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _ -> tp
 
 and perm p tp =
   if TVar.Perm.is_identity p then tp
@@ -130,6 +133,9 @@ and perm_rec p tp =
     TPureArrow(perm_scheme_rec p sch, perm_rec p tp2)
   | TArrow(sch, tp2, eff) ->
     TArrow(perm_scheme_rec p sch, perm_rec p tp2, perm_rec p eff)
+  | THandler(a, tp, tp0, eff0) ->
+    THandler(TVar.Perm.apply p a,
+      perm_rec p tp, perm_rec p tp0, perm_rec p eff0)
   | TApp(tp1, tp2) ->
     TApp(perm_rec p tp1, perm_rec p tp2)
 
@@ -166,7 +172,7 @@ let effect_view eff =
 
   | TEffect(xs, ee) -> (xs, ee)
 
-  | TUnit | TPureArrow _ | TArrow _ ->
+  | TUnit | TPureArrow _ | TArrow _ | THandler _ ->
     failwith "Internal kind error"
 
 module UVar = struct

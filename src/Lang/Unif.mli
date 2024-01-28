@@ -162,10 +162,19 @@ and expr_data =
   | EMatch of expr * match_clause list * typ * effect
     (** Pattern-matching. It stores type and effect of the whole expression. *)
 
-  | EHandle of tvar * var * expr * h_expr * typ * effect
+  | EHandle of tvar * var * expr * expr * typ * effect
     (** Handler. It stores handled (abstract) effect, capability variable,
       handled expression, handler body, and type and effect of the whole
       handler expression *)
+
+  | EHandler of tvar * typ * effect * h_expr
+    (** First-class handler. In [EHandler(a, tp, eff, h)] the meaning of
+      parameter is the following:
+      - [a] -- binder of an effect variable (of kind cleffect). The variable
+        is bound in other arguments of [EHandler] expression.
+      - [tp] -- type of the delimiter ([EHandle]).
+      - [eff] -- effect of the delimiter.
+      - [h] -- body of the handler. *)
 
   | ERepl of (unit -> expr) * typ * effect
     (** REPL. It is a function that prompts user for another input. It returns
@@ -182,8 +191,8 @@ and match_clause = pattern * expr
 (** Handler expressions *)
 and h_expr = h_expr_data node
 and h_expr_data =
-  | HEffect of typ * typ * var * var * expr
-    (** Handler of effectful functional operation. It stores input type,
+  | HEffect of scheme * typ * var * var * expr
+    (** Handler of effectful functional operation. It stores input scheme,
       output type, formal parameter, resumption formal parameter, and the
       body. *)
 
@@ -369,6 +378,12 @@ module Type : sig
     | TArrow of scheme * typ * effect
       (** Impure arrow *)
   
+    | THandler of tvar * typ * typ * effect
+      (** First class handler. In [THandler(a, tp, tp0, eff0)]:
+        - [a] is a variable bound in [tp], [tp0], and [eff0];
+        - [tp] is a type of provided capability;
+        - [tp0] and [eff0] are type and effects of the whole delimiter. *)
+
     | TApp of typ * typ
       (** Type application *)
 
@@ -396,6 +411,9 @@ module Type : sig
   
     | Whnf_Arrow of scheme * typ * effect
       (** Impure arrow *)
+  
+    | Whnf_Handler of tvar * typ * typ * effect
+      (** Handler type *)
 
   (** Unit type *)
   val t_unit : typ
@@ -414,6 +432,9 @@ module Type : sig
 
   (** Arrow type *)
   val t_arrow : scheme -> typ -> effect -> typ
+
+  (** Type of first class handlers *)
+  val t_handler : tvar -> typ -> typ -> effect -> typ
 
   (** Create an effect *)
   val t_effect : TVar.Set.t -> effect_end -> effect

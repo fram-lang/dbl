@@ -1,0 +1,5 @@
+let hId = handler effect x / r => r x
+
+handle id with hId
+
+let _ = id ()

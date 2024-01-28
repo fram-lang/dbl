@@ -4,7 +4,11 @@ if ! [ -n "$1" ] || ! [ -n "$2" ]; then
 	exit 1
 fi
 
-binary="dune exec $1"
+if ! dune build; then
+	exit 1
+fi
+
+binary="_build/default/src/$1.exe"
 flags=""
 
 RED='\033[0;31m'

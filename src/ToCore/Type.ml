@@ -59,6 +59,18 @@ and tr_type env tp =
     T.Type.Ex (TArrow(tr_scheme env sch, tr_ttype env tp2, TEffPure))
   | TArrow(sch, tp2, eff) ->
     T.Type.Ex (TArrow(tr_scheme env sch, tr_ttype env tp2, tr_effect env eff))
+  | THandler(x, tp, tp0, eff0) ->
+    let (env, Ex x) = Env.add_tvar env x in
+    begin match T.TVar.kind x with
+    | KEffect ->
+      let tp   = tr_ttype env tp in
+      let tp0  = tr_ttype env tp0 in
+      let eff0 = tr_effect env eff0 in
+      T.Type.Ex (TForall(x,
+        TArrow(TLabel(TVar x, tp0, eff0), tp, TEffPure)))
+    | _ ->
+      failwith "Internal kind error"
+    end
   | TApp(tp1, tp2) ->
     let (Ex tp1) = tr_type env tp1 in
     let (Ex tp2) = tr_type env tp2 in

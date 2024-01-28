@@ -79,7 +79,8 @@ and expr_data =
   | EData       of data_def list * expr
   | EMatchEmpty of expr * expr * typ * effect
   | EMatch      of expr * match_clause list * typ * effect
-  | EHandle     of tvar * var * expr * h_expr * typ * effect
+  | EHandle     of tvar * var * expr * expr * typ * effect
+  | EHandler    of tvar * typ * effect * h_expr
   | ERepl       of (unit -> expr) * typ * effect
   | EReplExpr   of expr * string * expr
 
@@ -87,6 +88,6 @@ and match_clause = pattern * expr
 
 and h_expr = h_expr_data node
 and h_expr_data =
-  | HEffect of typ * typ * var * var * expr
+  | HEffect of scheme * typ * var * var * expr
 
 type program = expr

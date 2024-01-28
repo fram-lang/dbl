@@ -151,6 +151,14 @@ let rec infer_expr_type env (e : S.expr) eff =
     in
     (e, tp, r_eff)
 
+  | EHandler h ->
+    let (env, a) = Env.add_anon_tvar env T.Kind.k_cleffect in
+    let res_tp  = Env.fresh_uvar env T.Kind.k_type in
+    let res_eff = Env.fresh_uvar env T.Kind.k_effect in
+    let (h, tp) = infer_h_expr_type env h a res_tp res_eff in
+    let e = make (T.EHandler(a, res_tp, res_eff, h)) in
+    (e, T.Type.t_handler a tp res_tp res_eff, Pure)
+
 (* ------------------------------------------------------------------------- *)
 (** Check type and effect of an expression. Returns also information about
   the purity of an expression. *)
@@ -209,7 +217,7 @@ and check_expr_type env (e : S.expr) tp eff =
       end
 
     | Whnf_Unit | Whnf_Neutral(NH_UVar _, _) | Whnf_PureArrow _
-    | Whnf_Arrow _ ->
+    | Whnf_Arrow _ | Whnf_Handler _ ->
       Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
 
     | Whnf_Effect _ ->
@@ -220,6 +228,22 @@ and check_expr_type env (e : S.expr) tp eff =
     let (e, e_tp, _) = infer_expr_type env e eff in
     let (cls, r_eff) = check_match_clauses env e_tp cls tp eff in
     (make (T.EMatch(e, cls, tp, eff)), r_eff)
+
+  | EHandler h ->
+    begin match Unification.from_handler env tp with
+    | H_Handler(b, tp, tp0, eff0) ->
+      let (env, a) = Env.add_anon_tvar env T.Kind.k_cleffect in
+      let sub  = T.Subst.rename_to_fresh T.Subst.empty b a in
+      let tp   = T.Type.subst sub tp in
+      let tp0  = T.Type.subst sub tp0 in
+      let eff0 = T.Type.subst sub eff0 in
+      let h = check_h_expr_type env h a tp tp0 eff0 in
+      let e = make (T.EHandler(a, tp0, eff0, h)) in
+      (e, Pure)
+
+    | H_No ->
+      Error.fatal (Error.expr_not_handler_ctx ~pos:e.pos ~env tp)
+    end
 
   | ERepl def_seq ->
     (check_repl_def_seq env ImplicitEnv.empty def_seq tp eff, Impure)
@@ -353,33 +377,40 @@ and check_def : type dir.
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
-  | DHandlePat(pat, h) ->
-    (* Since type and effect of rest of expression is used both on covariant
-      and contravariant position (return type and resumption respectively), we
-      should guess them even in type-check mode. *)
-    let res_tp  = Env.fresh_uvar env T.Kind.k_type   in
-    let res_eff = Env.fresh_uvar env T.Kind.k_effect in
-    let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
+  | DHandlePat(pat, eh) ->
+    let (env_h, ims) = ImplicitEnv.begin_generalize env ienv in
+    let (eh, eh_tp, _) = infer_expr_type env_h eh eff in
     (* TODO: effect capability may have a scheme instead of type *)
-    let (h, x_tp) = infer_h_expr_type env h h_eff res_tp res_eff in
-    let (env1, pat, names, _) =
-      Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat x_tp in
-    let ienv = ImplicitEnv.shadow_names ienv names in
-    let body_eff = T.Effect.cons h_eff res_eff in
-    let (e, Checked, _) = cont.run env1 ienv (Check res_tp) body_eff in
-    let (x, e) = ExprUtils.arg_match pat e res_tp body_eff in
-    let pos = Position.join def.pos e.pos in
-    if not (Unification.subeffect env res_eff eff) then
-      Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
-    let resp : (_, dir) response =
-      match req with
-      | Infer    -> Infered (res_tp)
-      | Check tp ->
-        if not (Unification.subtype env res_tp tp) then
-          Error.report (Error.expr_type_mismatch ~pos ~env res_tp tp);
-        Checked
-    in
-    (make e (T.EHandle(h_eff, x, e, h, res_tp, res_eff)), resp, Impure)
+    ImplicitEnv.end_generalize_impure ims;
+    begin match Unification.to_handler env eh_tp with
+    | H_Handler(a, cap_tp, res_tp, res_eff) ->
+      let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
+      let sub = T.Subst.rename_to_fresh T.Subst.empty a h_eff in
+      let cap_tp  = T.Type.subst sub cap_tp  in
+      let res_tp  = T.Type.subst sub res_tp  in
+      let res_eff = T.Type.subst sub res_eff in
+      let (env1, pat, names, _) =
+        Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat cap_tp in
+      let ienv = ImplicitEnv.shadow_names ienv names in
+      let body_eff = T.Effect.cons h_eff res_eff in
+      let (e, Checked, _) = cont.run env1 ienv (Check res_tp) body_eff in
+      let (x, e) = ExprUtils.arg_match pat e res_tp body_eff in
+      let pos = Position.join def.pos e.pos in
+      if not (Unification.subeffect env res_eff eff) then
+        Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
+      let resp : (_, dir) response =
+        match req with
+        | Infer    -> Infered (res_tp)
+        | Check tp ->
+          if not (Unification.subtype env res_tp tp) then
+            Error.report (Error.expr_type_mismatch ~pos ~env res_tp tp);
+          Checked
+      in
+      (make e (T.EHandle(h_eff, x, e, eh, res_tp, res_eff)), resp, Impure)
+
+    | H_No ->
+      Error.fatal (Error.expr_not_handler ~pos:eh.pos ~env eh_tp)
+    end
 
   | DImplicit n ->
     let ienv = ImplicitEnv.declare_implicit ienv n in
@@ -465,15 +496,56 @@ and infer_h_expr_type env (h : S.h_expr) h_eff res_tp res_eff =
   let make data = { h with T.data = data } in
   match h.data with
   | HEffect(x, r, body) ->
-    let in_tp  = Env.fresh_uvar env T.Kind.k_type in
+    let in_sch = T.Scheme.of_type (Env.fresh_uvar env T.Kind.k_type) in
     let out_tp = Env.fresh_uvar env T.Kind.k_type in
     let r_tp   = T.Type.t_arrow (T.Scheme.of_type out_tp) res_tp res_eff in
-    let (env, x) = Env.add_mono_var env x in_tp in
+    let (env, x) = Env.add_poly_var env x in_sch in
     let (env, r) = Env.add_mono_var env r r_tp in
     let (body, _) = check_expr_type env body res_tp res_eff in
-    (make (T.HEffect(in_tp, out_tp, x, r, body)),
-      T.Type.t_arrow (T.Scheme.of_type in_tp) out_tp
-        (T.Effect.singleton h_eff))
+    (make (T.HEffect(in_sch, out_tp, x, r, body)),
+      T.Type.t_arrow in_sch out_tp (T.Effect.singleton h_eff))
+
+(* ------------------------------------------------------------------------- *)
+(** Check type of an handler expression.
+  In [check_h_expr_type env h h_eff tp res_tp res_eff] the parameters have the
+  following meaning:
+  - [env]     -- an environment
+  - [h]       -- handler expression
+  - [h_eff]   -- a handled effect
+  - [tp]      -- type of a handler expression
+  - [res_tp]  -- returned type
+  - [res_eff] -- returned effect *)
+and check_h_expr_type env (h : S.h_expr) h_eff tp res_tp res_eff =
+  let make data = { h with T.data = data } in
+  match h.data with
+  | HEffect(x, r, body) ->
+    begin match Unification.from_arrow env tp with
+    | Arr_No ->
+      Error.fatal (Error.expr_not_function_ctx ~pos:h.pos ~env tp)
+
+    | Arr_UVar ->
+      check_h_expr_type_default env h h_eff tp res_tp res_eff
+
+    | Arr_Pure _ ->
+      Error.fatal (Error.handler_in_pure_arrow_ctx ~pos:h.pos ~env tp)
+
+    | Arr_Impure(in_sch, out_tp, arr_eff) ->
+      let eff = T.Effect.singleton h_eff in
+      if not (Unification.subeffect env eff arr_eff) then
+        Error.report (Error.func_effect_mismatch ~pos:h.pos ~env arr_eff eff);
+      let r_tp = T.Type.t_arrow (T.Scheme.of_type out_tp) res_tp res_eff in
+      let (env, x) = Env.add_poly_var env x in_sch in
+      let (env, r) = Env.add_mono_var env r r_tp in
+      let (body, _) = check_expr_type env body res_tp res_eff in
+      make (T.HEffect(in_sch, out_tp, x, r, body))
+    end
+
+(** Default implementation of [check_h_expr_type] *)
+and check_h_expr_type_default env h h_eff tp res_tp res_eff =
+  let (h, tp') = infer_h_expr_type env h h_eff res_tp res_eff in
+  if not (Unification.subtype env tp' tp) then
+    Error.report (Error.expr_type_mismatch ~pos:h.pos ~env tp' tp);
+  h
 
 (* ------------------------------------------------------------------------- *)
 (** Check the sequence of REPL definitions, provided by a user. Always

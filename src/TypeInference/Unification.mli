@@ -23,6 +23,14 @@ type arrow =
   | Arr_Impure of T.scheme * T.typ * T.effect
     (** Impure arrow *)
 
+(** Handler type *)
+type handler =
+  | H_No
+    (** Type is not a handler *)
+
+  | H_Handler of T.tvar * T.typ * T.typ * T.effect
+    (** Handler type *)
+
 (** Check if one kind is equal to another. It performs some unifications
   when necessary. *)
 val unify_kind : T.kind -> T.kind -> bool
@@ -51,3 +59,11 @@ val to_arrow : Env.t -> T.typ -> arrow
   It performs some unifications when necessary. Returns [Arr_UVar], when given
   type is an unification variable. *)
 val from_arrow : Env.t -> T.typ -> arrow 
+
+(** Coerce given type to a handler.
+  It performs some unification when necessary. *)
+val to_handler : Env.t -> T.typ -> handler
+
+(** Coerce given type from a handler.
+  It performs some unification when necessary. *)
+val from_handler : Env.t -> T.typ -> handler

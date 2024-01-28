@@ -72,7 +72,7 @@ let in_effvar sub x ys =
       (* Substitution of non-closed effect for variable of kind cleffect *)
       assert false
 
-    | TUnit | TPureArrow _ | TArrow _ ->
+    | TUnit | TPureArrow _ | TArrow _ | THandler _ ->
       failwith "Internal kind error"
     end
 
@@ -109,6 +109,10 @@ and in_type_rec sub tp =
     t_pure_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2)
   | TArrow(sch, tp2, eff) ->
     t_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2) (in_type_rec sub eff)
+  | THandler(a, tp, tp0, eff0) ->
+    let (sub, a) = add_tvar sub a in
+    t_handler a (in_type_rec sub tp)
+      (in_type_rec sub tp0) (in_type_rec sub eff0)
   | TApp(tp1, tp2) ->
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
 

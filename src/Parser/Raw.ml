@@ -124,6 +124,9 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
+  | EHandler of expr
+    (** First-class handler *)
+
   | ERecord of field list
     (** Record-like expression, e.g., explicit instantiation of named
       parameters *)
@@ -156,6 +159,9 @@ and def_data =
 
   | DHandle of expr * expr
     (** Effect handler *)
+
+  | DHandleWith of expr * expr
+    (** Effect handler, with first-class handler *)
 
 (** Program *)
 type program = def list node

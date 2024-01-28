@@ -15,6 +15,7 @@ let kw_map =
   ; "end",      KW_END
   ; "fn",       KW_FN
   ; "handle",   KW_HANDLE
+  ; "handler",  KW_HANDLER
   ; "implicit", KW_IMPLICIT
   ; "in",       KW_IN
   ; "let",      KW_LET

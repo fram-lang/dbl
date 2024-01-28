@@ -87,10 +87,28 @@ let expr_not_function ~pos ~env tp =
 let expr_not_function_ctx ~pos ~env tp =
   (* TODO: better message *)
   Printf.eprintf 
-    "%s: error: This expresion should not be a function.\n"
+    "%s: error: This expression should not be a function.\n"
     (* the expected type is tp *)
     (Position.to_string pos)
 
+let expr_not_handler ~pos ~env tp =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: This expression is not a handler.\n"
+    (Position.to_string pos)
+
+let expr_not_handler_ctx ~pos ~env tp =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: This expression should not be a handler.\n"
+    (Position.to_string pos)
+
+let handler_in_pure_arrow_ctx ~pos ~env tp =
+  (* TODO: better message *)
+  Printf.eprintf
+    "%s: error: Effect handler in a context, that expects pure function.\n"
+    (Position.to_string pos)
+  
 let empty_match_on_non_adt ~pos ~env tp =
   (* TODO: better message *)
   Printf.eprintf

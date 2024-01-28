@@ -11,7 +11,7 @@ open Common
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e.data with
-  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ ->
+  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ | EHandler _ ->
     tr_expr_v env e (fun v -> T.EValue v)
 
   | EApp(e1, e2) ->
@@ -44,21 +44,23 @@ let rec tr_expr env (e : S.expr) =
     tr_expr_v env me (fun v ->
     PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 
-  | EHandle(a, x, e, h, tp, eff) ->
+  | EHandle(a, x, e, he, tp, eff) ->
+    tr_expr_v env he (fun hv ->
     let l   = Var.fresh () in
     let tp  = Type.tr_ttype env tp in
     let eff = Type.tr_effect env eff in
-    let h   = tr_h_expr env (T.VVar l) h in
     let (env, Ex a) = Env.add_tvar env a in
+    let hx  = Var.fresh () in
     let rx     = Var.fresh () in
     let r_body = T.EValue (T.VVar rx) in
     begin match T.TVar.kind a with
     | KEffect ->
       T.ELabel(a, l, tp, eff,
-        T.ELet(x, h,
-          T.EReset(T.VVar l, tr_expr env e, rx, r_body)))
+        T.ELet(hx, T.ETApp(hv, T.TVar a),
+          T.ELet(x, T.EApp(T.VVar hx, T.VVar l),
+            T.EReset(T.VVar l, tr_expr env e, rx, r_body))))
     | KType | KArrow _ -> failwith "Internal kind error"
-    end
+    end)
 
   | ERepl(func, tp, eff) ->
     let tp  = Type.tr_ttype  env tp  in
@@ -71,7 +73,7 @@ let rec tr_expr env (e : S.expr) =
 (** Translate expression and store result in variable [x] bound in [rest] *)
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
-  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ ->
+  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ | EHandler _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _ | EHandle _
@@ -110,6 +112,19 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr_v env e cont)
 
+  | EHandler(a, tp, eff, h) ->
+    let (env, Ex a) = Env.add_tvar env a in
+    begin match T.TVar.kind a with
+    | KEffect ->
+      let tp  = Type.tr_ttype  env tp in
+      let eff = Type.tr_effect env eff in
+      let l   = Var.fresh ~name:"lbl" () in
+      cont (T.VTFun(a, T.EValue(T.VFn(l, TLabel(TVar a, tp, eff),
+        tr_h_expr env (T.VVar l) h))))
+    | _ ->
+      failwith "Internal kind error"
+    end
+
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)
 
@@ -127,7 +142,7 @@ and tr_expr_vs env es cont =
 and tr_h_expr env lbl (h : S.h_expr) =
   match h.data with
   | HEffect(tp_in, tp_out, x, r, body) ->
-    let tp_in  = Type.tr_ttype env tp_in  in
+    let tp_in  = Type.tr_scheme env tp_in in
     let tp_out = Type.tr_ttype env tp_out in
     T.EValue (T.VFn(x, tp_in, T.EShift(lbl, r, tr_expr env body, tp_out)))
 
