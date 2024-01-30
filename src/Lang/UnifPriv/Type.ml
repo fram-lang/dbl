@@ -21,7 +21,7 @@ let rec kind tp =
   | TUVar(_, u) -> UVar.kind u
   | TVar      x -> TVar.kind x
   | TEffect   _ -> KindBase.k_effect
-  | TUnit | TPureArrow _ | TArrow _ | THandler _ -> KindBase.k_type
+  | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ -> KindBase.k_type
   | TApp(tp, _) ->
     begin match KindBase.view (kind tp) with
     | KArrow(_, k) -> k
@@ -50,7 +50,7 @@ let open_effect_up ~scope eff =
 
 let rec open_down ~scope tp =
   match view tp with
-  | TUnit | TUVar _ | TVar _ | TApp _ -> tp
+  | TUnit | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
   | TPureArrow(sch, tp2) ->
     t_pure_arrow (open_scheme_up ~scope sch) (open_down ~scope tp2)
   | TArrow(sch, tp2, eff) ->
@@ -73,7 +73,7 @@ and open_scheme_down ~scope sch =
 
 and open_up ~scope tp =
   match view tp with
-  | TUnit | TUVar _ | TVar _ | TApp _ -> tp
+  | TUnit | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
   | TPureArrow(sch, tp2) ->
     t_pure_arrow (open_scheme_down ~scope sch) (open_up ~scope tp2)
   | TArrow(sch, tp2, eff) ->
@@ -107,6 +107,8 @@ let rec contains_uvar u tp =
     scheme_contains_uvar u sch || contains_uvar u tp2 || contains_uvar u eff
   | THandler(_, tp, tp0, eff0) ->
     contains_uvar u tp || contains_uvar u tp0 || contains_uvar u eff0
+  | TLabel(eff, tp0, eff0) ->
+    contains_uvar u eff || contains_uvar u tp0 || contains_uvar u eff0
   | TEffect(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
     contains_uvar u tp1 || contains_uvar u tp2
 
@@ -126,6 +128,8 @@ let rec collect_uvars tp uvs =
     collect_scheme_uvars sch (collect_uvars tp2 (collect_uvars eff uvs))
   | THandler(_, tp, tp0, eff0) ->
     collect_uvars tp (collect_uvars tp0 (collect_uvars eff0 uvs))
+  | TLabel(eff, tp0, eff0) ->
+    collect_uvars eff (collect_uvars tp0 (collect_uvars eff0 uvs))
 
 and collect_scheme_uvars sch uvs =
   let uvs =
@@ -177,6 +181,10 @@ and shrink_scope ~scope tp =
   | THandler(a, tp, tp0, eff0) ->
     let scope = Scope.add scope a in
     shrink_scope ~scope tp;
+    shrink_scope ~scope tp0;
+    shrink_scope ~scope eff0
+  | TLabel(eff, tp0, eff0) ->
+    shrink_scope ~scope eff;
     shrink_scope ~scope tp0;
     shrink_scope ~scope eff0
   | TApp(tp1, tp2) ->

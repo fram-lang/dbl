@@ -103,7 +103,11 @@ let rec check_subeffect env eff1 eff2 =
       | EEUVar(p2, u2) when T.UVar.equal u1 u2 ->
         T.UVar.filter_scope u1 (T.TVar.Perm.agree_on p1 p2)
       | _ ->
-        (** TODO: add constraint *)
+        (** TODO: add constraint, instead of such combinations *)
+        let scope = T.Scope.perm p1 (T.UVar.scope u1) in
+        let (xs, ee) = T.Type.effect_view eff2 in
+        let eff2 =
+          T.Type.t_effect (T.TVar.Set.filter (T.Scope.mem scope) xs) ee in
         set_uvar env p1 u1 eff2
       end
   | EffVar x1 ->
@@ -135,6 +139,11 @@ and unify_at_kind env tp1 tp2 k =
 
 and unify env tp1 tp2 =
   match T.Type.view tp1, T.Type.view tp2 with
+  | TEffect _, _ | _, TEffect _ ->
+    (* To unify types that may possibly be effects, use [unify_at_kind]
+      function. *)
+    assert false
+
   | TUVar(p1, u1), TUVar(p2, u2) when T.UVar.equal u1 u2 ->
     T.UVar.filter_scope u1 (T.TVar.Perm.agree_on p1 p2)
   | TUVar(p, u), _ ->
@@ -149,27 +158,23 @@ and unify env tp1 tp2 =
       set_uvar env p u tp1
 
   | TUnit, TUnit -> ()
-  | TUnit, (TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TUnit, _ -> raise Error
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
     else raise Error
-  | TVar _, (TUnit | TPureArrow _ | TArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TVar _, _ -> raise Error
 
   | TPureArrow(atp1, vtp1), TPureArrow(atp2, vtp2) ->
     unify_scheme env atp1 atp2;
     unify env vtp1 vtp2
-  | TPureArrow _, (TUnit | TVar _ | TArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TPureArrow _, _ -> raise Error
 
   | TArrow(atp1, vtp1, eff1), TArrow(atp2, vtp2, eff2) ->
     unify_scheme env atp1 atp2;
     unify env vtp1 vtp2;
     unify_at_kind env eff1 eff2 T.Kind.k_effect
-  | TArrow _, (TUnit | TVar _ | TPureArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TArrow _, _ -> raise Error
 
   | THandler(a1, tp1, rtp1, reff1), THandler(a2, tp2, rtp2, reff2) ->
     let (env, a) = Env.add_anon_tvar env (T.Kind.k_cleffect) in
@@ -179,8 +184,13 @@ and unify env tp1 tp2 =
     unify env (T.Type.subst sub1 rtp1) (T.Type.subst sub2 rtp2);
     unify_at_kind env
       (T.Type.subst sub1 reff1) (T.Type.subst sub2 reff2) T.Kind.k_effect
-  | THandler _, (TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _) ->
-    raise Error
+  | THandler _, _ -> raise Error
+
+  | TLabel(eff1, rtp1, reff1), TLabel(eff2, rtp2, reff2) ->
+    unify_at_kind env eff1 eff2 T.Kind.k_effect;
+    unify env rtp1 rtp2;
+    unify_at_kind env reff1 reff2 T.Kind.k_effect;
+  | TLabel _, _ -> raise Error
 
   | TApp(ftp1, atp1), TApp(ftp2, atp2) ->
     let k1 = T.Type.kind atp1 in
@@ -188,13 +198,7 @@ and unify env tp1 tp2 =
     check_kind_equal k1 k2;
     unify env ftp1 ftp2;
     unify_at_kind env atp1 atp2 k1
-  | TApp _, (TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _) ->
-    raise Error
-
-  | TEffect _, _ | _, TEffect _ ->
-    (* To unify types that may possibly be effects, use [unify_at_kind]
-      function. *)
-    assert false
+  | TApp _, _ -> raise Error
 
 and unify_scheme env sch1 sch2 =
   if List.length sch1.sch_named <> List.length sch2.sch_named then
@@ -215,6 +219,9 @@ and unify_scheme env sch1 sch2 =
 
 let rec check_subtype env tp1 tp2 =
   match T.Type.view tp1, T.Type.view tp2 with
+  | TEffect _, _ | _, TEffect _ ->
+    failwith "Internal kind error"
+
   | TUVar(p1, u1), TUVar(p2, u2) when T.UVar.equal u1 u2 ->
     T.UVar.filter_scope u1 (T.TVar.Perm.agree_on p1 p2)
   | TUVar(p, u), _ ->
@@ -229,14 +236,12 @@ let rec check_subtype env tp1 tp2 =
       set_uvar env p u (T.Type.open_up ~scope:(Env.scope env) tp1)
 
   | TUnit, TUnit -> ()
-  | TUnit, (TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TUnit, _ -> raise Error
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
     else raise Error
-  | TVar _, (TUnit | TPureArrow _ | TArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TVar _, _ -> raise Error
 
   | TPureArrow(atp1, vtp1), TPureArrow(atp2, vtp2) ->
     check_subscheme env atp2 atp1; (* contravariant *)
@@ -244,14 +249,13 @@ let rec check_subtype env tp1 tp2 =
   | TPureArrow(atp1, vtp1), TArrow(atp2, vtp2, _) ->
     check_subscheme env atp2 atp1; (* contravariant *)
     check_subtype env vtp1 vtp2
-  | TPureArrow _, (TUnit | TVar _ | THandler _ | TApp _) -> raise Error
+  | TPureArrow _, _ -> raise Error
 
   | TArrow(atp1, vtp1, eff1), TArrow(atp2, vtp2, eff2) ->
     check_subscheme env atp2 atp1; (* contravariant *)
     check_subtype env vtp1 vtp2;
     check_subeffect env eff1 eff2
-  | TArrow _, (TUnit | TVar _ | TPureArrow _ | THandler _ | TApp _) ->
-    raise Error
+  | TArrow _, _ -> raise Error
 
   | THandler(a1, tp1, rtp1, reff1), THandler(a2, tp2, rtp2, reff2) ->
     let (env, a) = Env.add_anon_tvar env (T.Kind.k_cleffect) in
@@ -261,15 +265,16 @@ let rec check_subtype env tp1 tp2 =
     unify env (T.Type.subst sub1 rtp1) (T.Type.subst sub2 rtp2);
     unify_at_kind env
       (T.Type.subst sub1 reff1) (T.Type.subst sub2 reff2) T.Kind.k_effect
-  | THandler _, (TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _) ->
-    raise Error
+  | THandler _, _ -> raise Error
+
+  | TLabel(eff1, rtp1, reff1), TLabel(eff2, rtp2, reff2) ->
+    unify_at_kind env eff1 eff2 T.Kind.k_effect;
+    unify env rtp1 rtp2;
+    unify_at_kind env reff1 reff2 T.Kind.k_effect
+  | TLabel _, _ -> raise Error
 
   | TApp _, TApp _ -> unify env tp1 tp2
-  | TApp _, (TUnit | TVar _ | TPureArrow _ | THandler _ | TArrow _) ->
-    raise Error
-
-  | TEffect _, _ | _, TEffect _ ->
-    failwith "Internal kind error"
+  | TApp _, _ -> raise Error
 
 and check_subscheme env sch1 sch2 =
   if List.length sch1.sch_named <> List.length sch2.sch_named then
@@ -309,7 +314,6 @@ let subscheme env sch1 sch2 =
 
 let to_arrow env tp =
   match T.Type.view tp with
-  | TUnit | TVar _ | THandler _ | TApp _ -> Arr_No
   | TUVar(p, u) ->
     let sch = T.Scheme.of_type (Env.fresh_uvar env T.Kind.k_type) in
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
@@ -319,15 +323,18 @@ let to_arrow env tp =
   | TPureArrow(sch, tp2)  -> Arr_Pure(sch, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
 
+  | TUnit | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
+
   | TEffect _ ->
     failwith "Internal kind error"
 
 let from_arrow env tp =
   match T.Type.view tp with
-  | TUnit | TVar _ | THandler _ | TApp _ -> Arr_No
   | TUVar _ -> Arr_UVar
   | TPureArrow(tp1, tp2) -> Arr_Pure(tp1, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
+
+  | TUnit | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
 
   | TEffect _ ->
     failwith "Internal kind error"
@@ -345,7 +352,7 @@ let to_handler env tp =
   | THandler(a, tp, tp0, eff0) ->
     H_Handler(a, tp, tp0, eff0)
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _ -> H_No
+  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
   | TEffect _ ->
     failwith "Internal kind error"
@@ -363,7 +370,7 @@ let from_handler env tp =
   | THandler(a, tp, tp0, eff0) ->
     H_Handler(a, tp, tp0, eff0)
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TApp _ -> H_No
+  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
   | TEffect _ ->
     failwith "Internal kind error"

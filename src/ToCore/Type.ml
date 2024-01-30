@@ -71,6 +71,11 @@ and tr_type env tp =
     | _ ->
       failwith "Internal kind error"
     end
+  | TLabel(eff, tp0, eff0) ->
+    let eff  = tr_effect env eff in
+    let tp0  = tr_ttype  env tp0 in
+    let eff0 = tr_effect env eff0 in
+    T.Type.Ex (TLabel(eff, tp0, eff0))
   | TApp(tp1, tp2) ->
     let (Ex tp1) = tr_type env tp1 in
     let (Ex tp2) = tr_type env tp2 in

@@ -64,12 +64,18 @@ let add_poly_implicit env name sch on_use =
 let add_mono_implicit env name tp on_use =
   add_poly_implicit env name (T.Scheme.of_type tp) on_use
 
+let add_the_label env eff tp0 eff0 =
+  add_mono_var env "#label" (T.Type.t_label eff tp0 eff0)
+
 let add_tvar env name kind =
   let x = T.TVar.fresh kind in
   { env with
     tvar_map = StrMap.add name x env.tvar_map;
     scope    = T.Scope.add env.scope x
   }, x
+
+let add_the_effect env =
+  add_tvar env "#effect" T.Kind.k_cleffect
 
 let add_anon_tvar env kind =
   let x = T.TVar.fresh kind in
@@ -93,6 +99,22 @@ let lookup_var env x =
 
 let lookup_implicit env name =
   StrMap.find_opt name env.implicit_map
+
+let scheme_to_label sch =
+  match sch with
+  | { T.sch_targs = []; sch_named = []; sch_body } ->
+    begin match T.Type.view sch_body with
+    | TLabel(eff, tp0, eff0) -> (eff, tp0, eff0)
+    | _ -> assert false
+    end
+  | _ -> assert false
+
+let lookup_the_label env =
+  match lookup_var env "#label" with
+  | None -> None
+  | Some(x, sch) ->
+    let (eff, tp0, eff0) = scheme_to_label sch in
+    Some(x, eff, tp0, eff0)
 
 let lookup_ctor env c =
   StrMap.find_opt c env.ctor_map
@@ -125,6 +147,9 @@ let open_scheme env sch =
       (fun env (name, sch) ->
         let (env, x) =
           match name with
+          | T.NLabel ->
+            let (eff, tp0, eff0) = scheme_to_label sch in
+            add_the_label env eff tp0 eff0
           | T.NVar x -> add_poly_var env x sch
           | T.NImplicit n -> add_poly_implicit env n sch ignore
         in

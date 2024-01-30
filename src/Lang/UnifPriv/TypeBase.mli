@@ -14,11 +14,13 @@ type scope = TVar.Set.t
 
 type tname =
   | TNAnon
+  | TNEffect
   | TNVar of string
 
 type named_tvar = tname * tvar
 
 type name =
+  | NLabel
   | NVar      of string
   | NImplicit of string
 
@@ -40,6 +42,7 @@ type type_view =
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effect
   | THandler   of tvar * typ * typ * effect
+  | TLabel     of effect * typ * effect
   | TApp       of typ * typ
 
 and scheme = {
@@ -72,8 +75,11 @@ val t_pure_arrow : scheme -> typ -> typ
 (** Arrow type *)
 val t_arrow : scheme -> typ -> effect -> typ
 
-(** Type of first class handlers *)
+(** Type of first-class handlers *)
 val t_handler : tvar -> typ -> typ -> effect -> typ
+
+(** Type of first-class label *)
+val t_label : effect -> typ -> effect -> typ
 
 (** Create an effect *)
 val t_effect : TVar.Set.t -> effect_end -> effect
@@ -101,6 +107,10 @@ module UVar : sig
   val kind : t -> kind
 
   val equal : t -> t -> bool
+
+  val uid : t -> UID.t
+
+  val scope : t -> scope
 
   (** Set a unification variable, without checking any constraints. It returns
     expected scope of set type. The first parameter is a permutation attached

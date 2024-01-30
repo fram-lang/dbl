@@ -14,11 +14,13 @@ type scope = TVar.Set.t
 
 type tname =
   | TNAnon
+  | TNEffect
   | TNVar of string
 
 type named_tvar = tname * tvar
 
 type name =
+  | NLabel
   | NVar      of string
   | NImplicit of string
 
@@ -43,6 +45,7 @@ and type_view =
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effect
   | THandler   of tvar * typ * typ * effect
+  | TLabel     of effect * typ * effect
   | TApp       of typ * typ
 
 and effect_end =
@@ -82,11 +85,13 @@ let t_arrow sch tp2 eff = TArrow(sch, tp2, eff)
 
 let t_handler a tp tp0 eff0 = THandler(a, tp, tp0, eff0)
 
+let t_label eff tp0 eff0 = TLabel(eff, tp0, eff0)
+
 let t_app tp1 tp2 = TApp(tp1, tp2)
 
 let perm_name p n =
   match n with
-  | NVar _ | NImplicit _ -> n
+  | NLabel | NVar _ | NImplicit _ -> n
 
 let perm_named_tvar p (n, x) =
   (n, TVar.Perm.apply p x)
@@ -109,12 +114,13 @@ let rec view tp =
     | TApp(tp1, tp2) -> TEffect(xs, EEApp(tp1, tp2))
     | TEffect(ys, ee) -> TEffect(TVar.Set.union xs ys, ee)
 
-    | TUnit | TPureArrow _ | TArrow _ | THandler _ ->
+    | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
       failwith "Internal kind error"
     end
   | TEffect(xs, ee) -> tp
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _ -> tp
+  | TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _
+  | TApp _ -> tp
 
 and perm p tp =
   if TVar.Perm.is_identity p then tp
@@ -136,6 +142,8 @@ and perm_rec p tp =
   | THandler(a, tp, tp0, eff0) ->
     THandler(TVar.Perm.apply p a,
       perm_rec p tp, perm_rec p tp0, perm_rec p eff0)
+  | TLabel(eff, tp0, eff0) ->
+    TLabel(perm_rec p tp, perm_rec p tp0, perm_rec p eff0)
   | TApp(tp1, tp2) ->
     TApp(perm_rec p tp1, perm_rec p tp2)
 
@@ -172,7 +180,7 @@ let effect_view eff =
 
   | TEffect(xs, ee) -> (xs, ee)
 
-  | TUnit | TPureArrow _ | TArrow _ | THandler _ ->
+  | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
     failwith "Internal kind error"
 
 module UVar = struct
@@ -192,6 +200,10 @@ module UVar = struct
   let kind u = u.kind
 
   let equal u1 u2 = u1 == u2
+
+  let uid u = u.uid
+
+  let scope u = BRef.get u.scope
 
   let raw_set p u tp =
     match BRef.get u.state with

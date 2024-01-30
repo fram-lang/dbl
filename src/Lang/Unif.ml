@@ -80,14 +80,11 @@ and expr_data =
   | EMatchEmpty of expr * expr * typ * effect
   | EMatch      of expr * match_clause list * typ * effect
   | EHandle     of tvar * var * expr * expr * typ * effect
-  | EHandler    of tvar * typ * effect * h_expr
+  | EHandler    of tvar * var * typ * effect * expr
+  | EEffect     of expr * var * expr * typ
   | ERepl       of (unit -> expr) * typ * effect
   | EReplExpr   of expr * string * expr
 
 and match_clause = pattern * expr
-
-and h_expr = h_expr_data node
-and h_expr_data =
-  | HEffect of scheme * typ * var * var * expr
 
 type program = expr

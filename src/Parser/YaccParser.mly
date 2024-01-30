@@ -125,7 +125,8 @@ ctor_decl_list
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_simple_list1 ARROW2 expr { make (EFn($2, $4))   }
-| KW_EFFECT LID SLASH LID ARROW2 expr { make (EEffect($2, $4, $6)) }
+| KW_EFFECT expr_simple_list SLASH expr ARROW2 expr
+    { make (EEffect($2, $4, $6)) }
 | KW_HANDLER expr { make (EHandler $2) }
 | expr_10 { $1 }
 ;
@@ -154,8 +155,12 @@ expr_simple
 ;
 
 expr_simple_list1
-: expr_simple { [ $1 ] }
-| expr_simple expr_simple_list1 { $1 :: $2 }
+: expr_simple expr_simple_list { $1 :: $2 }
+;
+
+expr_simple_list
+: /* empty */ { [] }
+| expr_simple expr_simple_list { $1 :: $2 }
 ;
 
 /* ========================================================================= */

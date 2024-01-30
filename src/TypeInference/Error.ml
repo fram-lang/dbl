@@ -17,6 +17,12 @@ let report () =
 
 let warn () = ()
 
+let string_of_name (name : Lang.Unif.name) =
+  match name with
+  | NLabel -> "the effect label"
+  | NImplicit n -> Printf.sprintf "implicit parameter %s" n
+  | NVar x      -> Printf.sprintf "named parameter %s" x
+
 let kind_mismatch ~pos k1 k2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Kind mismatch\n"
@@ -48,6 +54,10 @@ let unbound_named_param ~pos x =
   Printf.eprintf "%s: error: Cannot implicitly provide a parameter of name %s\n"
     (Position.to_string pos) x
 
+let unbound_the_label ~pos =
+  Printf.eprintf "%s: error: There is no default label in this context\n"
+    (Position.to_string pos)
+
 let expr_type_mismatch ~pos ~env tp1 tp2 =
   (* TODO: better message *)
   Printf.eprintf "%s: error: Type mismatch\n"
@@ -78,6 +88,11 @@ let func_not_pure ~pos =
     "%s: error: Cannot ensure that this function is pure and always terminates.\n"
     (Position.to_string pos)
 
+let impure_handler ~pos =
+  Printf.eprintf
+    "%s: error: Cannot ensure that this handler expression is pure and always terminates.\n"
+    (Position.to_string pos)
+
 let expr_not_function ~pos ~env tp =
   (* TODO: better message *)
   Printf.eprintf
@@ -103,12 +118,6 @@ let expr_not_handler_ctx ~pos ~env tp =
     "%s: error: This expression should not be a handler.\n"
     (Position.to_string pos)
 
-let handler_in_pure_arrow_ctx ~pos ~env tp =
-  (* TODO: better message *)
-  Printf.eprintf
-    "%s: error: Effect handler in a context, that expects pure function.\n"
-    (Position.to_string pos)
-  
 let empty_match_on_non_adt ~pos ~env tp =
   (* TODO: better message *)
   Printf.eprintf
@@ -138,23 +147,18 @@ let non_polymorphic_pattern ~pos =
     "%s: error: This pattern cannot match polymorphic values.\n"
     (Position.to_string pos)
 
-let looping_named_param ~pos (name : Lang.Unif.name) =
-  let nn =
-    match name with
-    | NVar x -> Printf.sprintf "named parameter %s" x
-    | NImplicit n -> Printf.sprintf "implicit %s" n
-  in
+let looping_named_param ~pos name =
   (* TODO: better message *)
   Printf.eprintf
     "%s: error: Resolving of %s leads to an infinite loop.\n"
     (Position.to_string pos)
-    nn
+    (string_of_name name)
 
-let implicit_type_mismatch ~pos ~env name tp1 tp2 =
+let named_param_type_mismatch ~pos ~env name tp1 tp2 =
   (* TODO: better message *)
-  Printf.eprintf "%s: error: Type mismatch of implicit %s\n"
+  Printf.eprintf "%s: error: Type mismatch of %s\n"
     (Position.to_string pos)
-    name
+    (string_of_name name)
 
 let ctor_redefinition ~pos ~ppos name =
   Printf.eprintf "%s: error: Constructor %s is defined more than once.\n"
@@ -223,15 +227,10 @@ let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   Printf.eprintf "%s: note: Here is a previous parameter with this name.\n"
     (Position.to_string ppos)
 
-let multiple_name_binders ~pos1 ~pos2 (name : Lang.Unif.name) =
-  let nn =
-    match name with
-    | NImplicit n -> Printf.sprintf "Implicit %s" n
-    | NVar      x -> Printf.sprintf "Variable %s" x
-  in
+let multiple_name_binders ~pos1 ~pos2 name =
   Printf.eprintf "%s: error: %s is bound more than once in the same pattern.\n"
     (Position.to_string pos2)
-    nn;
+    (string_of_name name);
   Printf.eprintf "%s: note: Here is a previous binding.\n"
     (Position.to_string pos1)
 
@@ -244,32 +243,23 @@ let ctor_arity_mismatch ~pos cname req_n prov_n =
 let redundant_named_type ~pos (name : Lang.Unif.tname) =
   let nn =
     match name with
-    | TNAnon  -> assert false
-    | TNVar x -> x
-  in
-  Printf.eprintf
-    "%s: warning: Providing type %s to a function that do not expect it.\n"
-    (Position.to_string pos)
-    nn
-
-let redundant_named_parameter ~pos (name : Lang.Unif.name) =
-  let nn =
-    match name with
-    | NImplicit n -> Printf.sprintf "implicit parameter %s" n
-    | NVar      x -> Printf.sprintf "named parameter %s" x
+    | TNEffect -> "the effect"
+    | TNAnon   -> assert false
+    | TNVar x  -> Printf.sprintf "type %s" x
   in
   Printf.eprintf
     "%s: warning: Providing %s to a function that do not expect it.\n"
     (Position.to_string pos)
     nn
 
-let redundant_named_pattern ~pos (name : Lang.Unif.name) =
-  let nn =
-    match name with
-    | NImplicit n -> Printf.sprintf "implicit parameter %s" n
-    | NVar      x -> Printf.sprintf "named parameter %s" x
-  in
+let redundant_named_parameter ~pos name =
+  Printf.eprintf
+    "%s: warning: Providing %s to a function that do not expect it.\n"
+    (Position.to_string pos)
+    (string_of_name name)
+
+let redundant_named_pattern ~pos name =
   Printf.eprintf
     "%s: warning: Providing %s to a constructor that do not expect it.\n"
     (Position.to_string pos)
-    nn
+    (string_of_name name)

@@ -300,8 +300,12 @@ let rec tr_expr (e : Raw.expr) =
   | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
-  | EHandler h     -> make (EHandler(tr_h_expr h))
-  | EWildcard | EEffect _ | ERecord _ | EAnnot _ ->
+  | EHandler h     -> make (EHandler (tr_expr h))
+  | EEffect(es, rp, e) ->
+    make (tr_function es
+      { pos  = Position.join rp.pos e.pos;
+        data = EEffect(tr_function_arg rp, tr_expr e)}).data
+  | EWildcard | ERecord _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_match_clause (cl : Raw.match_clause) =
@@ -309,17 +313,6 @@ and tr_match_clause (cl : Raw.match_clause) =
   match cl.data with
   | Clause(pat, body) ->
     make (Clause(tr_pattern pat [], tr_expr body))
-
-and tr_h_expr (h : Raw.expr) =
-  let make data = { h with data = data } in
-  match h.data with
-  | EParen h -> make (tr_h_expr h).data
-  | EEffect(x, r, e) ->
-    make (HEffect(x, r, tr_expr e))
-
-  | EWildcard | EUnit | EVar _ | EImplicit _ | ECtor _ | EFn _ | EApp _
-  | EDefs _ | EMatch _ | EHandler _ | ERecord _ | EAnnot _ ->
-    Error.fatal (Error.desugar_error h.pos)
 
 and tr_explicit_inst (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -357,8 +350,7 @@ and tr_def (def : Raw.def) =
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
   | DHandle(pat, h) ->
-    make (DHandlePat(tr_pattern pat [], 
-      { h with data = EHandler(tr_h_expr h)}))
+    make (DHandlePat(tr_pattern pat [], { h with data = EHandler(tr_expr h) }))
   | DHandleWith(pat, e) ->
     make (DHandlePat(tr_pattern pat [], tr_expr e))
 

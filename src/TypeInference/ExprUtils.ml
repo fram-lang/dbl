@@ -101,26 +101,36 @@ and instantiate_named_params_loop ~nset ?(inst=[]) env e named =
 
 and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
   if T.Name.Set.mem name nset then
-    Error.fatal (Error.looping_named_param ~pos:e.pos name)
-  else match T.Name.assoc name inst, name with
+    Error.fatal (Error.looping_named_param ~pos:e.pos name);
+  let nset = T.Name.Set.add name nset in
+  let instantiate_with_var x sch =
+    let (env, tvs, named, tp) = Env.open_scheme env isch in
+    let arg = { T.pos = e.pos; T.data = T.EVar x } in
+    let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
+    let arg = make_tfun tvs (make_nfun named arg) in
+    if Unification.subtype env arg_tp tp then
+      { T.pos = e.pos; T.data = T.EApp(e, arg) }
+    else
+      Error.fatal
+        (Error.named_param_type_mismatch ~pos:e.pos ~env name arg_tp tp)
+  in
+  match T.Name.assoc name inst, name with
   | Some arg, _ ->
     { T.pos = e.pos; T.data = T.EApp(e, arg) }
   | None, T.NImplicit iname ->
-    let nset = T.Name.Set.add name nset in
     begin match Env.lookup_implicit env iname with
     | Some(x, sch, on_use) ->
       on_use e.pos;
-      let (env, tvs, named, tp) = Env.open_scheme env isch in
-      let arg = { T.pos = e.pos; T.data = T.EVar x } in
-      let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
-      let arg = make_tfun tvs (make_nfun named arg) in
-      if Unification.subtype env arg_tp tp then
-        { T.pos = e.pos; T.data = T.EApp(e, arg) }
-      else
-        Error.fatal
-          (Error.implicit_type_mismatch ~pos:e.pos ~env iname arg_tp tp)
+      instantiate_with_var x sch
     | None ->
       Error.fatal (Error.unbound_implicit ~pos:e.pos iname)
+    end
+  | None, T.NLabel ->
+    begin match Env.lookup_the_label env with
+    | Some(x, eff, tp0, eff0) ->
+      instantiate_with_var x (T.Scheme.of_type (T.Type.t_label eff tp0 eff0))
+    | None ->
+      Error.fatal (Error.unbound_the_label ~pos:e.pos)
     end
   | None, T.NVar x ->
     (* TODO: we could provide freshly bound parameters here *)

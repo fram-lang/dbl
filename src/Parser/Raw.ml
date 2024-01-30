@@ -115,9 +115,6 @@ and expr_data =
   | EApp  of expr * expr
     (** Function application *)
 
-  | EEffect of var * var * expr
-    (** Handler of a single operation *)
-
   | EDefs of def list * expr
     (** Local definitions *)
 
@@ -126,6 +123,9 @@ and expr_data =
 
   | EHandler of expr
     (** First-class handler *)
+
+  | EEffect of expr list * expr * expr
+    (** Handler of a single operation *)
 
   | ERecord of field list
     (** Record-like expression, e.g., explicit instantiation of named

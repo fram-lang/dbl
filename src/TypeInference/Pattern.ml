@@ -82,6 +82,10 @@ let rec check_ctor_type_args ~env ~scope ~sub
   implicity bound. *)
 let introduce_implicit_name ~pos env (name : T.name) sch =
   match name with
+  | NLabel ->
+    (* Do not introduce anything. Just create a fresh variable *)
+    (env, T.Name.Map.empty, Var.fresh ~name:"label" ())
+
   | NVar x ->
     (* Do not introduce anything. Just create a fresh variable *)
     (env, T.Name.Map.empty, Var.fresh ~name:x ())

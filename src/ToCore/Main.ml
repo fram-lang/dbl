@@ -62,6 +62,10 @@ let rec tr_expr env (e : S.expr) =
     | KType | KArrow _ -> failwith "Internal kind error"
     end)
 
+  | EEffect(l, x, body, tp) ->
+    tr_expr_v env l (fun lv ->
+    T.EShift(lv, x, tr_expr env body, Type.tr_ttype env tp))
+
   | ERepl(func, tp, eff) ->
     let tp  = Type.tr_ttype  env tp  in
     let eff = Type.tr_effect env eff in
@@ -77,7 +81,7 @@ and tr_expr_as env (e : S.expr) x rest =
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _ | EHandle _
-  | ERepl _ | EReplExpr _ ->
+  | EEffect _ | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -95,7 +99,8 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, Ex x) = Env.add_tvar env x in
     cont (VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ | EMatchEmpty _ | EMatch _ | EHandle _ | ERepl _ ->
+  | EApp _ | ETApp _ | EMatchEmpty _ | EMatch _ | EHandle _ | EEffect _
+  | ERepl _ ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr env e, cont (VVar x))
 
@@ -112,15 +117,14 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr_v env e cont)
 
-  | EHandler(a, tp, eff, h) ->
+  | EHandler(a, lx, tp, eff, h) ->
     let (env, Ex a) = Env.add_tvar env a in
     begin match T.TVar.kind a with
     | KEffect ->
       let tp  = Type.tr_ttype  env tp in
       let eff = Type.tr_effect env eff in
-      let l   = Var.fresh ~name:"lbl" () in
-      cont (T.VTFun(a, T.EValue(T.VFn(l, TLabel(TVar a, tp, eff),
-        tr_h_expr env (T.VVar l) h))))
+      cont (T.VTFun(a, T.EValue(T.VFn(lx, TLabel(TVar a, tp, eff),
+        tr_expr env h))))
     | _ ->
       failwith "Internal kind error"
     end
@@ -137,7 +141,7 @@ and tr_expr_vs env es cont =
     tr_expr_v env  e  (fun v ->
     tr_expr_vs env es (fun vs ->
     cont (v :: vs)))
-
+(*
 (** Translate a handler expression *)
 and tr_h_expr env lbl (h : S.h_expr) =
   match h.data with
@@ -145,7 +149,7 @@ and tr_h_expr env lbl (h : S.h_expr) =
     let tp_in  = Type.tr_scheme env tp_in in
     let tp_out = Type.tr_ttype env tp_out in
     T.EValue (T.VFn(x, tp_in, T.EShift(lbl, r, tr_expr env body, tp_out)))
-
+*)
 (* ========================================================================= *)
 
 let tr_program p =

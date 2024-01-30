@@ -29,6 +29,7 @@ val unbound_implicit : pos:Position.t -> S.iname -> t
 val unbound_constructor : pos:Position.t -> S.ctor_name -> t
 val unbound_type_var : pos:Position.t -> S.tvar -> t
 val unbound_named_param : pos:Position.t -> S.var -> t
+val unbound_the_label : pos:Position.t -> t
 
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
@@ -42,14 +43,13 @@ val func_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
 
 val func_not_pure : pos:Position.t -> t
+val impure_handler : pos:Position.t -> t
 
 val expr_not_function     : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val expr_not_handler : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_handler_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
-
-val handler_in_pure_arrow_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
@@ -61,8 +61,8 @@ val non_polymorphic_pattern : pos:Position.t -> t
 
 val looping_named_param : pos:Position.t -> T.name -> t
 
-val implicit_type_mismatch :
-  pos:Position.t -> env:Env.t -> S.iname -> T.typ -> T.typ -> t
+val named_param_type_mismatch :
+  pos:Position.t -> env:Env.t -> T.name -> T.typ -> T.typ -> t
 
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t

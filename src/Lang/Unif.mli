@@ -29,15 +29,27 @@ type scope
 (** Name of a named type parameter *)
 type tname =
   | TNAnon
+    (** Anonymous parameter *)
+
+  | TNEffect
+    (** Effect variable associated with effect handler *)
+
   | TNVar of string
+    (** Regular named type parameter *)
 
 (** Named type parameter *)
 type named_tvar = tname * tvar
 
 (** Name of a named parameter *)
 type name =
+  | NLabel
+    (** Dynamic label of a handler *)
+
   | NVar      of string
+    (** Regular named parameter *)
+
   | NImplicit of string
+    (** Implicit parameter *)
 
 (** Types.
 
@@ -167,14 +179,20 @@ and expr_data =
       handled expression, handler body, and type and effect of the whole
       handler expression *)
 
-  | EHandler of tvar * typ * effect * h_expr
-    (** First-class handler. In [EHandler(a, tp, eff, h)] the meaning of
+  | EHandler of tvar * var * typ * effect * expr
+    (** First-class handler. In [EHandler(a, lx, tp, eff, h)] the meaning of
       parameter is the following:
       - [a] -- binder of an effect variable (of kind cleffect). The variable
         is bound in other arguments of [EHandler] expression.
+      - [lx] -- label variable bound by the handler. Its type should be
+        [TLabel(Effect.singleton a, tp, eff)].
       - [tp] -- type of the delimiter ([EHandle]).
       - [eff] -- effect of the delimiter.
       - [h] -- body of the handler. *)
+
+  | EEffect of expr * var * expr * typ
+    (** Capability of effectful functional operation. It stores dynamic label,
+      continuation variable, body, and the type of the whole expression. *)
 
   | ERepl of (unit -> expr) * typ * effect
     (** REPL. It is a function that prompts user for another input. It returns
@@ -187,14 +205,6 @@ and expr_data =
 
 (** Clause of a pattern matching *)
 and match_clause = pattern * expr
-
-(** Handler expressions *)
-and h_expr = h_expr_data node
-and h_expr_data =
-  | HEffect of scheme * typ * var * var * expr
-    (** Handler of effectful functional operation. It stores input scheme,
-      output type, formal parameter, resumption formal parameter, and the
-      body. *)
 
 (** Program *)
 type program = expr
@@ -269,6 +279,9 @@ module TVar : sig
   (** Check type variables for equality *)
   val equal : tvar -> tvar -> bool
 
+  (** Get the unique identifier *)
+  val uid : tvar -> UID.t
+
   (** Finite sets of type variables *)
   module Set : Set.S with type elt = tvar
 
@@ -290,6 +303,12 @@ module Scope : sig
 
   (** Extend scope with a named type variable *)
   val add_named : scope -> named_tvar -> scope
+
+  (** Check if a variable is a member of a scope *)
+  val mem : scope -> tvar -> bool
+
+  (** Apply permutation to a scope *)
+  val perm : TVar.Perm.t -> scope -> scope
 end
 
 (* ========================================================================= *)
@@ -299,6 +318,12 @@ module UVar : sig
 
   (** Check unification variables for equality *)
   val equal : t -> t -> bool
+
+  (** Get a unique identifier *)
+  val uid : t -> UID.t
+
+  (** Get a scope of a unification variable *)
+  val scope : t -> scope
 
   (** Set a unification variable, without checking any constraints. It returns
     expected scope of set type. The first parameter is a permutation attached
@@ -383,6 +408,10 @@ module Type : sig
         - [a] is a variable bound in [tp], [tp0], and [eff0];
         - [tp] is a type of provided capability;
         - [tp0] and [eff0] are type and effects of the whole delimiter. *)
+  
+    | TLabel of effect * typ * effect
+      (** Type of first-class label. It stores the effect of the label and
+        type and effect of the delimiter. *)
 
     | TApp of typ * typ
       (** Type application *)
@@ -415,6 +444,9 @@ module Type : sig
     | Whnf_Handler of tvar * typ * typ * effect
       (** Handler type *)
 
+    | Whnf_Label of effect * typ * effect
+      (** Label type *)
+
   (** Unit type *)
   val t_unit : typ
 
@@ -433,8 +465,11 @@ module Type : sig
   (** Arrow type *)
   val t_arrow : scheme -> typ -> effect -> typ
 
-  (** Type of first class handlers *)
+  (** Type of first-class handlers *)
   val t_handler : tvar -> typ -> typ -> effect -> typ
+
+  (** Type of first-class label *)
+  val t_label : effect -> typ -> effect -> typ
 
   (** Create an effect *)
   val t_effect : TVar.Set.t -> effect_end -> effect

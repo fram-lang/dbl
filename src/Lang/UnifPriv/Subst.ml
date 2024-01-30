@@ -54,7 +54,7 @@ let in_uvar sub p u =
 
 let in_name sub n =
   match n with
-  | NVar _ | NImplicit _ -> n
+  | NLabel | NVar _ | NImplicit _ -> n
 
 (* TODO: write a bit about how substitution in effects is handled *)
 let in_effvar sub x ys =
@@ -72,7 +72,7 @@ let in_effvar sub x ys =
       (* Substitution of non-closed effect for variable of kind cleffect *)
       assert false
 
-    | TUnit | TPureArrow _ | TArrow _ | THandler _ ->
+    | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
       failwith "Internal kind error"
     end
 
@@ -113,6 +113,8 @@ and in_type_rec sub tp =
     let (sub, a) = add_tvar sub a in
     t_handler a (in_type_rec sub tp)
       (in_type_rec sub tp0) (in_type_rec sub eff0)
+  | TLabel(eff, tp0, eff0) ->
+    t_label (in_type_rec sub eff) (in_type_rec sub tp0) (in_type_rec sub eff0)
   | TApp(tp1, tp2) ->
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
 

@@ -45,8 +45,17 @@ val add_poly_implicit :
 val add_mono_implicit :
   t -> S.iname -> T.typ -> (Position.t -> unit) -> t * T.var
 
+(** Extend an environment with a variable labeled with "label". Such a
+  variable always have a label type. All components of the label type should
+  be passed as a parameters. *)
+val add_the_label : t -> T.effect -> T.typ -> T.effect -> t * T.var
+
 (** Extend an environment with a named type variable *)
 val add_tvar : t -> S.tvar -> T.kind -> t * T.tvar
+
+(** Extend an environment with a type variable labeled with "effect". Such
+  a type always have [cleffect] kind. *)
+val add_the_effect : t -> t * T.tvar
 
 (** Extend an environment with an anonymous type variable *)
 val add_anon_tvar : t -> T.kind -> t * T.tvar
@@ -65,6 +74,10 @@ val lookup_var : t -> S.var -> (T.var * T.scheme) option
   implicit. Returns [None] if implicit is not bound. *)
 val lookup_implicit :
   t -> S.var -> (T.var * T.scheme * (Position.t -> unit)) option
+
+(** Lookup for variable labeled with "label". On success, returns the variable
+  together with its label-type components *)
+val lookup_the_label : t -> (T.var * T.effect * T.typ * T.effect) option
 
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and

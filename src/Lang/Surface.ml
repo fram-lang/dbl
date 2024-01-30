@@ -161,8 +161,12 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
-  | EHandler of h_expr
+  | EHandler of expr
     (** First-class handler *)
+
+  | EEffect of arg * expr
+    (** Effectful operation. The only argument is a continuation. Other
+      arguments should be bound using regular lambda abstractions ([EFn]). *)
 
   | ERepl of def Seq.t
     (** REPL. It is a lazy sequence of definitions provided by a user. *)
@@ -183,8 +187,7 @@ and def_data =
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
   | DHandlePat of pattern * expr
-    (** Effect handler combined with pattern-matching on capability.
-      Always monomorphic *)
+    (** Effect handler combined with pattern-matching *)
 
   | DImplicit of iname
     (** Declaration of implicit *)
@@ -203,12 +206,6 @@ and def_data =
 and match_clause = match_clause_data node
 and match_clause_data =
   | Clause of pattern * expr
-
-(** Handler expressions *)
-and h_expr = h_expr_data node
-and h_expr_data =
-  | HEffect of var * var * expr
-    (** Handler of a single operation *)
 
 (** Program *)
 type program = expr

@@ -1,0 +1,14 @@
+data Unit = I
+
+data State E X = State of
+  { get    : Unit ->[|E] X
+  , put    : X ->[|E] Unit
+  , update : (X ->[|E] X) ->[|E] Unit
+  }
+
+let hState = handler
+  let get I = effect / r => fn s => r s s
+  let put s = effect / r => fn s => r I s
+  let update f = put (f (get I))
+  in
+  State { get, put, update }

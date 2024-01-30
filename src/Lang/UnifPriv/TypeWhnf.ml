@@ -20,6 +20,7 @@ type whnf =
   | Whnf_PureArrow of scheme * typ
   | Whnf_Arrow     of scheme * typ * effect
   | Whnf_Handler   of tvar * typ * typ * effect
+  | Whnf_Label     of effect * typ * effect
 
 let rec whnf tp =
   match view tp with
@@ -30,11 +31,12 @@ let rec whnf tp =
   | TPureArrow(sch, tp) -> Whnf_PureArrow(sch, tp)
   | TArrow(sch, tp, eff) -> Whnf_Arrow(sch, tp, eff)
   | THandler(a, tp, tp0, eff0) -> Whnf_Handler(a, tp, tp0, eff0)
+  | TLabel(eff, tp0, eff0)     -> Whnf_Label(eff, tp0, eff0)
   | TApp(tp1, tp2) ->
     begin match whnf tp1 with
     | Whnf_Neutral(h, args) -> Whnf_Neutral(h, tp2 :: args)
 
     | Whnf_Unit | Whnf_Effect _ | Whnf_PureArrow _ | Whnf_Arrow _
-    | Whnf_Handler _ ->
+    | Whnf_Handler _ | Whnf_Label _ ->
       failwith "Internal kind error"
     end

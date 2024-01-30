@@ -21,6 +21,8 @@ val clone : t -> t
 
 val equal : t -> t -> bool
 
+val uid : t -> UID.t
+
 module Set  : Set.S with  type elt = t
 module Map  : Map.S with  type key = t
 module Perm : Perm.S with type key = t and module KeySet = Set

@@ -29,6 +29,8 @@ let clone x = fresh (kind x)
 
 let equal x y = x == y
 
+let uid x = x.uid
+
 module Set  = Set.Make(Ordered)
 module Map  = Map.Make(Ordered)
 module Perm = Perm.Make(Ordered)(Set)
