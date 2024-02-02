@@ -56,8 +56,11 @@ type name =
   This is an abstract type. Use [Type.view] to view it. *)
 type typ
 
-(** Effects. They are represented as types effect kind *)
+(** Effects. They are represented as types effect kind. Always ground. *)
 type effect = typ
+
+(** Effect rows. *)
+type effrow = typ
 
 (** Polymorphic type scheme *)
 type scheme = {
@@ -166,23 +169,23 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
-  | EMatchEmpty of expr * expr * typ * effect
+  | EMatchEmpty of expr * expr * typ * effrow
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression, that is a witness that the type of the second
       parameter is an empty ADT *)
 
-  | EMatch of expr * match_clause list * typ * effect
+  | EMatch of expr * match_clause list * typ * effrow
     (** Pattern-matching. It stores type and effect of the whole expression. *)
 
-  | EHandle of tvar * var * expr * expr * typ * effect
+  | EHandle of tvar * var * expr * expr * typ * effrow
     (** Handler. It stores handled (abstract) effect, capability variable,
       handled expression, handler body, and type and effect of the whole
       handler expression *)
 
-  | EHandler of tvar * var * typ * effect * expr
+  | EHandler of tvar * var * typ * effrow * expr
     (** First-class handler. In [EHandler(a, lx, tp, eff, h)] the meaning of
       parameter is the following:
-      - [a] -- binder of an effect variable (of kind cleffect). The variable
+      - [a] -- binder of an effect variable (of kind [effect]). The variable
         is bound in other arguments of [EHandler] expression.
       - [lx] -- label variable bound by the handler. Its type should be
         [TLabel(Effect.singleton a, tp, eff)].
@@ -194,7 +197,7 @@ and expr_data =
     (** Capability of effectful functional operation. It stores dynamic label,
       continuation variable, body, and the type of the whole expression. *)
 
-  | ERepl of (unit -> expr) * typ * effect
+  | ERepl of (unit -> expr) * typ * effrow
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
       This constructor stores also type and effect of a REPL expression. *)
@@ -216,8 +219,13 @@ module KUVar : sig
   (** Check for equality *)
   val equal : kuvar -> kuvar -> bool
 
-  (** Set a unification variable *)
-  val set : kuvar -> kind -> unit
+  (** Set a unification variable. Returns false if given kind does not
+    satisfy non-effect constraints. *)
+  val set : kuvar -> kind -> bool
+
+  (** Set a unification variable. This function can be called only on
+    non-effect kinds *)
+  val set_safe : kuvar -> kind -> unit
 end
 
 (* ========================================================================= *)
@@ -229,11 +237,11 @@ module Kind : sig
       (** Kind of all types *)
 
     | KEffect
-      (** Kind of all effects *)
+      (** Kind of all (closed) effects. Closed effects cannot contain
+        unification variables. *)
     
-    | KClEffect
-      (** Kind of all simple effects: only closed rows without unification
-        variables *)
+    | KEffrow
+      (** Kind of all effect rows. *)
 
     | KUVar of kuvar
       (** Unification variable *)
@@ -244,27 +252,44 @@ module Kind : sig
   (** Kind of all types *)
   val k_type : kind
 
-  (** Kind of all effects *)
+  (** Kind of all (closed) effects. Closed effects cannot contain unification
+    variables. *)
   val k_effect : kind
 
-  (** Kind of all simple (closed) effects. These effects cannot contain
-    unification variables. *)
-  val k_cleffect : kind
+  (** Kind of effect rows. Rows contain at most one unification variable or
+    type application. *)
+  val k_effrow : kind
 
-  (** Arrow kind *)
+  (** Arrow kind. The result kind (the second parameter) must be non-effect
+    kind. *)
   val k_arrow : kind -> kind -> kind
 
   (** Create an arrow kind with multiple parameters. *)
   val k_arrows : kind list -> kind -> kind
 
-  (** Create a fresh unification kind variable *)
-  val fresh_uvar : unit -> kind
+  (** Create a fresh unification kind variable. The optional [non_effect]
+    flag indicates whether this kind cannot be instantiated to effect kind.
+    The default value is false, i.e., this kind can be an effect kind. *)
+  val fresh_uvar : ?non_effect:bool -> unit -> kind
 
   (** Reveal a top-most constructor of a kind *)
   val view : kind -> kind_view
 
   (** Check if given kind contains given unification variable *)
   val contains_uvar : kuvar -> kind -> bool
+
+  (** Check if given kind cannot be effect kind, even if it is a unification
+    variable. The main purpose of this function is to use it in assert
+    statements. *)
+  val non_effect : kind -> bool
+
+  (** Check whether given kind is an effect kind (but not unification
+    variable). *)
+  val is_effect : kind -> bool
+
+  (** Add non-effect constraint to given kind. Returns true on success.
+    Returns false if given kind is an effect kind. *)
+  val set_non_effect : kind -> bool
 end
 
 (* ========================================================================= *)
@@ -364,20 +389,20 @@ end
 (** Operations on types *)
 module Type : sig
   (** End of an effect *)
-  type effect_end =
+  type effrow_end =
     | EEClosed
-      (** Closed effect *)
+      (** Closed effect row *)
     
     | EEUVar of TVar.Perm.t * uvar
-      (** Open effect with unification variable at the end. The unification
+      (** Open effect row with unification variable at the end. The unification
         variable is associated with a delayed partial permutation of type
         variables. *)
 
     | EEVar of tvar
-      (** Open effect with type variable at the end *)
+      (** Open effect row with type variable at the end *)
 
     | EEApp of typ * typ
-      (** Type application of an effect kind *)
+      (** Type application of an [effrow] kind *)
 
   (** View of a type *)
   type type_view =
@@ -392,7 +417,10 @@ module Type : sig
     | TVar of tvar
       (** Regular type variable *)
 
-    | TEffect of TVar.Set.t * effect_end
+    | TEffect of TVar.Set.t
+      (** (Ground) effect *)
+
+    | TEffrow of TVar.Set.t * effrow_end
       (** Effect: a set of simple effect variables together with a way of
         closing an effect *)
 
@@ -400,16 +428,16 @@ module Type : sig
       (** Pure arrow, i.e., type of function that doesn't perform any effects
         and always terminate *)
 
-    | TArrow of scheme * typ * effect
+    | TArrow of scheme * typ * effrow
       (** Impure arrow *)
   
-    | THandler of tvar * typ * typ * effect
+    | THandler of tvar * typ * typ * effrow
       (** First class handler. In [THandler(a, tp, tp0, eff0)]:
         - [a] is a variable bound in [tp], [tp0], and [eff0];
         - [tp] is a type of provided capability;
         - [tp0] and [eff0] are type and effects of the whole delimiter. *)
   
-    | TLabel of effect * typ * effect
+    | TLabel of effect * typ * effrow
       (** Type of first-class label. It stores the effect of the label and
         type and effect of the delimiter. *)
 
@@ -435,16 +463,19 @@ module Type : sig
     | Whnf_Effect  of effect
       (** Effect *)
 
+    | Whnf_Effrow of effrow
+      (** Effect rows *)
+
     | Whnf_PureArrow of scheme * typ
       (** Pure arrow *)
   
-    | Whnf_Arrow of scheme * typ * effect
+    | Whnf_Arrow of scheme * typ * effrow
       (** Impure arrow *)
   
-    | Whnf_Handler of tvar * typ * typ * effect
+    | Whnf_Handler of tvar * typ * typ * effrow
       (** Handler type *)
 
-    | Whnf_Label of effect * typ * effect
+    | Whnf_Label of effect * typ * effrow
       (** Label type *)
 
   (** Unit type *)
@@ -463,19 +494,22 @@ module Type : sig
   val t_pure_arrows : scheme list -> typ -> typ
 
   (** Arrow type *)
-  val t_arrow : scheme -> typ -> effect -> typ
+  val t_arrow : scheme -> typ -> effrow -> typ
 
   (** Type of first-class handlers *)
-  val t_handler : tvar -> typ -> typ -> effect -> typ
+  val t_handler : tvar -> typ -> typ -> effrow -> typ
 
   (** Type of first-class label *)
-  val t_label : effect -> typ -> effect -> typ
+  val t_label : effect -> typ -> effrow -> typ
 
   (** Create an effect *)
-  val t_effect : TVar.Set.t -> effect_end -> effect
+  val t_effect : TVar.Set.t -> effect
 
-  (** Create a closed effect *)
-  val t_closed_effect : TVar.Set.t -> effect
+  (** Create an effect row *)
+  val t_effrow : TVar.Set.t -> effrow_end -> effrow
+
+  (** Create a closed effect row *)
+  val t_closed_effrow : TVar.Set.t -> effrow
 
   (** Type application *)
   val t_app : typ -> typ -> typ
@@ -492,9 +526,12 @@ module Type : sig
   (** Compute weak head normal form of a type *)
   val whnf : typ -> whnf
 
-  (** Reveal a representation of an effect: a set of effect variables together
-    with a way of closing an effect. *)
-  val effect_view : effect -> TVar.Set.t * effect_end
+  (** Reveal a representation of an effect: a set of effect variables. *)
+  val effect_view : effect -> TVar.Set.t
+
+  (** Reveal a representation of an effect row: a set of effect variables
+    together with a way of closing an effect row. *)
+  val effrow_view : effrow -> TVar.Set.t * effrow_end
 
   (** Get the kind of given type *)
   val kind : typ -> kind
@@ -532,44 +569,43 @@ end
 (* ========================================================================= *)
 (** Operations on effects *)
 module Effect : sig
-  (** View of effect *)
-  type effect_view =
-    | EffPure
-      (** Pure effect *)
+  (** View of effect row *)
+  type row_view =
+    | RPure
+      (** Pure effect row *)
 
-    | EffUVar of TVar.Perm.t * uvar
+    | RUVar of TVar.Perm.t * uvar
       (** Row unification variable (with delayed permutation) *)
 
-    | EffVar  of tvar
+    | RVar  of tvar
       (** Row variable *)
 
-    | EffApp  of typ * typ
-      (** Type application of an effect kind *)
+    | RApp  of typ * typ
+      (** Type application of an [effrow] kind *)
 
-    | EffCons of tvar * effect
-      (** Consing an simple effect variable to an effect *)
+    | RCons of tvar * effrow
+      (** Consing an simple effect variable to an effect row *)
 
   (** Pure effect row *)
-  val pure : effect
+  val pure : effrow
 
-  (** Effect with single simple effect variable *)
-  val singleton : tvar -> effect
+  (** Effect row with single IO effect *)
+  val io : effrow
 
-  (** Effect with single IO effect *)
-  val io : effect
+  (** Create a row that consists of single effect *)
+  val singleton_row : tvar -> effrow
 
-  (** Consing a simple effect variable to an effect *)
-  val cons : tvar -> effect -> effect
+  (** Consing a simple effect variable to an effect row *)
+  val cons : tvar -> effrow -> effrow
 
-  (** Row-like view of an effect *)
-  val view : effect -> effect_view
+  (** Row-like view of an effect row *)
+  val view : effrow -> row_view
 
-  (** View the end of given effect row. This function never returns value
-    constructed by [EffCons] constructor *)
-  val view_end : effect -> Type.effect_end
+  (** View the end of given effect row. *) 
+  val view_end : effrow -> Type.effrow_end
 
-  (** Check if an effect is pure *)
-  val is_pure : effect -> bool
+  (** Check if an effect row is pure *)
+  val is_pure : effrow -> bool
 end
 
 (* ========================================================================= *)

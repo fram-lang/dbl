@@ -15,15 +15,23 @@ let eff_cons env x eff =
   | KType | KArrow _ ->
     failwith "Internal kind error"
 
-let pack_type (type k) (tp : k T.typ) : T.Type.ex =
-  match T.Type.kind tp with
-  | KEffect ->
-    (* We add nterm effect to all effects in the program *)
-    T.Type.Ex (T.Effect.join tp T.Effect.nterm)
+let pack_type (type k) (k : S.kind) (tp : k T.typ) : T.Type.ex =
+  match S.Kind.view k with
+  | KEffrow ->
+    (* We add nterm effect to all effects rows in the program *)
+    begin match T.Type.kind tp with
+    | KEffect ->
+      T.Type.Ex (T.Effect.join tp T.Effect.nterm)
+    | _ -> assert false
+    end
+  | KUVar u ->
+    let b = S.Kind.set_non_effect k in
+    assert b;
+    T.Type.Ex tp
   | _ ->
     T.Type.Ex tp
 
-let rec tr_effect_end env (eff : S.Type.effect_end) =
+let rec tr_effrow_end env (eff : S.Type.effrow_end) =
   match eff with
   | EEClosed -> T.TEffPure
   | EEUVar _  ->
@@ -50,10 +58,12 @@ and tr_type env tp =
     raise InterpLib.Error.Fatal_error
   | TVar x  ->
     let (Ex x) = Env.lookup_tvar env x in
-    pack_type (TVar x)
-  | TEffect(xs, ee) ->
+    pack_type (S.Type.kind tp) (TVar x)
+  | TEffect xs ->
+    T.Type.Ex (S.TVar.Set.fold (eff_cons env) xs T.TEffPure)
+  | TEffrow(xs, ee) ->
     (* We add nterm effect to all effects in the program *)
-    let eff = S.TVar.Set.fold (eff_cons env) xs (tr_effect_end env ee) in
+    let eff = S.TVar.Set.fold (eff_cons env) xs (tr_effrow_end env ee) in
     T.Type.Ex (T.Effect.join eff T.Effect.nterm)
   | TPureArrow(sch, tp2) ->
     T.Type.Ex (TArrow(tr_scheme env sch, tr_ttype env tp2, TEffPure))
@@ -82,7 +92,7 @@ and tr_type env tp =
     begin match T.Type.kind tp1 with
     | KArrow(k1, _) ->
       begin match T.Kind.equal k1 (T.Type.kind tp2) with
-      | Equal -> pack_type (TApp(tp1, tp2))
+      | Equal -> pack_type (S.Type.kind tp) (TApp(tp1, tp2))
       | NotEqual ->
         failwith "Internal kind error"
       end

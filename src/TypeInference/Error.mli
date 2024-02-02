@@ -22,6 +22,8 @@ val warn : t -> unit
 
 val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 
+val wildcard_in_effect : pos:Position.t -> t
+
 val type_not_function : pos:Position.t -> env:Env.t -> T.kind -> t
 
 val unbound_var : pos:Position.t -> S.var -> t
@@ -33,14 +35,14 @@ val unbound_the_label : pos:Position.t -> t
 
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
-  pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
+  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
 val pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val pattern_annot_mismatch :
   pos:Position.t -> env:Env.t -> T.scheme -> T.scheme -> t
 
 val func_effect_mismatch :
-  pos:Position.t -> env:Env.t -> T.effect -> T.effect -> t
+  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
 val func_not_pure : pos:Position.t -> t
 val impure_handler : pos:Position.t -> t
@@ -55,6 +57,8 @@ val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
+
+val cannot_guess_effect_param : pos:Position.t -> T.tname -> t
 
 val ungeneralizable_implicit : pos:Position.t -> S.iname -> t
 val non_polymorphic_pattern : pos:Position.t -> t

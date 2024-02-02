@@ -48,13 +48,13 @@ val add_mono_implicit :
 (** Extend an environment with a variable labeled with "label". Such a
   variable always have a label type. All components of the label type should
   be passed as a parameters. *)
-val add_the_label : t -> T.effect -> T.typ -> T.effect -> t * T.var
+val add_the_label : t -> T.effect -> T.typ -> T.effrow -> t * T.var
 
 (** Extend an environment with a named type variable *)
 val add_tvar : t -> S.tvar -> T.kind -> t * T.tvar
 
 (** Extend an environment with a type variable labeled with "effect". Such
-  a type always have [cleffect] kind. *)
+  a type always have [effect] kind. *)
 val add_the_effect : t -> t * T.tvar
 
 (** Extend an environment with an anonymous type variable *)
@@ -77,7 +77,7 @@ val lookup_implicit :
 
 (** Lookup for variable labeled with "label". On success, returns the variable
   together with its label-type components *)
-val lookup_the_label : t -> (T.var * T.effect * T.typ * T.effect) option
+val lookup_the_label : t -> (T.var * T.effect * T.typ * T.effrow) option
 
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and
@@ -87,6 +87,10 @@ val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
 val lookup_tvar : t -> S.tvar -> T.tvar option
+
+(** Lookup for the effect variable labeled with "effect". It should always
+  have an effect kind. *)
+val lookup_the_effect : t -> T.tvar option
 
 (** Lookup for ADT definition assigned for given type variable *)
 val lookup_adt : t -> T.tvar -> adt_info option

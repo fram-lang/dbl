@@ -75,22 +75,41 @@ let generalize env tvs2 named e tp =
 
 (* ========================================================================= *)
 
-let guess_type env sub ~tinst (n, tv) =
+let guess_type ~pos env sub ~tinst ((n : T.tname), tv) =
   let tp =
     match List.assoc_opt n tinst with
-    | None    -> Env.fresh_uvar env (T.TVar.kind tv)
+    | None    ->
+      begin match n with
+      | TNAnon ->
+        assert (T.Kind.non_effect (T.TVar.kind tv));
+        Env.fresh_uvar env (T.TVar.kind tv)
+      | TNEffect ->
+        begin match Env.lookup_the_effect env with
+        | Some x ->
+          assert (T.Kind.is_effect (T.TVar.kind tv));
+          assert (T.Kind.is_effect (T.TVar.kind x));
+          T.Type.t_var x
+        | None ->
+          Error.fatal (Error.cannot_guess_effect_param ~pos n)
+        end
+      | TNVar _ ->
+        if T.Kind.set_non_effect (T.TVar.kind tv) then
+          Env.fresh_uvar env (T.TVar.kind tv)
+        else
+          Error.fatal (Error.cannot_guess_effect_param ~pos n)
+      end
     | Some tp -> tp
   in
   (T.Subst.add_type sub tv tp, tp)
 
-let guess_types env ?(tinst=[]) tvars =
-  List.fold_left_map (guess_type env ~tinst) T.Subst.empty tvars
+let guess_types ~pos env ?(tinst=[]) tvars =
+  List.fold_left_map (guess_type ~pos env ~tinst) T.Subst.empty tvars
 
 (** The main instantiation function. [nset] parameter is a set of names
   currently instantiated, used to avoid infinite loops, e.g., in
   [`n : {`n : _} -> _]. *)
-let rec instantiate_loop ~nset env e (sch : T.scheme) =
-  let (sub, tps) = guess_types env sch.sch_targs in
+let rec instantiate_loop ~nset env (e : T.expr) (sch : T.scheme) =
+  let (sub, tps) = guess_types ~pos:e.pos env sch.sch_targs in
   let e = make_tapp e tps in
   let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
   let e = instantiate_named_params_loop ~nset env e named in

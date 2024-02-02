@@ -149,6 +149,7 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
 
 and check_type ~env ~scope (pat : S.pattern) tp =
   let make data = { pat with T.data = data } in
+  let pos = pat.pos in
   match pat.data with
   | PWildcard | PId _ | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
@@ -157,7 +158,7 @@ and check_type ~env ~scope (pat : S.pattern) tp =
   | PCtor(cname, targs, nps, args) ->
     begin match Env.lookup_ctor env cname.data with
     | Some(idx, info) ->
-      let (sub, tps) = ExprUtils.guess_types env info.adt_args in
+      let (sub, tps) = ExprUtils.guess_types ~pos env info.adt_args in
       let proof  = ExprUtils.make_tapp info.adt_proof tps in
       let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
       let ctor   = List.nth ctors idx in

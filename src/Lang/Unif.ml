@@ -77,12 +77,12 @@ and expr_data =
   | ELet        of var * scheme * expr * expr
   | ECtor       of expr * int * typ list * expr list
   | EData       of data_def list * expr
-  | EMatchEmpty of expr * expr * typ * effect
-  | EMatch      of expr * match_clause list * typ * effect
-  | EHandle     of tvar * var * expr * expr * typ * effect
-  | EHandler    of tvar * var * typ * effect * expr
+  | EMatchEmpty of expr * expr * typ * effrow
+  | EMatch      of expr * match_clause list * typ * effrow
+  | EHandle     of tvar * var * expr * expr * typ * effrow
+  | EHandler    of tvar * var * typ * effrow * expr
   | EEffect     of expr * var * expr * typ
-  | ERepl       of (unit -> expr) * typ * effect
+  | ERepl       of (unit -> expr) * typ * effrow
   | EReplExpr   of expr * string * expr
 
 and match_clause = pattern * expr

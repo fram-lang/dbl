@@ -20,7 +20,7 @@ type arrow =
   | Arr_Pure of T.scheme * T.typ
     (** Pure arrow *)
 
-  | Arr_Impure of T.scheme * T.typ * T.effect
+  | Arr_Impure of T.scheme * T.typ * T.effrow
     (** Impure arrow *)
 
 (** Handler type *)
@@ -28,7 +28,7 @@ type handler =
   | H_No
     (** Type is not a handler *)
 
-  | H_Handler of T.tvar * T.typ * T.typ * T.effect
+  | H_Handler of T.tvar * T.typ * T.typ * T.effrow
     (** Handler type *)
 
 (** Check if one kind is equal to another. It performs some unifications
@@ -39,9 +39,9 @@ val unify_kind : T.kind -> T.kind -> bool
   necessary. On success, it returns LHS and RHS kinds of an arrow kind. *)
 val kind_to_arrow : T.kind -> (T.kind * T.kind) option
 
-(** Check if one effect is a subeffect of another.
+(** Check if one effect (row) is a subeffect of another.
   It performs some unifications when necessary. *)
-val subeffect : Env.t -> T.effect -> T.effect -> bool
+val subeffect : Env.t -> T.effrow -> T.effrow -> bool
 
 (** Check if one type is a subtype of another.
   It performs some unifications when necessary. *)

@@ -28,6 +28,10 @@ let kind_mismatch ~pos k1 k2 =
   Printf.eprintf "%s: error: Kind mismatch\n"
     (Position.to_string pos)
 
+let wildcard_in_effect ~pos =
+  Printf.eprintf "%s: error: Wild-cards in effects are forbidden\n"
+    (Position.to_string pos)
+
 let type_not_function ~pos ~env k =
   (* TODO: better message *)
   Printf.eprintf
@@ -135,6 +139,18 @@ let type_escapes_its_scope ~pos ~env x =
   Printf.eprintf
     "%s: error: Something escapes its scope here.\n"
     (Position.to_string pos)
+
+let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
+  let nn =
+    match name with
+    | TNAnon   -> assert false
+    | TNEffect -> "effect"
+    | TNVar x  -> x
+  in
+  Printf.eprintf
+    "%s: error: Cannot guess effect named %s\n"
+      (Position.to_string pos)
+      nn
 
 let ungeneralizable_implicit ~pos name =
   Printf.eprintf

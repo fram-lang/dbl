@@ -27,8 +27,9 @@ type name =
 type typ
 
 type effect = typ
+type effrow = typ
 
-type effect_end =
+type effrow_end =
   | EEClosed
   | EEUVar of TVar.Perm.t * uvar
   | EEVar  of tvar
@@ -38,11 +39,12 @@ type type_view =
   | TUnit
   | TUVar      of TVar.Perm.t * uvar
   | TVar       of tvar
-  | TEffect    of TVar.Set.t * effect_end
+  | TEffect    of TVar.Set.t
+  | TEffrow    of TVar.Set.t * effrow_end
   | TPureArrow of scheme * typ
-  | TArrow     of scheme * typ * effect
-  | THandler   of tvar * typ * typ * effect
-  | TLabel     of effect * typ * effect
+  | TArrow     of scheme * typ * effrow
+  | THandler   of tvar * typ * typ * effrow
+  | TLabel     of effect * typ * effrow
   | TApp       of typ * typ
 
 and scheme = {
@@ -73,19 +75,22 @@ val t_var : tvar -> typ
 val t_pure_arrow : scheme -> typ -> typ
 
 (** Arrow type *)
-val t_arrow : scheme -> typ -> effect -> typ
+val t_arrow : scheme -> typ -> effrow -> typ
 
 (** Type of first-class handlers *)
-val t_handler : tvar -> typ -> typ -> effect -> typ
+val t_handler : tvar -> typ -> typ -> effrow -> typ
 
 (** Type of first-class label *)
-val t_label : effect -> typ -> effect -> typ
+val t_label : effect -> typ -> effrow -> typ
 
 (** Create an effect *)
-val t_effect : TVar.Set.t -> effect_end -> effect
+val t_effect : TVar.Set.t -> effect
 
-(** Create a closed effect *)
-val t_closed_effect : TVar.Set.t -> effect
+(** Create an effect row *)
+val t_effrow : TVar.Set.t -> effrow_end -> effrow
+
+(** Create a closed effect row *)
+val t_closed_effrow : TVar.Set.t -> effrow
 
 (** Type application *)
 val t_app : typ -> typ -> typ
@@ -93,9 +98,12 @@ val t_app : typ -> typ -> typ
 (** Reveal a top-most constructor of a type *)
 val view : typ -> type_view
 
-(** Reveal a representation of an effect: a set of effect variables together
-  with a way of closing an effect. *)
-val effect_view : effect -> TVar.Set.t * effect_end
+(** Reveal a representation of an effect: a set of effect variables *)
+val effect_view : effect -> TVar.Set.t
+
+(** Reveal a representation of an effect row: a set of effect variables
+  together with a way of closing an effect row. *)
+val effrow_view : effrow -> TVar.Set.t * effrow_end
 
 (** Operations on unification variables *)
 module UVar : sig

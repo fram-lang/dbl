@@ -75,7 +75,7 @@ let add_tvar env name kind =
   }, x
 
 let add_the_effect env =
-  add_tvar env "#effect" T.Kind.k_cleffect
+  add_tvar env "#effect" T.Kind.k_effect
 
 let add_anon_tvar env kind =
   let x = T.TVar.fresh kind in
@@ -121,6 +121,9 @@ let lookup_ctor env c =
 
 let lookup_tvar env x =
   StrMap.find_opt x env.tvar_map
+
+let lookup_the_effect env =
+  lookup_tvar env "#effect"
 
 let lookup_adt env x =
   T.TVar.Map.find_opt x env.adt_map

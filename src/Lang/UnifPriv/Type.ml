@@ -21,11 +21,12 @@ let rec kind tp =
   | TUVar(_, u) -> UVar.kind u
   | TVar      x -> TVar.kind x
   | TEffect   _ -> KindBase.k_effect
+  | TEffrow   _ -> KindBase.k_effrow
   | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ -> KindBase.k_type
   | TApp(tp, _) ->
     begin match KindBase.view (kind tp) with
     | KArrow(_, k) -> k
-    | KType | KEffect | KClEffect | KUVar _ ->
+    | KType | KEffect | KEffrow | KUVar _ ->
       failwith "Internal kind error"
     end
 
@@ -41,11 +42,11 @@ let refresh_scheme sch =
     sch_body  = Subst.in_type sub sch.sch_body
   }
 
-let open_effect_up ~scope eff =
-  let (xs, ee) = effect_view eff in
+let open_effrow_up ~scope eff =
+  let (xs, ee) = effrow_view eff in
   match ee with
   | EEClosed ->
-    t_effect xs (EEUVar(TVar.Perm.id, UVar.fresh ~scope KindBase.k_effect))
+    t_effrow xs (EEUVar(TVar.Perm.id, UVar.fresh ~scope KindBase.k_effrow))
   | EEUVar _ | EEVar _ | EEApp _ -> eff
 
 let rec open_down ~scope tp =
@@ -58,7 +59,7 @@ let rec open_down ~scope tp =
   | THandler(a, tp, tp0, eff0) ->
     t_handler a (open_down ~scope:(Scope.add scope a) tp) tp0 eff0
 
-  | TEffect _ ->
+  | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
 
 and open_scheme_down ~scope sch =
@@ -80,11 +81,11 @@ and open_up ~scope tp =
     t_arrow
       (open_scheme_down ~scope sch)
       (open_up          ~scope tp2)
-      (open_effect_up   ~scope eff)
+      (open_effrow_up   ~scope eff)
   | THandler(a, tp, tp0, eff0) ->
     t_handler a (open_up ~scope:(Scope.add scope a) tp) tp0 eff0
 
-  | TEffect _ ->
+  | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
 
 and open_scheme_up ~scope sch =
@@ -99,8 +100,8 @@ and open_scheme_up ~scope sch =
 
 let rec contains_uvar u tp =
   match view tp with
-  | TUnit | TVar _ | TEffect(_, (EEClosed | EEVar _)) -> false
-  | TUVar(_, u') | TEffect(_, EEUVar(_, u')) -> UVar.equal u u'
+  | TUnit | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> false
+  | TUVar(_, u') | TEffrow(_, EEUVar(_, u')) -> UVar.equal u u'
   | TPureArrow(sch, tp2) ->
     scheme_contains_uvar u sch || contains_uvar u tp2
   | TArrow(sch, tp2, eff) ->
@@ -109,7 +110,7 @@ let rec contains_uvar u tp =
     contains_uvar u tp || contains_uvar u tp0 || contains_uvar u eff0
   | TLabel(eff, tp0, eff0) ->
     contains_uvar u eff || contains_uvar u tp0 || contains_uvar u eff0
-  | TEffect(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
+  | TEffrow(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
     contains_uvar u tp1 || contains_uvar u tp2
 
 and scheme_contains_uvar u sch =
@@ -118,9 +119,9 @@ and scheme_contains_uvar u sch =
 
 let rec collect_uvars tp uvs =
   match view tp with
-  | TUnit | TVar _ | TEffect(_, (EEClosed | EEVar _)) -> uvs
-  | TUVar(_, u) | TEffect(_, EEUVar(_, u)) -> UVar.Set.add u uvs
-  | TEffect(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
+  | TUnit | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> uvs
+  | TUVar(_, u) | TEffrow(_, EEUVar(_, u)) -> UVar.Set.add u uvs
+  | TEffrow(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
     collect_uvars tp1 (collect_uvars tp2 uvs)
   | TPureArrow(sch, tp2) ->
     collect_scheme_uvars sch (collect_uvars tp2 uvs)
@@ -154,7 +155,7 @@ let shrink_var_scope ~scope x =
 let shrink_uvar_scope ~scope p u =
   UVar.filter_scope u (fun x -> Scope.mem scope (TVar.Perm.apply p x))
 
-let rec shrink_effect_end_scope ~scope ee =
+let rec shrink_effrow_end_scope ~scope ee =
   match ee with
   | EEClosed -> ()
   | EEUVar(p, u) -> shrink_uvar_scope ~scope p u
@@ -168,9 +169,11 @@ and shrink_scope ~scope tp =
   | TUnit -> ()
   | TUVar(p, u) -> shrink_uvar_scope ~scope p u
   | TVar  x -> shrink_var_scope  ~scope x
-  | TEffect(xs, ee) ->
+  | TEffect xs ->
+    TVar.Set.iter (shrink_var_scope ~scope) xs
+  | TEffrow(xs, ee) ->
     TVar.Set.iter (shrink_var_scope ~scope) xs;
-    shrink_effect_end_scope ~scope ee
+    shrink_effrow_end_scope ~scope ee
   | TPureArrow(sch, tp2) ->
     shrink_scheme_scope ~scope sch;
     shrink_scope ~scope tp2

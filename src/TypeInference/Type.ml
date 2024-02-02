@@ -11,7 +11,7 @@ open Common
 let rec infer_kind env (tp : S.type_expr) =
   match tp.data with
   | TWildcard ->
-    let k = T.Kind.fresh_uvar () in
+    let k = T.Kind.fresh_uvar ~non_effect:true () in
     (Env.fresh_uvar env k, k)
 
   | TVar x ->
@@ -19,7 +19,7 @@ let rec infer_kind env (tp : S.type_expr) =
     | Some x -> (T.Type.t_var x, T.TVar.kind x)
     | None ->
       Error.report (Error.unbound_type_var ~pos:tp.pos x);
-      let k = T.Kind.fresh_uvar () in
+      let k = T.Kind.fresh_uvar ~non_effect:true () in
       (Env.fresh_uvar env k, k)
     end
 
@@ -31,11 +31,11 @@ let rec infer_kind env (tp : S.type_expr) =
   | TArrow(sch, tp, eff) ->
     let sch = tr_scheme env sch in
     let tp  = tr_ttype  env tp  in
-    let eff = tr_effect env eff in
+    let eff = tr_effrow env eff in
     (T.Type.t_arrow sch tp eff, T.Kind.k_type)
 
   | TEffect(tps, ee) ->
-    (check_effect env tps ee, T.Kind.k_effect)
+    (check_effrow env tps ee, T.Kind.k_effrow)
 
   | TApp(tp1, tp2) ->
     let pos1 = tp1.pos in
@@ -54,49 +54,43 @@ and check_kind env (tp : S.type_expr) k =
     check_kind_default env tp k
 
   | TEffect(tps, ee) ->
-    let tp' = check_effect env tps ee in
-    begin match T.Kind.view k with
-    | KEffect   -> tp'
-    | KUVar u ->
-      T.KUVar.set u T.Kind.k_effect;
-      tp'
-    | KClEffect ->
-      begin match T.Effect.view_end tp' with
-      | EEClosed -> tp'
-      | EEUVar _ | EEVar _ | EEApp _ ->
-        Error.fatal (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect k)
-      end
-    | KType | KArrow _ ->
-      Error.report (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect k);
-      Env.fresh_uvar env k
+    begin match T.Kind.view k, ee with
+    | KEffect, None -> T.Type.t_effect (check_effect env tps)
+    | _ -> check_kind_default env tp k
     end
 
-  | TWildcard -> Env.fresh_uvar env k
+  | TWildcard ->
+    if T.Kind.set_non_effect k then
+      Env.fresh_uvar env k
+    else
+      Error.fatal (Error.wildcard_in_effect ~pos:tp.pos)
 
 and check_kind_default env tp k =
   let (tp', k') = infer_kind env tp in
-  if Unification.unify_kind k k' then
-    tp'
-  else begin
-    Error.report (Error.kind_mismatch ~pos:tp.pos k' k);
-    Env.fresh_uvar env k
-  end
+  match T.Kind.view k', T.Kind.view k with
+  | KEffect, KEffrow ->
+    (* effects can be implicitly coerced to effect rows. *)
+    T.Type.t_closed_effrow (T.Type.effect_view tp')
+  | _ ->
+    if Unification.unify_kind k k' then
+      tp'
+    else
+      Error.fatal (Error.kind_mismatch ~pos:tp.pos k' k);
 
-and check_effect env tps ee =
-  let tvs = List.fold_left (check_cl_effect_it env) T.TVar.Set.empty tps in
+and check_effrow env tps ee =
+  let tvs = check_effect env tps in
   match ee with
-  | None    -> T.Type.t_closed_effect tvs
+  | None    -> T.Type.t_closed_effrow tvs
   | Some ee ->
-    let (tvs', ee) = T.Type.effect_view (check_kind env ee T.Kind.k_effect) in
-    T.Type.t_effect (T.TVar.Set.union tvs tvs') ee
+    let (tvs', ee) = T.Type.effrow_view (check_kind env ee T.Kind.k_effrow) in
+    T.Type.t_effrow (T.TVar.Set.union tvs tvs') ee
 
-and check_cl_effect_it env tvs tp =
-  match T.Type.effect_view (check_kind env tp T.Kind.k_cleffect) with
-  | (tvs', EEClosed) -> T.TVar.Set.union tvs tvs'
-  | (tvs', (EEUVar _ | EEVar _ | EEApp _)) ->
-    Error.report
-      (Error.kind_mismatch ~pos:tp.pos T.Kind.k_effect T.Kind.k_cleffect);
-    T.TVar.Set.union tvs tvs'
+and check_effect env tps =
+  List.fold_left (check_effect_it env) T.TVar.Set.empty tps
+
+and check_effect_it env tvs tp =
+  T.TVar.Set.union tvs
+    (T.Type.effect_view (check_kind env tp T.Kind.k_effect))
 
 and tr_scheme env (sch : S.scheme_expr) =
   let (env, tvs) = tr_named_type_args env sch.sch_targs in
@@ -116,8 +110,8 @@ and tr_named_scheme env (nsch : S.named_scheme) =
 and tr_ttype env tp =
   check_kind env tp T.Kind.k_type
 
-and tr_effect env eff =
-  check_kind env eff T.Kind.k_effect
+and tr_effrow env eff =
+  check_kind env eff T.Kind.k_effrow
 
 and tr_type_arg env (arg : S.type_arg) =
   match arg.data with

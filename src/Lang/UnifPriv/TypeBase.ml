@@ -37,18 +37,20 @@ and uvar_state =
 
 and typ = type_view
 and effect = typ
+and effrow = typ
 and type_view =
   | TUnit
   | TUVar      of TVar.Perm.t * uvar
   | TVar       of tvar
-  | TEffect    of TVar.Set.t * effect_end
+  | TEffect    of TVar.Set.t
+  | TEffrow    of TVar.Set.t * effrow_end
   | TPureArrow of scheme * typ
-  | TArrow     of scheme * typ * effect
-  | THandler   of tvar * typ * typ * effect
-  | TLabel     of effect * typ * effect
+  | TArrow     of scheme * typ * effrow
+  | THandler   of tvar * typ * typ * effrow
+  | TLabel     of effect * typ * effrow
   | TApp       of typ * typ
 
-and effect_end =
+and effrow_end =
   | EEClosed
   | EEUVar of TVar.Perm.t * uvar
   | EEVar  of tvar
@@ -75,9 +77,11 @@ let t_uvar p u = TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
 
 let t_var x = TVar x
 
-let t_effect xs ee = TEffect(xs, ee)
+let t_effect xs = TEffect xs
 
-let t_closed_effect xs =  TEffect(xs, EEClosed)
+let t_effrow xs ee = TEffrow(xs, ee)
+
+let t_closed_effrow xs =  TEffrow(xs, EEClosed)
 
 let t_pure_arrow sch tp2 = TPureArrow(sch, tp2)
 
@@ -107,20 +111,20 @@ let rec view tp =
       BRef.set u.state (UV_Type tp);
       perm p tp
     end
-  | TEffect(xs, EEUVar(p, u)) ->
+  | TEffrow(xs, EEUVar(p, u)) ->
     begin match view (TUVar(p, u)) with
-    | TUVar(p, u) -> TEffect(xs, EEUVar(p, u))
-    | TVar x  -> TEffect(xs, EEVar x)
-    | TApp(tp1, tp2) -> TEffect(xs, EEApp(tp1, tp2))
-    | TEffect(ys, ee) -> TEffect(TVar.Set.union xs ys, ee)
+    | TUVar(p, u) -> TEffrow(xs, EEUVar(p, u))
+    | TVar x  -> TEffrow(xs, EEVar x)
+    | TApp(tp1, tp2) -> TEffrow(xs, EEApp(tp1, tp2))
+    | TEffrow(ys, ee) -> TEffrow(TVar.Set.union xs ys, ee)
 
-    | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
+    | TUnit | TEffect _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
       failwith "Internal kind error"
     end
-  | TEffect(xs, ee) -> tp
+  | TEffrow(xs, ee) -> tp
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _
-  | TApp _ -> tp
+  | TUnit | TVar _ | TEffect _ | TPureArrow _ | TArrow _ | THandler _
+  | TLabel _ | TApp _ -> tp
 
 and perm p tp =
   if TVar.Perm.is_identity p then tp
@@ -133,8 +137,10 @@ and perm_rec p tp =
     let p = TVar.Perm.compose p p' in
     TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
   | TVar x -> TVar (TVar.Perm.apply p x)
-  | TEffect(xs, ee) ->
-    TEffect(TVar.Perm.map_set p xs, perm_effect_end_rec p ee)
+  | TEffect xs ->
+    TEffect (TVar.Perm.map_set p xs)
+  | TEffrow(xs, ee) ->
+    TEffrow(TVar.Perm.map_set p xs, perm_effrow_end_rec p ee)
   | TPureArrow(sch, tp2) ->
     TPureArrow(perm_scheme_rec p sch, perm_rec p tp2)
   | TArrow(sch, tp2, eff) ->
@@ -147,7 +153,7 @@ and perm_rec p tp =
   | TApp(tp1, tp2) ->
     TApp(perm_rec p tp1, perm_rec p tp2)
 
-and perm_effect_end_rec p ee =
+and perm_effrow_end_rec p ee =
   match ee with
   | EEClosed -> EEClosed
   | EEUVar(p', u) ->
@@ -168,19 +174,23 @@ and perm_named_scheme_rec p (n, sch) =
 
 let effect_view eff =
   match view eff with
-  | TUVar(p, u) -> (TVar.Set.empty, EEUVar(p, u))
-  | TVar  x ->
-    begin match KindBase.view (TVar.kind x) with
-    | KEffect   -> (TVar.Set.empty, EEVar x)
-    | KClEffect -> (TVar.Set.singleton x, EEClosed)
-    | KType | KUVar _ | KArrow _ ->
-      failwith "Internal kind error"
-    end
+  | TVar x     -> TVar.Set.singleton x
+  | TEffect xs -> xs
+
+  | TUVar _ | TApp _ -> assert false
+
+  | TUnit | TEffrow _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
+    failwith "Internal kind error"
+
+let effrow_view eff =
+  match view eff with
+  | TUVar(p, u)    -> (TVar.Set.empty, EEUVar(p, u))
+  | TVar  x        -> (TVar.Set.empty, EEVar x)
   | TApp(tp1, tp2) -> (TVar.Set.empty, EEApp(tp1, tp2))
 
-  | TEffect(xs, ee) -> (xs, ee)
+  | TEffrow(xs, ee) -> (xs, ee)
 
-  | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
+  | TUnit | TEffect _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
     failwith "Internal kind error"
 
 module UVar = struct
@@ -190,8 +200,9 @@ module UVar = struct
   end
   include Ordered
 
-  let fresh ~scope kind = {
-      uid   = UID.fresh ();
+  let fresh ~scope kind =
+    assert (KindBase.non_effect kind);
+    { uid   = UID.fresh ();
       kind  = kind;
       state = BRef.ref UV_UVar;
       scope = BRef.ref scope

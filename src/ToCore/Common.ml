@@ -12,11 +12,11 @@ module T = Lang.Core
 (** Translate kind *)
 let rec tr_kind k =
   match S.Kind.view k with
-  | KType     -> T.Kind.Ex KType
-  | KEffect   -> T.Kind.Ex KEffect
-  | KClEffect -> T.Kind.Ex KEffect
-  | KUVar u   ->
-    S.KUVar.set u S.Kind.k_type;
+  | KType   -> T.Kind.Ex KType
+  | KEffect -> T.Kind.Ex KEffect
+  | KEffrow -> T.Kind.Ex KEffect
+  | KUVar u ->
+    S.KUVar.set_safe u S.Kind.k_type;
     T.Kind.Ex KType
   | KArrow(k1, k2) ->
     let (Ex k1) = tr_kind k1 in

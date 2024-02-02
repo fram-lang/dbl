@@ -29,6 +29,7 @@ val generalize :
   from given type variables to guessed types together with list of these types.
   *)
 val guess_types :
+  pos:Position.t ->
   Env.t -> ?tinst:(T.tname * T.typ) list -> T.named_tvar list ->
     T.subst * T.typ list
 
@@ -52,9 +53,9 @@ val ctor_func : pos:Position.t -> int -> Env.adt_info -> T.expr
   - [eff]  -- the effect of [body] expression.
   It returns a variable that should be bound instead of pattern together with
   an extended expression. *)
-val arg_match : T.pattern -> T.expr -> T.typ -> T.effect -> T.var * T.expr
+val arg_match : T.pattern -> T.expr -> T.typ -> T.effrow -> T.var * T.expr
 
 (** Same as [arg_match], but take multiple binders of named parameters. *)
 val inst_args_match :
-  (T.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effect ->
+  (T.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effrow ->
     (T.name * T.var * T.scheme) list * T.expr

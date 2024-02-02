@@ -13,7 +13,7 @@ open Common
   checking. *)
 type def_cont =
   { run : 'dir.
-      Env.t -> ImplicitEnv.t -> (T.typ, 'dir) request -> T.effect ->
+      Env.t -> ImplicitEnv.t -> (T.typ, 'dir) request -> T.effrow ->
         T.expr * (T.typ, 'dir) response * ret_effect
   }
 
@@ -91,6 +91,7 @@ let infer_poly_scheme env (e : S.poly_expr) eff =
   they are pure (see [ret_effect] type). *)
 let rec infer_expr_type env (e : S.expr) eff =
   let make data = { e with data = data } in
+  let pos = e.pos in
   match e.data with
   | EMatch _ | EEffect _ | ERepl _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
@@ -105,7 +106,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     Uniqueness.check_type_inst_uniqueness tinst;
     Uniqueness.check_inst_uniqueness inst;
     let tinst = Type.check_type_insts env tinst sch.sch_targs in
-    let (sub, tps) = ExprUtils.guess_types ~tinst env sch.sch_targs in
+    let (sub, tps) = ExprUtils.guess_types ~pos ~tinst env sch.sch_targs in
     let e = ExprUtils.make_tapp e tps in
     let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
     let (i_ctx, inst, r_eff2) = check_explicit_insts env named inst eff in
@@ -115,7 +116,7 @@ let rec infer_expr_type env (e : S.expr) eff =
 
   | EFn(arg, body) ->
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
-    let body_eff = Env.fresh_uvar env T.Kind.k_effect in
+    let body_eff = Env.fresh_uvar env T.Kind.k_effrow in
     let (env, pat, sch, r_eff1) = Pattern.infer_arg_scheme env arg in
     let (body, r_eff2) = check_expr_type env body tp2 body_eff in
     let (x, body) = ExprUtils.arg_match pat body tp2 body_eff in
@@ -154,9 +155,9 @@ let rec infer_expr_type env (e : S.expr) eff =
   | EHandler h ->
     let (env, a) = Env.add_the_effect env in
     let res_tp  = Env.fresh_uvar env T.Kind.k_type in
-    let res_eff = Env.fresh_uvar env T.Kind.k_effect in
+    let res_eff = Env.fresh_uvar env T.Kind.k_effrow in
     let (env, lx) =
-      Env.add_the_label env (T.Effect.singleton a) res_tp res_eff in
+      Env.add_the_label env (T.Type.t_var a) res_tp res_eff in
     let (h, tp, r_eff) = infer_expr_type env h T.Effect.pure in
     begin match r_eff with
     | Pure -> ()
@@ -226,7 +227,7 @@ and check_expr_type env (e : S.expr) tp eff =
     | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
       Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
 
-    | Whnf_Effect _ ->
+    | Whnf_Effect _ | Whnf_Effrow _ ->
       failwith "Internal kind error"
     end
 
@@ -243,7 +244,7 @@ and check_expr_type env (e : S.expr) tp eff =
       let tp   = T.Type.subst sub tp in
       let tp0  = T.Type.subst sub tp0 in
       let eff0 = T.Type.subst sub eff0 in
-      let (env, l) = Env.add_the_label env (T.Effect.singleton a) tp0 eff0 in
+      let (env, l) = Env.add_the_label env (T.Type.t_var a) tp0 eff0 in
       let (h, r_eff) = check_expr_type env h tp T.Effect.pure in
       begin match r_eff with
       | Pure -> ()
@@ -258,7 +259,8 @@ and check_expr_type env (e : S.expr) tp eff =
 
   | EEffect(arg, body) ->
     begin match Env.lookup_the_label env with
-    | Some(lx, l_eff, res_tp, res_eff) ->
+    | Some(lx, l_eff0, res_tp, res_eff) ->
+      let l_eff = T.Type.t_closed_effrow (T.Type.effect_view l_eff0) in
       if not (Unification.subeffect env l_eff eff) then
         Error.report (Error.expr_effect_mismatch ~pos:e.pos ~env l_eff eff);
       let r_tp = T.Type.t_arrow (T.Scheme.of_type tp) res_tp res_eff in
@@ -286,7 +288,7 @@ and check_expr_type_default env (e : S.expr) tp eff =
 
 (** Bidirectional type-checker of expressions *)
 and tr_expr :
-  type dir. Env.t -> S.expr -> (T.typ, dir) request -> T.effect ->
+  type dir. Env.t -> S.expr -> (T.typ, dir) request -> T.effrow ->
     (T.expr * (T.typ, dir) response * ret_effect) =
   fun env e tp_req eff ->
   match tp_req with
@@ -349,7 +351,7 @@ and check_explicit_insts env named insts eff =
   continuation. *)
 and check_defs : type dir.
   Env.t -> ImplicitEnv.t -> S.def list ->
-    (T.typ, dir) request -> T.effect -> def_cont ->
+    (T.typ, dir) request -> T.effrow -> def_cont ->
       T.expr * (T.typ, dir) response * ret_effect =
   fun env ienv defs req eff cont ->
   match defs with
@@ -360,7 +362,7 @@ and check_defs : type dir.
 
 and check_def : type dir.
   Env.t -> ImplicitEnv.t -> S.def ->
-    (T.typ, dir) request -> T.effect -> def_cont ->
+    (T.typ, dir) request -> T.effrow -> def_cont ->
       T.expr * (T.typ, dir) response * ret_effect =
   fun env ienv def req eff cont ->
   let make (e : T.expr) data =
@@ -412,7 +414,7 @@ and check_def : type dir.
     ImplicitEnv.end_generalize_impure ims;
     begin match Unification.to_handler env eh_tp with
     | H_Handler(a, cap_tp, res_tp, res_eff) ->
-      let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_cleffect in
+      let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_effect in
       let sub = T.Subst.rename_to_fresh T.Subst.empty a h_eff in
       let cap_tp  = T.Type.subst sub cap_tp  in
       let res_tp  = T.Type.subst sub res_tp  in
