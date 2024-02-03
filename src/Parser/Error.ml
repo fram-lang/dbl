@@ -66,3 +66,8 @@ let value_before_type_param pos =
   Printf.eprintf
     "%s: warning: Named value parameter appears before a type parameter.\n"
     (Position.to_string pos)
+
+let finally_before_return_clause pos =
+  Printf.eprintf
+    "%s: warning: Finally clause before return clause.\n"
+    (Position.to_string pos)

@@ -166,11 +166,20 @@ and def_data =
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
 
-  | DHandle of expr * expr
+  | DHandle of expr * expr * h_clause list
     (** Effect handler *)
 
-  | DHandleWith of expr * expr
+  | DHandleWith of expr * expr * h_clause list
     (** Effect handler, with first-class handler *)
+
+(** Additional clauses of handlers *)
+and h_clause = h_clause_data node
+and h_clause_data =
+  | HCReturn  of expr * expr
+    (** Return clause *)
+
+  | HCFinally of expr * expr
+    (** Finally clause *)
 
 (** Program *)
 type program = def list node

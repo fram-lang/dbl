@@ -177,10 +177,30 @@ and expr_data =
   | EMatch of expr * match_clause list * typ * effrow
     (** Pattern-matching. It stores type and effect of the whole expression. *)
 
-  | EHandle of tvar * var * expr * expr * typ * effrow
-    (** Handler. It stores handled (abstract) effect, capability variable,
-      handled expression, handler body, and type and effect of the whole
-      handler expression *)
+  | EHandle of (** Handler *)
+    { effect_var : tvar;
+      (** The binder of an effect variable introduced by this handler. *)
+
+      cap_var : var;
+      (** The binder of a capability introduced by this effect *)
+
+      body : expr;
+      (** Handled expression *)
+
+      capability : expr;
+      (** An expression providing capability to this handler *)
+
+      ret_var : var;
+      (** An argument to the return clause *)
+
+      ret_body : expr;
+      (** A body of the return clause *)
+
+      result_tp : typ;
+      (** The type of the whole handler *)
+
+      result_eff : effrow }
+      (** The effect of the whole handler *)
 
   | EHandler of tvar * var * typ * effrow * expr
     (** First-class handler. In [EHandler(a, lx, tp, eff, h)] the meaning of

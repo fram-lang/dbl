@@ -44,21 +44,21 @@ let rec tr_expr env (e : S.expr) =
     tr_expr_v env me (fun v ->
     PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 
-  | EHandle(a, x, e, he, tp, eff) ->
-    tr_expr_v env he (fun hv ->
+  | EHandle { effect_var; cap_var; body; capability;
+      ret_var; ret_body; result_tp; result_eff } ->
+    tr_expr_v env capability (fun hv ->
     let l   = Var.fresh () in
-    let tp  = Type.tr_ttype env tp in
-    let eff = Type.tr_effect env eff in
-    let (env, Ex a) = Env.add_tvar env a in
+    let tp  = Type.tr_ttype env result_tp in
+    let eff = Type.tr_effect env result_eff in
+    let (env, Ex a) = Env.add_tvar env effect_var in
     let hx  = Var.fresh () in
-    let rx     = Var.fresh () in
-    let r_body = T.EValue (T.VVar rx) in
+    let r_body = tr_expr env ret_body in
     begin match T.TVar.kind a with
     | KEffect ->
       T.ELabel(a, l, tp, eff,
         T.ELet(hx, T.ETApp(hv, T.TVar a),
-          T.ELet(x, T.EApp(T.VVar hx, T.VVar l),
-            T.EReset(T.VVar l, tr_expr env e, rx, r_body))))
+          T.ELet(cap_var, T.EApp(T.VVar hx, T.VVar l),
+            T.EReset(T.VVar l, tr_expr env body, ret_var, r_body))))
     | KType | KArrow _ -> failwith "Internal kind error"
     end)
 

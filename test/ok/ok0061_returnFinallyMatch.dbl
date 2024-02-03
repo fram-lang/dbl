@@ -1,0 +1,10 @@
+data T = A | B
+
+let _ =
+  handle x = A
+  return A => B
+  return B => A
+  finally A => B
+  finally B => A
+  in
+  x

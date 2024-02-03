@@ -25,22 +25,28 @@ type let_pattern =
 
 (** Apply function [f] to each element of [xs]. Function [f] returns elements
   of [Either.t] type, that describes on which list the result should be put.
-  It warns, when elements of the right list appear before somee element of the
-  left list. *)
-let rec map_inst_like f xs =
+  It warns, when elements of the right list appear before some element of the
+  left list using [warn] function. *)
+let rec map_either ~warn f xs =
   match xs with
   | [] -> ([], [])
   | x :: xs ->
     begin match f x with
     | Either.Left y ->
-      let (ys, zs) = map_inst_like f xs in
+      let (ys, zs) = map_either ~warn f xs in
       (y :: ys, zs)
     | Either.Right z ->
-      let (ys, zs) = map_inst_like f xs in
+      let (ys, zs) = map_either ~warn f xs in
       if not (List.is_empty ys) then
-        Error.warn (Error.value_before_type_param x.pos);
+        Error.warn (warn x.pos);
       (ys, z :: zs)
     end
+
+let map_inst_like f xs =
+  map_either ~warn:Error.value_before_type_param f xs
+
+let map_h_clauses f xs =
+  map_either ~warn:Error.finally_before_return_clause f xs
 
 let ident_of_name (name : Raw.name) =
   match name with
@@ -386,12 +392,26 @@ and tr_def (def : Raw.def) =
   | DImplicit n  -> make (DImplicit n)
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
-  | DHandle(pat, h) ->
-    make (DHandlePat(tr_pattern pat [], { h with data = EHandler(tr_expr h) }))
-  | DHandleWith(pat, e) ->
-    make (DHandlePat(tr_pattern pat [], tr_expr e))
+  | DHandle(pat, h, hcs) ->
+    let pat  = tr_pattern pat [] in
+    let body = { h with data = EHandler(tr_expr h) } in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    make (DHandlePat(pat, body, rcs, fcs))
+  | DHandleWith(pat, e, hcs) ->
+    let pat  = tr_pattern pat [] in
+    let body = tr_expr e in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    make (DHandlePat(pat, body, rcs, fcs))
 
 and tr_defs defs = List.map tr_def defs
+
+and tr_h_clause (hc : Raw.h_clause) =
+  let make data = { hc with data = data } in
+  match hc.data with
+  | HCReturn(pat, body) ->
+    Either.Left (make (Clause(tr_pattern pat [], tr_expr body)))
+  | HCFinally(pat, body) ->
+    Either.Right (make (Clause(tr_pattern pat [], tr_expr body)))
 
 let tr_program (p : Raw.program) =
   let make data = { p with data = data } in

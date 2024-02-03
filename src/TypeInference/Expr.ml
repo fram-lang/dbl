@@ -407,14 +407,14 @@ and check_def : type dir.
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
-  | DHandlePat(pat, eh) ->
+  | DHandlePat(pat, eh, rcs, fcs) ->
     let (env_h, ims) = ImplicitEnv.begin_generalize env ienv in
     let (eh, eh_tp, _) = infer_expr_type env_h eh eff in
     (* TODO: effect capability may have a scheme instead of type *)
     ImplicitEnv.end_generalize_impure ims;
     begin match Unification.to_handler env eh_tp with
     | H_Handler(a, cap_tp, res_tp, res_eff) ->
-      let (env1, h_eff) = Env.add_anon_tvar env T.Kind.k_effect in
+      let (env1, h_eff) = Env.add_the_effect env in
       let sub = T.Subst.rename_to_fresh T.Subst.empty a h_eff in
       let cap_tp  = T.Type.subst sub cap_tp  in
       let res_tp  = T.Type.subst sub res_tp  in
@@ -422,21 +422,26 @@ and check_def : type dir.
       let (env1, pat, names, _) =
         Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat cap_tp in
       let ienv = ImplicitEnv.shadow_names ienv names in
+      let (ret_x, body_tp, ret_body) =
+        check_return_clauses env rcs res_tp res_eff in
       let body_eff = T.Effect.cons h_eff res_eff in
-      let (e, Checked, _) = cont.run env1 ienv (Check res_tp) body_eff in
-      let (x, e) = ExprUtils.arg_match pat e res_tp body_eff in
-      let pos = Position.join def.pos e.pos in
+      let (body, Checked, _) = cont.run env1 ienv (Check body_tp) body_eff in
+      let (x, body) = ExprUtils.arg_match pat body body_tp body_eff in
+      let pos = Position.join def.pos body.pos in
       if not (Unification.subeffect env res_eff eff) then
         Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
-      let resp : (_, dir) response =
-        match req with
-        | Infer    -> Infered (res_tp)
-        | Check tp ->
-          if not (Unification.subtype env res_tp tp) then
-            Error.report (Error.expr_type_mismatch ~pos ~env res_tp tp);
-          Checked
-      in
-      (make e (T.EHandle(h_eff, x, e, eh, res_tp, res_eff)), resp, Impure)
+      let e =
+        make body (T.EHandle
+          { effect_var = h_eff;
+            cap_var    = x;
+            body       = body;
+            capability = eh;
+            ret_var    = ret_x;
+            ret_body   = ret_body;
+            result_tp  = res_tp;
+            result_eff = res_eff
+          }) in
+      check_finally_clauses env fcs e res_tp req eff
 
     | H_No ->
       Error.fatal (Error.expr_not_handler ~pos:eh.pos ~env eh_tp)
@@ -512,6 +517,87 @@ and check_match_clauses env tp cls res_tp res_eff =
     cls
   in
   (cls, r_eff)
+
+and make_nonempty_match env tp cls res_tp res_eff =
+  let pos =
+    match cls with
+    | [] -> assert false
+    | cl :: cls ->
+      let p1 = cl.S.pos in
+      let p2 = List.fold_left (fun _ cl -> cl.S.pos) p1 cls in
+      Position.join p1 p2
+  in
+  let (cls, _) = check_match_clauses env tp cls res_tp res_eff in
+  let x = Var.fresh () in
+  let body =
+    { T.pos;
+      T.data = T.EMatch({ pos; data = T.EVar x }, cls, res_tp, res_eff) }
+  in (x, body)
+
+(* ------------------------------------------------------------------------- *)
+(** Check return clauses of handler.
+  In [check_return_clauses env rcs res_tp res_eff] the meaning of the
+  parameters is the following.
+  - [env]     -- the environment.
+  - [rcs]     -- list of clauses. If this list is empty, then the default
+      identity clause is created.
+  - [res_tp]  -- the expected of the return clause
+  - [ref_eff] -- the expected effect of the return clause
+
+  This function returns triple: a variable bound by the return clause,
+  its type, and the body of the clause (including pattern-matching). *)
+and check_return_clauses env rcs res_tp res_eff =
+  match rcs with
+  | [] ->
+    let x = Var.fresh () in
+    (x, res_tp, { T.pos = Position.nowhere; T.data = T.EVar x })
+  | _ ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let (x, body) = make_nonempty_match env tp rcs res_tp res_eff in
+    (x, tp, body)
+
+(* ------------------------------------------------------------------------- *)
+(** Check finally clauses of handler.
+  In [check_finally_clauses env fcs hexpr htp req eff] the meaning of the
+  parameters is the following.
+  - [env]   -- the environment.
+  - [fcs]   -- list of clauses. If this list is empty, then the equivalent of
+      the default identity clause is created.
+  - [hexpr] -- the handler expression, to be wrapped around the finally
+      clauses.
+  - [htp]   -- the type of the handler expression
+  - [req]   -- type request of the bidirectional type-checking.
+  - [eff]   -- the expected effect of the clauses.
+
+  This function returns a triple with the same meaning as the triple returned
+  by [tr_expr] function. Handlers are always impure. *)
+and check_finally_clauses : type dir.
+  Env.t -> S.match_clause list -> T.expr -> T.typ ->
+    (T.typ, dir) request -> T.effrow ->
+      T.expr * (T.typ, dir) response * ret_effect =
+  fun env fcs hexpr htp req eff ->
+  match fcs with
+  | [] ->
+    begin match req with
+    | Infer -> (hexpr, Infered htp, Impure)
+    | Check tp ->
+      if not (Unification.subtype env htp tp) then
+        Error.report (Error.expr_type_mismatch ~pos:hexpr.pos ~env htp tp);
+      (hexpr, Checked, Impure)
+    end
+  | _ ->
+    let (tp, (resp : (T.typ, dir) response)) =
+      match req with
+      | Infer ->
+        let tp = Env.fresh_uvar env T.Kind.k_type in
+        (tp, Infered tp)
+      | Check tp -> (tp, Checked)
+    in
+    let (x, body) = make_nonempty_match env htp fcs tp eff in
+    let expr =
+      { T.pos  = Position.join body.pos hexpr.pos;
+        T.data = T.ELet(x, T.Scheme.of_type htp, hexpr, body) }
+    in (expr, resp, Impure)
 
 (* ------------------------------------------------------------------------- *)
 (** Check the sequence of REPL definitions, provided by a user. Always

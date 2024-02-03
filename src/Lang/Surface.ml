@@ -190,8 +190,11 @@ and def_data =
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DHandlePat of pattern * expr
-    (** Effect handler combined with pattern-matching *)
+  | DHandlePat of pattern * expr * match_clause list * match_clause list
+    (** Effect handler combined with pattern-matching.
+      The third parameter is a list of return clauses: empty list means the
+      default clause. Similarly, the fourth parameter is a list of finally
+      clauses: empty list means the default clause. *)
 
   | DImplicit of iname
     (** Declaration of implicit *)

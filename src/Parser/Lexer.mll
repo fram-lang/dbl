@@ -13,6 +13,7 @@ let kw_map =
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
   ; "end",      KW_END
+  ; "finally",  KW_FINALLY
   ; "fn",       KW_FN
   ; "handle",   KW_HANDLE
   ; "handler",  KW_HANDLER
@@ -22,6 +23,7 @@ let kw_map =
   ; "match",    KW_MATCH
   ; "of",       KW_OF
   ; "rec",      KW_REC
+  ; "return",   KW_RETURN
   ; "type",     KW_TYPE
   ; "with",     KW_WITH
   ; "_",        UNDERSCORE

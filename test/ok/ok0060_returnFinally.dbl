@@ -1,0 +1,16 @@
+data Unit = I
+
+data State (effect E) X = State of
+  { get : Unit ->[E] X
+  , put : X ->[E] Unit
+  }
+
+let hState (comp : {effect=E} -> State E _ ->[E|_] _) initSt =
+  handle st = State
+    { get = effect I / r => fn s => r s s
+    , put = effect s / r => fn _ => r I s
+    }
+  return  x => fn _ => x
+  finally f => f initSt
+  in
+  comp st
