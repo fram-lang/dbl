@@ -23,6 +23,8 @@ val warn : t -> unit
 val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 
 val wildcard_in_effect : pos:Position.t -> t
+val anon_effect_arg : pos:Position.t -> t
+val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
 
 val type_not_function : pos:Position.t -> env:Env.t -> T.kind -> t
 

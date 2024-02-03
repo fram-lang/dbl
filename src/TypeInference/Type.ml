@@ -122,8 +122,19 @@ and check_type_arg env (arg : S.type_arg) kind =
   | TA_Var x -> Env.add_tvar env x kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =
+  let name = Name.tr_tname (fst arg.data) in
   let (env, x) = tr_type_arg env (snd arg.data) in
-  (env, (Name.tr_tname (fst arg.data), x))
+  let k = T.TVar.kind x in
+  begin match name with
+  | TNAnon ->
+    if not (T.Kind.set_non_effect k) then
+      Error.fatal (Error.anon_effect_arg ~pos:arg.pos)
+  | TNEffect ->
+    if not (Unification.unify_kind k T.Kind.k_effect) then
+      Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos k)
+  | TNVar _ -> ()
+  end;
+  (env, (name, x))
 
 and tr_named_type_args env args =
   Uniqueness.check_named_type_arg_uniqueness args;

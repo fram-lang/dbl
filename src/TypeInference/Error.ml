@@ -32,6 +32,14 @@ let wildcard_in_effect ~pos =
   Printf.eprintf "%s: error: Wild-cards in effects are forbidden\n"
     (Position.to_string pos)
 
+let anon_effect_arg ~pos =
+  Printf.eprintf "%s: error: Anonymous type parameters cannot have effect kind\n"
+    (Position.to_string pos)
+
+let effect_arg_kind_mismatch ~pos k =
+  Printf.eprintf "%s: error: This type parameter should have effect kind\n"
+    (Position.to_string pos)
+
 let type_not_function ~pos ~env k =
   (* TODO: better message *)
   Printf.eprintf
