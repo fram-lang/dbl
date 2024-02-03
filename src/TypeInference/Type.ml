@@ -115,10 +115,17 @@ and tr_effrow env eff =
 
 and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
+  | TA_Effect -> Env.add_the_effect env
   | TA_Var x -> Env.add_tvar env x (T.Kind.fresh_uvar ())
 
 and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
+  | TA_Effect ->
+    let (env, x) = Env.add_the_effect env in
+    let k = T.TVar.kind x in
+    if not (Unification.unify_kind k T.Kind.k_effect) then
+      Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos k);
+    (env, x)
   | TA_Var x -> Env.add_tvar env x kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =

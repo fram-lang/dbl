@@ -23,6 +23,7 @@ type ctor_name = string
 (** Name of a named type parameter *)
 type tname =
   | TNAnon
+  | TNEffect
   | TNVar of tvar
 
 (** Name of a named parameter *)
@@ -77,6 +78,9 @@ and named_scheme = (name * scheme_expr) node
 (** Type formal parameter *)
 and type_arg = type_arg_data node
 and type_arg_data =
+  | TA_Effect
+    (** Effect variable *)
+
   | TA_Var of tvar
     (** Type variable *)
 

@@ -53,39 +53,58 @@ let rec tr_type_expr (tp : Raw.type_expr) =
   | TWildcard -> make TWildcard
   | TParen tp -> make (tr_type_expr tp).data
   | TVar x    -> make (TVar x)
-  | TPureArrow(tp1, tp2) ->
-    make (TPureArrow(tr_scheme_expr tp1, tr_type_expr tp2))
-  | TArrow(tp1, tp2, eff) ->
-    make (TArrow(tr_scheme_expr tp1, tr_type_expr tp2, tr_type_expr eff))
+  | TArrow(tp1, tp2) ->
+    let sch = tr_scheme_expr tp1 in
+    begin match tr_eff_type tp2 with
+    | (None, tp2) -> make (TPureArrow(sch, tp2))
+    | (Some eff, tp2) -> make (TArrow(sch, tp2, eff))
+    end
   | TEffect(tps, ee) ->
     make (TEffect(List.map tr_type_expr tps, Option.map tr_type_expr ee))
   | TApp(tp1, tp2) ->
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
-  | TRecord _ ->
+  | TRecord _ | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
+
+and tr_eff_type (tp : Raw.type_expr) =
+  let make l_pos data = { pos = Position.join l_pos tp.pos; data } in
+  match tp.data with
+  | TWildcard | TParen _ | TVar _ | TArrow _ | TEffect _ | TRecord _
+  | TTypeLbl _ | TEffectLbl _ ->
+    (None, tr_type_expr tp)
+
+  | TApp({ data = TEffect _; _ } as eff, tp) ->
+    (Some (tr_type_expr eff), tr_type_expr tp)
+
+  | TApp(tp1, tp2) ->
+    let (eff, tp1) = tr_eff_type tp1 in
+    (eff, make tp1.pos (TApp(tp1, tr_type_expr tp2)))
 
 and tr_scheme_expr (tp : Raw.type_expr) =
   let pos = tp.pos in
   match tp.data with
   | TParen tp ->
     { (tr_scheme_expr tp) with sch_pos = pos }
-  | TPureArrow({ data = TRecord flds; _}, tp) ->
+  | TArrow({ data = TRecord flds; _}, tp) ->
     let (tvs, named) = map_inst_like tr_scheme_field flds in
-    { sch_pos   = pos;
-      sch_targs = tvs;
-      sch_named = named;
-      sch_body  = tr_type_expr tp
-    }
-  | TArrow({data = TRecord _; _}, _, _) ->
-    Error.fatal (Error.impure_scheme pos)
+    begin match tr_eff_type tp with
+    | (None, tp) ->
+      { sch_pos   = pos;
+        sch_targs = tvs;
+        sch_named = named;
+        sch_body  = tp
+      }
+    | (Some _, _) ->
+      Error.fatal (Error.impure_scheme pos)
+    end
 
-  | TWildcard | TVar _ | TPureArrow _ | TArrow _ | TEffect _ | TApp _ ->
+  | TWildcard | TVar _ | TArrow _ | TEffect _ | TApp _ ->
     { sch_pos   = pos;
       sch_targs = [];
       sch_named = [];
       sch_body  = tr_type_expr tp
     }
-  | TRecord _ ->
+  | TRecord _ | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 and tr_scheme_field (fld : Raw.ty_field) =
@@ -93,6 +112,10 @@ and tr_scheme_field (fld : Raw.ty_field) =
   match fld.data with
   | FldAnonType tp ->
     Either.Left (make (TNAnon, tr_type_arg tp))
+  | FldEffect ->
+    Either.Left (make (TNEffect, make TA_Effect))
+  | FldEffectVal arg ->
+    Either.Left (make (TNEffect, tr_type_arg arg))
   | FldType x ->
     Either.Left (make (TNVar x, make (TA_Var x)))
   | FldTypeVal(x, arg) ->
@@ -117,16 +140,19 @@ and tr_type_arg (tp : Raw.type_expr) =
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
   | TVar x    -> make (TA_Var x)
-  | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+  | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ | TTypeLbl _
+  | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a type expression as a named type parameter *)
 let rec tr_named_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
-  | TParen tp -> make (tr_named_type_arg tp).data
-  | TVar x    -> make (TNVar x, make (TA_Var x))
-  | TWildcard | TPureArrow _ | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+  | TParen tp   -> make (tr_named_type_arg tp).data
+  | TVar   x    -> make (TNVar x, make (TA_Var x))
+  | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
+  | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
+  | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
@@ -135,7 +161,8 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   match tp.data with
   | TVar x -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
-  | TWildcard | TParen _ | TPureArrow _ | TArrow _ | TEffect _ | TRecord _ ->
+  | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _ | TTypeLbl _
+  | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 let tr_ctor_decl (d : Raw.ctor_decl) =
@@ -200,6 +227,10 @@ and tr_named_pattern (fld : Raw.field) =
   match fld.data with
   | FldAnonType _ ->
     Error.fatal (Error.anon_type_pattern fld.pos)
+  | FldEffect ->
+    Either.Left (make (TNEffect, make TA_Effect))
+  | FldEffectVal arg ->
+    Either.Left (make (TNEffect, tr_type_arg arg))
   | FldType x ->
     Either.Left (make (TNVar x, make (TA_Var x)))
   | FldTypeVal(x, arg) ->
@@ -230,6 +261,10 @@ let tr_named_arg (fld : Raw.field) =
   match fld.data with
   | FldAnonType arg ->
     Either.Left (make (TNAnon, tr_type_arg arg))
+  | FldEffect ->
+    Either.Left (make (TNEffect, make TA_Effect))
+  | FldEffectVal arg ->
+    Either.Left (make (TNEffect, tr_type_arg arg))
   | FldType x ->
     Either.Left (make (TNVar x, make (TA_Var x)))
   | FldTypeVal(x, arg) ->
@@ -319,6 +354,8 @@ and tr_explicit_inst (fld : Raw.field) =
   match fld.data with
   | FldAnonType _ ->
     Error.fatal (Error.desugar_error fld.pos)
+  | FldEffectVal eff ->
+    Either.Left (make (TNEffect, tr_type_expr eff))
   | FldType x ->
     Either.Left (make (TNVar x, make (TVar x)))
   | FldTypeVal(x, tp) ->
@@ -332,7 +369,7 @@ and tr_explicit_inst (fld : Raw.field) =
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
     Either.Right (make (n, tr_expr e))
-  | FldNameAnnot _ ->
+  | FldEffect | FldNameAnnot _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_def (def : Raw.def) =

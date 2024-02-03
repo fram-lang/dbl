@@ -53,10 +53,10 @@ name
 /* ========================================================================= */
 
 ty_expr
-: ty_expr_app ARROW ty_expr { make (TPureArrow($1, $3)) }
-| ty_expr_app ARROW SBR_OPN effect SBR_CLS ty_expr
-    { make (TArrow($1, $6, $4)) }
+: ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
 | ty_expr_app { $1 }
+| KW_TYPE   ty_expr { make (TTypeLbl $2)   }
+| KW_EFFECT ty_expr { make (TEffectLbl $2) }
 ;
 
 ty_expr_app
@@ -68,6 +68,7 @@ ty_expr_simple
 : BR_OPN ty_expr BR_CLS { make (TParen $2) }
 | UID        { make (TVar $1) }
 | UNDERSCORE { make TWildcard }
+| SBR_OPN effect SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
 ;
 
@@ -91,11 +92,13 @@ ty_expr_list1
 /* ------------------------------------------------------------------------- */
 
 ty_field
-: KW_TYPE ty_expr    { make (FldAnonType $2)     }
-| UID                { make (FldType $1)         }
-| UID EQ ty_expr     { make (FldTypeVal($1, $3)) }
-| name               { make (FldName $1)         }
-| name COLON ty_expr { make (FldNameVal($1, $3)) }
+: KW_TYPE ty_expr      { make (FldAnonType $2)     }
+| KW_EFFECT            { make FldEffect            }
+| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)    }
+| UID                  { make (FldType $1)         }
+| UID EQ ty_expr       { make (FldTypeVal($1, $3)) }
+| name                 { make (FldName $1)         }
+| name COLON ty_expr   { make (FldNameVal($1, $3)) }
 ;
 
 ty_field_list
@@ -177,12 +180,14 @@ match_clause_list
 /* ========================================================================= */
 
 field
-: KW_TYPE ty_expr    { make (FldAnonType $2)       }
-| UID                { make (FldType $1)           }
-| UID EQ ty_expr     { make (FldTypeVal($1, $3))   }
-| name               { make (FldName $1)           }
-| name EQ expr       { make (FldNameVal($1, $3))   }
-| name COLON ty_expr { make (FldNameAnnot($1, $3)) }
+: KW_TYPE ty_expr      { make (FldAnonType $2)       }
+| KW_EFFECT            { make FldEffect              }
+| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)      }
+| UID                  { make (FldType $1)           }
+| UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
+| name                 { make (FldName $1)           }
+| name EQ expr         { make (FldNameVal($1, $3))   }
+| name COLON ty_expr   { make (FldNameAnnot($1, $3)) }
 ;
 
 field_list

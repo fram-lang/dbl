@@ -10,8 +10,9 @@ open Common
 
 let tr_tname (name : S.tname) =
   match name with
-  | TNAnon  -> T.TNAnon
-  | TNVar x -> T.TNVar x
+  | TNAnon   -> T.TNAnon
+  | TNEffect -> T.TNEffect
+  | TNVar x  -> T.TNVar x
 
 let tr_name env (name : S.name) =
   match name with

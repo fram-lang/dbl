@@ -32,6 +32,12 @@ type ('tp, 'e) field_data =
   | FldAnonType of 'tp
     (** Anonymous type *)
 
+  | FldEffect
+    (** Effect associated with effect handler *)
+
+  | FldEffectVal of 'tp
+    (** Effect associated with effect handler, together with its value *)
+
   | FldType of tvar
     (** Named type *)
 
@@ -59,11 +65,8 @@ and type_expr_data =
   | TVar of tvar
     (** Type variable *)
 
-  | TPureArrow of type_expr * type_expr
-    (** Pure function: a function without effects, that always terminates *)
-  
-  | TArrow of type_expr * type_expr * type_expr
-    (** Effectful function: the last parameter is an effect *)
+  | TArrow of type_expr * type_expr
+    (** Arrow type. The second parameter might have an effect. *)
 
   | TEffect of type_expr list * type_expr option
     (** Effect: list of simple effect optionally closed by another effect *)
@@ -73,6 +76,12 @@ and type_expr_data =
 
   | TRecord of ty_field list
     (** Record-like type: left-hand-side of a type-scheme *)
+
+  | TTypeLbl of type_expr
+    (** Label of anonymous type parameter of ADT *)
+
+  | TEffectLbl of type_expr
+    (** Label of effect type parameter of ADT *)
 
 (** Field of record-like type *)
 and ty_field = (type_expr, type_expr) field_data node

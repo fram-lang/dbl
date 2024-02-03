@@ -194,8 +194,9 @@ let ctor_redefinition ~pos ~ppos name =
 let type_inst_redefinition ~pos ~ppos (name : Lang.Surface.tname) =
   let nn =
     match name with
-    | TNAnon  -> assert false
-    | TNVar x -> x
+    | TNAnon   -> assert false
+    | TNEffect -> "effect"
+    | TNVar x  -> x
   in
   Printf.eprintf "%s: error: Type %s is provided more than once.\n"
     (Position.to_string pos)
@@ -218,8 +219,9 @@ let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
 let multiple_named_type_args ~pos ~ppos (name : Lang.Surface.tname) =
   let nn =
     match name with
-    | TNAnon  -> assert false
-    | TNVar x -> x
+    | TNAnon   -> assert false
+    | TNEffect -> "effect"
+    | TNVar x  -> x
   in
   Printf.eprintf
     "%s: error: Named type %s is bound more than once in single definition.\n"
@@ -231,8 +233,9 @@ let multiple_named_type_args ~pos ~ppos (name : Lang.Surface.tname) =
 let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
   let nn =
     match name with
-    | TNAnon  -> assert false
-    | TNVar x -> x
+    | TNAnon   -> assert false
+    | TNEffect -> "effect"
+    | TNVar x  -> x
   in
   Printf.eprintf
     "%s: error: Named type %s is already bound by datatype itself.\n"
