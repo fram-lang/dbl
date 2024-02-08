@@ -136,4 +136,5 @@ module UVar : sig
   val filter_scope : uvar -> (tvar -> bool) -> unit
 
   module Set : Set.S with type elt = t
+  module Map : Map.S with type key = t
 end

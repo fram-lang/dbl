@@ -71,7 +71,7 @@ let check_data_def env (dd : S.data_def) =
   let (DD_Data(name, _, _)) = dd.data in
   let kind = T.Kind.fresh_uvar () in
   let (args, ctors) = check_data_def_main env dd kind in
-  let (env, x) = Env.add_tvar env name kind in
+  let (env, x) = Env.add_tvar ~pos:dd.pos env name kind in
   finalize_data_def env dd x args ctors
 
 let prepare_rec_data_def env (dd : S.data_def) =
@@ -81,7 +81,7 @@ let prepare_rec_data_def env (dd : S.data_def) =
     T.Kind.k_arrows
       (List.map (fun (_, x) -> T.TVar.kind x) args)
       T.Kind.k_type in
-  let (env, x) = Env.add_tvar env name kind in
+  let (env, x) = Env.add_tvar ~pos:dd.pos env name kind in
   (env, (x, dd))
 
 let finalize_rec_data_def env (x, dd) =

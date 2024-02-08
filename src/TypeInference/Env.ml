@@ -17,6 +17,12 @@ type adt_info = {
   adt_type  : T.typ
 }
 
+type pp_info = {
+  pp_base_name : string;
+  pp_names     : string list;
+  pp_pos       : Position.t option
+}
+
 type t = {
   var_map : (T.var * T.scheme) StrMap.t;
     (** Information about regular variable names *)
@@ -33,6 +39,9 @@ type t = {
   adt_map : adt_info T.TVar.Map.t;
     (** Definition of ADT associated with a type variable *)
 
+  pp_map : pp_info T.TVar.Map.t;
+    (** Additional metadata used for pretty-printing of types *)
+
   scope   : T.scope
     (** Scope of type variables *)
 }
@@ -43,6 +52,7 @@ let empty =
     implicit_map = StrMap.empty;
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
+    pp_map       = T.TVar.Map.empty;
     scope        = T.Scope.initial
   }
 
@@ -67,20 +77,42 @@ let add_mono_implicit env name tp on_use =
 let add_the_label env eff tp0 eff0 =
   add_mono_var env "#label" (T.Type.t_label eff tp0 eff0)
 
-let add_tvar env name kind =
+let add_tvar ?pos env name kind =
   let x = T.TVar.fresh kind in
+  let pp_info = 
+    { pp_base_name = name;
+      pp_names     = [name];
+      pp_pos       = pos
+    } in
   { env with
     tvar_map = StrMap.add name x env.tvar_map;
+    pp_map   = T.TVar.Map.add x pp_info env.pp_map;
     scope    = T.Scope.add env.scope x
   }, x
 
-let add_the_effect env =
-  add_tvar env "#effect" T.Kind.k_effect
-
-let add_anon_tvar env kind =
-  let x = T.TVar.fresh kind in
+let add_the_effect ?pos env =
+  let x = T.TVar.fresh T.Kind.k_effect in
+  let pp_info =
+    { pp_base_name = "effect";
+      pp_names     = [];
+      pp_pos       = pos
+    } in
   { env with
-    scope = T.Scope.add env.scope x
+    tvar_map = StrMap.add "#effect" x env.tvar_map;
+    pp_map   = T.TVar.Map.add x pp_info env.pp_map;
+    scope    = T.Scope.add env.scope x
+  }, x
+
+let add_anon_tvar ?pos ?(name="T") env kind =
+  let x = T.TVar.fresh kind in
+  let pp_info =
+    { pp_base_name = name;
+      pp_names     = [];
+      pp_pos       = pos
+    } in
+  { env with
+    pp_map = T.TVar.Map.add x pp_info env.pp_map;
+    scope  = T.Scope.add env.scope x
   }, x
 
 let add_data env x info =
@@ -127,6 +159,9 @@ let lookup_the_effect env =
 
 let lookup_adt env x =
   T.TVar.Map.find_opt x env.adt_map
+
+let lookup_tvar_pp_info env x =
+  T.TVar.Map.find_opt x env.pp_map
 
 let uvars env =
   T.UVar.Set.empty

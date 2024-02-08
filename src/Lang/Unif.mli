@@ -384,6 +384,9 @@ module UVar : sig
 
   (** Set of unification variables *)
   module Set : Set.S with type elt = t
+
+  (** Finite maps with unification variables as keys *)
+  module Map : Map.S with type key = t
 end
 
 (* ========================================================================= *)

@@ -26,6 +26,18 @@ type adt_info = {
     (** The type that is an ADT, already applied to [adt_args] *)
 }
 
+(** Additional information about type variables used to pretty printing *)
+type pp_info = {
+  pp_base_name : string;
+    (** Default name used as a base for a name generation *)
+
+  pp_names     : string list;
+    (** List of names assigned to a type variable (empty for anonymous types) *)
+
+  pp_pos       : Position.t option
+    (** Position of the binding place *)
+}
+
 (** Empty environment *)
 val empty : t
 
@@ -50,15 +62,20 @@ val add_mono_implicit :
   be passed as a parameters. *)
 val add_the_label : t -> T.effect -> T.typ -> T.effrow -> t * T.var
 
-(** Extend an environment with a named type variable *)
-val add_tvar : t -> S.tvar -> T.kind -> t * T.tvar
+(** Extend an environment with a named type variable. The optional position
+  should point to the place of binding in the source code. *)
+val add_tvar : ?pos:Position.t -> t -> S.tvar -> T.kind -> t * T.tvar
 
 (** Extend an environment with a type variable labeled with "effect". Such
-  a type always have [effect] kind. *)
-val add_the_effect : t -> t * T.tvar
+  a type always have [effect] kind. The optional position should point to
+  the place of binding in the source code. *)
+val add_the_effect : ?pos:Position.t -> t -> t * T.tvar
 
-(** Extend an environment with an anonymous type variable *)
-val add_anon_tvar : t -> T.kind -> t * T.tvar
+(** Extend an environment with an anonymous type variable. The optional
+  position should point to the place of binding in the source code. The
+  optional name is used for pretty-printing purposes. *)
+val add_anon_tvar :
+  ?pos:Position.t -> ?name:string -> t -> T.kind -> t * T.tvar
 
 (** Assign ADT definition to given type variable. *)
 val add_data : t -> T.tvar -> adt_info -> t
@@ -94,6 +111,9 @@ val lookup_the_effect : t -> T.tvar option
 
 (** Lookup for ADT definition assigned for given type variable *)
 val lookup_adt : t -> T.tvar -> adt_info option
+
+(** Lookup for pretty-printing information about type variable *)
+val lookup_tvar_pp_info : t -> T.tvar -> pp_info option
 
 (** Set of unification variables in the environment *)
 val uvars : t -> T.UVar.Set.t

@@ -52,7 +52,7 @@ let rec select_named_pattern name (nps : named_pattern list) =
       (fun (p, nps) -> (p, np :: nps))
       (select_named_pattern name nps)
 
-let rec check_ctor_type_args ~env ~scope ~sub
+let rec check_ctor_type_args ~pos ~env ~scope ~sub
     (ntps : named_type list) (tvs : T.named_tvar list) =
   match tvs with
   | []        ->
@@ -65,7 +65,7 @@ let rec check_ctor_type_args ~env ~scope ~sub
     let (env, a, ntps) =
       match select_named_type name ntps with
       | None ->
-        let (env, a) = Env.add_anon_tvar env (T.TVar.kind tv) in
+        let (env, a) = Env.add_anon_tvar ~pos env (T.TVar.kind tv) in
         (env, a, ntps)
       | Some(arg, ntps) ->
         let (env, a) = Type.check_type_arg env arg (T.TVar.kind tv) in
@@ -74,7 +74,7 @@ let rec check_ctor_type_args ~env ~scope ~sub
     let scope = T.Scope.add scope a in
     let sub   = T.Subst.rename_to_fresh sub tv a in
     let (env, scope, sub, tvs) =
-      check_ctor_type_args ~env ~scope ~sub ntps tvs in
+      check_ctor_type_args ~pos ~env ~scope ~sub ntps tvs in
     (env, scope, sub, a :: tvs)
 
 (** Extend the environment by a named parameter that is not explicitly
@@ -166,7 +166,7 @@ and check_type ~env ~scope (pat : S.pattern) tp =
       Uniqueness.check_named_type_arg_uniqueness targs;
       let targs = List.map tr_named_type targs in
       let (env, scope, sub2, tvars) =
-        check_ctor_type_args ~env ~scope ~sub:T.Subst.empty
+        check_ctor_type_args ~pos:cname.pos ~env ~scope ~sub:T.Subst.empty
           targs ctor.ctor_targs in
       let ctor_named =
         List.map (T.NamedScheme.subst sub2) ctor.ctor_named in

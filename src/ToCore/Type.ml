@@ -36,8 +36,8 @@ let rec tr_effrow_end env (eff : S.Type.effrow_end) =
   | EEClosed -> T.TEffPure
   | EEUVar _  ->
     (* TODO: they can be supported, and its especially useful in REPL *)
-    InterpLib.Error.incr_error_counter ();
-    Printf.eprintf "error: Unsolved unification variables left\n";
+    InterpLib.Error.report ~cls:FatalError
+      "Unsolved unification variables left.";
     raise InterpLib.Error.Fatal_error
   | EEVar x ->
     let (Ex x) = Env.lookup_tvar env x in
@@ -53,8 +53,8 @@ and tr_type env tp =
   | TUnit    -> T.Type.Ex TUnit
   | TUVar _  ->
     (* TODO: they can be supported, and its especially useful in REPL *)
-    InterpLib.Error.incr_error_counter ();
-    Printf.eprintf "error: Unsolved unification variables left\n";
+    InterpLib.Error.report ~cls:FatalError
+      "Unsolved unification variables left.";
     raise InterpLib.Error.Fatal_error
   | TVar x  ->
     let (Ex x) = Env.lookup_tvar env x in

@@ -153,7 +153,7 @@ let rec infer_expr_type env (e : S.expr) eff =
     (e, tp, r_eff)
 
   | EHandler h ->
-    let (env, a) = Env.add_the_effect env in
+    let (env, a) = Env.add_the_effect ~pos:e.pos env in
     let res_tp  = Env.fresh_uvar env T.Kind.k_type in
     let res_eff = Env.fresh_uvar env T.Kind.k_effrow in
     let (env, lx) =
@@ -239,7 +239,7 @@ and check_expr_type env (e : S.expr) tp eff =
   | EHandler h ->
     begin match Unification.from_handler env tp with
     | H_Handler(b, tp, tp0, eff0) ->
-      let (env, a) = Env.add_the_effect env in
+      let (env, a) = Env.add_the_effect ~pos:e.pos env in
       let sub  = T.Subst.rename_to_fresh T.Subst.empty b a in
       let tp   = T.Type.subst sub tp in
       let tp0  = T.Type.subst sub tp0 in
@@ -414,7 +414,7 @@ and check_def : type dir.
     ImplicitEnv.end_generalize_impure ims;
     begin match Unification.to_handler env eh_tp with
     | H_Handler(a, cap_tp, res_tp, res_eff) ->
-      let (env1, h_eff) = Env.add_the_effect env in
+      let (env1, h_eff) = Env.add_the_effect ~pos:def.pos env in
       let sub = T.Subst.rename_to_fresh T.Subst.empty a h_eff in
       let cap_tp  = T.Type.subst sub cap_tp  in
       let res_tp  = T.Type.subst sub res_tp  in
@@ -632,4 +632,5 @@ and check_repl_def_seq env ienv def_seq tp eff =
 (** Check expression put into REPL *)
 and check_repl_expr env e eff =
   let (e, tp, r_eff) = infer_expr_type env e eff in
-  (e, "?", r_eff)
+  let pp_ctx = Pretty.empty_context () in
+  (e, Pretty.type_to_string pp_ctx env tp, r_eff)

@@ -4,15 +4,16 @@
 
 (** Reporting errors that may occur during the translation from Unif to Core *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
-type t = unit
+type t = Position.t * string
 
-let fatal () =
-  InterpLib.Error.incr_error_counter ();
+let fatal (pos, msg) =
+  InterpLib.Error.report ~pos ~cls:FatalError msg;
   raise InterpLib.Error.Fatal_error
 
 let non_exhaustive_match ~pos ctx =
-  (* TODO: better message *)
-  Printf.eprintf "%s: error: This pattern-matching is not exhaustive\n"
-    (Position.to_string pos)
+  (* TODO: counterexample in the message. *)
+  let msg = Printf.sprintf
+    "This pattern-matching is not exhaustive."
+  in (pos, msg)

@@ -45,7 +45,7 @@ let rec infer_kind env (tp : S.type_expr) =
       let tp2 = check_kind env tp2 k2 in
       (T.Type.t_app tp1 tp2, kv)
     | None ->
-      Error.fatal (Error.type_not_function ~pos:pos1 ~env k1)
+      Error.fatal (Error.type_not_function ~pos:pos1 k1)
     end
 
 and check_kind env (tp : S.type_expr) k =
@@ -115,18 +115,18 @@ and tr_effrow env eff =
 
 and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
-  | TA_Effect -> Env.add_the_effect env
-  | TA_Var x -> Env.add_tvar env x (T.Kind.fresh_uvar ())
+  | TA_Effect -> Env.add_the_effect ~pos:arg.pos env
+  | TA_Var x -> Env.add_tvar ~pos:arg.pos env x (T.Kind.fresh_uvar ())
 
 and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
   | TA_Effect ->
-    let (env, x) = Env.add_the_effect env in
+    let (env, x) = Env.add_the_effect ~pos:arg.pos env in
     let k = T.TVar.kind x in
     if not (Unification.unify_kind k T.Kind.k_effect) then
       Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos k);
     (env, x)
-  | TA_Var x -> Env.add_tvar env x kind
+  | TA_Var x -> Env.add_tvar ~pos:arg.pos env x kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =
   let name = Name.tr_tname (fst arg.data) in

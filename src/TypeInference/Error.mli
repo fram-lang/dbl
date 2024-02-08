@@ -26,7 +26,7 @@ val wildcard_in_effect : pos:Position.t -> t
 val anon_effect_arg : pos:Position.t -> t
 val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
 
-val type_not_function : pos:Position.t -> env:Env.t -> T.kind -> t
+val type_not_function : pos:Position.t -> T.kind -> t
 
 val unbound_var : pos:Position.t -> S.var -> t
 val unbound_implicit : pos:Position.t -> S.iname -> t

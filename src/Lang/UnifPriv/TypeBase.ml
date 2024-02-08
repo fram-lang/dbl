@@ -238,4 +238,5 @@ module UVar = struct
     BRef.set u.scope (TVar.Set.filter f (BRef.get u.scope))
 
   module Set = Set.Make(Ordered)
+  module Map = Map.Make(Ordered)
 end

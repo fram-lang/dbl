@@ -4,14 +4,39 @@
 
 (** Main module for reporting errors *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2023,2024 *)
 
 exception Fatal_error
+
+type error_class =
+  | FatalError
+  | Error
+  | Warning
+  | Note
 
 let err_counter = ref 0
 
 let incr_error_counter () =
   err_counter := !err_counter + 1
+
+let report ?pos ~cls msg =
+  let name =
+    match cls with
+    | FatalError ->
+      incr_error_counter ();
+      "fatal error"
+    | Error ->
+      incr_error_counter ();
+      "error"
+    | Warning -> "warning"
+    | Note    -> "note"
+  in
+  match pos with
+  | None ->
+    Printf.eprintf "%s: %s\n" name msg
+  | Some pos ->
+    Printf.eprintf "%s: %s: %s\n"
+      (Position.to_string pos) name msg
 
 let assert_no_error () =
   if !err_counter <> 0 then

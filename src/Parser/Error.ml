@@ -6,68 +6,45 @@
 
 (* Author: Piotr Polesiuk, 2023,2024 *)
 
-type t = unit
+type t = Position.t option * string
 
-let fatal () =
-  InterpLib.Error.incr_error_counter ();
+let fatal (pos, msg) =
+  InterpLib.Error.report ?pos ~cls:FatalError msg;
   raise InterpLib.Error.Fatal_error
 
-let warn () = ()
+let warn (pos, msg) =
+  InterpLib.Error.report ?pos ~cls:Warning msg
 
 let cannot_read_file ?pos ~fname msg =
-  (* TODO: not implemented properly *)
-  Printf.eprintf "error: cannot read file %s (%s)\n" fname msg
+  (pos, Printf.sprintf "Cannot read file %s (%s)" fname msg)
 
 let cannot_open_file ?pos ~fname msg =
-  (* TODO: not implemented properly *)
-  Printf.eprintf "error: cannot open file %s (%s)\n" fname msg
+  (pos, Printf.sprintf "Cannot open file %s (%s)" fname msg)
 
 let unexpected_token pos tok =
-  (* TODO: not implemented properly *)
-  Printf.eprintf "%s: error: unexpected token `%s'\n"
-    (Position.to_string pos) tok
+  (Some pos, Printf.sprintf "Unexpected token `%s'" tok)
 
 let invalid_character pos ch =
-  (* TODO: not implemented properly *)
-  Printf.eprintf "%s: error: invalid character `%s'\n"
-    (Position.to_string pos) (Char.escaped ch)
+  (Some pos, Printf.sprintf "Invalid character `%s'" (Char.escaped ch))
 
 let eof_in_comment pos =
-  (* TODO: not implemented properly *)
-  Printf.eprintf "%s: error: unexpected end of file inside a block comment\n"
-    (Position.to_string pos)
+  (Some pos, "Unexpected end of file inside a block comment")
 
 let desugar_error pos =
-  (* TODO: not implemented properly *)
-  Printf.eprintf
-    "%s: error: syntax error. This construction cannot be used in this context.\n"
-    (Position.to_string pos)
+  (Some pos, "Syntax error. This construction cannot be used in this context")
 
 let invalid_pattern_arg pos =
-  (* TODO: not implemented properly *)
-  Printf.eprintf
-    "%s: error: syntax error. This argument is provied to a pattern that do not expect it.\n"
-    (Position.to_string pos)
+  (Some pos,
+  "Syntax error. This argument is provided to a pattern that do not expect it")
 
 let impure_scheme pos =
-  (* TODO: not implemented properly *)
-  Printf.eprintf
-    "%s: error: syntax error. Type schemes must be pure.\n"
-    (Position.to_string pos)
+  (Some pos, "Syntax error. Type schemes must be pure")
 
 let anon_type_pattern pos =
-  (* TODO: not implemented properly *)
-  Printf.eprintf
-    "%s: error: syntax error. Anonymous types cannot be explicitly bound.\n"
-    (Position.to_string pos)
+  (Some pos, "Syntax error. Anonymous types cannot be explicitly bound")
 
 let value_before_type_param pos =
-  (* TODO: not implemented properly *)
-  Printf.eprintf
-    "%s: warning: Named value parameter appears before a type parameter.\n"
-    (Position.to_string pos)
+  (Some pos, "Named value parameter appears before a type parameter")
 
 let finally_before_return_clause pos =
-  Printf.eprintf
-    "%s: warning: Finally clause before return clause.\n"
-    (Position.to_string pos)
+  (Some pos, "Finally clause before return clause")
