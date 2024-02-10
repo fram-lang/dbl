@@ -141,8 +141,8 @@ expr_10
 ;
 
 expr_200
-: expr_200 expr_simple { make (EApp($1, $2)) }
-| expr_simple          { $1 }
+: expr_simple { $1 }
+| expr_simple expr_simple_list1 { make (EApp($1, $2)) }
 ;
 
 expr_simple

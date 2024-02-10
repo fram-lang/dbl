@@ -121,7 +121,7 @@ and expr_data =
   | EFn   of expr list * expr
     (** Lambda-abstraction *)
 
-  | EApp  of expr * expr
+  | EApp  of expr * expr list
     (** Function application *)
 
   | EDefs of def list * expr

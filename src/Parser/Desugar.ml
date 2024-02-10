@@ -13,8 +13,8 @@ type ty_def =
     (** Name with parameters *)
 
 type let_pattern =
-  | LP_Id of ident * Raw.expr list
-    (** identifier definition with a list of formal parameters. *)
+  | LP_Id of ident
+    (** identifier *)
 
   | LP_Fun of ident * named_type_arg list * named_arg list * Raw.expr list
     (** Function definition with list of formal type, named, and explicit
@@ -191,41 +191,44 @@ let tr_data_def (dd : Raw.data_def) =
                        List.map tr_ctor_decl cs))
     end
 
-(** Translate a simple pattern, i.e., pattern that cannot be applied to
-  the list of parameters. This function makes sure, that the provided list
-  of parameters is empty *)
-let rec tr_simple_pattern (p : Raw.expr) ps =
-  let make data = { p with data = data } in
-  match ps, p.data with
-  | [], EWildcard -> make PWildcard
-  | [], EUnit     -> Error.fatal (Error.desugar_error p.pos)
-  | [], EParen p  -> make (tr_pattern p []).data
-  | [], EVar  x   -> make (PId (IdVar x))
-  | [], EImplicit n -> make (PId (IdImplicit n))
-  | [], EAnnot(p, sch) -> make (PAnnot(tr_pattern p [], tr_scheme_expr sch))
-  | [], (ECtor _ | EFn _ | EApp _ | EEffect _ | EDefs _ | EMatch _
-    | EHandler _ | ERecord _) ->
-    assert false
-  | p1 :: _, _ ->
-    Error.fatal (Error.invalid_pattern_arg p1.pos)
+(* ========================================================================= *)
 
-(** Translate a pattern. Argument [ps] is an accumulated list of subpatterns *)
-and tr_pattern (p : Raw.expr) ps =
+(** collect fields of records from the prefix of given list of expressions.
+  Returns collected fields, position of the last record-like construct
+  (or accumulator [ppos] if there is no records in the prefix), and the rest
+  of the expression list *)
+let rec collect_fields ~ppos (es : Raw.expr list) =
+  match es with
+  | [] -> ([], ppos, [])
+  | { data = ERecord flds; pos } :: es ->
+    let (flds', pos, es) = collect_fields ~ppos:pos es in
+    (flds @ flds', pos, es)
+  | _ -> ([], ppos, es)
+
+(** Translate a pattern *)
+let rec tr_pattern (p : Raw.expr) =
   let make data = { p with data = data } in
   match p.data with
-  | EWildcard | EUnit | EParen _ | EVar _ | EImplicit _ | EAnnot _ ->
-    tr_simple_pattern p ps
-  | ECtor c ->
-    begin match ps with
-    | { data = Raw.ERecord ips; _ } :: ps ->
-      let (targs, ips) = map_inst_like tr_named_pattern ips in
-      make (PCtor(make c, targs, ips, List.map (fun p -> tr_pattern p []) ps))
-    | _ ->
-      make (PCtor(make c, [], [], List.map (fun p -> tr_pattern p []) ps))
-    end
-  | EApp(p, p1) -> tr_pattern p (p1 :: ps)
+  | EWildcard   -> make PWildcard
+  | EUnit       -> Error.fatal (Error.desugar_error p.pos)
+  | EParen    p -> make (tr_pattern p).data
+  | EVar      x -> make (PId (IdVar x))
+  | EImplicit n -> make (PId (IdImplicit n))
+  | ECtor     c -> make (PCtor(make c, [], [], []))
+  | EApp(p1, ps) ->
+    begin match p1.data with
+    | ECtor c ->
+      let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
+      let (targs, iargs) = map_inst_like tr_named_pattern flds in
+      make (PCtor({ p1 with data = c}, targs, iargs, List.map tr_pattern ps))
 
-  | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _ ->
+    | EWildcard | EUnit | EParen _ | EVar _ | EImplicit _ | EFn _ | EApp _
+    | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ | EAnnot _ ->
+      Error.fatal (Error.desugar_error p1.pos)
+    end
+  | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
+
+  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 and tr_named_pattern (fld : Raw.field) =
@@ -244,7 +247,7 @@ and tr_named_pattern (fld : Raw.field) =
   | FldName n ->
     Either.Right (make (n, make (PId (ident_of_name n))))
   | FldNameVal(n, p) ->
-    Either.Right (make (n, tr_pattern p []))
+    Either.Right (make (n, tr_pattern p))
   | FldNameAnnot(n, sch) ->
     Either.Right
       (make (n, make (PAnnot(make (PId (ident_of_name n)),
@@ -255,9 +258,9 @@ let rec tr_function_arg (arg : Raw.expr) =
   match arg.data with
   | EParen arg -> tr_function_arg arg
   | EAnnot(p, sch) ->
-    ArgAnnot(tr_pattern p [], tr_scheme_expr sch)
+    ArgAnnot(tr_pattern p, tr_scheme_expr sch)
   | EWildcard | EUnit | EVar _ | EImplicit _ | ECtor _ | EApp _ ->
-    ArgPattern (tr_pattern arg [])
+    ArgPattern (tr_pattern arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _ ->
     Error.fatal (Error.desugar_error arg.pos)
@@ -283,29 +286,37 @@ let tr_named_arg (fld : Raw.field) =
     Either.Right
       (make (n, ArgAnnot(make (PId (ident_of_name n)), tr_scheme_expr sch)))
 
-(** Translate an expression as a let-pattern. Argument [ps] is an accumulated
-  list of formal parameters/subpatterns *)
-let rec tr_let_pattern (p : Raw.expr) ps =
+(** Translate an expression as a let-pattern. *)
+let rec tr_let_pattern (p : Raw.expr) =
   match p.data with
-  | EWildcard | EUnit | EParen _ | ECtor _ | EAnnot _ ->
-    LP_Pat (tr_pattern p ps)
-  | EVar _ | EImplicit _ ->
-    let id =
-      match p.data with
-      | EVar      x -> IdVar      x
-      | EImplicit n -> IdImplicit n
-      | _ -> assert false
-    in
-    begin match ps with
-    | { data = ERecord iargs; _ } :: ps ->
-      let (targs, iargs) = map_inst_like tr_named_arg iargs in
-      LP_Fun(id, targs, iargs, ps)
-    | _ ->
-      LP_Id(id, ps)
-    end
-  | EApp(p, p1) -> tr_let_pattern p (p1 :: ps)
+  | EVar      x -> LP_Id(IdVar x)
+  | EImplicit n -> LP_Id(IdImplicit n)
 
-  | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _ ->
+  | EApp(p1, ps) ->
+    begin match p1.data with
+    | EVar _ | EImplicit _ ->
+      let id =
+        match p1.data with
+        | EVar      x -> IdVar x
+        | EImplicit n -> IdImplicit n
+        | _ -> assert false
+      in
+      let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
+      let (targs, iargs) = map_inst_like tr_named_arg flds in
+      LP_Fun(id, targs, iargs, ps)
+
+    | EUnit | ECtor _ ->
+      LP_Pat(tr_pattern p)
+
+    | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
+    | EEffect _ | ERecord _ | EAnnot _ ->
+      Error.fatal (Error.desugar_error p1.pos)
+    end
+
+  | EWildcard | EUnit | EParen _ | ECtor _ | EAnnot _ ->
+    LP_Pat (tr_pattern p)
+
+  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a function, given a list of formal parameters *)
@@ -335,10 +346,18 @@ let rec tr_expr (e : Raw.expr) =
   | EParen e       -> make (tr_expr e).data
   | EVar _ | EImplicit _ | ECtor _ -> make (EPoly(tr_poly_expr e, [], []))
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
-  | EApp(e, { data = ERecord flds; _ }) ->
-    let (tinst, inst) = map_inst_like tr_explicit_inst flds in
-    make (EPoly(tr_poly_expr e, tinst, inst))
-  | EApp(e1, e2)   -> make (EApp(tr_expr e1, tr_expr e2))
+  | EApp(e1, es)    ->
+    begin match collect_fields ~ppos:e1.pos es with
+    | [], _, es -> tr_expr_app (tr_expr e1) es
+    | flds, fpos, es ->
+      let e1 = tr_poly_expr e1 in
+      let (tinst, inst) = map_inst_like tr_explicit_inst flds in
+      let e1 =
+        { pos  = Position.join e1.pos fpos;
+          data = EPoly(e1, tinst, inst)
+        } in
+      tr_expr_app e1 es
+    end
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
   | EHandler h     -> make (EHandler (tr_expr h))
@@ -349,11 +368,21 @@ let rec tr_expr (e : Raw.expr) =
   | EWildcard | ERecord _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
+and tr_expr_app (e : expr) (es : Raw.expr list) =
+  match es with
+  | [] -> e
+  | e1 :: es ->
+    let e =
+      { pos  = Position.join e.pos e1.pos;
+        data = EApp(e, tr_expr e1)
+      } in
+    tr_expr_app e es
+
 and tr_match_clause (cl : Raw.match_clause) =
   let make data = { cl with data = data } in
   match cl.data with
   | Clause(pat, body) ->
-    make (Clause(tr_pattern pat [], tr_expr body))
+    make (Clause(tr_pattern pat, tr_expr body))
 
 and tr_explicit_inst (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -382,9 +411,9 @@ and tr_def (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
   | DLet(p, e) ->
-    begin match tr_let_pattern p [] with
-    | LP_Id(id, args) ->
-      make (DLetId(id, tr_function args (tr_expr e)))
+    begin match tr_let_pattern p with
+    | LP_Id id ->
+      make (DLetId(id, tr_expr e))
     | LP_Fun(id, targs, iargs, args) ->
       make (DLetFun(id, targs, iargs, tr_function args (tr_expr e)))
     | LP_Pat p -> make (DLetPat(p, tr_expr e))
@@ -393,12 +422,12 @@ and tr_def (def : Raw.def) =
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
   | DHandle(pat, h, hcs) ->
-    let pat  = tr_pattern pat [] in
+    let pat  = tr_pattern pat in
     let body = { h with data = EHandler(tr_expr h) } in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     make (DHandlePat(pat, body, rcs, fcs))
   | DHandleWith(pat, e, hcs) ->
-    let pat  = tr_pattern pat [] in
+    let pat  = tr_pattern pat in
     let body = tr_expr e in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     make (DHandlePat(pat, body, rcs, fcs))
@@ -409,9 +438,9 @@ and tr_h_clause (hc : Raw.h_clause) =
   let make data = { hc with data = data } in
   match hc.data with
   | HCReturn(pat, body) ->
-    Either.Left (make (Clause(tr_pattern pat [], tr_expr body)))
+    Either.Left (make (Clause(tr_pattern pat, tr_expr body)))
   | HCFinally(pat, body) ->
-    Either.Right (make (Clause(tr_pattern pat [], tr_expr body)))
+    Either.Right (make (Clause(tr_pattern pat, tr_expr body)))
 
 let tr_program (p : Raw.program) =
   let make data = { p with data = data } in
