@@ -180,12 +180,28 @@ let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
       (Pretty.tname_to_string name),
     [])
 
+let cannot_guess_label_effect ~pos =
+  (pos, "Cannot guess the effect of this label", [])
+
 let ungeneralizable_implicit ~pos name =
   (pos, Printf.sprintf "Implicit %s is used, but cannot be generalized" name,
     [])
 
 let non_polymorphic_pattern ~pos =
   (pos, Printf.sprintf "This pattern cannot match polymorphic values", [])
+
+let polymorphic_label ~pos =
+  (pos, "Labels cannot be polymorphic", [])
+
+let label_type_mismatch ~pos =
+  (pos, "Labels cannot have non-label type", [])
+
+let label_pattern_type_mismatch ~pos ~env tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "This label pattern is expected of type %s"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let looping_named_param ~pos name =
   (pos,
@@ -215,6 +231,7 @@ let type_inst_redefinition ~pos ~ppos (name : Lang.Surface.tname) =
 let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
+    | NLabel      -> Printf.sprintf "The label"
     | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
     | NVar      x -> Printf.sprintf "Named parameter %s" x
   in
@@ -235,6 +252,7 @@ let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
 let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
+    | NLabel      -> Printf.sprintf "The label"
     | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
     | NVar      x -> Printf.sprintf "Named parameter %s" x
   in

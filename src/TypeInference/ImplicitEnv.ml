@@ -75,6 +75,9 @@ let shadow_names ienv names =
 
 let add_poly_id env ienv (id : S.ident) sch =
   match id with
+  | IdLabel ->
+    (* Labels cannot be used directly as identifiers *)
+    assert false
   | IdVar x ->
     let (env, x) = Env.add_poly_var env x sch in
     (env, ienv, x)

@@ -18,6 +18,11 @@ type handler =
   | H_No
   | H_Handler of T.tvar * T.typ * T.typ * T.effrow
 
+type label =
+  | L_No
+  | L_NoEffect
+  | L_Label of T.effect * T.typ * T.effrow
+
 (** Internal exception *)
 exception Error
 
@@ -389,3 +394,26 @@ let from_handler env tp =
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
+
+let as_label env tp =
+  match T.Type.view tp with
+  | TUVar(p, u) ->
+    begin match Env.lookup_the_effect env with
+    | Some x ->
+      let eff  = T.Type.t_var x in
+      let tp0  = Env.fresh_uvar env T.Kind.k_type in
+      let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
+      begin match set_uvar env p u (T.Type.t_label eff tp0 eff0) with
+      | _ -> L_Label(eff, tp0, eff0)
+      | exception Error -> L_NoEffect
+      end;
+    | None -> L_NoEffect
+    end
+
+  | TLabel(eff, tp0, eff0) -> L_Label(eff, tp0, eff0)
+
+  | TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _ -> L_No
+
+  | TEffect _ | TEffrow _ ->
+    failwith "Internal kind error"
+

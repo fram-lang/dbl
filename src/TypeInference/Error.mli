@@ -61,9 +61,15 @@ val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
 
 val cannot_guess_effect_param : pos:Position.t -> T.tname -> t
+val cannot_guess_label_effect : pos:Position.t -> t
 
 val ungeneralizable_implicit : pos:Position.t -> S.iname -> t
 val non_polymorphic_pattern : pos:Position.t -> t
+
+val polymorphic_label : pos:Position.t -> t
+val label_type_mismatch : pos:Position.t -> t
+
+val label_pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val looping_named_param : pos:Position.t -> T.name -> t
 

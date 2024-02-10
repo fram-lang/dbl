@@ -20,6 +20,7 @@ type iname = string
 
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
+  | NLabel
   | NVar      of var
   | NImplicit of iname
 

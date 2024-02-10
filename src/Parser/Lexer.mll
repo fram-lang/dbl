@@ -19,6 +19,7 @@ let kw_map =
   ; "handler",  KW_HANDLER
   ; "implicit", KW_IMPLICIT
   ; "in",       KW_IN
+  ; "label",    KW_LABEL
   ; "let",      KW_LET
   ; "match",    KW_MATCH
   ; "of",       KW_OF

@@ -16,5 +16,6 @@ let tr_tname (name : S.tname) =
 
 let tr_name env (name : S.name) =
   match name with
+  | NLabel      -> T.NLabel
   | NVar x      -> T.NVar x
   | NImplicit n -> T.NImplicit n

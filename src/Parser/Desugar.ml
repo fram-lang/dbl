@@ -50,6 +50,7 @@ let map_h_clauses f xs =
 
 let ident_of_name (name : Raw.name) =
   match name with
+  | NLabel      -> IdLabel
   | NVar x      -> IdVar x
   | NImplicit n -> IdImplicit n
 
@@ -398,6 +399,7 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldName n ->
     let pe =
       match n with
+      | NLabel      -> Error.fatal (Error.desugar_error fld.pos)
       | NVar      x -> make (EVar x)
       | NImplicit n -> make (EImplicit n)
     in

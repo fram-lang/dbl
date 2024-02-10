@@ -49,6 +49,7 @@ let check_type_inst_uniqueness tinsts =
 let check_inst_uniqueness insts =
   let name_of (inst : S.inst) =
     match inst.data with
+    | (NLabel, _) -> "label"
     | ((NVar n | NImplicit n), _) -> n
   in
   let pos_of (inst : S.inst) = inst.pos in
@@ -73,6 +74,7 @@ let check_named_type_arg_uniqueness args =
 let check_named_pattern_uniqueness nps =
   let name_of (np : S.named_pattern) =
     match np.data with
+    | (NLabel, _) -> "label"
     | ((NVar n | NImplicit n), _) -> n
   in
   let pos_of (np : S.named_pattern) = np.pos in

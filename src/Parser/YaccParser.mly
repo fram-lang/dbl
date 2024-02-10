@@ -10,8 +10,8 @@
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA EQ SEMICOLON2 SLASH
 %token KW_AND KW_DATA KW_EFFECT KW_END KW_FINALLY KW_FN KW_HANDLE KW_HANDLER
-%token KW_IMPLICIT KW_IN KW_LET KW_MATCH KW_OF KW_REC KW_RETURN KW_TYPE
-%token KW_WITH
+%token KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH KW_OF KW_REC KW_RETURN
+%token KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -47,8 +47,9 @@ bar_opt
 /* ========================================================================= */
 
 name
-: LID  { NVar $1      }
-| TLID { NImplicit $1 }
+: KW_LABEL { NLabel       }
+| LID      { NVar $1      }
+| TLID     { NImplicit $1 }
 ;
 
 /* ========================================================================= */

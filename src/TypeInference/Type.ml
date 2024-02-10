@@ -104,6 +104,15 @@ and tr_named_scheme env (nsch : S.named_scheme) =
   let (name, sch) = nsch.data in
   let sch = tr_scheme env sch in
   match name with
+  | NLabel      ->
+    let { T.sch_targs; sch_named; sch_body } = sch in
+    if not (List.is_empty sch_targs && List.is_empty sch_named) then
+      Error.fatal (Error.polymorphic_label ~pos:nsch.pos);
+    begin match Unification.as_label env sch_body with
+    | L_Label _  -> (T.NLabel, sch)
+    | L_NoEffect -> Error.fatal (Error.cannot_guess_label_effect ~pos:nsch.pos)
+    | L_No       -> Error.fatal (Error.label_type_mismatch ~pos:nsch.pos)
+    end
   | NVar      x -> (T.NVar x, sch)
   | NImplicit n -> (T.NImplicit n, sch)
 

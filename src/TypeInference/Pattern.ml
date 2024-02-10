@@ -133,7 +133,7 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
     let bn = T.Name.Map.singleton (T.NImplicit n) pat.pos in
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, make (T.PVar(x, sch)), bn, Pure)
-  | PCtor _ ->
+  | PCtor _ | PId IdLabel ->
     begin match sch with
     | { sch_targs = []; sch_named = []; sch_body = tp } ->
       check_type ~env ~scope pat tp
@@ -151,9 +151,24 @@ and check_type ~env ~scope (pat : S.pattern) tp =
   let make data = { pat with T.data = data } in
   let pos = pat.pos in
   match pat.data with
-  | PWildcard | PId _ | PAnnot _ ->
+  | PWildcard | PId (IdVar _ | IdImplicit _) | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
     check_scheme ~env ~scope pat sch
+
+  | PId IdLabel ->
+    begin match Unification.as_label env tp with
+    | L_Label(eff, tp0, eff0) ->
+      let bn = T.Name.Map.singleton T.NLabel pat.pos in
+      let (env, x) = Env.add_the_label env eff tp0 eff0 in
+      (env, make (T.PVar(x, T.Scheme.of_type tp)), bn, Pure)
+
+    | L_NoEffect ->
+      Error.fatal (Error.cannot_guess_label_effect ~pos)
+
+    | L_No ->
+      Error.fatal
+        (Error.label_pattern_type_mismatch ~pos:pat.pos ~env tp)
+    end
 
   | PCtor(cname, targs, nps, args) ->
     begin match Env.lookup_ctor env cname.data with
@@ -240,6 +255,20 @@ let infer_named_arg_scheme env (na : S.named_arg) =
   let (name, arg) = na.data in
   let name = Name.tr_name env name in
   let (env, pat, sch, r_eff) = infer_arg_scheme env arg in
+  begin match name with
+  | NLabel ->
+    let { T.sch_targs; sch_named; sch_body } = sch in
+    if not (List.is_empty sch_targs && List.is_empty sch_named) then
+      Error.fatal (Error.polymorphic_label ~pos:na.pos);
+    begin match Unification.as_label env sch_body with
+    | L_Label _ -> ()
+    | L_NoEffect ->
+      Error.fatal (Error.cannot_guess_label_effect ~pos:na.pos)
+    | L_No ->
+      Error.fatal (Error.label_type_mismatch ~pos:na.pos)
+    end
+  | NVar _ | NImplicit _ -> ()
+  end;
   (env, (name, pat, sch), r_eff)
 
 let rec infer_named_arg_schemes env ims =

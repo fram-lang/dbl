@@ -31,6 +31,18 @@ type handler =
   | H_Handler of T.tvar * T.typ * T.typ * T.effrow
     (** Handler type *)
 
+(** Label type *)
+type label =
+  | L_No
+    (** Type is not a label *)
+
+  | L_NoEffect
+    (** Cannot guess the effect of the label ("effect" type variable is not
+      bound or not available *)
+
+  | L_Label of T.effect * T.typ * T.effrow
+    (** Label type *)
+
 (** Check if one kind is equal to another. It performs some unifications
   when necessary. *)
 val unify_kind : T.kind -> T.kind -> bool
@@ -67,3 +79,9 @@ val to_handler : Env.t -> T.typ -> handler
 (** Coerce given type from a handler.
   It performs some unification when necessary. *)
 val from_handler : Env.t -> T.typ -> handler
+
+(** Reveal the components of the label type.
+  It performs some unification when necessary. In particular, if the type is
+  an unification variable, it assumes that the effect of the label is
+  "the effect". *)
+val as_label : Env.t -> T.typ -> label
