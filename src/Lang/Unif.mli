@@ -177,12 +177,20 @@ and expr_data =
   | EMatch of expr * match_clause list * typ * effrow
     (** Pattern-matching. It stores type and effect of the whole expression. *)
 
+  | ELabel of tvar * var * typ * effrow * expr
+    (** Creating a fresh label. It binds a new effect variable, and variable
+      that stores the new label. Type and effect annotations describes type
+      and effect of the delimiter attached to the label. *)
+
   | EHandle of (** Handler *)
-    { effect_var : tvar;
-      (** The binder of an effect variable introduced by this handler. *)
+    { label : expr;
+      (** Label of the handler *)
+
+      effect : effect;
+      (** Effect handled by the label *)
 
       cap_var : var;
-      (** The binder of a capability introduced by this effect *)
+      (** Variable that binds effect capability *)
 
       body : expr;
       (** Handled expression *)
@@ -618,8 +626,11 @@ module Effect : sig
   (** Create a row that consists of single effect *)
   val singleton_row : tvar -> effrow
 
-  (** Consing a simple effect variable to an effect row *)
+  (** Consing a single effect variable to an effect row *)
   val cons : tvar -> effrow -> effrow
+
+  (** Consing an effect to an effect row *)
+  val cons_eff : effect -> effrow -> effrow
 
   (** Row-like view of an effect row *)
   val view : effrow -> row_view

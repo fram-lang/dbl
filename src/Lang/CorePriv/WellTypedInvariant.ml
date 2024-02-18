@@ -265,7 +265,9 @@ let rec infer_type_eff env e =
     begin match
       Type.supertype_in_scope scope tp, Type.supereffect_in_scope scope eff
     with
-    | Some tp, Some eff -> (tp, eff)
+    | Some tp, Some eff ->
+      (* We add nterm effect, since generation of a fresh label is not pure *)
+      (tp, Effect.join Effect.nterm eff)
     | _ ->
       InterpLib.InternalError.report
         ~reason:"escaping type variable"

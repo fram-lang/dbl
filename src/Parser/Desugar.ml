@@ -414,27 +414,47 @@ and tr_def (def : Raw.def) =
   match def.data with
   | DLet(p, e) ->
     begin match tr_let_pattern p with
-    | LP_Id id ->
+    | LP_Id id -> 
       make (DLetId(id, tr_expr e))
     | LP_Fun(id, targs, iargs, args) ->
       make (DLetFun(id, targs, iargs, tr_function args (tr_expr e)))
-    | LP_Pat p -> make (DLetPat(p, tr_expr e))
+    | LP_Pat p ->
+      make (DLetPat(p, tr_expr e))
     end
   | DImplicit n  -> make (DImplicit n)
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
+  | DLabel pat   -> make (DLabel (tr_pattern pat))
   | DHandle(pat, h, hcs) ->
-    let pat  = tr_pattern pat in
+    let (lbl_opt, pat)  = tr_handle_pattern pat in
     let body = { h with data = EHandler(tr_expr h) } in
-    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
-    make (DHandlePat(pat, body, rcs, fcs))
+    make_handle ~pos:def.pos lbl_opt pat body hcs
   | DHandleWith(pat, e, hcs) ->
-    let pat  = tr_pattern pat in
+    let (lbl_opt, pat)  = tr_handle_pattern pat in
     let body = tr_expr e in
-    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
-    make (DHandlePat(pat, body, rcs, fcs))
+    make_handle ~pos:def.pos lbl_opt pat body hcs
 
 and tr_defs defs = List.map tr_def defs
+
+and tr_handle_pattern (pat : Raw.expr) =
+  match pat.data with
+  | EApp({ data = ERecord flds; _ }, [pat]) ->
+    (Some (tr_handle_label flds), tr_pattern pat)
+  | EApp({ data = ERecord flds; _ }, p0 :: pats) ->
+    let pat =
+      { pos = Position.join p0.pos pat.pos;
+        data = Raw.EApp(p0, pats)
+      } in
+    (Some (tr_handle_label flds), tr_pattern pat)
+  | _ ->
+    (None, tr_pattern pat)
+
+and tr_handle_label flds =
+  match flds with
+  | [] -> assert false
+  | [{ data = FldNameVal(NLabel, e); _ }] -> tr_expr e
+  | { data = FldNameVal(NLabel, _); _} :: fld :: _ | fld :: _ ->
+    Error.fatal (Error.desugar_error fld.pos)
 
 and tr_h_clause (hc : Raw.h_clause) =
   let make data = { hc with data = data } in
@@ -443,6 +463,17 @@ and tr_h_clause (hc : Raw.h_clause) =
     Either.Left (make (Clause(tr_pattern pat, tr_expr body)))
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern pat, tr_expr body)))
+
+and make_handle ~pos lbl_opt pat body hcs =
+  let make data = { pos; data } in
+  let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+  make (DHandlePat
+    { label       = lbl_opt;
+      cap_pat     = pat;
+      capability  = body;
+      ret_clauses = rcs;
+      fin_clauses = fcs
+    })
 
 let tr_program (p : Raw.program) =
   let make data = { p with data = data } in

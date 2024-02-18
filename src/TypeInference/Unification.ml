@@ -314,6 +314,12 @@ and check_subscheme env sch1 sch2 =
   check_subtype env
     (T.Type.subst sub1 sch1.sch_body) (T.Type.subst sub2 sch2.sch_body)
 
+let unify_type env tp1 tp2 =
+  (* TODO: create reference backtracking point *)
+  match unify_at_kind env tp1 tp2 (T.Type.kind tp1) with
+  | ()              -> true
+  | exception Error -> false
+
 let subeffect env eff1 eff2 =
   (* TODO: create reference backtracking point *)
   match check_subeffect env eff1 eff2 with

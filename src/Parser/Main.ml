@@ -62,8 +62,7 @@ let rec repl_seq () =
     Seq.Cons(def, repl_seq)
 
   | Raw.REPL_Def def ->
-    let def = Desugar.tr_def def in
-    Seq.Cons(def, repl_seq)
+    Seq.Cons(Desugar.tr_def def, repl_seq)
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token

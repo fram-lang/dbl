@@ -17,6 +17,27 @@ type def_cont =
         T.expr * (T.typ, 'dir) response * ret_effect
   }
 
+(** Information about the label used by a handler *)
+type label_info =
+  { l_expr : T.expr;
+      (** Expression that evaluates to the label *)
+
+    l_ctx : T.expr -> T.expr;
+      (** Context that generates fresh label when necessary *)
+
+    l_eff : T.effect;
+      (** Effect provided by this label *)
+
+    l_sub : T.tvar -> T.subst;
+      (** Substitution generating function, used to instantiate capability *)
+
+    l_delim_tp : T.typ;
+      (** Type of the delimiter *)
+
+    l_delim_eff : T.effrow
+      (** Effect of the delimiter *)
+  }
+
 (** Shrink scope of type response. On error, raise escaping scope error
   for given position *)
 let type_resp_in_scope (type dir) ~env ~pos ~scope
@@ -30,6 +51,23 @@ let type_resp_in_scope (type dir) ~env ~pos ~scope
       Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
     end
   | Checked -> Checked
+
+(** Check if given expression is a monomorphic variable *)
+let is_monomorphic_var env (e : S.expr) =
+  match e.data with
+  | EPoly(p, _, _) ->
+    let sch_opt  =
+      match p.data with
+      | EVar x -> Option.map snd (Env.lookup_var env x)
+      | EImplicit name ->
+        Option.map (fun (_, sch, _) -> sch) (Env.lookup_implicit env name)
+      | ECtor _ -> None
+    in
+    begin match sch_opt with
+    | Some { sch_targs = []; sch_named = []; sch_body = _ } -> true
+    | _ -> false
+    end
+  | _ -> false
 
 (* ------------------------------------------------------------------------- *)
 (** Infer scheme of type variable *)
@@ -407,32 +445,109 @@ and check_def : type dir.
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
-  | DHandlePat(pat, eh, rcs, fcs) ->
+  | DLabel pat ->
+    let scope = Env.scope env in
+    let (env1, l_eff) = Env.add_the_effect ~pos:def.pos env in
+    let tp0  = Env.fresh_uvar env1 T.Kind.k_type in
+    let eff0 = Env.fresh_uvar env1 T.Kind.k_effrow in
+    let l_tp = T.Type.t_label (T.Type.t_var l_eff) tp0 eff0 in
+    let scope1 = Env.scope env1 in
+    let (env, pat, names, _) = Pattern.check_type ~env ~scope:scope1 pat l_tp in
+    let ienv = ImplicitEnv.shadow_names ienv names in
+    let (e2, resp, _) = cont.run env ienv req eff in
+    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
+    let res_tp = bidir_result req resp in
+    let x = Var.fresh ~name:"lbl" () in
+    (make e2 (T.ELabel(l_eff, x, tp0, eff0,
+      (make e2 (T.EMatch({ def with data = T.EVar x},
+        [(pat, e2)], res_tp, eff))))),
+      resp, Impure)
+
+  | DHandlePat
+    { label; cap_pat = pat; capability = eh;
+      ret_clauses = rcs; fin_clauses = fcs } ->
+    let env0 = env in
+    let (lbl, env) =
+      match label with
+      | None ->
+        let (env, l_eff) = Env.add_the_effect env in
+        let tp0  = Env.fresh_uvar env T.Kind.k_type in
+        let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
+        let (env, x) = Env.add_the_label env (T.Type.t_var l_eff) tp0 eff0 in
+        let ctx e =
+          { T.pos  = Position.join def.pos e.T.pos;
+            T.data = T.ELabel(l_eff, x, tp0, eff0, e)
+          }
+        in
+        { l_expr      = { T.pos = def.pos; T.data = T.EVar x };
+          l_ctx       = ctx;
+          l_eff       = T.Type.t_var l_eff;
+          l_sub       =
+            (* It might be tempting to use [T.Subst.rename_to_fresh] here, but
+              we cannot ensure that this freshly generated type variable do
+              not appear in component of the handler type (and it is easy to
+              find counter-example). However, for monomorphic handlers it
+              could be done better. *)
+            (fun a ->
+              if is_monomorphic_var env eh then
+                T.Subst.rename_to_fresh T.Subst.empty a l_eff
+              else
+                T.Subst.add_type T.Subst.empty a (T.Type.t_var l_eff));
+          l_delim_tp  = tp0;
+          l_delim_eff = eff0
+        }, env
+      | Some le ->
+        let (env', ims) = ImplicitEnv.begin_generalize env ienv in
+        let (le, le_tp, _) = infer_expr_type env' le eff in
+        ImplicitEnv.end_generalize_impure ims;
+        begin match Unification.as_label env le_tp with
+        | L_Label(l_eff, tp0, eff0) ->
+          { l_expr      = le;
+            l_ctx       = (fun e -> e);
+            l_eff       = l_eff;
+            l_sub       = (fun a -> T.Subst.add_type T.Subst.empty a l_eff);
+            l_delim_tp  = tp0;
+            l_delim_eff = eff0
+          }, env
+
+        | L_NoEffect ->
+          Error.fatal (Error.unbound_the_effect ~pos:le.pos)
+
+        | L_No ->
+          Error.fatal (Error.expr_not_label ~pos:le.pos ~env le_tp)
+        end
+    in
     let (env_h, ims) = ImplicitEnv.begin_generalize env ienv in
     let (eh, eh_tp, _) = infer_expr_type env_h eh eff in
     (* TODO: effect capability may have a scheme instead of type *)
     ImplicitEnv.end_generalize_impure ims;
     begin match Unification.to_handler env eh_tp with
     | H_Handler(a, cap_tp, res_tp, res_eff) ->
-      let (env1, h_eff) = Env.add_the_effect ~pos:def.pos env in
-      let sub = T.Subst.rename_to_fresh T.Subst.empty a h_eff in
+      let sub = lbl.l_sub a in
       let cap_tp  = T.Type.subst sub cap_tp  in
       let res_tp  = T.Type.subst sub res_tp  in
       let res_eff = T.Type.subst sub res_eff in
-      let (env1, pat, names, _) =
-        Pattern.check_type ~env:env1 ~scope:(Env.scope env1) pat cap_tp in
+      if not (Unification.unify_type env lbl.l_delim_tp res_tp) then
+        Error.report (Error.delim_type_mismatch
+          ~pos:def.pos ~env lbl.l_delim_tp res_tp);
+      if not (Unification.unify_type env lbl.l_delim_eff res_eff) then
+        Error.report (Error.delim_effect_mismatch
+          ~pos:def.pos ~env lbl.l_delim_eff res_eff);
+      let (env, pat, names, _) =
+        Pattern.check_type ~env ~scope:(Env.scope env) pat cap_tp in
       let ienv = ImplicitEnv.shadow_names ienv names in
       let (ret_x, body_tp, ret_body) =
         check_return_clauses env rcs res_tp res_eff in
-      let body_eff = T.Effect.cons h_eff res_eff in
-      let (body, Checked, _) = cont.run env1 ienv (Check body_tp) body_eff in
+      let body_eff = T.Effect.cons_eff lbl.l_eff res_eff in
+      let (body, Checked, _) = cont.run env ienv (Check body_tp) body_eff in
       let (x, body) = ExprUtils.arg_match pat body body_tp body_eff in
       let pos = Position.join def.pos body.pos in
-      if not (Unification.subeffect env res_eff eff) then
-        Error.report (Error.expr_effect_mismatch ~pos ~env res_eff eff);
-      let e =
+      if not (Unification.subeffect env0 res_eff eff) then
+        Error.report (Error.expr_effect_mismatch ~pos ~env:env0 res_eff eff);
+      let e = lbl.l_ctx (
         make body (T.EHandle
-          { effect_var = h_eff;
+          { label      = lbl.l_expr;
+            effect     = lbl.l_eff;
             cap_var    = x;
             body       = body;
             capability = eh;
@@ -440,8 +555,8 @@ and check_def : type dir.
             ret_body   = ret_body;
             result_tp  = res_tp;
             result_eff = res_eff
-          }) in
-      check_finally_clauses env fcs e res_tp req eff
+          })) in
+      check_finally_clauses env0 fcs e res_tp req eff
 
     | H_No ->
       Error.fatal (Error.expr_not_handler ~pos:eh.pos ~env eh_tp)

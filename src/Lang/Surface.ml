@@ -192,11 +192,26 @@ and def_data =
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DHandlePat of pattern * expr * match_clause list * match_clause list
-    (** Effect handler combined with pattern-matching.
-      The third parameter is a list of return clauses: empty list means the
-      default clause. Similarly, the fourth parameter is a list of finally
-      clauses: empty list means the default clause. *)
+  | DLabel   of pattern
+    (** Creating a new label *)
+
+  | DHandlePat of (* Effect handler combined with pattern matching *)
+    { label   : expr option;
+      (** Effect label of the handled effect. [None] means that handler is
+        lexical and generates its own label. *)
+
+      cap_pat : pattern;
+      (** Pattern matched against the effect capability *)
+
+      capability : expr;
+      (** An expression providing capability to this handler *)
+
+      ret_clauses : match_clause list;
+      (** List of return clauses. Empty list means the default clause. *)
+
+      fin_clauses : match_clause list
+      (** List of finally clauses. Empty list means the default clause. *)
+    }
 
   | DImplicit of iname
     (** Declaration of implicit *)

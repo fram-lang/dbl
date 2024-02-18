@@ -79,8 +79,10 @@ and expr_data =
   | EData       of data_def list * expr
   | EMatchEmpty of expr * expr * typ * effrow
   | EMatch      of expr * match_clause list * typ * effrow
+  | ELabel      of tvar * var * typ * effrow * expr
   | EHandle     of
-    { effect_var : tvar;
+    { label      : expr;
+      effect     : effect;
       cap_var    : var;
       body       : expr;
       capability : expr;

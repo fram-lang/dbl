@@ -32,11 +32,16 @@ val unbound_var : pos:Position.t -> S.var -> t
 val unbound_implicit : pos:Position.t -> S.iname -> t
 val unbound_constructor : pos:Position.t -> S.ctor_name -> t
 val unbound_type_var : pos:Position.t -> S.tvar -> t
+val unbound_the_effect : pos:Position.t -> t
 val unbound_named_param : pos:Position.t -> S.var -> t
 val unbound_the_label : pos:Position.t -> t
 
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
+  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
+
+val delim_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+val delim_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
 val pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
@@ -54,6 +59,8 @@ val expr_not_function_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val expr_not_handler : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_handler_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
+
+val expr_not_label : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t

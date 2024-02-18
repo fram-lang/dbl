@@ -1,0 +1,2 @@
+label lbl
+handle {label=lbl} _ = ()

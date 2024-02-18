@@ -44,23 +44,26 @@ let rec tr_expr env (e : S.expr) =
     tr_expr_v env me (fun v ->
     PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 
-  | EHandle { effect_var; cap_var; body; capability;
-      ret_var; ret_body; result_tp; result_eff } ->
-    tr_expr_v env capability (fun hv ->
-    let l   = Var.fresh () in
-    let tp  = Type.tr_ttype env result_tp in
-    let eff = Type.tr_effect env result_eff in
-    let (env, Ex a) = Env.add_tvar env effect_var in
-    let hx  = Var.fresh () in
-    let r_body = tr_expr env ret_body in
+  | ELabel(a, l, tp, eff, e) ->
+    let (env, Ex a) = Env.add_tvar env a in
+    let tp  = Type.tr_ttype  env tp  in
+    let eff = Type.tr_effect env eff in
     begin match T.TVar.kind a with
     | KEffect ->
-      T.ELabel(a, l, tp, eff,
-        T.ELet(hx, T.ETApp(hv, T.TVar a),
-          T.ELet(cap_var, T.EApp(T.VVar hx, T.VVar l),
-            T.EReset(T.VVar l, tr_expr env body, ret_var, r_body))))
+      T.ELabel(a, l, tp, eff, tr_expr env e)
     | KType | KArrow _ -> failwith "Internal kind error"
-    end)
+    end
+
+  | EHandle { label; effect; cap_var; body; capability;
+      ret_var; ret_body; result_tp; result_eff } ->
+    tr_expr_v env label (fun lv ->
+    tr_expr_v env capability (fun hv ->
+    let h_eff = Type.tr_effect env effect in
+    let hx  = Var.fresh () in
+    let r_body = tr_expr env ret_body in
+    T.ELet(hx, T.ETApp(hv, h_eff),
+      T.ELet(cap_var, T.EApp(T.VVar hx, lv),
+        T.EReset(lv, tr_expr env body, ret_var, r_body)))))
 
   | EEffect(l, x, body, tp) ->
     tr_expr_v env l (fun lv ->
@@ -80,8 +83,8 @@ and tr_expr_as env (e : S.expr) x rest =
   | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ | EHandler _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
-  | EApp _ | ETApp _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _ | EHandle _
-  | EEffect _ | ERepl _ | EReplExpr _ ->
+  | EApp _ | ETApp _ | ELabel _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _
+  | EHandle _ | EEffect _ | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -99,8 +102,8 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, Ex x) = Env.add_tvar env x in
     cont (VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ | EMatchEmpty _ | EMatch _ | EHandle _ | EEffect _
-  | ERepl _ ->
+  | EApp _ | ETApp _ | EMatchEmpty _ | EMatch _ | ELabel _ | EHandle _
+  | EEffect _ | ERepl _ ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr env e, cont (VVar x))
 

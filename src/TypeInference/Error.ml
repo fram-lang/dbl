@@ -70,6 +70,9 @@ let unbound_constructor ~pos name =
 let unbound_type_var ~pos x =
   (pos, Printf.sprintf "Unbound type %s" x, [])
 
+let unbound_the_effect ~pos =
+  (pos, Printf.sprintf "There is no default effect in this context", [])
+
 let unbound_named_param ~pos x =
   (pos, Printf.sprintf "Cannot implicitly provide a parameter of name %s" x,
     [])
@@ -89,6 +92,26 @@ let expr_effect_mismatch ~pos ~env eff1 eff2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression has effect %s, but an expression was expected of effect %s"
+    (Pretty.type_to_string pp_ctx env eff1)
+    (Pretty.type_to_string pp_ctx env eff2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let delim_type_mismatch ~pos ~env tp1 tp2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    ("Type mismatch between label and capability: " ^^
+    "the label provides %s as a type of a delimiter, " ^^
+    "while the capability provides %s")
+    (Pretty.type_to_string pp_ctx env tp1)
+    (Pretty.type_to_string pp_ctx env tp2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let delim_effect_mismatch ~pos ~env eff1 eff2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    ("Type mismatch between label and capability: " ^^
+    "the label provides %s as an effect of a delimiter, " ^^
+    "while the capability provides %s")
     (Pretty.type_to_string pp_ctx env eff1)
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
@@ -150,6 +173,13 @@ let expr_not_handler_ctx ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression should not be a handler, the expected type is %s"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let expr_not_label ~pos ~env tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "This expression has type %s. It cannot be used as a label"
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 

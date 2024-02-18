@@ -167,6 +167,9 @@ and def_data =
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
 
+  | DLabel of expr
+    (** Creating a new label *)
+
   | DHandle of expr * expr * h_clause list
     (** Effect handler *)
 

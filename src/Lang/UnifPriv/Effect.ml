@@ -26,6 +26,11 @@ let cons x eff =
   let (xs, ee) = effrow_view eff in
   t_effrow (TVar.Set.add x xs) ee
 
+let cons_eff e eff =
+  let xs1 = effect_view e in
+  let (xs2, ee) = effrow_view eff in
+  t_effrow (TVar.Set.union xs1 xs2) ee
+
 let view eff =
   let (xs, ee) = effrow_view eff in
   match TVar.Set.choose_opt xs with

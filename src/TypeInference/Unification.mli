@@ -51,6 +51,10 @@ val unify_kind : T.kind -> T.kind -> bool
   necessary. On success, it returns LHS and RHS kinds of an arrow kind. *)
 val kind_to_arrow : T.kind -> (T.kind * T.kind) option
 
+(** Check if two types (of the same kind) are equivalent.
+  It performs some unifications when necessary. *)
+val unify_type : Env.t -> T.typ -> T.typ -> bool
+
 (** Check if one effect (row) is a subeffect of another.
   It performs some unifications when necessary. *)
 val subeffect : Env.t -> T.effrow -> T.effrow -> bool

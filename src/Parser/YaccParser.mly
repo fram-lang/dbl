@@ -221,6 +221,7 @@ def
 | KW_IMPLICIT TLID       { make (DImplicit $2) }
 | data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
+| KW_LABEL  expr         { make (DLabel $2) }
 | KW_HANDLE expr EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
 | KW_HANDLE expr KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
 ;
