@@ -1,0 +1,8 @@
+data rec Nat = Z | S of Nat
+
+let id x = x
+
+let fix {type A, type B, type E} f =
+  data rec Fix = Fix of (Fix -> A ->[|E] B)
+  let fi ix x = let Fix fi = ix in f (fi ix) x in
+  fi (Fix fi)

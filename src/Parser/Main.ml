@@ -4,7 +4,8 @@
 
 (** Main module of the parser *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
+(* 2023: Piotr Polesiuk: initial implementation
+   2024: Piotr Polesiuk, Patrycja Balik: minor changes *)
 
 type fname = string
 
@@ -23,7 +24,7 @@ let with_in_channel ?pos fname func =
   | exception Sys_error msg ->
     Error.fatal (Error.cannot_open_file ?pos ~fname msg)
 
-let parse_file ?pos fname =
+let parse_defs ?pos fname =
   with_in_channel ?pos fname (fun chan ->
     let lexbuf = Lexing.from_channel chan in
     lexbuf.Lexing.lex_curr_p <-
@@ -38,6 +39,16 @@ let parse_file ?pos fname =
           lexbuf.Lexing.lex_curr_p)
         (Lexing.lexeme lexbuf)))
   |> Desugar.tr_program
+
+let parse_lib fname (e : Lang.Surface.program) =
+  let p = parse_defs fname in
+  let make data = { e with data = data } in
+  Lang.Surface.(make (EDefs(p.data, e)))
+
+let parse_file ?pos fname =
+  let p = parse_defs ?pos fname in
+  let make data = { p with data = data } in
+  Lang.Surface.(make (EDefs(p.data, make EUnit)))
 
 let make_nowhere data =
   { Lang.Surface.pos  = Position.nowhere

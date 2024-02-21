@@ -4,10 +4,14 @@
 
 (** Pipeline of the compiler *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* 2023: Piotr Polesiuk: initial implementation
+   2024: Patrycja Balik: add the use_prelude flag *)
 
 (** Dump internal Core representation if this flag is set. *)
 val dump_core : bool ref
+
+(** Include the prelude only if this flag is set. *)
+val use_prelude : bool ref
 
 (** Run in REPL mode *)
 val run_repl : unit -> unit

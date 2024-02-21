@@ -4,9 +4,12 @@
 
 (** Pipeline of the compiler *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* 2023: Piotr Polesiuk: initial implementation
+   2024: Patrycja Balik: add prepending the prelude *)
 
 let dump_core = ref false
+
+let use_prelude = ref true
 
 let dump_sexpr flag to_sexpr p =
   if flag then
@@ -17,8 +20,12 @@ let check_invariant inv p =
   inv p;
   p
 
+let add_prelude p =
+  if !use_prelude then Parser.Main.parse_lib Config.prelude_path p else p
+
 let common_pipeline prog =
   prog
+  |> add_prelude
   |> TypeInference.Main.tr_program
   |> ToCore.Main.tr_program
   |> dump_sexpr !dump_core Lang.Core.to_sexpr

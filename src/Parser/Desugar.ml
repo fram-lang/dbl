@@ -4,7 +4,8 @@
 
 (** The first phase of desugaring and post-parsing *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
+(* 2023: Piotr Polesiuk: implemented desugaring
+   2024: Piotr Polesiuk, Patrycja Balik: minor changes *)
 
 open Lang.Surface
 
@@ -476,6 +477,4 @@ and make_handle ~pos lbl_opt pat body hcs =
       fin_clauses = fcs
     })
 
-let tr_program (p : Raw.program) =
-  let make data = { p with data = data } in
-  make (EDefs(tr_defs p.data, make EUnit))
+let tr_program (p : Raw.program) = { p with data = tr_defs p.data }

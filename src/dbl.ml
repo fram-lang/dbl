@@ -2,7 +2,8 @@
  * See LICENSE for details.
  *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* 2023: Piotr Polesiuk: initial implementation
+   2024: Patrycja Balik: add the use_prelude flag *)
 
 let usage_string =
   Printf.sprintf
@@ -19,6 +20,10 @@ let cmd_args_options = Arg.align
     "-dcore",
     Arg.Set Pipeline.dump_core,
     " Dump internal Core representation";
+
+    "-no-prelude",
+    Arg.Clear Pipeline.use_prelude,
+    " Disable the prelude";
 
     "-verbose-internal-errors",
     Arg.Set InterpLib.InternalError.verbose,

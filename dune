@@ -1,3 +1,7 @@
 (env
   (dev
 	(flags -w +9)))
+
+(install
+ (section lib)
+ (files (glob_files (lib/*.dbl with_prefix stdlib))))
