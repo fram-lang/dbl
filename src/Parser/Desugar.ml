@@ -366,7 +366,8 @@ let rec tr_expr (e : Raw.expr) =
     make (tr_function es
       { pos  = Position.join rp.pos e.pos;
         data = EEffect(tr_function_arg rp, tr_expr e)}).data
-  | EWildcard | ERecord _ | EAnnot _ ->
+  | EAnnot(e, tp) -> make (EAnnot(tr_expr e, tr_type_expr tp))
+  | EWildcard | ERecord _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_expr_app (e : expr) (es : Raw.expr list) =

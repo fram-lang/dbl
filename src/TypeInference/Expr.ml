@@ -204,6 +204,11 @@ let rec infer_expr_type env (e : S.expr) eff =
     let e = make (T.EHandler(a, lx, res_tp, res_eff, h)) in
     (e, T.Type.t_handler a tp res_tp res_eff, Pure)
 
+  | EAnnot(e, tp) ->
+    let tp = Type.tr_ttype env tp in
+    let (e, r_eff) = check_expr_type env e tp eff in
+    (e, tp, r_eff)
+
 (* ------------------------------------------------------------------------- *)
 (** Check type and effect of an expression. Returns also information about
   the purity of an expression. *)
@@ -312,6 +317,12 @@ and check_expr_type env (e : S.expr) tp eff =
     | None ->
       Error.fatal (Error.unbound_the_label ~pos:e.pos)
     end
+
+  | EAnnot(e', tp') ->
+    let tp' = Type.tr_ttype env tp' in
+    if not (Unification.subtype env tp' tp) then
+      Error.report (Error.expr_type_mismatch ~pos:e.pos ~env tp' tp);
+    check_expr_type env e' tp' eff
 
   | ERepl def_seq ->
     (check_repl_def_seq env ImplicitEnv.empty def_seq tp eff, Impure)

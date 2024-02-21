@@ -174,6 +174,9 @@ and expr_data =
     (** Effectful operation. The only argument is a continuation. Other
       arguments should be bound using regular lambda abstractions ([EFn]). *)
 
+  | EAnnot of expr * type_expr
+    (** Type annotation *)
+
   | ERepl of def Seq.t
     (** REPL. It is a lazy sequence of definitions provided by a user. *)
 
