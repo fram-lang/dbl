@@ -1,0 +1,55 @@
+DBL
+===
+
+DBL is an experimental programming language designed around the idea of
+combining lexically scoped effect handlers with a powerful mechanism of
+implicit and named parameters in a strongly-typed setting. The language is
+still in the development phase, but core features are already implemented,
+together with other language features like ML-style parametric polymorphism,
+rank-N types, mutually recursive data-types, and pattern-matching.
+
+Requirements
+------------
+
+DBL is written in pure OCaml and tested with OCaml system version 5.1.0. DBL
+uses dune as a build system (tested with version 3.14.0).
+
+Installation
+------------
+
+Simply type `dune build` to compile the project. If you use opam package
+manager, you can locally install DBL by typing `dune install`.
+
+Usage
+-----
+
+Just type `dbl` (or `rlwrap dbl` for better readline support) to run the
+interpreter in a REPL mode. In this mode you can interactively provide
+definitions and expressions to evaluate, separated by double semicolon `;;`.
+The example REPL session is shown below.
+```
+$ dbl
+> let id x = x ;;
+> id () ;;
+: Unit
+= ()
+> 
+```
+You can also run programs in a batch mode, by providing a file to execute
+as a command-line argument (e.g., `dbl filename.dbl`).
+
+Examples
+--------
+
+In a `test/ok` directory you can find many tiny examples used to test
+implementation of various language features.
+
+Source Code and Development
+---------------------------
+
+Source code can be found in the `src` directory. For a high-level overview
+of the implementation we encourage to look into the `src/Pipeline.ml` file
+and `src/Lang` directory to see phases and intermediate languages of the
+interpreter. To run DBL interpreter on all test programs just type
+`./test.sh dbl test/test_suite`. Bugs can be reported on our
+[issue tracker](https://bitbucket.org/pl-uwr/dbl/issues).
