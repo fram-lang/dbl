@@ -456,13 +456,15 @@ and check_def : type dir.
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
-  | DLabel pat ->
+  | DLabel(eff_opt, pat) ->
     let scope = Env.scope env in
-    let (env1, l_eff) = Env.add_the_effect ~pos:def.pos env in
-    let tp0  = Env.fresh_uvar env1 T.Kind.k_type in
-    let eff0 = Env.fresh_uvar env1 T.Kind.k_effrow in
+    let (env, l_eff) = Env.add_the_effect ~pos:def.pos env in
+    let env =
+      Type.check_type_alias_binder_opt env eff_opt (T.Type.t_var l_eff) in
+    let tp0  = Env.fresh_uvar env T.Kind.k_type in
+    let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
     let l_tp = T.Type.t_label (T.Type.t_var l_eff) tp0 eff0 in
-    let scope1 = Env.scope env1 in
+    let scope1 = Env.scope env in
     let (env, pat, names, _) = Pattern.check_type ~env ~scope:scope1 pat l_tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, _) = cont.run env ienv req eff in
@@ -475,13 +477,15 @@ and check_def : type dir.
       resp, Impure)
 
   | DHandlePat
-    { label; cap_pat = pat; capability = eh;
+    { label; effect = eff_opt; cap_pat = pat; capability = eh;
       ret_clauses = rcs; fin_clauses = fcs } ->
     let env0 = env in
     let (lbl, env) =
       match label with
       | None ->
         let (env, l_eff) = Env.add_the_effect env in
+        let env =
+          Type.check_type_alias_binder_opt env eff_opt (T.Type.t_var l_eff) in
         let tp0  = Env.fresh_uvar env T.Kind.k_type in
         let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
         let (env, x) = Env.add_the_label env (T.Type.t_var l_eff) tp0 eff0 in
@@ -513,6 +517,7 @@ and check_def : type dir.
         ImplicitEnv.end_generalize_impure ims;
         begin match Unification.as_label env le_tp with
         | L_Label(l_eff, tp0, eff0) ->
+          let env = Type.check_type_alias_binder_opt env eff_opt l_eff in
           { l_expr      = le;
             l_ctx       = (fun e -> e);
             l_eff       = l_eff;

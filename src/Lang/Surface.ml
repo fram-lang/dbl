@@ -195,13 +195,17 @@ and def_data =
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DLabel   of pattern
-    (** Creating a new label *)
+  | DLabel   of type_arg option * pattern
+    (** Creating a new label. Optional type argument binds newly created
+      effect. *)
 
   | DHandlePat of (* Effect handler combined with pattern matching *)
     { label   : expr option;
       (** Effect label of the handled effect. [None] means that handler is
         lexical and generates its own label. *)
+
+      effect : type_arg option;
+      (** Optional name for the handled effect *)
 
       cap_pat : pattern;
       (** Pattern matched against the effect capability *)

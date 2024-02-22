@@ -131,9 +131,8 @@ and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
   | TA_Effect ->
     let (env, x) = Env.add_the_effect ~pos:arg.pos env in
-    let k = T.TVar.kind x in
-    if not (Unification.unify_kind k T.Kind.k_effect) then
-      Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos k);
+    if not (Unification.unify_kind kind T.Kind.k_effect) then
+      Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
     (env, x)
   | TA_Var x -> Env.add_tvar ~pos:arg.pos env x kind
 
@@ -155,6 +154,21 @@ and tr_named_type_arg env (arg : S.named_type_arg) =
 and tr_named_type_args env args =
   Uniqueness.check_named_type_arg_uniqueness args;
   List.fold_left_map tr_named_type_arg env args
+
+let check_type_alias_binder env (arg : S.type_arg) tp =
+  let kind = T.Type.kind tp in
+  match arg.data with
+  | TA_Effect ->
+    if not (Unification.unify_kind kind T.Kind.k_effect) then
+      Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
+    Env.add_the_effect_alias env tp
+  | TA_Var x ->
+    Env.add_type_alias env x tp
+
+let check_type_alias_binder_opt env arg_opt tp =
+  match arg_opt with
+  | None -> env
+  | Some arg -> check_type_alias_binder env arg tp
 
 let check_type_inst env targs (inst : S.type_inst) =
   let name = Name.tr_tname (fst inst.data) in

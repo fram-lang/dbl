@@ -117,6 +117,27 @@ let add_anon_tvar ?pos ?(name="T") env kind =
     scope  = T.Scope.add env.scope x
   }, x
 
+let add_the_effect_alias env tp =
+  assert (T.Kind.view (T.Type.kind tp) = KEffect);
+  { env with tvar_map = StrMap.add "#effect" tp env.tvar_map }
+
+let add_type_alias env name tp =
+  let pp_map =
+    match T.Type.view tp with
+    | TVar x ->
+      let pp_info =
+        match T.TVar.Map.find_opt x env.pp_map with
+        | Some pp_info -> { pp_info with pp_names = name :: pp_info.pp_names }
+        | None -> assert false
+      in
+      T.TVar.Map.add x pp_info env.pp_map
+    | _ -> env.pp_map
+  in
+  { env with
+    tvar_map = StrMap.add name tp env.tvar_map;
+    pp_map   = pp_map
+  }
+
 let add_data env x info =
   assert (not (T.TVar.Map.mem x env.adt_map));
   { env with

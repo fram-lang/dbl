@@ -77,6 +77,13 @@ val add_the_effect : ?pos:Position.t -> t -> t * T.tvar
 val add_anon_tvar :
   ?pos:Position.t -> ?name:string -> t -> T.kind -> t * T.tvar
 
+(** Extend an environment with a type alias. *)
+val add_type_alias : t -> S.tvar -> T.typ -> t
+
+(** Extend an environment with an alias labeled with "effect". Given type
+  must have the [effect] kind. *)
+val add_the_effect_alias : t -> T.typ -> t
+
 (** Assign ADT definition to given type variable. *)
 val add_data : t -> T.tvar -> adt_info -> t
 

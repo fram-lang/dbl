@@ -426,36 +426,67 @@ and tr_def (def : Raw.def) =
   | DImplicit n  -> make (DImplicit n)
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
-  | DLabel pat   -> make (DLabel (tr_pattern pat))
+  | DLabel pat   ->
+    let (eff_opt, pat) = tr_label_pattern pat in
+    make (DLabel (eff_opt, pat))
   | DHandle(pat, h, hcs) ->
-    let (lbl_opt, pat)  = tr_handle_pattern pat in
+    let (lbl_opt, eff_opt, pat)  = tr_handle_pattern pat in
     let body = { h with data = EHandler(tr_expr h) } in
-    make_handle ~pos:def.pos lbl_opt pat body hcs
+    make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs
   | DHandleWith(pat, e, hcs) ->
-    let (lbl_opt, pat)  = tr_handle_pattern pat in
+    let (lbl_opt, eff_opt, pat)  = tr_handle_pattern pat in
     let body = tr_expr e in
-    make_handle ~pos:def.pos lbl_opt pat body hcs
+    make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs
 
 and tr_defs defs = List.map tr_def defs
 
-and tr_handle_pattern (pat : Raw.expr) =
+and tr_pattern_with_fields (pat : Raw.expr) =
   match pat.data with
   | EApp({ data = ERecord flds; _ }, [pat]) ->
-    (Some (tr_handle_label flds), tr_pattern pat)
+    (Some flds, tr_pattern pat)
   | EApp({ data = ERecord flds; _ }, p0 :: pats) ->
     let pat =
       { pos = Position.join p0.pos pat.pos;
         data = Raw.EApp(p0, pats)
       } in
-    (Some (tr_handle_label flds), tr_pattern pat)
+    (Some flds, tr_pattern pat)
   | _ ->
     (None, tr_pattern pat)
 
-and tr_handle_label flds =
+and tr_label_pattern (pat : Raw.expr) =
+  let (flds_opt, pat) = tr_pattern_with_fields pat in
+  (Option.map tr_label_fields flds_opt, pat)
+
+and tr_handle_pattern (pat : Raw.expr) =
+  let (flds_opt, pat) = tr_pattern_with_fields pat in
+  match flds_opt with
+  | Some flds ->
+    let (lbl_opt, eff_opt) = tr_handle_fields flds in
+    (lbl_opt, eff_opt, pat)
+  | None -> (None, None, pat)
+
+and tr_label_fields flds =
   match flds with
   | [] -> assert false
-  | [{ data = FldNameVal(NLabel, e); _ }] -> tr_expr e
-  | { data = FldNameVal(NLabel, _); _} :: fld :: _ | fld :: _ ->
+  | [{ data = FldEffectVal tp; _ }] -> tr_type_arg tp
+  | { data = FldEffectVal _; _} :: fld :: _ | fld :: _ ->
+    Error.fatal (Error.desugar_error fld.pos)
+
+and tr_handle_fields flds =
+  match flds with
+  | [] -> assert false
+  | [{ data = FldNameVal(NLabel, e); _ }] ->
+    (Some (tr_expr e), None)
+  | [{ data = FldEffectVal eff; _ }] ->
+    (None, Some (tr_type_arg eff))
+  | [{ data = FldNameVal(NLabel, e); _ }; { data = FldEffectVal eff; _ }]
+  | [{ data = FldEffectVal eff; _ }; { data = FldNameVal(NLabel, e); _ }] ->
+    (Some (tr_expr e), Some (tr_type_arg eff))
+  | { data=FldNameVal(NLabel, _); _} :: { data=FldEffectVal _; _ } :: fld :: _
+  | { data=FldEffectVal _; _ } :: { data=FldNameVal(NLabel, _); _} :: fld :: _
+  | { data=FldNameVal(NLabel, _); _} :: fld :: _
+  | { data=FldEffectVal _; _ } :: fld :: _
+  | fld :: _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_h_clause (hc : Raw.h_clause) =
@@ -466,11 +497,12 @@ and tr_h_clause (hc : Raw.h_clause) =
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern pat, tr_expr body)))
 
-and make_handle ~pos lbl_opt pat body hcs =
+and make_handle ~pos lbl_opt eff_opt pat body hcs =
   let make data = { pos; data } in
   let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
   make (DHandlePat
     { label       = lbl_opt;
+      effect      = eff_opt;
       cap_pat     = pat;
       capability  = body;
       ret_clauses = rcs;

@@ -25,6 +25,13 @@ val tr_named_type_args :
   and freshly bound type variable *)
 val check_type_arg : Env.t -> S.type_arg -> T.kind -> Env.t * T.tvar
 
+(** Extends the environment with a type alias of given type. *)
+val check_type_alias_binder : Env.t -> S.type_arg -> T.typ -> Env.t
+
+(** Same as [check_type_alias_binder], but the type binder is optional.
+  Does nothing, when the second argument is None. *)
+val check_type_alias_binder_opt : Env.t -> S.type_arg option -> T.typ -> Env.t
+
 (** Translate named type scheme *)
 val tr_named_scheme : Env.t -> S.named_scheme -> T.named_scheme
 

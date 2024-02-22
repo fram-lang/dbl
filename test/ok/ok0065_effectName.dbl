@@ -1,0 +1,6 @@
+label {effect=E} l
+
+handle {effect=E1,label=l} (f : Unit ->[E] (Unit ->[E1] Unit)) =
+  effect _ _ / r => r ()
+
+let _ = f () ()
