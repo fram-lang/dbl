@@ -405,8 +405,7 @@ let as_label env tp =
   match T.Type.view tp with
   | TUVar(p, u) ->
     begin match Env.lookup_the_effect env with
-    | Some x ->
-      let eff  = T.Type.t_var x in
+    | Some eff ->
       let tp0  = Env.fresh_uvar env T.Kind.k_type in
       let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
       begin match set_uvar env p u (T.Type.t_label eff tp0 eff0) with

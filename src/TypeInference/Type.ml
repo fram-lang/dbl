@@ -16,7 +16,7 @@ let rec infer_kind env (tp : S.type_expr) =
 
   | TVar x ->
     begin match Env.lookup_tvar env x with
-    | Some x -> (T.Type.t_var x, T.TVar.kind x)
+    | Some tp -> (tp, T.Type.kind tp)
     | None ->
       Error.report (Error.unbound_type_var ~pos:tp.pos x);
       let k = T.Kind.fresh_uvar ~non_effect:true () in

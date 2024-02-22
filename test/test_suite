@@ -5,4 +5,4 @@ function simple_run_tests {
   done
 }
 
-run_with_flags simple_run_tests ""
+run_with_flags simple_run_tests "-no-prelude"

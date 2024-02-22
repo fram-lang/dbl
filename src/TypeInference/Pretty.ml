@@ -82,8 +82,12 @@ end = struct
 
   let tvar_valid_name env x name =
     match Env.lookup_tvar env.env name with
-    | Some y -> T.TVar.equal x y
-    | None   -> false
+    | Some tp ->
+      begin match T.Type.view tp with
+      | TVar y -> T.TVar.equal x y
+      | _      -> false
+      end
+    | None    -> false
 
   let lookup_tvar env x =
     match T.TVar.Map.find_opt x env.local_names with

@@ -85,10 +85,10 @@ let guess_type ~pos env sub ~tinst ((n : T.tname), tv) =
         Env.fresh_uvar env (T.TVar.kind tv)
       | TNEffect ->
         begin match Env.lookup_the_effect env with
-        | Some x ->
+        | Some eff ->
           assert (T.Kind.is_effect (T.TVar.kind tv));
-          assert (T.Kind.is_effect (T.TVar.kind x));
-          T.Type.t_var x
+          assert (T.Kind.is_effect (T.Type.kind eff));
+          eff
         | None ->
           Error.fatal (Error.cannot_guess_effect_param ~pos n)
         end

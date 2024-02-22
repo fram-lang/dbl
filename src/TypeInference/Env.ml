@@ -27,7 +27,7 @@ type t = {
   var_map : (T.var * T.scheme) StrMap.t;
     (** Information about regular variable names *)
 
-  tvar_map : T.tvar StrMap.t;
+  tvar_map : T.typ StrMap.t;
     (** Information about named type variables *)
 
   implicit_map : (T.var * T.scheme * (Position.t -> unit)) StrMap.t;
@@ -48,7 +48,9 @@ type t = {
 
 let empty =
   { var_map      = StrMap.empty;
-    tvar_map     = StrMap.empty;
+    tvar_map     =
+      [ "Unit", T.Type.t_unit ]
+      |> List.to_seq |> StrMap.of_seq;
     implicit_map = StrMap.empty;
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
@@ -85,7 +87,7 @@ let add_tvar ?pos env name kind =
       pp_pos       = pos
     } in
   { env with
-    tvar_map = StrMap.add name x env.tvar_map;
+    tvar_map = StrMap.add name (T.Type.t_var x) env.tvar_map;
     pp_map   = T.TVar.Map.add x pp_info env.pp_map;
     scope    = T.Scope.add env.scope x
   }, x
@@ -98,7 +100,7 @@ let add_the_effect ?pos env =
       pp_pos       = pos
     } in
   { env with
-    tvar_map = StrMap.add "#effect" x env.tvar_map;
+    tvar_map = StrMap.add "#effect" (T.Type.t_var x) env.tvar_map;
     pp_map   = T.TVar.Map.add x pp_info env.pp_map;
     scope    = T.Scope.add env.scope x
   }, x

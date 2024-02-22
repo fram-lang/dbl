@@ -103,11 +103,11 @@ val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
 
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
-val lookup_tvar : t -> S.tvar -> T.tvar option
+val lookup_tvar : t -> S.tvar -> T.typ option
 
 (** Lookup for the effect variable labeled with "effect". It should always
   have an effect kind. *)
-val lookup_the_effect : t -> T.tvar option
+val lookup_the_effect : t -> T.typ option
 
 (** Lookup for ADT definition assigned for given type variable *)
 val lookup_adt : t -> T.tvar -> adt_info option
