@@ -1,8 +1,18 @@
-data rec Nat = Z | S of Nat
+data rec Nat = Zero | Succ of Nat
+
+data rec List A = Nil | Cons of A, List A
 
 let id x = x
+
+let flip f x y = f y x
 
 let fix {type A, type B, type E} f =
   data rec Fix = Fix of (Fix -> A ->[|E] B)
   let fi ix x = let Fix fi = ix in f (fi ix) x in
   fi (Fix fi)
+
+let map f = fix (fn map xs =>
+  match xs with
+  | Nil       => Nil
+  | Cons x xs => Cons (f x) (map xs)
+  end)

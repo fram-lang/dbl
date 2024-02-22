@@ -38,6 +38,10 @@ $ dbl
 You can also run programs in a batch mode, by providing a file to execute
 as a command-line argument (e.g., `dbl filename.dbl`).
 
+If you didn't install DBL via `dune install` (or OPAM, generally) then
+it's recommended to set the `DBL_LIB` environmental variable to the `lib`
+directory of your local installation of DBL.
+
 Examples
 --------
 
