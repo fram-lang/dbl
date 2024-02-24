@@ -1,3 +1,5 @@
+data Bool = False | True
+
 data rec Nat = Zero | Succ of Nat
 
 data rec List A = Nil | Cons of A, List A
@@ -16,3 +18,9 @@ let map f = fix (fn map xs =>
   | Nil       => Nil
   | Cons x xs => Cons (f x) (map xs)
   end)
+
+let append xs ys = fix (fn append xs =>
+  match xs with
+  | Nil       => ys
+  | Cons x xs => Cons x (append xs)
+  end) xs
