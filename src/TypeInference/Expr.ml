@@ -518,8 +518,14 @@ and check_def : type dir.
         begin match Unification.as_label env le_tp with
         | L_Label(l_eff, tp0, eff0) ->
           let env = Type.check_type_alias_binder_opt env eff_opt l_eff in
-          { l_expr      = le;
-            l_ctx       = (fun e -> e);
+          let env = Env.add_the_effect_alias env l_eff in
+          let (env, l_var) = Env.add_the_label env l_eff tp0 eff0 in
+          let ctx e =
+            { T.pos  = Position.join def.pos e.T.pos;
+              T.data = T.ELet(l_var, T.Scheme.of_type le_tp, le, e)
+            } in
+          { l_expr      = { le with data = T.EVar l_var };
+            l_ctx       = ctx;
             l_eff       = l_eff;
             l_sub       = (fun a -> T.Subst.add_type T.Subst.empty a l_eff);
             l_delim_tp  = tp0;
@@ -533,6 +539,7 @@ and check_def : type dir.
           Error.fatal (Error.expr_not_label ~pos:le.pos ~env le_tp)
         end
     in
+    let env_f = env in
     let (env_h, ims) = ImplicitEnv.begin_generalize env ienv in
     let (eh, eh_tp, _) = infer_expr_type env_h eh eff in
     (* TODO: effect capability may have a scheme instead of type *)
@@ -560,7 +567,7 @@ and check_def : type dir.
       let pos = Position.join def.pos body.pos in
       if not (Unification.subeffect env0 res_eff eff) then
         Error.report (Error.expr_effect_mismatch ~pos ~env:env0 res_eff eff);
-      let e = lbl.l_ctx (
+      let e =
         make body (T.EHandle
           { label      = lbl.l_expr;
             effect     = lbl.l_eff;
@@ -571,8 +578,9 @@ and check_def : type dir.
             ret_body   = ret_body;
             result_tp  = res_tp;
             result_eff = res_eff
-          })) in
-      check_finally_clauses env0 fcs e res_tp req eff
+          }) in
+      let (e, tp, r_eff) = check_finally_clauses env_f fcs e res_tp req eff in
+      (lbl.l_ctx e, tp, r_eff)
 
     | H_No ->
       Error.fatal (Error.expr_not_handler ~pos:eh.pos ~env eh_tp)
