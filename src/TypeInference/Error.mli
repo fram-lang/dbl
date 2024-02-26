@@ -78,8 +78,11 @@ val method_of_invalid_type :
 val method_of_polymorphic_type : pos:Position.t -> env:Env.t -> T.scheme -> t
 val non_arrow_method : pos:Position.t -> env:Env.t -> T.scheme -> t
 
+val ctor_pattern_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
+
+val ctor_not_in_type : pos:Position.t -> env:Env.t -> S.ctor_name -> T.typ -> t
 
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
 

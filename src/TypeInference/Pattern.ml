@@ -5,6 +5,10 @@
 (** Type-inference for patterns *)
 
 (* Author: Piotr Polesiuk, 2023,2024 *)
+(* 2023: Piotr Polesiuk: initial implementation
+   2024: Piotr Polesiuk: named parameters, type parameters, methods
+   2024: Patrycja Balik: constructor pattern type checking now extracts info
+    from the checked type *)
 
 open Common
 
@@ -97,6 +101,45 @@ let introduce_implicit_name ~pos env (name : T.name) sch =
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, T.Name.Map.singleton name pos, x)
 
+(** For a given constructor name and checked type, produce the ADT info for
+    the type, the constructor index, proof that it is an ADT, and the needed
+    substitution for the type parameters *)
+let get_ctor_info ~pos ~env (cname : S.ctor_name S.node) tp =
+  match T.Type.whnf tp with
+  | Whnf_Neutral(NH_Var x, rev_tps) ->
+    begin match Env.lookup_adt env x with
+    | Some info ->
+      let tps = List.rev rev_tps in
+      let sub_add sub (_, tv) tp = T.Subst.add_type sub tv tp in
+      let sub = List.fold_left2 sub_add T.Subst.empty info.adt_args tps in
+      begin match T.CtorDecl.find_index info.adt_ctors cname.data with
+      | Some idx ->
+        let proof = ExprUtils.make_tapp info.adt_proof tps in
+        (info, idx, proof, sub)
+      | None ->
+        Error.fatal (Error.ctor_not_in_type ~pos:cname.pos ~env cname.data tp)
+      end
+    | None ->
+      Error.fatal (Error.ctor_pattern_on_non_adt ~pos ~env tp)
+    end
+
+  | Whnf_Neutral(NH_UVar _, _) ->
+    begin match Env.lookup_ctor env cname.data with
+    | Some(idx, info) ->
+      let (sub, tps) = ExprUtils.guess_types ~pos env info.adt_args in
+      let proof = ExprUtils.make_tapp info.adt_proof tps in
+      (info, idx, proof, sub)
+    | None ->
+      Error.fatal (Error.unbound_constructor ~pos:cname.pos cname.data)
+    end
+
+  | Whnf_Unit | Whnf_PureArrow _
+  | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
+    Error.fatal (Error.ctor_pattern_on_non_adt ~pos ~env tp)
+
+  | Whnf_Effect _ | Whnf_Effrow _ ->
+    failwith "Internal kind error"
+
 let rec check_ctor_named_args ~pos ~env ~scope nps named =
   match named with
   | [] ->
@@ -177,44 +220,37 @@ and check_type ~env ~scope (pat : S.pattern) tp =
     end
 
   | PCtor(cname, targs, nps, args) ->
-    begin match Env.lookup_ctor env cname.data with
-    | Some(idx, info) ->
-      let (sub, tps) = ExprUtils.guess_types ~pos env info.adt_args in
-      let proof  = ExprUtils.make_tapp info.adt_proof tps in
-      let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
-      let ctor   = List.nth ctors idx in
-      let res_tp = T.Type.subst sub info.adt_type in
-      Uniqueness.check_named_type_arg_uniqueness targs;
-      let targs = List.map tr_named_type targs in
-      let (env, scope, sub2, tvars) =
-        check_ctor_type_args ~pos:cname.pos ~env ~scope ~sub:T.Subst.empty
-          targs ctor.ctor_targs in
-      let ctor_named =
-        List.map (T.NamedScheme.subst sub2) ctor.ctor_named in
-      let ctor_arg_schemes =
-        List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
-      Uniqueness.check_named_pattern_uniqueness nps;
-      let nps = List.map (tr_named_pattern env) nps in
-      let (env, bn1, ps1) =
-        check_ctor_named_args ~pos:pat.pos ~env ~scope nps ctor_named in
-      if List.length ctor_arg_schemes <> List.length args then
-        Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
-          cname.data (List.length ctor_arg_schemes) (List.length args))
-      else if not (Unification.subtype env tp res_tp) then
-        Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
-          res_tp tp)
-      else
-        let (env, ps2, bn2, _) =
-          check_pattern_schemes ~env ~scope args ctor_arg_schemes in
-        let pat = make
-          (T.PCtor(cname.data, idx, proof, ctors, tvars, ps1 @ ps2)) in
-        (* Pattern matching is always impure, as due to recursive types it can
-          be used to encode non-termination *)
-        (env, pat, union_bound_names bn1 bn2, Impure)
-
-    | None ->
-      Error.fatal (Error.unbound_constructor ~pos:cname.pos cname.data)
-    end
+    let (info, idx, proof, sub) = get_ctor_info ~pos ~env cname tp in
+    let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
+    let ctor   = List.nth ctors idx in
+    let res_tp = T.Type.subst sub info.adt_type in
+    Uniqueness.check_named_type_arg_uniqueness targs;
+    let targs = List.map tr_named_type targs in
+    let (env, scope, sub2, tvars) =
+      check_ctor_type_args ~pos:cname.pos ~env ~scope ~sub:T.Subst.empty
+        targs ctor.ctor_targs in
+    let ctor_named =
+      List.map (T.NamedScheme.subst sub2) ctor.ctor_named in
+    let ctor_arg_schemes =
+      List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
+    Uniqueness.check_named_pattern_uniqueness nps;
+    let nps = List.map (tr_named_pattern env) nps in
+    let (env, bn1, ps1) =
+      check_ctor_named_args ~pos:pat.pos ~env ~scope nps ctor_named in
+    if List.length ctor_arg_schemes <> List.length args then
+      Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
+        cname.data (List.length ctor_arg_schemes) (List.length args))
+    else if not (Unification.subtype env tp res_tp) then
+      Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
+        res_tp tp)
+    else
+      let (env, ps2, bn2, _) =
+        check_pattern_schemes ~env ~scope args ctor_arg_schemes in
+      let pat = make
+        (T.PCtor(cname.data, idx, proof, ctors, tvars, ps1 @ ps2)) in
+      (* Pattern matching is always impure, as due to recursive types it can
+        be used to encode non-termination *)
+      (env, pat, union_bound_names bn1 bn2, Impure)
 
 and check_pattern_schemes ~env ~scope pats schs =
   match pats, schs with

@@ -46,6 +46,8 @@ end
 
 module CtorDecl = struct
   let subst = UnifPriv.Subst.in_ctor_decl
+
+  let find_index cs name = List.find_index (fun c -> c.ctor_name = name) cs
 end
 
 module Subst = UnifPriv.Subst

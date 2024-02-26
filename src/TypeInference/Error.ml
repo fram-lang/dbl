@@ -245,6 +245,13 @@ let non_arrow_method ~pos ~env sch =
     (Pretty.scheme_to_string pp_ctx env sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let ctor_pattern_on_non_adt ~pos ~env tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "This pattern matches values of type %s, which is not an ADT"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let empty_match_on_non_adt ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -256,6 +263,14 @@ let empty_match_on_nonempty_adt ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This pattern matching matches values of type %s, which is not an empty ADT"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let ctor_not_in_type ~pos ~env name tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "There is no constructor named %s in type %s"
+    name
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 

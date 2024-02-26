@@ -688,4 +688,7 @@ end
 module CtorDecl : sig
   (** Set of unification variables in given scheme *)
   val subst : subst -> ctor_decl -> ctor_decl
+
+  (** Get the index of a constructor with a given name *)
+  val find_index : ctor_decl list -> string -> int option
 end

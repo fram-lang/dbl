@@ -1,0 +1,3 @@
+data T (effect E) = C of (Unit ->[E] Unit)
+
+let f {E} (C g : T E) = g
