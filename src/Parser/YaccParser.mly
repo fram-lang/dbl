@@ -8,10 +8,10 @@
 
 %token<string> LID UID TLID
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COLON COMMA EQ SEMICOLON2 SLASH
+%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
 %token KW_AND KW_DATA KW_EFFECT KW_END KW_FINALLY KW_FN KW_HANDLE KW_HANDLER
-%token KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH KW_OF KW_REC KW_RETURN
-%token KW_TYPE KW_WITH
+%token KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_OF KW_REC
+%token KW_RETURN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -129,8 +129,8 @@ ctor_decl_list
 
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
-| KW_FN expr_simple_list1 ARROW2 expr { make (EFn($2, $4))   }
-| KW_EFFECT expr_simple_list SLASH expr ARROW2 expr
+| KW_FN expr_250_list1 ARROW2 expr { make (EFn($2, $4))   }
+| KW_EFFECT expr_250_list SLASH expr ARROW2 expr
     { make (EEffect($2, $4, $6)) }
 | KW_HANDLER expr { make (EHandler $2) }
 | expr_10 { $1 }
@@ -142,8 +142,22 @@ expr_10
 ;
 
 expr_200
+: expr_250 { $1 }
+| expr_250 expr_250_list1 { make (EApp($1, $2)) }
+;
+
+expr_250
 : expr_simple { $1 }
-| expr_simple expr_simple_list1 { make (EApp($1, $2)) }
+| expr_250 DOT LID { make (EMethod($1, $3)) }
+;
+
+expr_250_list1
+: expr_250 expr_250_list { $1 :: $2 }
+;
+
+expr_250_list
+: /* empty */ { [] }
+| expr_250 expr_250_list { $1 :: $2 }
 ;
 
 expr_simple
@@ -157,15 +171,6 @@ expr_simple
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
-;
-
-expr_simple_list1
-: expr_simple expr_simple_list { $1 :: $2 }
-;
-
-expr_simple_list
-: /* empty */ { [] }
-| expr_simple expr_simple_list { $1 :: $2 }
 ;
 
 /* ========================================================================= */
@@ -224,6 +229,7 @@ def
 | KW_LABEL  expr         { make (DLabel $2) }
 | KW_HANDLE expr EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
 | KW_HANDLE expr KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
+| KW_METHOD expr EQ expr { make (DMethod($2, $4)) }
 ;
 
 def_list

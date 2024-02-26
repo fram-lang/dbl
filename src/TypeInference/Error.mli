@@ -36,6 +36,9 @@ val unbound_the_effect : pos:Position.t -> t
 val unbound_named_param : pos:Position.t -> S.var -> t
 val unbound_the_label : pos:Position.t -> t
 
+val unbound_method :
+  pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
+
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
@@ -51,6 +54,9 @@ val pattern_annot_mismatch :
 val func_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
+val method_effect_mismatch :
+  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
+
 val func_not_pure : pos:Position.t -> t
 val impure_handler : pos:Position.t -> t
 
@@ -61,6 +67,16 @@ val expr_not_handler : pos:Position.t -> env:Env.t -> T.typ -> t
 val expr_not_handler_ctx : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val expr_not_label : pos:Position.t -> env:Env.t -> T.typ -> t
+
+val method_call_on_unknown_type : pos:Position.t -> t
+val method_call_on_invalid_type : pos:Position.t -> env:Env.t -> T.typ -> t
+
+val method_of_bound_tvar : pos:Position.t -> env:Env.t -> T.scheme -> t
+val method_of_unknown_type : pos:Position.t -> env:Env.t -> T.scheme -> t
+val method_of_invalid_type :
+  pos:Position.t -> env:Env.t -> T.scheme -> T.typ -> t
+val method_of_polymorphic_type : pos:Position.t -> env:Env.t -> T.scheme -> t
+val non_arrow_method : pos:Position.t -> env:Env.t -> T.scheme -> t
 
 val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t

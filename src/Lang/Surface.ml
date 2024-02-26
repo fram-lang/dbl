@@ -20,6 +20,9 @@ type iname = string
 (** Name of a ADT constructor *)
 type ctor_name = string
 
+(** Name of a method *)
+type method_name = string
+
 (** Name of a named type parameter *)
 type tname =
   | TNAnon
@@ -37,6 +40,9 @@ type ident =
   | IdLabel
   | IdVar      of var
   | IdImplicit of iname
+  | IdMethod   of method_name
+    (** Methods must have an arrow type, where the argument type is a type
+      of "self" variable. *)
 
 (** Type expressions *)
 type type_expr = type_expr_data node
@@ -145,8 +151,11 @@ and poly_expr_data =
   | ECtor     of ctor_name
     (** ADT constructor *)
 
+  | EMethod   of expr * method_name
+    (** Call of a method *)
+
 (** Expressions *)
-type expr = expr_data node
+and expr = expr_data node
 and expr_data =
   | EUnit
     (** Unit expression *)

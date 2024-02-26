@@ -90,6 +90,11 @@ val add_data : t -> T.tvar -> adt_info -> t
 (** Add constructor of given name and index to the environment *)
 val add_ctor : t -> string -> int -> adt_info -> t
 
+(** Add a method associated with given type variable (owner). Method must have
+  arrow type, where the head type variable of an argument is the same
+  as the owner *)
+val add_poly_method : t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
+
 (** Lookup for Unif representation and a scheme of a variable. Returns [None]
   if variable is not bound. *)
 val lookup_var : t -> S.var -> (T.var * T.scheme) option
@@ -118,6 +123,9 @@ val lookup_the_effect : t -> T.typ option
 
 (** Lookup for ADT definition assigned for given type variable *)
 val lookup_adt : t -> T.tvar -> adt_info option
+
+(** Lookup for method associated with given type variable *)
+val lookup_method : t -> T.tvar -> S.method_name -> (T.var * T.scheme) option
 
 (** Lookup for pretty-printing information about type variable *)
 val lookup_tvar_pp_info : t -> T.tvar -> pp_info option

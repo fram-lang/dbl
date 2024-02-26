@@ -39,6 +39,9 @@ type t = {
   adt_map : adt_info T.TVar.Map.t;
     (** Definition of ADT associated with a type variable *)
 
+  method_map : (T.var * T.scheme) StrMap.t T.TVar.Map.t;
+    (** Methods associated with a type variable *)
+
   pp_map : pp_info T.TVar.Map.t;
     (** Additional metadata used for pretty-printing of types *)
 
@@ -54,6 +57,7 @@ let empty =
     implicit_map = StrMap.empty;
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
+    method_map   = T.TVar.Map.empty;
     pp_map       = T.TVar.Map.empty;
     scope        = T.Scope.initial
   }
@@ -149,6 +153,19 @@ let add_ctor env name idx info =
     ctor_map = StrMap.add name (idx, info) env.ctor_map
   }
 
+let lookup_method_map env owner =
+  match T.TVar.Map.find_opt owner env.method_map with
+  | Some map -> map
+  | None     -> StrMap.empty
+
+let add_poly_method env owner name sch =
+  let x = Var.fresh ~name () in
+  let method_map =
+    lookup_method_map env owner |> StrMap.add name (x, sch) in
+  { env with
+    method_map = T.TVar.Map.add owner method_map env.method_map
+  }, x
+
 let lookup_var env x =
   StrMap.find_opt x env.var_map
 
@@ -182,6 +199,9 @@ let lookup_the_effect env =
 
 let lookup_adt env x =
   T.TVar.Map.find_opt x env.adt_map
+
+let lookup_method env owner name =
+  StrMap.find_opt name (lookup_method_map env owner)
 
 let lookup_tvar_pp_info env x =
   T.TVar.Map.find_opt x env.pp_map

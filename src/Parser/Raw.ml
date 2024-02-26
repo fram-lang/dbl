@@ -27,6 +27,9 @@ type name = Lang.Surface.name =
 (** Names of constructors of ADTs *)
 type ctor_name = string
 
+(** Names of methods *)
+type method_name = string
+
 (** Field of record-like, e.g., scheme name parameters, or explicit
   instantiation *)
 type ('tp, 'e) field_data =
@@ -141,6 +144,9 @@ and expr_data =
     (** Record-like expression, e.g., explicit instantiation of named
       parameters *)
 
+  | EMethod of expr * method_name
+    (** Call of a method *)
+
   | EAnnot of expr * type_expr
     (** Type annotation *)
 
@@ -175,6 +181,9 @@ and def_data =
 
   | DHandleWith of expr * expr * h_clause list
     (** Effect handler, with first-class handler *)
+
+  | DMethod of expr * expr
+    (** Method definition *)
 
 (** Additional clauses of handlers *)
 and h_clause = h_clause_data node

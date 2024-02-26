@@ -61,7 +61,7 @@ let is_monomorphic_var env (e : S.expr) =
       | EVar x -> Option.map snd (Env.lookup_var env x)
       | EImplicit name ->
         Option.map (fun (_, sch, _) -> sch) (Env.lookup_implicit env name)
-      | ECtor _ -> None
+      | ECtor _ | EMethod _ -> None
     in
     begin match sch_opt with
     | Some { sch_targs = []; sch_named = []; sch_body = _ } -> true
@@ -109,25 +109,75 @@ let infer_ctor_scheme ~pos env c =
   always in the check-mode. It returns a tuple, that contains the context of
   the polymorphic expression (computing polymorphic expression may have some
   effects, that should be performed before explicit instantiation), the
-  translated polymorphic expression, its scheme, and the effect. *)
-let infer_poly_scheme env (e : S.poly_expr) eff =
+  translated polymorphic expression, and its scheme. The context is a
+  function that takes instantiation, its type and effect, and returns
+  translated expression, its type and the effect. *)
+let rec infer_poly_scheme env (e : S.poly_expr) eff =
   let pos = e.pos in
+  let default_ctx e tp r_eff = (e, tp, r_eff) in
   match e.data with
   | EVar  x ->
     let (e, sch) = infer_var_scheme ~pos env x in
-    (Fun.id, e, sch, Pure)
+    (default_ctx, e, sch)
   | EImplicit n ->
     let (e, sch) = infer_implicit_scheme ~pos env n in
-    (Fun.id, e, sch, Pure)
+    (default_ctx, e, sch)
   | ECtor c ->
     let (e, sch) = infer_ctor_scheme ~pos env c in
-    (Fun.id, e, sch, Pure)
+    (default_ctx, e, sch)
+  | EMethod(self, name) ->
+    let (self, self_tp, self_r_eff) = infer_expr_type env self eff in
+    begin match T.Type.whnf self_tp with
+    | Whnf_Neutral(NH_Var a, _) ->
+      begin match Env.lookup_method env a name with
+      | Some(x, sch) ->
+        (method_call_ctx ~pos ~env ~self ~self_tp ~self_r_eff ~eff,
+          { T.pos = pos; T.data = T.EVar x },
+          sch)
+      | None ->
+        Error.fatal (Error.unbound_method ~pos ~env a name)
+      end
+    | Whnf_Neutral(NH_UVar _, _) ->
+      Error.fatal (Error.method_call_on_unknown_type ~pos:e.pos)
+
+    | Whnf_Unit | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _
+    | Whnf_Label _ ->
+      Error.fatal (Error.method_call_on_invalid_type ~pos:e.pos ~env self_tp)
+
+    | Whnf_Effect _ | Whnf_Effrow _ ->
+      failwith "Internal kind error"
+    end
+
+(** Context of a method call, returned by [infer_poly_scheme] *)
+and method_call_ctx ~pos ~env ~self ~self_tp ~self_r_eff ~eff =
+  fun e method_tp r_eff ->
+  let result_expr = { T.pos = pos; T.data = T.EApp(e, self) } in
+  match T.Type.view method_tp with
+  | TArrow(
+      { sch_targs = []; sch_named = []; sch_body = self_tp' },
+      res_tp, res_eff) ->
+    if not (Unification.subtype env self_tp self_tp') then
+      Error.report
+        (Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp');
+    if not (Unification.subeffect env res_eff eff) then
+      Error.report (Error.method_effect_mismatch ~pos ~env res_eff eff);
+    (result_expr, res_tp, ret_effect_join self_r_eff r_eff)
+  | TPureArrow(
+      { sch_targs = []; sch_named = []; sch_body = self_tp' },
+      res_tp) ->
+    if not (Unification.subtype env self_tp self_tp') then
+      Error.report
+        (Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp');
+    (result_expr, res_tp, ret_effect_join self_r_eff r_eff)
+  | _ ->
+    (* Method must be an arrow with monomorphic argument *)
+    InterpLib.InternalError.report ~reason:"invalid method type" ()
 
 (* ------------------------------------------------------------------------- *)
 (** Infer type of an expression. The effect of an expression is always in
   the check mode. However, pure expressions may returns an information that
   they are pure (see [ret_effect] type). *)
-let rec infer_expr_type env (e : S.expr) eff =
+and infer_expr_type env (e : S.expr) eff =
   let make data = { e with data = data } in
   let pos = e.pos in
   match e.data with
@@ -140,17 +190,17 @@ let rec infer_expr_type env (e : S.expr) eff =
     (make T.EUnit, T.Type.t_unit, Pure)
 
   | EPoly(e, tinst, inst) ->
-    let (p_ctx, e, sch, r_eff1) = infer_poly_scheme env e eff in
+    let (p_ctx, e, sch) = infer_poly_scheme env e eff in
     Uniqueness.check_type_inst_uniqueness tinst;
     Uniqueness.check_inst_uniqueness inst;
     let tinst = Type.check_type_insts env tinst sch.sch_targs in
     let (sub, tps) = ExprUtils.guess_types ~pos ~tinst env sch.sch_targs in
     let e = ExprUtils.make_tapp e tps in
     let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
-    let (i_ctx, inst, r_eff2) = check_explicit_insts env named inst eff in
+    let (i_ctx, inst, r_eff) = check_explicit_insts env named inst eff in
     let e = ExprUtils.instantiate_named_params env e named inst in
     let tp = T.Type.subst sub sch.sch_body in
-    (p_ctx (i_ctx e), tp, ret_effect_join r_eff1 r_eff2)
+    (p_ctx (i_ctx e) tp r_eff)
 
   | EFn(arg, body) ->
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
@@ -418,10 +468,11 @@ and check_def : type dir.
     { T.pos  = Position.join def.pos e.pos;
       T.data = data
     } in
+  let pos = def.pos in
   match def.data with
   | DLetId(id, e1) ->
     let (sch, e1, r_eff1) = check_let env ienv e1 eff in
-    let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
+    let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos env ienv id sch in
     let (e2, resp, r_eff2) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, e1, e2)), resp, ret_effect_join r_eff1 r_eff2)
 
@@ -439,7 +490,7 @@ and check_def : type dir.
     let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
     let ims1 = ImplicitEnv.end_generalize_pure ims1 in
     let (body, sch) = ExprUtils.generalize env tvars (ims1 @ ims2) body tp in
-    let (env, ienv, x) = ImplicitEnv.add_poly_id env ienv id sch in
+    let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos env ienv id sch in
     let (e2, resp, r_eff) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
 

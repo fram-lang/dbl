@@ -22,6 +22,7 @@ let kw_map =
   ; "label",    KW_LABEL
   ; "let",      KW_LET
   ; "match",    KW_MATCH
+  ; "method",   KW_METHOD
   ; "of",       KW_OF
   ; "rec",      KW_REC
   ; "return",   KW_RETURN
@@ -58,6 +59,7 @@ rule token = parse
   | "|"  { YaccParser.BAR        }
   | ":"  { YaccParser.COLON      }
   | ","  { YaccParser.COMMA      }
+  | "."  { YaccParser.DOT        }
   | "="  { YaccParser.EQ         }
   | ";;" { YaccParser.SEMICOLON2 }
   | "/"  { YaccParser.SLASH      }

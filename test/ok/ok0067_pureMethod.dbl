@@ -1,0 +1,12 @@
+data T = A
+data U = B
+
+method id {self : T} = A
+
+data Pair X Y = Pair of X, Y
+
+method snd {self = Pair _ x} = x
+
+let poly = Pair (A).id (fn x => x)
+
+let bar = Pair (poly.snd A) (poly.snd B)

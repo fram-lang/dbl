@@ -49,6 +49,20 @@ let map_inst_like f xs =
 let map_h_clauses f xs =
   map_either ~warn:Error.finally_before_return_clause f xs
 
+(** Finds argument named "self" on given list. *)
+let rec find_self_arg args =
+  match args with
+  | [] -> (None, [])
+  | { pos; data = (NVar "self", arg) } :: args ->
+    begin match find_self_arg args with
+    | (None, _) -> (Some (pos, arg), args)
+    | (Some(pos, _), _) ->
+      Error.fatal (Error.multiple_self_parameters pos)
+    end
+  | arg :: args ->
+    let (self, args) = find_self_arg args in
+    (self, arg :: args)
+
 let ident_of_name (name : Raw.name) =
   match name with
   | NLabel      -> IdLabel
@@ -225,12 +239,14 @@ let rec tr_pattern (p : Raw.expr) =
       make (PCtor({ p1 with data = c}, targs, iargs, List.map tr_pattern ps))
 
     | EWildcard | EUnit | EParen _ | EVar _ | EImplicit _ | EFn _ | EApp _
-    | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ | EAnnot _ ->
+    | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ | EMethod _
+    | EAnnot _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
   | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
 
-  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ ->
+  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
+  | EMethod _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 and tr_named_pattern (fld : Raw.field) =
@@ -264,7 +280,8 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EWildcard | EUnit | EVar _ | EImplicit _ | ECtor _ | EApp _ ->
     ArgPattern (tr_pattern arg)
 
-  | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _ ->
+  | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
+  | EMethod _ ->
     Error.fatal (Error.desugar_error arg.pos)
 
 let tr_named_arg (fld : Raw.field) =
@@ -311,14 +328,15 @@ let rec tr_let_pattern (p : Raw.expr) =
       LP_Pat(tr_pattern p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
-    | EEffect _ | ERecord _ | EAnnot _ ->
+    | EEffect _ | ERecord _ | EMethod _ | EAnnot _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
 
   | EWildcard | EUnit | EParen _ | ECtor _ | EAnnot _ ->
     LP_Pat (tr_pattern p)
 
-  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _ ->
+  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
+  | EMethod _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a function, given a list of formal parameters *)
@@ -330,23 +348,26 @@ let rec tr_function args body =
       data = EFn(tr_function_arg arg, tr_function args body)
     }
 
-let tr_poly_expr (e : Raw.expr) =
+let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
   | EVar      x -> make (EVar      x)
   | EImplicit n -> make (EImplicit n)
   | ECtor     c -> make (ECtor     c)
+  | EMethod(e, name) ->
+    make (EMethod(tr_expr e, name))
 
   | EWildcard | EUnit | EParen _ | EFn _ | EApp _ | EEffect _ | EDefs _
   | EMatch _ | ERecord _ | EHandler _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
-let rec tr_expr (e : Raw.expr) =
+and tr_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
   | EUnit          -> make EUnit
   | EParen e       -> make (tr_expr e).data
-  | EVar _ | EImplicit _ | ECtor _ -> make (EPoly(tr_poly_expr e, [], []))
+  | EVar _ | EImplicit _ | ECtor _ | EMethod _ ->
+    make (EPoly(tr_poly_expr e, [], []))
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
   | EApp(e1, es)    ->
     begin match collect_fields ~ppos:e1.pos es with
@@ -422,6 +443,25 @@ and tr_def (def : Raw.def) =
       make (DLetFun(id, targs, iargs, tr_function args (tr_expr e)))
     | LP_Pat p ->
       make (DLetPat(p, tr_expr e))
+    end
+  | DMethod(p, e) ->
+    begin match tr_let_pattern p with
+    | LP_Id (IdVar x) ->
+      make (DLetFun(IdMethod x, [], [],
+        make (EFn(ArgPattern (make (PId (IdVar "self"))),
+          tr_expr e))))
+    | LP_Fun(IdVar x, targs, iargs, args) ->
+      let (self_arg, iargs) =
+        match find_self_arg iargs with
+        | None, iargs -> (ArgPattern (make (PId (IdVar "self"))), iargs)
+        | Some(_, arg), iargs -> (arg, iargs)
+      in
+      make (DLetFun(IdMethod x, targs, iargs,
+        make (EFn(self_arg, tr_function args (tr_expr e)))))
+    | LP_Id (IdLabel | IdImplicit _ | IdMethod _)
+    | LP_Fun((IdLabel | IdImplicit _ | IdMethod _), _, _, _)
+    | LP_Pat _ ->
+      Error.fatal (Error.desugar_error p.pos)
     end
   | DImplicit n  -> make (DImplicit n)
   | DData    dd  -> make (DData (tr_data_def dd))

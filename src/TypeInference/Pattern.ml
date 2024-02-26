@@ -133,6 +133,12 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
     let bn = T.Name.Map.singleton (T.NImplicit n) pat.pos in
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, make (T.PVar(x, sch)), bn, Pure)
+  | PId (IdMethod name) ->
+    (* TODO: bettern bn *)
+    let bn = T.Name.Map.empty in
+    let owner = TypeUtils.method_owner_of_scheme ~pos:pat.pos ~env sch in
+    let (env, x) = Env.add_poly_method env owner name sch in
+    (env, make (T.PVar(x, sch)), bn, Pure)
   | PCtor _ | PId IdLabel ->
     begin match sch with
     | { sch_targs = []; sch_named = []; sch_body = tp } ->
@@ -151,7 +157,7 @@ and check_type ~env ~scope (pat : S.pattern) tp =
   let make data = { pat with T.data = data } in
   let pos = pat.pos in
   match pat.data with
-  | PWildcard | PId (IdVar _ | IdImplicit _) | PAnnot _ ->
+  | PWildcard | PId (IdVar _ | IdImplicit _ | IdMethod _) | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
     check_scheme ~env ~scope pat sch
 

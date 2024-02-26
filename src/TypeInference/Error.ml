@@ -80,6 +80,14 @@ let unbound_named_param ~pos x =
 let unbound_the_label ~pos =
   (pos, Printf.sprintf "There is no default label in this context", [])
 
+let unbound_method ~pos ~env x name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Type %s has no method named %s"
+    (Pretty.tvar_to_string pp_ctx env x)
+    name
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let expr_type_mismatch ~pos ~env tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -140,6 +148,14 @@ let func_effect_mismatch ~pos ~env eff1 eff2 =
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let method_effect_mismatch ~pos ~env eff1 eff2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "This method has effect %s, but it is applied in a context that accepts effect %s"
+    (Pretty.type_to_string pp_ctx env eff1)
+    (Pretty.type_to_string pp_ctx env eff2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let func_not_pure ~pos =
   (pos, "Cannot ensure that this function is pure and always terminates", [])
 
@@ -181,6 +197,52 @@ let expr_not_label ~pos ~env tp =
   let msg = Printf.sprintf
     "This expression has type %s. It cannot be used as a label"
     (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let method_call_on_unknown_type ~pos =
+  (pos, "Calling method of expression of unknown type", [])
+
+let method_call_on_invalid_type ~pos ~env tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "This expression has type %s. This type cannot have any methods"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let method_of_bound_tvar ~pos ~env sch =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Cannot define a method of type %s. Self type is not free"
+    (Pretty.scheme_to_string pp_ctx env sch)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let method_of_unknown_type ~pos ~env sch =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Cannot define a method of type %s. Self type is unknown here"
+    (Pretty.scheme_to_string pp_ctx env sch)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let method_of_invalid_type ~pos ~env sch tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Cannot define a method of type %s. Type %s cannot have any methods"
+    (Pretty.scheme_to_string pp_ctx env sch)
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let method_of_polymorphic_type ~pos ~env sch =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Cannot define a method of type %s. Self cannot be polymorphic"
+    (Pretty.scheme_to_string pp_ctx env sch)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let non_arrow_method ~pos ~env sch =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Cannot define a method of type %s. This type is not an arrow"
+    (Pretty.scheme_to_string pp_ctx env sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let empty_match_on_non_adt ~pos ~env tp =

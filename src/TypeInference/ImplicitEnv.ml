@@ -73,7 +73,7 @@ let shadow_names ienv names =
       | T.NImplicit n -> shadow ienv n)
     names ienv
 
-let add_poly_id env ienv (id : S.ident) sch =
+let add_poly_id ~pos env ienv (id : S.ident) sch =
   match id with
   | IdLabel ->
     (* Labels cannot be used directly as identifiers *)
@@ -84,4 +84,8 @@ let add_poly_id env ienv (id : S.ident) sch =
   | IdImplicit n ->
     let ienv = shadow ienv n in
     let (env, x) = Env.add_poly_implicit env n sch ignore in
+    (env, ienv, x)
+  | IdMethod name ->
+    let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+    let (env, x) = Env.add_poly_method env owner name sch in
     (env, ienv, x)

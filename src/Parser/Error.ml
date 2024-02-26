@@ -48,3 +48,6 @@ let value_before_type_param pos =
 
 let finally_before_return_clause pos =
   (Some pos, "Finally clause before return clause")
+
+let multiple_self_parameters pos =
+  (Some pos, "Multiple 'self' parameters of a method")
