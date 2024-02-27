@@ -1,0 +1,11 @@
+let _ = ""
+let _ = "'"
+let _ = "\\"
+let _ = "\""
+let _ = "\n"
+let _ = "\x13\X42"
+let _ = "\0\n\b\t\r\v\a\f"
+
+let foo (x : String) = x
+
+let _ = foo "42"

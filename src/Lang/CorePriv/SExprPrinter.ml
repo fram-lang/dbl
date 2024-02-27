@@ -125,6 +125,7 @@ and tr_value (v : Syntax.value) =
   match v with
   | VUnit  -> List [ Sym "unit" ]
   | VNum n -> List [ Sym (string_of_int n) ]
+  | VStr s -> List [ Sym (Printf.sprintf "\"%s\"" (String.escaped s)) ]
   | VVar x -> tr_var x
   | VFn(x, tp, body) ->
     List (Sym "fn" :: List [ tr_var x; tr_type tp ] :: tr_defs body)

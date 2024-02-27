@@ -35,6 +35,7 @@ type expr =
 and value =
   | VUnit
   | VNum  of int
+  | VStr  of string
   | VVar  of var
   | VFn   of var * ttype * expr
   | VTFun  : 'k tvar * expr -> value

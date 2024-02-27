@@ -191,7 +191,10 @@ and infer_expr_type env (e : S.expr) eff =
     (make T.EUnit, T.Type.t_unit, Pure)
 
   | ENum n ->
-    (make (T.ENum n), T.Type.t_int, Pure)
+    (make (T.ENum n), T.Type.t_var T.BuiltinType.tv_int, Pure)
+
+  | EStr s ->
+    (make (T.EStr s), T.Type.t_var T.BuiltinType.tv_string, Pure)
 
   | EPoly(e, tinst, inst) ->
     let (p_ctx, e, sch, hints) = infer_poly_scheme env e eff in
@@ -270,7 +273,7 @@ and infer_expr_type env (e : S.expr) eff =
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit | ENum _ | EPoly _ | EApp _ ->
+  | EUnit | ENum _ | EStr _ | EPoly _ | EApp _ ->
     check_expr_type_default env e tp eff
 
   | EFn(arg, body) ->

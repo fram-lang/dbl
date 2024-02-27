@@ -37,6 +37,12 @@ let number_out_of_bounds pos str =
   (Some pos,
     Printf.sprintf "Integer literal %s exceeds the representable range" str)
 
+let invalid_escape_code pos =
+  (Some pos, "Invalid escape code")
+
+let eof_in_string pos =
+  (Some pos, "Unexpected end of file inside a string literal")
+
 let desugar_error pos =
   (Some pos, "Syntax error. This construction cannot be used in this context")
 

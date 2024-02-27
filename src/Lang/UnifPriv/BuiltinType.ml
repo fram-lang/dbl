@@ -9,6 +9,10 @@
 (** Int type *)
 let tv_int = TVar.fresh KindBase.k_type
 
+(** Int type *)
+let tv_string = TVar.fresh KindBase.k_type
+
 (** List of all built-in types together with their names *)
 let all =
-  [ "Int", tv_int ]
+  [ "Int",    tv_int;
+    "String", tv_string ]

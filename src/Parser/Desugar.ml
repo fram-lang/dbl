@@ -228,6 +228,7 @@ let rec tr_pattern (p : Raw.expr) =
   | EWildcard   -> make PWildcard
   | EUnit       -> Error.fatal (Error.desugar_error p.pos)
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
+  | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern p).data
   | EVar      x -> make (PId (IdVar x))
   | EImplicit n -> make (PId (IdImplicit n))
@@ -239,8 +240,8 @@ let rec tr_pattern (p : Raw.expr) =
       let (targs, iargs) = map_inst_like tr_named_pattern flds in
       make (PCtor({ p1 with data = c}, targs, iargs, List.map tr_pattern ps))
 
-    | EWildcard | EUnit | ENum _ | EParen _ | EVar _ | EImplicit _ | EFn _
-    | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
+    | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
+    | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
     | EMethod _ | EAnnot _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
@@ -278,7 +279,8 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EParen arg -> tr_function_arg arg
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern p, tr_scheme_expr sch)
-  | EWildcard | EUnit | ENum _ | EVar _ | EImplicit _ | ECtor _ | EApp _ ->
+  | EWildcard | EUnit | ENum _ | EStr _ | EVar _ | EImplicit _ | ECtor _
+  | EApp _ ->
     ArgPattern (tr_pattern arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
@@ -325,7 +327,7 @@ let rec tr_let_pattern (p : Raw.expr) =
       let (targs, iargs) = map_inst_like tr_named_arg flds in
       LP_Fun(id, targs, iargs, ps)
 
-    | EUnit | ENum _ | ECtor _ ->
+    | EUnit | ENum _ | EStr _ | ECtor _ ->
       LP_Pat(tr_pattern p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
@@ -333,7 +335,7 @@ let rec tr_let_pattern (p : Raw.expr) =
       Error.fatal (Error.desugar_error p1.pos)
     end
 
-  | EWildcard | EUnit | ENum _ | EParen _ | ECtor _ | EAnnot _ ->
+  | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | ECtor _ | EAnnot _ ->
     LP_Pat (tr_pattern p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -358,8 +360,8 @@ let rec tr_poly_expr (e : Raw.expr) =
   | EMethod(e, name) ->
     make (EMethod(tr_expr e, name))
 
-  | EWildcard | EUnit | ENum _ | EParen _ | EFn _ | EApp _ | EEffect _
-  | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EAnnot _ ->
+  | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
+  | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EAnnot _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_expr (e : Raw.expr) =
@@ -370,6 +372,7 @@ and tr_expr (e : Raw.expr) =
   | EVar _ | EImplicit _ | ECtor _ | EMethod _ ->
     make (EPoly(tr_poly_expr e, [], []))
   | ENum n -> make (ENum n)
+  | EStr s -> make (EStr s)
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
   | EApp(e1, es)    ->
     begin match collect_fields ~ppos:e1.pos es with

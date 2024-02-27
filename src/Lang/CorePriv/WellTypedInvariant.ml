@@ -323,6 +323,7 @@ and infer_vtype env v =
   match v with
   | VUnit  -> TUnit
   | VNum _ -> TVar BuiltinType.tv_int
+  | VStr _ -> TVar BuiltinType.tv_string
   | VVar x -> Env.lookup_var env x
   | VFn(x, tp, body) ->
     let tp = tr_type env tp in

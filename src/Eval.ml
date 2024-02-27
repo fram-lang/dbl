@@ -14,6 +14,9 @@ type value =
   | VNum of int
     (** Number *)
 
+  | VStr of string
+    (** String *)
+
   | VFn of (value -> value comp)
     (** Function *)
 
@@ -40,6 +43,7 @@ let to_string (v : value) =
   match v with
   | VUnit    -> "()"
   | VNum n   -> string_of_int n
+  | VStr s   -> Printf.sprintf "\"%s\"" (String.escaped s)
   | VFn    _ -> "<fun>"
   | VCtor  _ -> "<ctor>"
   | VLabel _ -> "<label>"
@@ -143,6 +147,7 @@ and eval_value env (v : Lang.Untyped.value) =
   match v with
   | VUnit  -> VUnit
   | VNum n -> VNum n
+  | VStr s -> VStr s
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->
     VFn(fun v -> eval_expr (Env.extend env x v) body)

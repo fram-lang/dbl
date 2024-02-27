@@ -8,6 +8,7 @@
 
 %token<string> LID UID TLID
 %token<int> NUM
+%token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
 %token KW_AND KW_DATA KW_EFFECT KW_END KW_FINALLY KW_FN KW_HANDLE KW_HANDLER
@@ -167,6 +168,7 @@ expr_simple
 | UID                { make (ECtor $1)     }
 | UNDERSCORE         { make EWildcard      }
 | NUM                { make (ENum $1)      }
+| STR                { make (EStr $1)      }
 | BR_OPN BR_CLS      { make EUnit          }
 | BR_OPN expr BR_CLS { make (EParen $2)    }
 | KW_MATCH expr KW_WITH KW_END { make (EMatch($2, [])) }

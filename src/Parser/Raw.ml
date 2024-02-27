@@ -125,6 +125,9 @@ and expr_data =
   | ENum of int
     (** Integer literal *)
 
+  | EStr of string
+    (** String literal *)
+
   | EFn   of expr list * expr
     (** Lambda-abstraction *)
 

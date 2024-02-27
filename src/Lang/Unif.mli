@@ -139,6 +139,9 @@ and expr_data =
   | ENum of int
     (** Integer literal *)
 
+  | EStr of string
+    (** String literal *)
+
   | EVar of var
     (** Variable *)
 
@@ -515,9 +518,6 @@ module Type : sig
   (** Unit type *)
   val t_unit : typ
 
-  (** Int type *)
-  val t_int : typ
-
   (** Unification variable *)
   val t_uvar : TVar.Perm.t -> uvar -> typ
 
@@ -706,6 +706,12 @@ end
 (* ========================================================================= *)
 (** Built-in types *)
 module BuiltinType : sig
+  (** Int type *)
+  val tv_int : tvar
+
+  (** String type *)
+  val tv_string : tvar
+
   (** List of all built-in types with their names *)
   val all : (string * tvar) list
 end

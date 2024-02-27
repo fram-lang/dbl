@@ -224,6 +224,9 @@ and value =
   | VNum of int
     (** Integer literal *)
 
+  | VStr of string
+    (** String literal *)
+
   | VVar of var
     (** Variable *)
 

@@ -163,6 +163,9 @@ and expr_data =
   | ENum of int
     (** Integer literal *)
 
+  | EStr of string
+    (** String literal *)
+
   | EPoly of poly_expr * type_inst list * inst list
     (** Polymorphic expression with partial explicit instantiation, possibly
       empty *)

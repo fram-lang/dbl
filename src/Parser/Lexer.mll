@@ -51,6 +51,21 @@ let tokenize_number pos str =
       Error.fatal (Error.number_out_of_bounds
       (Position.of_lexing (String.length str) pos)
       str)
+
+let unescape str =
+  match str with
+  | "\"" | "'" | "\\" -> str.[0]
+  | "0" -> '\000'
+  | "n" -> '\n'
+  | "b" -> '\b'
+  | "t" -> '\t'
+  | "r" -> '\r'
+  | "v" -> '\x0b'
+  | "a" -> '\x07'
+  | "f" -> '\x0c'
+  | _ ->
+    assert (str.[0] = 'x' || str.[0] = 'X');
+    Char.chr (int_of_string ("0" ^ str))
 }
 
 let whitespace = ['\011'-'\r' '\t' ' ']
@@ -58,6 +73,11 @@ let digit      = ['0'-'9']
 let lid_start  = ['a'-'z' '_']
 let uid_start  = ['A'-'Z']
 let var_char   = lid_start | uid_start | digit | '\''
+
+let hex_digit = digit | ['a'-'f'] | ['A'-'F']
+let escape =
+  ['"' ''' '\\' '0' 'n' 'b' 't' 'r' 'v' 'a' 'f']
+  | (['x' 'X'] hex_digit hex_digit)
 
 rule token = parse
     whitespace+ { token lexbuf }
@@ -82,12 +102,43 @@ rule token = parse
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
   | '`' lid_start var_char* as x { YaccParser.TLID x }
-  | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_curr_p x }
+  | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_start_p x }
+  | '"' {
+      let buf = Buffer.create 32 in
+      string_token lexbuf.Lexing.lex_start_p buf lexbuf
+    }
   | eof    { YaccParser.EOF }
   | _ as x {
       Error.fatal (Error.invalid_character
-        (Position.of_lexing 1 lexbuf.Lexing.lex_curr_p)
+        (Position.of_lexing 1 lexbuf.Lexing.lex_start_p)
         x)
+    }
+
+and string_token pos buf = parse
+    "\n" {
+      Lexing.new_line lexbuf;
+      Buffer.add_char buf '\n';
+      string_token pos buf lexbuf
+    }
+  | '"' {
+      lexbuf.Lexing.lex_start_p <- pos;
+      YaccParser.STR (Buffer.contents buf)
+    }
+  | [^'"' '\\']+ as str {
+      Buffer.add_string buf str;
+      string_token pos buf lexbuf
+    }
+  | "\\" (escape as esc) {
+      Buffer.add_char buf (unescape esc);
+      string_token pos buf lexbuf
+    }
+  | "\\" {
+      Error.fatal (Error.invalid_escape_code
+        (Position.of_lexing 1 lexbuf.Lexing.lex_start_p))
+    }
+  | eof {
+      Error.fatal (Error.eof_in_string
+        (Position.of_lexing 0 lexbuf.Lexing.lex_start_p))
     }
 
 and block_comment depth = parse
@@ -97,10 +148,16 @@ and block_comment depth = parse
       if depth = 1 then token lexbuf
       else block_comment (depth-1) lexbuf
     }
+  | '"' { 
+      let buf = Buffer.create 32 in
+      let _ : YaccParser.token =
+        string_token lexbuf.Lexing.lex_start_p buf lexbuf in
+      block_comment depth lexbuf
+    }
   | "//" { skip_line lexbuf; block_comment depth lexbuf }
   | eof {
       Error.fatal (Error.eof_in_comment
-        (Position.of_lexing 0 lexbuf.Lexing.lex_curr_p))
+        (Position.of_lexing 0 lexbuf.Lexing.lex_start_p))
     }
   | _ { block_comment depth lexbuf }
 
