@@ -135,6 +135,8 @@ and tr_value (v : Syntax.value) =
     List (Sym "ctor" :: tr_expr proof :: Num n ::
       (List (List.map (fun (Type.Ex tp) -> tr_type tp) tps)) ::
       List.map tr_value args)
+  | VExtern(name, tp) ->
+    List [ Sym "extern"; Sym name; tr_type tp ]
 
 and tr_defs (e : Syntax.expr) =
   match e with

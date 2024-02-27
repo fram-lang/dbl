@@ -245,6 +245,9 @@ and value =
       - Existential type parameters of the constructor.
       - Regular parameters of the constructor. *)
 
+  | VExtern of string * ttype
+    (** Externally defined function *)
+
 (** Pattern-matching clause *)
 and match_clause = {
   cl_tvars : TVar.ex list;

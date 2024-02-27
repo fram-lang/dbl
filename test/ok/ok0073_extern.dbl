@@ -1,0 +1,3 @@
+let addInt = extern dbl_addInt : Int -> Int -> Int
+
+let _ = addInt 13 42

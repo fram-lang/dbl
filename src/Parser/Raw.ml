@@ -153,6 +153,9 @@ and expr_data =
   | EMethod of expr * method_name
     (** Call of a method *)
 
+  | EExtern of string
+    (** Externally defined value *)
+
   | EAnnot of expr * type_expr
     (** Type annotation *)
 

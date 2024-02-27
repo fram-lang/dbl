@@ -39,6 +39,62 @@ and frame =
 (** Answer type: depends on stack *)
 and ans = frame list -> unit
 
+(* ========================================================================= *)
+(* External functions (should be moved to other file *)
+
+let int_fun f = VFn (fun v cont ->
+  match v with
+  | VNum n -> cont (f n)
+  | _ -> failwith "Runtime error!")
+
+let str_fun f = VFn (fun v cont ->
+  match v with
+  | VStr s -> cont (f s)
+  | _ -> failwith "Runtime error!")
+
+let of_bool b =
+  VCtor((if b then 1 else 0), [])
+
+let int2_fun f = int_fun (fun x -> int_fun (f x))
+
+let int_binop op = int2_fun (fun x y -> VNum (op x y))
+let int_cmpop op = int2_fun (fun x y -> of_bool (op x y))
+
+let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
+
+let extern_map =
+  [ "dbl_addInt",      int_binop ( + );
+    "dbl_subInt",      int_binop ( - );
+    "dbl_mulInt",      int_binop ( * );
+    "dbl_divInt",      int_binop ( / );
+    "dbl_modInt",      int_binop ( mod );
+    "dbl_andInt",      int_binop ( land );
+    "dbl_orInt",       int_binop ( lor );
+    "dbl_xorInt",      int_binop ( lxor );
+    "dbl_lslInt",      int_binop ( lsl );
+    "dbl_lsrInt",      int_binop ( lsr );
+    "dbl_asrInt",      int_binop ( asr );
+    "dbl_eqInt",       int_cmpop ( = );
+    "dbl_neqInt",      int_cmpop ( <> );
+    "dbl_gtInt",       int_cmpop ( > );
+    "dbl_ltInt",       int_cmpop ( < );
+    "dbl_geInt",       int_cmpop ( >= );
+    "dbl_leInt",       int_cmpop ( <= );
+    "dbl_intToString", int_fun (fun n -> VStr (string_of_int n));
+    "dbl_strCat",  str_fun (fun s1 -> str_fun (fun s2 -> VStr(s1 ^ s2)));
+    "dbl_eqStr",   str_cmpop ( = );
+    "dbl_neqStr",  str_cmpop ( <> );
+    "dbl_gtStr",   str_cmpop ( > );
+    "dbl_ltStr",   str_cmpop ( < );
+    "dbl_geStr",   str_cmpop ( >= );
+    "dbl_leStr",   str_cmpop ( <= );
+    "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
+    "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum(Char.code s.[n])));
+    "dbl_strMake", int_fun (fun n -> VStr (String.make 1 (Char.chr n)));
+  ] |> List.to_seq |> Hashtbl.of_seq
+
+(* ========================================================================= *)
+
 let to_string (v : value) =
   match v with
   | VUnit    -> "()"
@@ -153,6 +209,12 @@ and eval_value env (v : Lang.Untyped.value) =
     VFn(fun v -> eval_expr (Env.extend env x v) body)
   | VCtor(n, vs) ->
     VCtor(n, List.map (eval_value env) vs)
+  | VExtern name ->
+    begin match Hashtbl.find_opt extern_map name with
+    | Some v -> v
+    | None   ->
+      failwith ("Runtime error: undefined external function: " ^ name)
+    end
 
 and eval_repl env func cont =
   match func () with

@@ -24,3 +24,82 @@ let append xs ys = fix (fn append xs =>
   | Nil       => ys
   | Cons x xs => Cons x (append xs)
   end) xs
+
+let not b =
+  match b with
+  | True  => False
+  | False => True
+  end
+
+method toString =
+  match self with
+  | True  => "True"
+  | False => "False"
+  end
+
+method band b =
+  match self with
+  | True  => b
+  | False => False
+  end
+
+method bor b =
+  match self with
+  | True  => True
+  | False => b
+  end
+
+method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
+method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
+method gt    = (extern dbl_gtInt  : Int -> Int -> Bool) self
+method lt    = (extern dbl_ltInt  : Int -> Int -> Bool) self
+method ge    = (extern dbl_geInt  : Int -> Int -> Bool) self
+method le    = (extern dbl_leInt  : Int -> Int -> Bool) self
+
+method toString = (extern dbl_intToString : Int -> String) self
+
+method add = (extern dbl_addInt : Int -> Int -> Int) self
+method sub = (extern dbl_subInt : Int -> Int -> Int) self
+method mul = (extern dbl_mulInt : Int -> Int -> Int) self
+
+method div {`re : {type X} -> Unit ->[|_] X} (n : Int) =
+  match n.equal 0 with
+  | True  => `re ()
+  | False => (extern dbl_divInt : Int -> Int -> Int) self n
+  end
+
+method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
+  match n.equal 0 with
+  | True  => `re ()
+  | False => (extern dbl_modInt : Int -> Int -> Int) self n
+  end
+
+method land = (extern dbl_andInt : Int -> Int -> Int) self
+method lor  = (extern dbl_orInt  : Int -> Int -> Int) self
+method lxor = (extern dbl_xorInt : Int -> Int -> Int) self
+
+method shiftl  = (extern dbl_lslInt : Int -> Int -> Int) self
+method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int) self
+method ashiftr = (extern dbl_asrInt : Int -> Int -> Int) self
+
+method add = (extern dbl_strCat : String -> String -> String) self
+
+method equal = (extern dbl_eqStr  : String -> String -> Bool) self
+method neq   = (extern dbl_neqStr : String -> String -> Bool) self
+method gt    = (extern dbl_gtStr  : String -> String -> Bool) self
+method lt    = (extern dbl_ltStr  : String -> String -> Bool) self
+method ge    = (extern dbl_geStr  : String -> String -> Bool) self
+method le    = (extern dbl_leStr  : String -> String -> Bool) self
+
+method length = (extern dbl_strLen : String -> Int) self
+method get {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
+  match (n.ge 0).band (n.lt self.length) with
+  | True  => (extern dbl_strGet : String -> Int -> Int) self n
+  | False => `re ()
+  end
+
+method makeString {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
+  match (n.ge 0).band (n.lt 256) with
+  | True  => (extern dbl_strMake : Int -> String) n
+  | False => `re ()
+  end

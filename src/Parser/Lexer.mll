@@ -13,6 +13,7 @@ let kw_map =
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
   ; "end",      KW_END
+  ; "extern",   KW_EXTERN
   ; "finally",  KW_FINALLY
   ; "fn",       KW_FN
   ; "handle",   KW_HANDLE

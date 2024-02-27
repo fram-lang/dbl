@@ -12,7 +12,7 @@ open Common
 let rec tr_expr env (e : S.expr) =
   match e.data with
   | EUnit | ENum _ | EStr _ | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _
-  | EHandler _ ->
+  | EHandler _ | EExtern _ ->
     tr_expr_v env e (fun v -> T.EValue v)
 
   | EApp(e1, e2) ->
@@ -82,7 +82,7 @@ let rec tr_expr env (e : S.expr) =
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
   | EUnit | ENum _ | EStr _ | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _
-  | EHandler _ ->
+  | EHandler _ | EExtern _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELabel _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _
@@ -136,6 +136,8 @@ and tr_expr_v env (e : S.expr) cont =
       failwith "Internal kind error"
     end
 
+  | EExtern(name, tp) -> cont (VExtern(name, Type.tr_ttype env tp))
+
   | EReplExpr(e1, tp, e2) ->
     EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)
 
@@ -148,15 +150,7 @@ and tr_expr_vs env es cont =
     tr_expr_v env  e  (fun v ->
     tr_expr_vs env es (fun vs ->
     cont (v :: vs)))
-(*
-(** Translate a handler expression *)
-and tr_h_expr env lbl (h : S.h_expr) =
-  match h.data with
-  | HEffect(tp_in, tp_out, x, r, body) ->
-    let tp_in  = Type.tr_scheme env tp_in in
-    let tp_out = Type.tr_ttype env tp_out in
-    T.EValue (T.VFn(x, tp_in, T.EShift(lbl, r, tr_expr env body, tp_out)))
-*)
+
 (* ========================================================================= *)
 
 let tr_program p =

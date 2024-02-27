@@ -34,12 +34,13 @@ type expr =
 
 and value =
   | VUnit
-  | VNum  of int
-  | VStr  of string
-  | VVar  of var
-  | VFn   of var * ttype * expr
-  | VTFun  : 'k tvar * expr -> value
-  | VCtor of expr * int * Type.ex list * value list
+  | VNum    of int
+  | VStr    of string
+  | VVar    of var
+  | VFn     of var * ttype * expr
+  | VTFun    : 'k tvar * expr -> value
+  | VCtor   of expr * int * Type.ex list * value list
+  | VExtern of string * ttype
 
 and match_clause = {
   cl_tvars : TVar.ex list;

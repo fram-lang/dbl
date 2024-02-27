@@ -231,6 +231,9 @@ and expr_data =
     (** Capability of effectful functional operation. It stores dynamic label,
       continuation variable, body, and the type of the whole expression. *)
 
+  | EExtern of string * typ
+    (** Externally defined value *)
+
   | ERepl of (unit -> expr) * typ * effrow
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.

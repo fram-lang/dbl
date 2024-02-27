@@ -351,6 +351,7 @@ and infer_vtype env v =
     | _ ->
       failwith "Internal type error"
     end
+  | VExtern(_, tp) -> tr_type env tp
 
 and infer_type_check_eff env e eff =
   let (tp, eff') = infer_type_eff env e in

@@ -41,7 +41,7 @@ let rec tr_expr (e : S.expr) =
 (** Translate value as an expression *)
 and tr_value (v : S.value) =
   match v with
-  | VUnit | VNum _ | VStr _ | VVar _ | VFn _ | VCtor _ ->
+  | VUnit | VNum _ | VStr _ | VVar _ | VFn _ | VCtor _ | VExtern _ ->
     tr_value_v v (fun v -> T.EValue v)
   | VTFun(_, body) ->
     tr_expr body
@@ -60,6 +60,7 @@ and tr_value_v (v : S.value) cont =
   | VCtor(_, n, _, args) ->
     tr_value_vs args (fun args ->
     cont (T.VCtor(n, args)))
+  | VExtern(name, _) -> cont (T.VExtern name)
 
 (** Translate list of values and pass the result (list of values) to given
   meta-continuation *)

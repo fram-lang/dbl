@@ -182,7 +182,7 @@ and infer_expr_type env (e : S.expr) eff =
   let make data = { e with data = data } in
   let pos = e.pos in
   match e.data with
-  | EMatch _ | EEffect _ | ERepl _ ->
+  | EMatch _ | EEffect _ | EExtern _ | ERepl _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let (e, r_eff) = check_expr_type env e tp eff in
     (e, tp, r_eff)
@@ -375,6 +375,9 @@ and check_expr_type env (e : S.expr) tp eff =
     | None ->
       Error.fatal (Error.unbound_the_label ~pos:e.pos)
     end
+
+  | EExtern name ->
+    (make (T.EExtern(name, tp)), Pure)
 
   | EAnnot(e', tp') ->
     let tp' = Type.tr_ttype env tp' in

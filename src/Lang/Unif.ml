@@ -99,6 +99,7 @@ and expr_data =
       result_eff : effrow }
   | EHandler    of tvar * var * typ * effrow * expr
   | EEffect     of expr * var * expr * typ
+  | EExtern     of string * typ
   | ERepl       of (unit -> expr) * typ * effrow
   | EReplExpr   of expr * string * expr
 

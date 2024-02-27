@@ -189,6 +189,9 @@ and expr_data =
     (** Effectful operation. The only argument is a continuation. Other
       arguments should be bound using regular lambda abstractions ([EFn]). *)
 
+  | EExtern of string
+    (** Externally defined value *)
+
   | EAnnot of expr * type_expr
     (** Type annotation *)
 

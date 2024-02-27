@@ -60,6 +60,8 @@ and value =
   | VCtor of int * value list
     (** Fully applied constructor of ADT *)
 
+  | VExtern of string
+
 (** Pattern-matching clause *)
 and clause = var list * expr
 
