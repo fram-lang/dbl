@@ -109,22 +109,22 @@ let infer_ctor_scheme ~pos env c =
   always in the check-mode. It returns a tuple, that contains the context of
   the polymorphic expression (computing polymorphic expression may have some
   effects, that should be performed before explicit instantiation), the
-  translated polymorphic expression, and its scheme. The context is a
-  function that takes instantiation, its type and effect, and returns
-  translated expression, its type and the effect. *)
+  translated polymorphic expression, its scheme, and the hints for the scheme
+  instantiation. The context is a function that takes instantiation, its type
+  and effect, and returns translated expression, its type and the effect. *)
 let rec infer_poly_scheme env (e : S.poly_expr) eff =
   let pos = e.pos in
   let default_ctx e tp r_eff = (e, tp, r_eff) in
   match e.data with
   | EVar  x ->
     let (e, sch) = infer_var_scheme ~pos env x in
-    (default_ctx, e, sch)
+    (default_ctx, e, sch, T.TVar.Map.empty)
   | EImplicit n ->
     let (e, sch) = infer_implicit_scheme ~pos env n in
-    (default_ctx, e, sch)
+    (default_ctx, e, sch, T.TVar.Map.empty)
   | ECtor c ->
     let (e, sch) = infer_ctor_scheme ~pos env c in
-    (default_ctx, e, sch)
+    (default_ctx, e, sch, T.TVar.Map.empty)
   | EMethod(self, name) ->
     let (self, self_tp, self_r_eff) = infer_expr_type env self eff in
     begin match T.Type.whnf self_tp with
@@ -133,7 +133,8 @@ let rec infer_poly_scheme env (e : S.poly_expr) eff =
       | Some(x, sch) ->
         (method_call_ctx ~pos ~env ~self ~self_tp ~self_r_eff ~eff,
           { T.pos = pos; T.data = T.EVar x },
-          sch)
+          sch,
+          TypeUtils.method_inst_hints sch self_tp)
       | None ->
         Error.fatal (Error.unbound_method ~pos ~env a name)
       end
@@ -190,11 +191,12 @@ and infer_expr_type env (e : S.expr) eff =
     (make T.EUnit, T.Type.t_unit, Pure)
 
   | EPoly(e, tinst, inst) ->
-    let (p_ctx, e, sch) = infer_poly_scheme env e eff in
+    let (p_ctx, e, sch, hints) = infer_poly_scheme env e eff in
     Uniqueness.check_type_inst_uniqueness tinst;
     Uniqueness.check_inst_uniqueness inst;
     let tinst = Type.check_type_insts env tinst sch.sch_targs in
-    let (sub, tps) = ExprUtils.guess_types ~pos ~tinst env sch.sch_targs in
+    let (sub, tps) =
+      ExprUtils.guess_types ~pos ~tinst ~hints env sch.sch_targs in
     let e = ExprUtils.make_tapp e tps in
     let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
     let (i_ctx, inst, r_eff) = check_explicit_insts env named inst eff in

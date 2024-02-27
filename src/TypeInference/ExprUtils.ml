@@ -75,35 +75,40 @@ let generalize env tvs2 named e tp =
 
 (* ========================================================================= *)
 
-let guess_type ~pos env sub ~tinst ((n : T.tname), tv) =
+let guess_type_by_name ~pos env (name : T.tname) kind =
+  match name with
+  | TNAnon ->
+    assert (T.Kind.non_effect kind);
+    Env.fresh_uvar env kind
+  | TNEffect ->
+    begin match Env.lookup_the_effect env with
+    | Some eff ->
+      assert (T.Kind.is_effect kind);
+      assert (T.Kind.is_effect (T.Type.kind eff));
+      eff
+    | None ->
+      Error.fatal (Error.cannot_guess_effect_param ~pos name)
+    end
+  | TNVar _ ->
+    if T.Kind.set_non_effect kind then
+      Env.fresh_uvar env kind
+    else
+      Error.fatal (Error.cannot_guess_effect_param ~pos name)
+
+let guess_type ~pos env sub ~tinst ~hints (n, tv) =
   let tp =
     match List.assoc_opt n tinst with
-    | None    ->
-      begin match n with
-      | TNAnon ->
-        assert (T.Kind.non_effect (T.TVar.kind tv));
-        Env.fresh_uvar env (T.TVar.kind tv)
-      | TNEffect ->
-        begin match Env.lookup_the_effect env with
-        | Some eff ->
-          assert (T.Kind.is_effect (T.TVar.kind tv));
-          assert (T.Kind.is_effect (T.Type.kind eff));
-          eff
-        | None ->
-          Error.fatal (Error.cannot_guess_effect_param ~pos n)
-        end
-      | TNVar _ ->
-        if T.Kind.set_non_effect (T.TVar.kind tv) then
-          Env.fresh_uvar env (T.TVar.kind tv)
-        else
-          Error.fatal (Error.cannot_guess_effect_param ~pos n)
+    | None ->
+      begin match T.TVar.Map.find_opt tv hints with
+      | None -> guess_type_by_name ~pos env n (T.TVar.kind tv)
+      | Some tp -> tp
       end
     | Some tp -> tp
   in
   (T.Subst.add_type sub tv tp, tp)
 
-let guess_types ~pos env ?(tinst=[]) tvars =
-  List.fold_left_map (guess_type ~pos env ~tinst) T.Subst.empty tvars
+let guess_types ~pos env ?(tinst=[]) ?(hints=T.TVar.Map.empty) tvars =
+  List.fold_left_map (guess_type ~pos env ~tinst ~hints) T.Subst.empty tvars
 
 (** The main instantiation function. [nset] parameter is a set of names
   currently instantiated, used to avoid infinite loops, e.g., in

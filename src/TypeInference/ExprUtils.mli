@@ -25,12 +25,15 @@ val generalize :
   T.expr -> T.typ -> T.expr * T.scheme
 
 (** Guess types used to instantiate polymorphic function. Some of these types
-  may be provided by optional [tinst] parameter. Returns substitution
-  from given type variables to guessed types together with list of these types.
-  *)
+  may be provided by optional [tinst] or [hints] parameter. The [hints]
+  parameter maps type variables from the last parameter to types. If a type
+  is povided by both [tinsts] and [hints] parameter, the first one has higher
+  priority. Returns substitution from given type variables to guessed types
+  together with list of these types. *)
 val guess_types :
   pos:Position.t ->
-  Env.t -> ?tinst:(T.tname * T.typ) list -> T.named_tvar list ->
+  Env.t -> ?tinst:(T.tname * T.typ) list -> ?hints:(T.typ T.TVar.Map.t) ->
+  T.named_tvar list ->
     T.subst * T.typ list
 
 (** Instantiate named parameters of polymorphic expression. It takes possibly

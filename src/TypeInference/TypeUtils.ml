@@ -35,3 +35,33 @@ let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
 
   | Whnf_Effect _ | Whnf_Effrow _ ->
     failwith "Internal kind error"
+
+let update_hints hints s_tp tp =
+  match T.Type.view s_tp with
+  | TVar x when T.TVar.Map.mem x hints ->
+    T.TVar.Map.add x (Some tp) hints
+  | _ -> hints
+
+let method_inst_hints (sch : T.scheme) self_tp =
+  (* initial map, with all type variables bound by the scheme *)
+  let hints =
+    sch.sch_targs
+    |> List.map (fun (_, x) -> (x, None))
+    |> List.to_seq |> T.TVar.Map.of_seq
+  in
+  let self_sch_s =
+    match T.Type.view sch.sch_body with
+    | TArrow(sch, _, _) | TPureArrow(sch, _) -> sch
+
+    | _ -> failwith "Internal error: invalid method scheme"
+  in
+  assert (List.is_empty self_sch_s.sch_targs);
+  assert (List.is_empty self_sch_s.sch_named);
+  match T.Type.whnf self_sch_s.sch_body, T.Type.whnf self_tp with
+  | Whnf_Neutral(NH_Var a1, s_targs), Whnf_Neutral(NH_Var a2, args) ->
+    assert (T.TVar.equal a1 a2);
+    assert (List.length s_targs = List.length args);
+    List.fold_left2 update_hints hints s_targs args
+    |> T.TVar.Map.filter_map (fun _ x -> x)
+
+  | _ -> failwith "Internal error: invalid method scheme"
