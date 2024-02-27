@@ -35,6 +35,22 @@ let tokenize_ident str =
   match Hashtbl.find_opt kw_map str with
   | Some tok -> tok
   | None     -> YaccParser.LID str
+
+let num_regex = Str.regexp
+  {|^\(0[bB][01]*\|0[oO][0-7]*\|[0-9]*\|0[xX][0-9a-fA-F]*\)$|}
+
+let tokenize_number pos str =
+  if not (Str.string_match num_regex str 0) then
+    Error.fatal (Error.invalid_number
+      (Position.of_lexing (String.length str) pos)
+      str)
+  else
+    match int_of_string_opt str with
+    | Some n -> YaccParser.NUM n
+    | None   ->
+      Error.fatal (Error.number_out_of_bounds
+      (Position.of_lexing (String.length str) pos)
+      str)
 }
 
 let whitespace = ['\011'-'\r' '\t' ' ']
@@ -66,6 +82,7 @@ rule token = parse
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
   | '`' lid_start var_char* as x { YaccParser.TLID x }
+  | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_curr_p x }
   | eof    { YaccParser.EOF }
   | _ as x {
       Error.fatal (Error.invalid_character

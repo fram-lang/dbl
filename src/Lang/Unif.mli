@@ -136,6 +136,9 @@ and expr_data =
   | EUnit
     (** Unit expression *)
 
+  | ENum of int
+    (** Integer literal *)
+
   | EVar of var
     (** Variable *)
 
@@ -512,6 +515,9 @@ module Type : sig
   (** Unit type *)
   val t_unit : typ
 
+  (** Int type *)
+  val t_int : typ
+
   (** Unification variable *)
   val t_uvar : TVar.Perm.t -> uvar -> typ
 
@@ -695,4 +701,11 @@ module CtorDecl : sig
 
   (** Get the index of a constructor with a given name *)
   val find_index : ctor_decl list -> string -> int option
+end
+
+(* ========================================================================= *)
+(** Built-in types *)
+module BuiltinType : sig
+  (** List of all built-in types with their names *)
+  val all : (string * tvar) list
 end

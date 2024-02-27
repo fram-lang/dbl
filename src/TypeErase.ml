@@ -41,7 +41,7 @@ let rec tr_expr (e : S.expr) =
 (** Translate value as an expression *)
 and tr_value (v : S.value) =
   match v with
-  | VUnit | VVar _ | VFn _ | VCtor _ ->
+  | VUnit | VNum _ | VVar _ | VFn _ | VCtor _ ->
     tr_value_v v (fun v -> T.EValue v)
   | VTFun(_, body) ->
     tr_expr body
@@ -50,6 +50,7 @@ and tr_value (v : S.value) =
 and tr_value_v (v : S.value) cont =
   match v with
   | VUnit  -> cont T.VUnit
+  | VNum n -> cont (T.VNum n)
   | VVar x -> cont (T.VVar x)
   | VFn(x, _, body) -> cont (T.VFn(x, tr_expr body))
   | VTFun(_, body) ->

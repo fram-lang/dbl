@@ -30,6 +30,13 @@ let invalid_character pos ch =
 let eof_in_comment pos =
   (Some pos, "Unexpected end of file inside a block comment")
 
+let invalid_number pos str =
+  (Some pos, Printf.sprintf "Invalid integer literal `%s'" str)
+
+let number_out_of_bounds pos str =
+  (Some pos,
+    Printf.sprintf "Integer literal %s exceeds the representable range" str)
+
 let desugar_error pos =
   (Some pos, "Syntax error. This construction cannot be used in this context")
 

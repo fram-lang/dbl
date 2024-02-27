@@ -23,6 +23,9 @@ val invalid_character : Position.t -> char -> t
 
 val eof_in_comment : Position.t -> t
 
+val invalid_number : Position.t -> string -> t
+val number_out_of_bounds : Position.t -> string -> t
+
 val desugar_error : Position.t -> t
 val invalid_pattern_arg : Position.t -> t
 val impure_scheme : Position.t -> t

@@ -12,6 +12,8 @@ let view = TypeBase.view
 
 let fresh_uvar ~scope kind = t_uvar TVar.Perm.id (UVar.fresh ~scope kind)
 
+let t_int = t_var BuiltinType.tv_int
+
 let t_pure_arrows tps tp = List.fold_right t_pure_arrow tps tp
 
 let t_apps tp tps = List.fold_left t_app tp tps

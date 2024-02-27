@@ -11,6 +11,9 @@ type value =
   | VUnit
     (** Unit value *)
 
+  | VNum of int
+    (** Number *)
+
   | VFn of (value -> value comp)
     (** Function *)
 
@@ -36,6 +39,7 @@ and ans = frame list -> unit
 let to_string (v : value) =
   match v with
   | VUnit    -> "()"
+  | VNum n   -> string_of_int n
   | VFn    _ -> "<fun>"
   | VCtor  _ -> "<ctor>"
   | VLabel _ -> "<label>"
@@ -138,6 +142,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
 and eval_value env (v : Lang.Untyped.value) =
   match v with
   | VUnit  -> VUnit
+  | VNum n -> VNum n
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->
     VFn(fun v -> eval_expr (Env.extend env x v) body)

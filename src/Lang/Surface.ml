@@ -160,8 +160,11 @@ and expr_data =
   | EUnit
     (** Unit expression *)
 
+  | ENum of int
+    (** Integer literal *)
+
   | EPoly of poly_expr * type_inst list * inst list
-    (** Polymorphic expression with patrtial explicit instantiation, possibly
+    (** Polymorphic expression with partial explicit instantiation, possibly
       empty *)
 
   | EFn   of arg * expr

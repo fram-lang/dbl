@@ -160,6 +160,13 @@ module Effect : sig
 end
 
 (* ========================================================================= *)
+(** Built-in types *)
+module BuiltinType : sig
+  (** List of all built-in types together with their names *)
+  val all : (string * TVar.ex) list
+end
+
+(* ========================================================================= *)
 
 (** Expressions *)
 type expr =
@@ -213,6 +220,9 @@ type expr =
 and value =
   | VUnit
     (** Unit value *)
+
+  | VNum of int
+    (** Integer literal *)
 
   | VVar of var
     (** Variable *)

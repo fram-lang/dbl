@@ -1,0 +1,9 @@
+let _ = 0
+let _ = 0x123
+let _ = 0B10
+let _ = 42
+let _ = 0o555
+
+let foo (x : Int) = x
+
+let _ = foo 13

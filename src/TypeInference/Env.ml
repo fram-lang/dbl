@@ -49,17 +49,33 @@ type t = {
     (** Scope of type variables *)
 }
 
+let mk_builtin_pp_info (name, x) =
+  let info =
+    { pp_base_name = name;
+      pp_names     = [ name ];
+      pp_pos       = None
+    }
+  in (x, info)
+
 let empty =
   { var_map      = StrMap.empty;
     tvar_map     =
-      [ "Unit", T.Type.t_unit ]
-      |> List.to_seq |> StrMap.of_seq;
+      T.BuiltinType.all
+      |> List.map (fun (name, tv) -> (name, T.Type.t_var tv))
+      |> List.to_seq |> StrMap.of_seq
+      |> StrMap.add "Unit" T.Type.t_unit;
     implicit_map = StrMap.empty;
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
     method_map   = T.TVar.Map.empty;
-    pp_map       = T.TVar.Map.empty;
-    scope        = T.Scope.initial
+    pp_map       =
+      T.BuiltinType.all
+      |> List.map mk_builtin_pp_info
+      |> List.to_seq |> T.TVar.Map.of_seq;
+    scope        =
+      T.BuiltinType.all
+      |> List.map snd
+      |> List.fold_left T.Scope.add T.Scope.initial
   }
 
 let add_poly_var env x sch =

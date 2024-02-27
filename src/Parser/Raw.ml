@@ -122,6 +122,9 @@ and expr_data =
   | ECtor of ctor_name
     (** ADT constructor *)
 
+  | ENum of int
+    (** Integer literal *)
+
   | EFn   of expr list * expr
     (** Lambda-abstraction *)
 

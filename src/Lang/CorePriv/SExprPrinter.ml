@@ -124,6 +124,7 @@ let rec tr_expr (e : Syntax.expr) =
 and tr_value (v : Syntax.value) =
   match v with
   | VUnit  -> List [ Sym "unit" ]
+  | VNum n -> List [ Sym (string_of_int n) ]
   | VVar x -> tr_var x
   | VFn(x, tp, body) ->
     List (Sym "fn" :: List [ tr_var x; tr_type tp ] :: tr_defs body)

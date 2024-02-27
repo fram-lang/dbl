@@ -53,6 +53,7 @@ module CtorDecl = struct
 end
 
 module Subst = UnifPriv.Subst
+module BuiltinType = UnifPriv.BuiltinType
 
 type var = Var.t
 
@@ -72,6 +73,7 @@ and pattern_data =
 and expr = expr_data node
 and expr_data =
   | EUnit
+  | ENum        of int
   | EVar        of var
   | EPureFn     of var * scheme * expr
   | EFn         of var * scheme * expr

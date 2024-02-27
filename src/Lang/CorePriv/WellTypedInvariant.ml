@@ -51,8 +51,16 @@ end = struct
 
   let empty =
     { var_map    = Var.Map.empty
-    ; tvar_map   = TMap.empty
-    ; scope      = TVar.Set.empty
+    ; tvar_map   =
+      List.fold_left
+        (fun tm (_, TVar.Ex x) -> TMap.add x x tm) 
+        TMap.empty
+        BuiltinType.all
+    ; scope      =
+      List.fold_left
+        (fun scope (_, TVar.Ex x) -> TVar.Set.add x scope) 
+        TVar.Set.empty
+        BuiltinType.all
     ; irrelevant = false
     }
 
@@ -313,7 +321,8 @@ let rec infer_type_eff env e =
 
 and infer_vtype env v =
   match v with
-  | VUnit -> TUnit
+  | VUnit  -> TUnit
+  | VNum _ -> TVar BuiltinType.tv_int
   | VVar x -> Env.lookup_var env x
   | VFn(x, tp, body) ->
     let tp = tr_type env tp in

@@ -11,7 +11,8 @@ open Common
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e.data with
-  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ | EHandler _ ->
+  | EUnit | ENum _ | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _
+  | EHandler _ ->
     tr_expr_v env e (fun v -> T.EValue v)
 
   | EApp(e1, e2) ->
@@ -80,7 +81,8 @@ let rec tr_expr env (e : S.expr) =
 (** Translate expression and store result in variable [x] bound in [rest] *)
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
-  | EUnit | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _ | EHandler _ ->
+  | EUnit | ENum _ | EVar _ | EPureFn _ | EFn _ | ETFun _ | ECtor _
+  | EHandler _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELabel _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _
@@ -92,6 +94,7 @@ and tr_expr_as env (e : S.expr) x rest =
 and tr_expr_v env (e : S.expr) cont =
   match e.data with
   | EUnit  -> cont T.VUnit
+  | ENum n -> cont (VNum n)
   | EVar x -> cont (VVar x)
 
   | EPureFn(x, sch, body) | EFn(x, sch, body) ->

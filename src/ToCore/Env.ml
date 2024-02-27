@@ -13,7 +13,10 @@ type t =
   }
 
 let empty =
-  { tvar_map = S.TVar.Map.empty
+  { tvar_map =
+      T.BuiltinType.all
+      |> List.map (fun (name, x) -> (List.assoc name S.BuiltinType.all, x))
+      |> List.to_seq |> S.TVar.Map.of_seq
   }
 
 let add_tvar env x =
