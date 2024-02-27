@@ -23,10 +23,10 @@ let rec join eff1 eff2 =
     else TEffJoin(eff1, eff2)
 
 (** IO effect *)
-let io = (* TODO *) TEffPure
+let io = TVar BuiltinType.tv_io
 
 (** Possible non-termination effect *)
-let nterm = (* TODO *) TEffPure
+let nterm = TVar BuiltinType.tv_nterm
 
 (** Effect of a whole program: IO + #NTerm *)
 let prog_effect = TEffJoin(io, nterm)

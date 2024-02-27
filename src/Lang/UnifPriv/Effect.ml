@@ -20,7 +20,7 @@ let pure = t_closed_effrow TVar.Set.empty
 let singleton_row x =
   t_closed_effrow (TVar.Set.singleton x)
 
-let io = pure (* TODO *)
+let io = singleton_row BuiltinType.tv_io
 
 let cons x eff =
   let (xs, ee) = effrow_view eff in

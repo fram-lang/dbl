@@ -14,8 +14,8 @@ type t =
 
 let empty =
   { tvar_map =
-      T.BuiltinType.all
-      |> List.map (fun (name, x) -> (List.assoc name S.BuiltinType.all, x))
+      S.BuiltinType.all
+      |> List.map (fun (name, x) -> (x, List.assoc name T.BuiltinType.all))
       |> List.to_seq |> S.TVar.Map.of_seq
   }
 
