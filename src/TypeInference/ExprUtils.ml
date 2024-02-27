@@ -54,7 +54,8 @@ let rec make_tapp e tps =
     in
     make_tapp e tps
 
-let generalize env tvs2 named e tp =
+let generalize ~pos env tvs2 named e tp =
+  Uniqueness.check_generalized_named_types ~pos tvs2;
   let tvs1 =
     List.fold_left
       (fun tvs (_, _, isch) -> T.Scheme.collect_uvars isch tvs)

@@ -26,3 +26,6 @@ val check_named_pattern_uniqueness : S.named_pattern list -> unit
 (** Ensure that names of type bound by a constructor do not collide with
   names bound by datatype *)
 val check_ctor_named_types : T.named_tvar list -> S.named_type_arg list -> unit
+
+(** Ensure that generalized names are unique *)
+val check_generalized_named_types : pos:Position.t -> T.named_tvar list -> unit

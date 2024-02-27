@@ -59,12 +59,12 @@ name
 ty_expr
 : ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
 | ty_expr_app { $1 }
-| KW_TYPE   ty_expr { make (TTypeLbl $2)   }
-| KW_EFFECT ty_expr { make (TEffectLbl $2) }
 ;
 
 ty_expr_app
 : ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
+| KW_TYPE   ty_expr_simple { make (TTypeLbl $2)   }
+| KW_EFFECT ty_expr_simple { make (TEffectLbl $2) }
 | ty_expr_simple { $1 }
 ;
 
@@ -125,6 +125,18 @@ ctor_decl_list1
 ctor_decl_list
 : /* empty */     { [] }
 | ctor_decl_list1 { $1 }
+;
+
+/* ========================================================================= */
+
+type_annot_opt
+: /* empty */   { None    }
+| COLON ty_expr { Some $2 }
+;
+
+implicit_ty_args
+: /* empty */                   { [] }
+| CBR_OPN ty_expr_list1 CBR_CLS { $2 }
 ;
 
 /* ========================================================================= */
@@ -228,7 +240,8 @@ data_rec_rest
 
 def
 : KW_LET expr EQ expr    { make (DLet($2, $4)) }
-| KW_IMPLICIT TLID       { make (DImplicit $2) }
+| KW_IMPLICIT TLID implicit_ty_args type_annot_opt
+    { make (DImplicit($2, $3, $4)) }
 | data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
 | KW_LABEL  expr         { make (DLabel $2) }

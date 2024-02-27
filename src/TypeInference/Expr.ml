@@ -482,13 +482,13 @@ and check_def : type dir.
   let pos = def.pos in
   match def.data with
   | DLetId(id, e1) ->
-    let (sch, e1, r_eff1) = check_let env ienv e1 eff in
+    let (sch, e1, r_eff1) = check_let ~pos env ienv e1 eff in
     let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos env ienv id sch in
     let (e2, resp, r_eff2) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, e1, e2)), resp, ret_effect_join r_eff1 r_eff2)
 
   | DLetFun(id, targs, nargs, body) ->
-    let (body_env, tvars) = Type.tr_named_type_args env targs in 
+    let (body_env, tvars2) = Type.tr_named_type_args env targs in 
     let (body_env, ims1) = ImplicitEnv.begin_generalize body_env ienv in
     let (body_env, ims2, r_eff1) =
       Pattern.infer_named_arg_schemes body_env nargs in
@@ -499,8 +499,9 @@ and check_def : type dir.
     end;
     (* TODO: check if [tp] is in proper scope (ims2 may bind some types) *)
     let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
-    let ims1 = ImplicitEnv.end_generalize_pure ims1 in
-    let (body, sch) = ExprUtils.generalize env tvars (ims1 @ ims2) body tp in
+    let (tvars1, ims1) = ImplicitEnv.end_generalize_pure ims1 in
+    let (body, sch) =
+      ExprUtils.generalize ~pos env (tvars1 @ tvars2) (ims1 @ ims2) body tp in
     let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos env ienv id sch in
     let (e2, resp, r_eff) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
@@ -648,8 +649,16 @@ and check_def : type dir.
       Error.fatal (Error.expr_not_handler ~pos:eh.pos ~env eh_tp)
     end
 
-  | DImplicit n ->
-    let ienv = ImplicitEnv.declare_implicit ienv n in
+  | DImplicit(n, args, sch) ->
+    let (env1, args1) = Type.tr_named_type_args env args in
+    let sch  = Type.tr_scheme env1 sch in
+    let args2 =
+      T.UVar.Set.diff (T.Scheme.uvars sch) (Env.uvars env)
+      |> T.UVar.Set.elements
+      |> List.map (fun x -> (T.TNAnon, T.UVar.fix x))
+    in
+    let args = args1 @ args2 in
+    let ienv = ImplicitEnv.declare_implicit ienv n args sch in
     cont.run env ienv req eff
 
   | DData dd ->
@@ -677,15 +686,16 @@ and check_def : type dir.
 
 (* ------------------------------------------------------------------------- *)
 (** Check let-definition *)
-and check_let env ienv body eff =
+and check_let ~pos env ienv body eff =
   let (body_env, ims) = ImplicitEnv.begin_generalize env ienv in
   let (body, tp, r_eff) = infer_expr_type body_env body eff in
   (* Purity restriction: check if r_eff is pure. If so, then generalize type
     of an expression *)
   match r_eff with
   | Pure ->
-    let ims = ImplicitEnv.end_generalize_pure ims in
-    let (body, sch) = ExprUtils.generalize env [] ims body tp in
+    let (targs, ims) = ImplicitEnv.end_generalize_pure ims in
+    (* TODO: make sure that names do not overlap *)
+    let (body, sch) = ExprUtils.generalize ~pos env targs ims body tp in
     (sch, body, Pure)
   | Impure ->
     ImplicitEnv.end_generalize_impure ims;

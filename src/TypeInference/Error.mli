@@ -122,6 +122,8 @@ val multiple_inst_patterns :
 val multiple_name_binders :
   pos1:Position.t -> pos2:Position.t -> T.name -> t
 
+val type_generalized_twice : pos:Position.t -> T.tname -> t
+
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name -> int -> int -> t
 

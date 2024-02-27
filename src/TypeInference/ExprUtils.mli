@@ -21,6 +21,7 @@ val make_tapp : T.expr -> T.typ list -> T.expr
   of explicit type parameters, and the third parameter is a list of
   implicit parameters. *)
 val generalize :
+  pos:Position.t ->
   Env.t -> T.named_tvar list -> (T.name * T.var * T.scheme) list ->
   T.expr -> T.typ -> T.expr * T.scheme
 

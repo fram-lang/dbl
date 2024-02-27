@@ -372,6 +372,12 @@ let multiple_name_binders ~pos1 ~pos2 name =
     (string_of_name name),
     [ pos1, "Here is a previous binding" ])
 
+let type_generalized_twice ~pos name =
+  let msg =
+    Printf.sprintf "Type %s is generalized twice"
+      (Pretty.tname_to_string name) in
+  (pos, msg, [])
+
 let ctor_arity_mismatch ~pos cname req_n prov_n =
   (pos,
     Printf.sprintf "Constructor %s expects %d parameter(s), but is applied to %d"

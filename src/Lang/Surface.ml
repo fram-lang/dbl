@@ -238,8 +238,9 @@ and def_data =
       (** List of finally clauses. Empty list means the default clause. *)
     }
 
-  | DImplicit of iname
-    (** Declaration of implicit *)
+  | DImplicit of iname * named_type_arg list * scheme_expr
+    (** Declaration of implicit. The second parameter is a list of types
+      that may differ between different uses of the implicit *)
 
   | DData of data_def
     (** Definition of non-recursive ADT *)

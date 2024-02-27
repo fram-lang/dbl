@@ -173,7 +173,7 @@ and def_data =
   | DLet of expr * expr
     (** Let-definition *)
 
-  | DImplicit of iname
+  | DImplicit of iname * type_expr list * type_expr option
     (** Declaration of implicit parameter *)
 
   | DData of data_def

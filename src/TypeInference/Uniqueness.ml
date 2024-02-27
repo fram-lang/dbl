@@ -92,3 +92,19 @@ let check_ctor_named_types data_args ctor_args =
         Error.report (Error.ctor_type_arg_same_as_data_arg ~pos:arg.pos name)
   in
   List.iter check_ctor_arg ctor_args
+
+let check_generalized_named_types ~pos tvars =
+  let names =
+    List.filter_map
+      (fun (name, _) ->
+        match name with
+        | T.TNAnon   -> None
+        | T.TNEffect -> Some (name, "effect")
+        | T.TNVar x  -> Some (name, x))
+      tvars
+  in
+  let name_of   = snd in
+  let pos_of _  = pos in
+  let on_error ~pos ~ppos (name, _) =
+    Error.fatal (Error.type_generalized_twice ~pos name) in
+  check_uniqueness ~on_error ~name_of ~pos_of names

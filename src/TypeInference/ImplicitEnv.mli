@@ -22,15 +22,16 @@ val empty : t
   parameters to the environment. *)
 val begin_generalize : Env.t -> t -> Env.t * implicit_list
 
-(** Get a list of implicits, that were used, and therefore, should be
-  generalized. *)
-val end_generalize_pure : implicit_list -> (T.name * T.var * T.scheme) list
+(** Get a list of types and implicits, that were used, and therefore, should
+  be generalized. *)
+val end_generalize_pure : implicit_list ->
+  T.named_tvar list * (T.name * T.var * T.scheme) list
 
 (** Ensure, that no implicits on a given list were used. *)
 val end_generalize_impure : implicit_list -> unit
 
 (** Extend environment with a declaration of implicit *)
-val declare_implicit : t -> S.iname -> t
+val declare_implicit : t -> S.iname -> T.named_tvar list -> T.scheme -> t
 
 (** Shadow existing implicit name *)
 val shadow : t -> S.iname -> t

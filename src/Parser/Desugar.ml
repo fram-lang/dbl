@@ -470,7 +470,19 @@ and tr_def (def : Raw.def) =
     | LP_Pat _ ->
       Error.fatal (Error.desugar_error p.pos)
     end
-  | DImplicit n  -> make (DImplicit n)
+  | DImplicit(n, args, sch) ->
+    let args = List.map tr_named_type_arg args in
+    let sch =
+      match sch with
+      | None -> {
+          sch_pos   = def.pos;
+          sch_targs = [];
+          sch_named = [];
+          sch_body  = make TWildcard
+        }
+      | Some sch -> tr_scheme_expr sch
+    in
+    make (DImplicit(n, args, sch))
   | DData    dd  -> make (DData (tr_data_def dd))
   | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
   | DLabel pat   ->
