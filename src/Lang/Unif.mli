@@ -686,6 +686,10 @@ end
 (* ========================================================================= *)
 (** Operations on constructor declarations *)
 module CtorDecl : sig
+  (** Extend given set of unification variables by unification variables
+    from given constructor. *)
+  val collect_uvars : ctor_decl -> UVar.Set.t -> UVar.Set.t
+
   (** Set of unification variables in given scheme *)
   val subst : subst -> ctor_decl -> ctor_decl
 

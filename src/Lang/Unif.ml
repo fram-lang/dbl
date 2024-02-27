@@ -45,6 +45,8 @@ module NamedScheme = struct
 end
 
 module CtorDecl = struct
+  let collect_uvars = UnifPriv.Type.collect_ctor_uvars
+
   let subst = UnifPriv.Subst.in_ctor_decl
 
   let find_index cs name = List.find_index (fun c -> c.ctor_name = name) cs

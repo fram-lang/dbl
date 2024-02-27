@@ -141,6 +141,13 @@ and collect_scheme_uvars sch uvs =
   in
   collect_uvars sch.sch_body uvs
 
+let collect_ctor_uvars ctor uvs =
+  uvs
+  |> List.fold_right
+      (fun (_, sch) -> collect_scheme_uvars sch)
+      ctor.ctor_named
+  |> List.fold_right collect_scheme_uvars ctor.ctor_arg_schemes
+
 let uvars tp         = collect_uvars tp UVar.Set.empty
 let scheme_uvars sch = collect_scheme_uvars sch UVar.Set.empty
 
