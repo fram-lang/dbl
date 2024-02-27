@@ -103,3 +103,11 @@ method makeString {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
   | True  => (extern dbl_strMake : Int -> String) n
   | False => `re ()
   end
+
+let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
+let printStr   = extern dbl_printStr   : String ->[IO] Unit
+let printInt   = extern dbl_printInt   : Int ->[IO] Unit
+
+let readLine = extern dbl_readLine : Unit ->[IO] String
+
+let exit {type X} = extern dbl_exit : Int ->[IO] X

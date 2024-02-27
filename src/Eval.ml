@@ -42,6 +42,8 @@ and ans = frame list -> unit
 (* ========================================================================= *)
 (* External functions (should be moved to other file *)
 
+let unit_fun f = VFn (fun v cont -> cont (f ()))
+
 let int_fun f = VFn (fun v cont ->
   match v with
   | VNum n -> cont (f n)
@@ -91,6 +93,11 @@ let extern_map =
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
     "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum(Char.code s.[n])));
     "dbl_strMake", int_fun (fun n -> VStr (String.make 1 (Char.chr n)));
+    "dbl_printStrLn", str_fun (fun s -> print_endline s; VUnit);
+    "dbl_printStr",   str_fun (fun s -> print_string s; VUnit);
+    "dbl_printInt",   int_fun (fun n -> print_int n; VUnit);
+    "dbl_readLine",   unit_fun (fun () -> VStr (read_line ()));
+    "dbl_exit",       int_fun exit;
   ] |> List.to_seq |> Hashtbl.of_seq
 
 (* ========================================================================= *)
