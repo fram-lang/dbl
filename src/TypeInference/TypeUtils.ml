@@ -8,6 +8,13 @@
 
 open Common
 
+type hints = T.typ T.TVar.Map.t
+
+let is_tvar_neutral tp =
+  match T.Type.whnf tp with
+  | Whnf_Neutral(NH_Var _, _) -> true
+  | _ -> false
+
 let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
   let free_for_scheme x =
     not (List.exists (fun (_, y) -> T.TVar.equal x y) sch.sch_targs) in
@@ -35,6 +42,15 @@ let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
 
   | Whnf_Effect _ | Whnf_Effrow _ ->
     failwith "Internal kind error"
+
+let merge_hints hints1 hints2 =
+  T.TVar.Map.merge
+    (fun _ h1 h2 ->
+      match h1 with
+      | Some tp -> Some tp
+      | None    -> h2)
+    hints1
+    hints2
 
 let update_hints hints s_tp tp =
   match T.Type.view s_tp with
@@ -65,3 +81,19 @@ let method_inst_hints (sch : T.scheme) self_tp =
     |> T.TVar.Map.filter_map (fun _ x -> x)
 
   | _ -> failwith "Internal error: invalid method scheme"
+
+let type_inst_hints sch_targs req_tp act_tp =
+  match T.Type.whnf req_tp, T.Type.whnf act_tp with
+  | Whnf_Neutral(NH_Var a1, args1), Whnf_Neutral(NH_Var a2, args2)
+      when T.TVar.equal a1 a2 ->
+    assert (List.length args1 = List.length args2);
+    (* initial map, with all type variables bound by the scheme *)
+    let hints =
+      sch_targs
+      |> List.map (fun (_, x) -> (x, None))
+      |> List.to_seq |> T.TVar.Map.of_seq
+    in
+    List.fold_left2 update_hints hints args1 args2
+    |> T.TVar.Map.filter_map (fun _ x -> x)
+
+  | _ -> T.TVar.Map.empty

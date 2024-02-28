@@ -197,15 +197,19 @@ and infer_expr_type env (e : S.expr) eff =
     (make (T.EStr s), T.Type.t_var T.BuiltinType.tv_string, Pure)
 
   | EPoly(e, tinst, inst) ->
-    let (p_ctx, e, sch, hints) = infer_poly_scheme env e eff in
+    let (p_ctx, e, sch, hints1) = infer_poly_scheme env e eff in
     Uniqueness.check_type_inst_uniqueness tinst;
     Uniqueness.check_inst_uniqueness inst;
     let tinst = Type.check_type_insts env tinst sch.sch_targs in
+    let (hints2, cached_inst) =
+      extract_implicit_type_hints ~pos env sch inst eff in
+    let hints = TypeUtils.merge_hints hints1 hints2 in
     let (sub, tps) =
       ExprUtils.guess_types ~pos ~tinst ~hints env sch.sch_targs in
     let e = ExprUtils.make_tapp e tps in
     let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
-    let (i_ctx, inst, r_eff) = check_explicit_insts env named inst eff in
+    let (i_ctx, inst, r_eff) =
+      check_explicit_insts env named inst cached_inst eff in
     let e = ExprUtils.instantiate_named_params env e named inst in
     let tp = T.Type.subst sub sch.sch_body in
     (p_ctx (i_ctx e) tp r_eff)
@@ -427,33 +431,82 @@ and check_actual_arg env (arg : S.expr) sch eff =
   (ExprUtils.make_tfun tvars (ExprUtils.make_nfun named body), res_eff)
 
 (* ------------------------------------------------------------------------- *)
+(** Extracts type hints for a type scheme from environment and explicit
+  instantiation. Returns hints and cached translated explicit
+  instantiations. *)
+and extract_implicit_type_hints ~pos env (sch : T.scheme) inst eff =
+  let targs = sch.sch_targs in
+  let inst =
+    List.map (fun { T.data = (n, e); _ } -> (Name.tr_name env n, e)) inst in
+  let rec loop hints cache named =
+    match named with
+    | [] -> (hints, cache)
+    | (name, arg_sch) :: named
+        when T.Scheme.is_monomorphic arg_sch
+        && TypeUtils.is_tvar_neutral arg_sch.sch_body ->
+      let expr_opt =
+        match T.Name.assoc name inst with
+        | None ->
+          let make data = { S.pos = pos; S.data = data } in
+          begin match name with
+          | NLabel | NVar _ -> None
+          | NImplicit n ->
+            Some (make (S.EPoly(make (S.EImplicit n), [], [])))
+          end
+        | Some e -> Some e
+      in
+      begin match expr_opt with
+      | None -> loop hints cache named
+      | Some e ->
+        let (e, tp, r_eff) = infer_expr_type env e eff in
+        let hints2 = TypeUtils.type_inst_hints targs arg_sch.sch_body tp in
+        loop
+          (TypeUtils.merge_hints hints hints2)
+          ((name, (e, tp, r_eff)) :: cache)
+          named
+      end
+    | _ :: named ->
+      loop hints cache named
+  in
+  loop T.TVar.Map.empty [] sch.sch_named
+
+(* ------------------------------------------------------------------------- *)
 (** Check explicit instantiations against given list of named parameters (from
   type scheme). It returns context (represented as meta-function) that
   preserves the order of computations, list of checked instantiations, and
   the effect. *)
-and check_explicit_insts env named insts eff =
+and check_explicit_insts env named insts cache eff =
   match insts with
   | [] -> (Fun.id, [], Pure)
   | { data = (n, e); pos } :: insts ->
     let make data = { T.data; T.pos } in
     let n = Name.tr_name env n in
-    begin match T.Name.assoc n named with
-    | Some sch ->
-      let (e, r_eff1) = check_actual_arg env e sch eff in
-      let (ctx, insts, r_eff2) = check_explicit_insts env named insts eff in
-      let x = Var.fresh () in
-      let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
-      let insts = (n, make (T.EVar x)) :: insts in
-      (ctx, insts, ret_effect_join r_eff1 r_eff2)
-    | None ->
-      Error.warn (Error.redundant_named_parameter ~pos n);
-      let (e, tp, r_eff1) = infer_expr_type env e eff in
-      let sch = T.Scheme.of_type tp in
-      let (ctx, insts, r_eff2) = check_explicit_insts env named insts eff in
-      let x = Var.fresh () in
-      let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
-      (ctx, insts, ret_effect_join r_eff1 r_eff2)
-    end
+    let (e, sch, r_eff1) =
+      match T.Name.assoc n named with
+      | Some sch ->
+        begin match T.Name.assoc n cache with
+        | None ->
+          let (e, r_eff1) = check_actual_arg env e sch eff in
+          (e, sch, r_eff1)
+        | Some (e, tp, r_eff1) ->
+          assert (T.Scheme.is_monomorphic sch);
+          if not (Unification.subtype env tp sch.sch_body) then
+            Error.report
+              (Error.named_param_type_mismatch ~pos:e.pos ~env n
+                tp sch.sch_body);
+          (e, sch, r_eff1)
+        end
+      | None ->
+        Error.warn (Error.redundant_named_parameter ~pos n);
+        let (e, tp, r_eff1) = infer_expr_type env e eff in
+        (e, T.Scheme.of_type tp, r_eff1)
+    in
+    let (ctx, insts, r_eff2) =
+      check_explicit_insts env named insts cache eff in
+    let x = Var.fresh () in
+    let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
+    let insts = (n, make (T.EVar x)) :: insts in
+    (ctx, insts, ret_effect_join r_eff1 r_eff2)
 
 (* ------------------------------------------------------------------------- *)
 (** Check type and effect of a block of definitions. It uses bidirectional

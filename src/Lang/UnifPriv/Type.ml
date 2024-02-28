@@ -220,3 +220,8 @@ let mono_scheme tp =
     sch_named = [];
     sch_body  = tp
   }
+
+let scheme_is_monomorphic sch =
+  match sch with
+  | { sch_targs = []; sch_named = []; sch_body = _ } -> true
+  | _ -> false

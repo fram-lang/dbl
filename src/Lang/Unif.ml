@@ -33,11 +33,12 @@ end
 module Effect = UnifPriv.Effect
 
 module Scheme = struct
-  let of_type       = UnifPriv.Type.mono_scheme
-  let uvars         = UnifPriv.Type.scheme_uvars
-  let collect_uvars = UnifPriv.Type.collect_scheme_uvars
-  let refresh       = UnifPriv.Type.refresh_scheme
-  let subst         = UnifPriv.Subst.in_scheme
+  let of_type        = UnifPriv.Type.mono_scheme
+  let is_monomorphic = UnifPriv.Type.scheme_is_monomorphic
+  let uvars          = UnifPriv.Type.scheme_uvars
+  let collect_uvars  = UnifPriv.Type.collect_scheme_uvars
+  let refresh        = UnifPriv.Type.refresh_scheme
+  let subst          = UnifPriv.Subst.in_scheme
 end
 
 module NamedScheme = struct

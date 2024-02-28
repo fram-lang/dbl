@@ -671,6 +671,9 @@ module Scheme : sig
   (** Create a monomorphic type-scheme *)
   val of_type : typ -> scheme
 
+  (** Check if given type-scheme is monomorphic *)
+  val is_monomorphic : scheme -> bool
+
   (** Set of unification variables in given scheme *)
   val uvars : scheme -> UVar.Set.t
 
