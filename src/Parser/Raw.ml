@@ -143,7 +143,7 @@ and expr_data =
   | EHandler of expr
     (** First-class handler *)
 
-  | EEffect of expr list * expr * expr
+  | EEffect of expr list * expr option * expr
     (** Handler of a single operation *)
 
   | ERecord of field list

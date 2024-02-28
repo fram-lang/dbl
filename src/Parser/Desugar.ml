@@ -390,10 +390,13 @@ and tr_expr (e : Raw.expr) =
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
   | EHandler h     -> make (EHandler (tr_expr h))
-  | EEffect(es, rp, e) ->
-    make (tr_function es
-      { pos  = Position.join rp.pos e.pos;
-        data = EEffect(tr_function_arg rp, tr_expr e)}).data
+  | EEffect(es, rp_opt, e) ->
+    let (pos, rp) =
+      match rp_opt with
+      | None    -> (e.pos, ArgPattern (make (PId (IdVar "resume"))))
+      | Some rp -> (Position.join rp.pos e.pos, tr_function_arg rp)
+    in
+    make (tr_function es { pos; data = EEffect(rp, tr_expr e)}).data
   | EExtern name -> make (EExtern name)
   | EAnnot(e, tp) -> make (EAnnot(tr_expr e, tr_type_expr tp))
   | EIf(e, e1, e2) ->

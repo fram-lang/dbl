@@ -144,10 +144,15 @@ implicit_ty_args
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_250_list1 ARROW2 expr { make (EFn($2, $4))   }
-| KW_EFFECT expr_250_list SLASH expr ARROW2 expr
-    { make (EEffect($2, $4, $6)) }
+| KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr
+    { make (EEffect($2, $3, $5)) }
 | KW_HANDLER expr { make (EHandler $2) }
 | expr_10 { $1 }
+;
+
+effect_resumption_opt
+: /* empty */ { None    }
+| SLASH expr  { Some $2 }
 ;
 
 expr_10
