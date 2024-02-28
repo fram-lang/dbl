@@ -1,12 +1,19 @@
 data Bool = False | True
 
+data Option A = None | Some of A
+
 data rec Nat = Zero | Succ of Nat
 
 data rec List A = Nil | Cons of A, List A
 
+data Pair X Y = Pair of X, Y
+
 let id x = x
 
 let flip f x y = f y x
+
+let fst (Pair x _) = x
+let snd (Pair _ y) = y
 
 let fix {type A, type B, type E} f =
   data rec Fix = Fix of (Fix -> A ->[|E] B)
@@ -19,35 +26,46 @@ let map f = fix (fn map xs =>
   | Cons x xs => Cons (f x) (map xs)
   end)
 
+let filter f = fix (fn filter xs =>
+  match xs with
+  | Nil       => Nil
+  | Cons x xs => if f x then Cons x (filter xs) else filter xs
+  end)
+
 let append xs ys = fix (fn append xs =>
   match xs with
   | Nil       => ys
   | Cons x xs => Cons x (append xs)
   end) xs
 
-let not b =
-  match b with
-  | True  => False
-  | False => True
-  end
+let concat = fix (fn concat xss =>
+  match xss with
+  | Nil         => Nil
+  | Cons xs xss => append xs (concat xss)
+  end)
 
-method toString =
-  match self with
-  | True  => "True"
-  | False => "False"
-  end
+let iter f = fix (fn iter xs =>
+  match xs with
+  | Nil       => ()
+  | Cons x xs => let _ = f x in iter xs
+  end)
 
-method band b =
-  match self with
-  | True  => b
-  | False => False
-  end
+let iter2 f = fix (fn iter xs ys =>
+  match xs with
+  | Nil       => ()
+  | Cons x xs =>
+    match ys with
+    | Nil       => ()
+    | Cons y ys => let _ = f x y in iter xs ys
+    end
+  end)
 
-method bor b =
-  match self with
-  | True  => True
-  | False => b
-  end
+let not b = if b then False else True
+
+method toString = if self then "True" else "False"
+
+method band b = if self then b else False
+method bor b  = if self then True else b
 
 method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
 method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
@@ -63,16 +81,12 @@ method sub = (extern dbl_subInt : Int -> Int -> Int) self
 method mul = (extern dbl_mulInt : Int -> Int -> Int) self
 
 method div {`re : {type X} -> Unit ->[|_] X} (n : Int) =
-  match n.equal 0 with
-  | True  => `re ()
-  | False => (extern dbl_divInt : Int -> Int -> Int) self n
-  end
+  if n.equal 0 then `re ()
+  else (extern dbl_divInt : Int -> Int -> Int) self n
 
 method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
-  match n.equal 0 with
-  | True  => `re ()
-  | False => (extern dbl_modInt : Int -> Int -> Int) self n
-  end
+  if n.equal 0 then `re ()
+  else (extern dbl_modInt : Int -> Int -> Int) self n
 
 method land = (extern dbl_andInt : Int -> Int -> Int) self
 method lor  = (extern dbl_orInt  : Int -> Int -> Int) self
@@ -93,16 +107,14 @@ method le    = (extern dbl_leStr  : String -> String -> Bool) self
 
 method length = (extern dbl_strLen : String -> Int) self
 method get {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
-  match (n.ge 0).band (n.lt self.length) with
-  | True  => (extern dbl_strGet : String -> Int -> Int) self n
-  | False => `re ()
-  end
+  if (n.ge 0).band (n.lt self.length) then
+    (extern dbl_strGet : String -> Int -> Int) self n
+  else `re ()
 
 method makeString {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
-  match (n.ge 0).band (n.lt 256) with
-  | True  => (extern dbl_strMake : Int -> String) n
-  | False => `re ()
-  end
+  if (n.ge 0).band (n.lt 256) then
+    (extern dbl_strMake : Int -> String) n
+  else `re ()
 
 let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
 let printStr   = extern dbl_printStr   : String ->[IO] Unit
