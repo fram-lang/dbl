@@ -12,12 +12,14 @@ let kw_map =
   [ "and",      KW_AND
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
+  ; "else",     KW_ELSE
   ; "end",      KW_END
   ; "extern",   KW_EXTERN
   ; "finally",  KW_FINALLY
   ; "fn",       KW_FN
   ; "handle",   KW_HANDLE
   ; "handler",  KW_HANDLER
+  ; "if",       KW_IF
   ; "implicit", KW_IMPLICIT
   ; "in",       KW_IN
   ; "label",    KW_LABEL
@@ -27,6 +29,7 @@ let kw_map =
   ; "of",       KW_OF
   ; "rec",      KW_REC
   ; "return",   KW_RETURN
+  ; "then",     KW_THEN
   ; "type",     KW_TYPE
   ; "with",     KW_WITH
   ; "_",        UNDERSCORE
@@ -91,8 +94,10 @@ rule token = parse
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { YaccParser.CBR_OPN    }
   | '}'  { YaccParser.CBR_CLS    }
-  | "->" { YaccParser.ARROW      }
-  | "=>" { YaccParser.ARROW2     }
+  | "->"
+  | "→"  { YaccParser.ARROW      }
+  | "=>"
+  | "⇒"  { YaccParser.ARROW2     }
   | "|"  { YaccParser.BAR        }
   | ":"  { YaccParser.COLON      }
   | ","  { YaccParser.COMMA      }

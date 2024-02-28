@@ -159,6 +159,9 @@ and expr_data =
   | EAnnot of expr * type_expr
     (** Type annotation *)
 
+  | EIf of expr * expr * expr
+    (** If-then-else expression *)
+
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =

@@ -242,13 +242,13 @@ let rec tr_pattern (p : Raw.expr) =
 
     | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
     | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-    | EMethod _ | EExtern _ | EAnnot _ ->
+    | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
   | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ ->
+  | EMethod _ | EExtern _ | EIf _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 and tr_named_pattern (fld : Raw.field) =
@@ -284,7 +284,7 @@ let rec tr_function_arg (arg : Raw.expr) =
     ArgPattern (tr_pattern arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
-  | EMethod _ | EExtern _ ->
+  | EMethod _ | EExtern _ | EIf _ ->
     Error.fatal (Error.desugar_error arg.pos)
 
 let tr_named_arg (fld : Raw.field) =
@@ -331,7 +331,7 @@ let rec tr_let_pattern (p : Raw.expr) =
       LP_Pat(tr_pattern p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
-    | EEffect _ | ERecord _ | EMethod _ | EExtern _ | EAnnot _ ->
+    | EEffect _ | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
 
@@ -339,7 +339,7 @@ let rec tr_let_pattern (p : Raw.expr) =
     LP_Pat (tr_pattern p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ ->
+  | EMethod _ | EExtern _ | EIf _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a function, given a list of formal parameters *)
@@ -362,7 +362,7 @@ let rec tr_poly_expr (e : Raw.expr) =
 
   | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-  | EAnnot _ ->
+  | EAnnot _ | EIf _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_expr (e : Raw.expr) =
@@ -396,6 +396,10 @@ and tr_expr (e : Raw.expr) =
         data = EEffect(tr_function_arg rp, tr_expr e)}).data
   | EExtern name -> make (EExtern name)
   | EAnnot(e, tp) -> make (EAnnot(tr_expr e, tr_type_expr tp))
+  | EIf(e, e1, e2) ->
+    let cl1 = Clause(make (PCtor(make "True", [], [], [])), tr_expr e1) in
+    let cl2 = Clause(make (PCtor(make "False", [], [], [])), tr_expr e2) in
+    make (EMatch(tr_expr e, [make cl1; make cl2]))
   | EWildcard | ERecord _ ->
     Error.fatal (Error.desugar_error e.pos)
 
