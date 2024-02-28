@@ -6,7 +6,8 @@
 
 (* Author: Piotr Polesiuk, 2023,2024 *)
 (* 2023: Piotr Polesiuk: initial implementation
-   2024: Piotr Polesiuk: named parameters, type parameters, methods
+   2024: Piotr Polesiuk: named parameters, type parameters, methods,
+     unit pattern
    2024: Patrycja Balik: constructor pattern type checking now extracts info
     from the checked type *)
 
@@ -182,7 +183,7 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
     let owner = TypeUtils.method_owner_of_scheme ~pos:pat.pos ~env sch in
     let (env, x) = Env.add_poly_method env owner name sch in
     (env, make (T.PVar(x, sch)), bn, Pure)
-  | PCtor _ | PId IdLabel ->
+  | PUnit | PCtor _ | PId IdLabel ->
     begin match sch with
     | { sch_targs = []; sch_named = []; sch_body = tp } ->
       check_type ~env ~scope pat tp
@@ -203,6 +204,12 @@ and check_type ~env ~scope (pat : S.pattern) tp =
   | PWildcard | PId (IdVar _ | IdImplicit _ | IdMethod _) | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
     check_scheme ~env ~scope pat sch
+
+  | PUnit ->
+    if not (Unification.subtype env tp T.Type.t_unit) then
+      Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
+        T.Type.t_unit tp);
+    (env, make T.PUnit, T.Name.Map.empty, Pure)
 
   | PId IdLabel ->
     begin match Unification.as_label env tp with

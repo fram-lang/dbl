@@ -226,7 +226,7 @@ let rec tr_pattern (p : Raw.expr) =
   let make data = { p with data = data } in
   match p.data with
   | EWildcard   -> make PWildcard
-  | EUnit       -> Error.fatal (Error.desugar_error p.pos)
+  | EUnit       -> make PUnit
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern p).data

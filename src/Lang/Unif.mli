@@ -122,6 +122,9 @@ and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
+  | PUnit
+    (** Unit pattern *)
+
   | PVar of var * scheme
     (** Pattern that binds a variable of given scheme *)
 

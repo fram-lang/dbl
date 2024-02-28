@@ -186,7 +186,7 @@ let ctor_func ~pos idx (info : Env.adt_info) =
 
 let arg_match (pat : T.pattern) body tp eff =
   match pat.data with
-  | PWildcard ->
+  | PWildcard | PUnit ->
     let x = Var.fresh () in
     (x, body)
   | PVar(x, _) ->

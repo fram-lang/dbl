@@ -23,7 +23,7 @@ let as_variable (v : T.value) cont =
   Target), and list of variables together with their types. *)
 let rec var_of_pattern env (p : S.pattern) =
   match p.data with
-  | PWildcard    -> (env, [], [])
+  | PWildcard | PUnit -> (env, [], [])
   | PVar(x, sch) -> (env, [], [(x, Type.tr_scheme env sch)])
   | PCtor(_, _, _, _, tvs, ps) ->
     let (env, tvs1) = Env.add_tvars env tvs in
@@ -115,7 +115,7 @@ module Make(Ctx : MatchContext) = struct
     | { cl_patterns = []; _ } :: _ -> assert false
     | { cl_patterns = p :: _; cl_env; _ } :: cls ->
       begin match p.data with
-      | PWildcard | PVar _ -> column_class cls
+      | PWildcard | PUnit | PVar _ -> column_class cls
       | PCtor(_, _, proof, ctors, _, _) ->
         CC_ADT(Ctx.tr_expr cl_env proof, ctors)
       end
@@ -128,7 +128,7 @@ module Make(Ctx : MatchContext) = struct
     | _ when cl.cl_small -> cont cl
     | [] -> assert false
     | { data = PCtor _; _ } :: _ -> cont cl
-    | { data = (PWildcard | PVar _ ); _ } :: _ ->
+    | { data = (PWildcard | PUnit | PVar _ ); _ } :: _ ->
       let (env, tvs, xs) = var_of_patterns cl.cl_env cl.cl_patterns in
       let cl_f = Var.fresh () in
       T.ELetPure(cl_f, mk_clause_fun (List.map snd tvs) xs (cl.cl_body env),
@@ -157,7 +157,7 @@ module Make(Ctx : MatchContext) = struct
     | [] -> assert false
     | p :: ps ->
       begin match p.data with
-      | PWildcard ->
+      | PWildcard | PUnit ->
         { cl_env      = cl.cl_env;
           cl_patterns = ps;
           cl_body     = cl.cl_body;
@@ -185,7 +185,7 @@ module Make(Ctx : MatchContext) = struct
   let simplify_ctor_clause v vs1 idx tvs cl =
     match cl.cl_patterns with
     | [] -> assert false
-    | { data = PWildcard; pos } :: ps ->
+    | { data = (PWildcard | PUnit); pos } :: ps ->
       assert cl.cl_small;
       let dummy_pat = { S.data = S.PWildcard; S.pos = pos } in
       Some {

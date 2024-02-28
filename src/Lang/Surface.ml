@@ -112,6 +112,9 @@ and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
+  | PUnit
+    (** Unit pattern *)
+
   | PId of ident
     (** Pattern that binds an identifier*)
 

@@ -68,6 +68,7 @@ type data_def = {
 type pattern = pattern_data node
 and pattern_data =
   | PWildcard
+  | PUnit
   | PVar  of var * scheme
   | PCtor of string * int * expr * ctor_decl list * tvar list * pattern list
 
