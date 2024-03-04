@@ -45,7 +45,8 @@ directory of your local installation of DBL.
 Examples
 --------
 
-In a `test/ok` directory you can find many tiny examples used to test
+Several simple examples can be found in the `examples` directory. Moreover,
+in a `test/ok` directory you can find many tiny examples used to test
 implementation of various language features.
 
 Source Code and Development

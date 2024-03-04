@@ -1,0 +1,100 @@
+(* This example shows another implementation of cooperative threads, this
+  time using first class labels. In opposite to LWT_lexical example, this
+  implementation does not lead to memory leaks, because the newly created
+  thread do not share an unreachable continuation with the parent thread. *)
+ 
+(* We start with defining the standard State effect, together with default
+  functions for accessing the state. See LWT_lexical example for more
+  explanation. *)
+data State (effect E) X = State of
+  { get    : Unit ->[E] X
+  , put    : X ->[E] Unit
+  , update : {Row} -> (X ->[E|Row] X) ->[E|Row] Unit
+  }
+
+implicit `st {E_st} : State E_st _
+
+let get x =
+  let (State { get }) = `st in
+  get x
+
+let put x =
+  let (State { put }) = `st in
+  put x
+
+let update f =
+  let (State { update }) = `st in
+  update f
+
+(* The type of threads: a thunk with given effect row *)
+data Thread R = Thread of (Unit ->[|R] Unit)
+
+(* The standard handler of a state, used by the scheduler *)
+handle {effect=Sched} (`st : State Sched (List (Thread [Sched,IO]))) =
+  let get = effect x / r => fn s => r s  s
+  let put = effect s / r => fn _ => r () s
+  let update f = put (f (get ())) in
+    State { get, put, update }
+  return  x => fn _ => x
+  finally c => c Nil
+
+(* The global label of an LWT effect. *)
+label {effect=LWT} lwt_lbl
+
+(* The signature of LWT capability. It has two functions: yield that
+  voluntarily pass control to another thread, and spawn for creating new
+  threads. *)
+data LWT_S = LWT of
+  { yield : Unit ->[LWT,IO] Unit
+  , spawn : (Unit ->[LWT,IO] Unit) ->[LWT,IO] Unit
+  }
+
+(* Both operations can be accessed via methods of an lwt object *)
+method yield {self = LWT {yield}} = yield
+method spawn {self = LWT {spawn}} = spawn
+
+(* Run the scheduler: just pick the next thread from the queue *)
+let sched () =
+  match get () with
+  | Nil                 => ()
+  | Cons (Thread thr) q => let _ = put q in thr ()
+  end
+
+(* Put a thread to the scheduler queue *)
+let enqueue thr =
+  update (fn q => append q (Cons (Thread thr) Nil))
+
+(* Here, we handle LWT effect. Note that the handler does not provide any
+  capability. It only plays a role of the delimiter (reset0) on given label.
+*)
+handle {label=lwt_lbl} _ = ()
+  return  _ => sched ()
+
+(* LWT capability. The problematic spawn operation puts a new delimiter with
+  the same label. *)
+let lwt = LWT
+  { yield = effect _ / r =>
+      let _ = enqueue r in
+	  sched ()
+  , spawn = effect f / r => 
+      let _ = enqueue r in
+      handle {label=lwt_lbl} _ = ()
+        return  _ => sched ()
+      in
+      f ()
+  }
+
+(* Example code using LWT interface. Methods yield and spawn are accessible
+  via the `lwt` object. *)
+let startThread (name : String) = lwt.spawn (fn _ =>
+  let _ = printStrLn (name.add "1") in
+  let _ = lwt.yield () in
+  let _ = printStrLn (name.add "2") in
+  let _ = lwt.yield () in
+  let _ = printStrLn (name.add "3") in
+  let _ = lwt.yield () in
+  printStrLn (name.add " exited"))
+
+let _ = startThread "A"
+let _ = startThread "B"
+let _ = startThread "C"

@@ -1,0 +1,37 @@
+(* This is a classical example borrowed from Biernacki et al. Handle with
+  Care. POPL 2018. In this example function `count` counts how many times
+  the higher order function `f` uses its argument `g`.
+  The idea is to wrap function `g` around another function that additionally
+  calls the `tick` operation. The handler of `tick` operation is an example
+  of a state handler: it evaluates a function that expects a current value
+  of state. In the implementation of `tick`, when the captured continuation
+  is called (`k ()`), the result is applied to a new value of state
+  `(n.add 1)`.
+
+  Return clause is executed, when handled expression (after `in`) computes
+  normally to a value. In this case the final value is discarded, and the
+  handler returns a value of a hidden state.
+
+  Finally clause is similar to return clause, but it is not a part of the
+  handler (it is not part of a captured continuation in `effect` construct).
+  In this example it is used for supplying initial value of the state (0).
+
+  This example shows strength of lexical effect handlers. Effect of the `tick`
+  operation is local for the `count` function and cannot interfere with other
+  effects used internally by `f`. This would not be true for dynamic handlers.
+*)
+
+let count (f : {type E} -> (_ ->[|E] _) ->[|E] _) g =
+  handle tick = effect _ / k => fn (n : Int) => k () (n.add 1)
+    return  _ => fn n => n
+    finally c => c 0
+  in
+  f (fn x => let _ = tick () in g x)
+
+(* We can use `count` function to compute a length of a list, by counting
+  how many times map function calls identity argument. *)
+let length xs = count (flip map xs) id
+
+(* This code should print 2. *)
+let _ =
+  printStrLn (length (Cons () (Cons () Nil))).toString

@@ -50,12 +50,17 @@ let iter f = fix (fn iter xs =>
   | Cons x xs => let _ = f x in iter xs
   end)
 
-let iter2 f = fix (fn iter xs ys =>
+let iter2 {`re : {type X} -> Unit ->[|_] X} f =
+  fix (fn iter xs ys =>
   match xs with
-  | Nil       => ()
-  | Cons x xs =>
+  | Nil       =>
     match ys with
     | Nil       => ()
+    | Cons _ _  => `re ()
+    end
+  | Cons x xs =>
+    match ys with
+    | Nil       => `re ()
     | Cons y ys => let _ = f x y in iter xs ys
     end
   end)

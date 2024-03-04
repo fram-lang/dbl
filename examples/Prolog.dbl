@@ -1,0 +1,256 @@
+(* This example implements a simplified version of Prolog and serves to
+  illustrate the combination of implicit parameters and effect capabilities. *)
+
+(* Prolog terms and clauses are fairly standard. Here variables are
+  identified by integers and functors by strings. *)
+data rec Term = TVar of Int | TFun of String, List Term
+
+data Clause = Cl of Term, List Term
+
+(* The signature of the standard reader effect, with a single operation
+  used to obtain a value of type X. While we do not need to wrap functions
+  `{effect=E} -> Unit ->[E] X` in a data type to use them as capabilities,
+  this improves readability and allows us to define methods on the type. *)
+data Reader (effect E) X = Reader of (Unit ->[E] X)
+
+(* We expose the `ask` operation of `Reader` as a method. *)
+method ask {E, self = Reader ask : Reader E _} = ask
+
+(* The standard state effect, with its accompanying methods. *)
+data State (effect E) X = State of
+  { get : Unit ->[E] X
+  , put : X ->[E] Unit
+  }
+
+method get {E, self = State { get } : State E _} = get
+method put {E, self = State { put } : State E _} = put
+
+method update {E, self : State E _} f = self.put (f (self.get ()))
+
+(* The standard backtracking effect. *)
+data BT (effect E) = BT of
+  { flip : Unit ->[E] Bool
+  , fail : {type X} -> Unit ->[E] X
+  }
+
+method flip {E, self = BT { flip } : BT E} = flip
+method fail {E, self = BT { fail } : BT E} = fail
+
+(* The method `choose` on `BT` non-deterministically selects an element
+  from a list. It's defined recursively using `fix` from the standard
+  library. *)
+method choose {E, self : BT E} = fix (fn choose xs =>
+  match xs with
+  | Nil       => self.fail ()
+  | Cons x xs => if self.flip () then x else choose xs
+  end)
+
+(* The `Fresh` effect is used to model the generation of fresh variable
+  identifiers in the evaluator. *)
+data Fresh (effect E) X = Fresh of (Unit ->[E] X)
+
+method fresh {E, self = Fresh fresh : Fresh E _} = fresh
+
+(* ========================================================================= *)
+
+(* The standard state handler, defined as a higher order function. *)
+let hState init (f : {effect=E} -> State E _ ->[E|_] _) =
+  handle st = State
+    { get = effect () / r => fn s => r s  s
+    , put = effect s  / r => fn _ => r () s
+    }
+  return  x => fn _ => x
+  finally f => f init
+  in f st
+
+(* A handler for backtracking which returns the first result wrapped in Some,
+  or None if no result is available. *)
+let hBT (f : {effect=E} -> BT E ->[E|_] _) =
+  handle bt = BT
+    { flip = effect () / r =>
+      match r True with
+      | None   => r False
+      | Some x => Some x
+      end
+    , fail = effect () => None
+    }
+  return x => Some x
+  in f bt
+
+(* ========================================================================= *)
+(* Some basic functionality on lists. *)
+
+let exists f = fix (fn exists xs =>
+  match xs with
+  | Nil       => False
+  | Cons x xs => (f x : Bool).bor (exists xs)
+  end)
+
+(* The following few functions on lists require a notion of equality, which is
+  passed as the implicit parameter `eq. *)
+
+implicit `eq
+
+let nub = fix (fn nub xs =>
+  match xs with
+  | Nil       => Nil
+  | Cons x xs => Cons x (nub (filter (fn y => not (`eq x y)) xs))
+  end)
+
+let union xs ys = nub (append xs ys)
+let unions xss = nub (concat xss)
+
+let assoc x = fix (fn assoc xs =>
+  match xs with
+  | Nil                => None
+  | Cons (Pair y v) xs => if `eq x y then Some v else assoc xs
+  end)
+
+(* ========================================================================= *)
+(* Methods on terms and clauses that are useful for implementing variable
+  refreshing. *)
+
+method vars =
+  let `eq (x : Int) = x.equal in
+  fix (fn vars t =>
+  match t with
+  | TVar x    => Cons x Nil
+  | TFun _ ts => unions (map vars ts)
+  end) self
+
+method vars { self = Cl t ts } =
+  let `eq (x : Int) = x.equal in
+  union t.vars (unions (map (fn (t : Term) => t.vars) ts))
+
+method rename sub =
+  let `eq (x : Int) = x.equal in
+  fix (fn rename t =>
+  match t with
+  | TVar x    =>
+    match assoc x sub with
+    | Some y => TVar y
+    | None   => TVar x
+    end
+  | TFun f ts => TFun f (map rename ts)
+  end) self
+
+method rename { self = Cl t ts } sub =
+  Cl (t.rename sub) (map (fn (t : Term) => t.rename sub) ts)
+
+(* ========================================================================= *)
+
+(* The instantiation of unification variables is represented using `State`
+  containing an association list of instantiations. As this effect is pervasive
+  throughout our implementation, we declare it as an implicit, so that it and
+  the associated effect variable E_st are generalized automatically. *)
+implicit `st {E_st} : State E_st (List (Pair Int Term))
+
+(* We also define a pair of functions that let us modify and read `st. *)
+
+let setVar (x : Int) t = `st.update (fn xs => Cons (Pair x t) xs)
+
+let getVar x =
+  let `eq (x : Int) = x.equal in
+  assoc x (`st.get ())
+
+(* The `view` method on terms can be used to view the outer-most shape of a
+  term, accounting for the instantiation of unification variables.
+  In a realistic implementation we would keep terms that haven't been viewed
+  abstract to prevent accidentally pattern-matching on them. *)
+method view = fix (fn view t =>
+  match t with
+  | TVar x    =>
+    match getVar x with
+    | Some t =>
+      let t = view t in
+      let _ = setVar x t in
+      t
+    | None   => t
+    end
+  | TFun f ts => t
+  end) self
+
+(* As with `st, the capability to generate fresh identifiers `fresh is also
+  declared implicit. *)
+implicit `fresh {E_fresh} : Fresh E_fresh Int
+
+(* To further reduce verbosity, we define a function `fresh` to call the
+  `fresh` method of the implicit capability. *)
+let fresh () = `fresh.fresh ()
+
+(* We attach additional `refresh` methods to terms and clauses, which replace
+  all the variables in terms with fresh unification variables. *)
+
+method refresh {self : Term} =
+  self.rename (map (fn x => Pair x (fresh ())) self.vars)
+
+method refresh {self : Clause} =
+  self.rename (map (fn x => Pair x (fresh ())) self.vars)
+
+(* ========================================================================= *)
+
+(* Finally, we make the interpreter's knowledge base and the backtracking
+  capability implicit as well. The knowledge base is represented as a reader
+  effect providing a simple list of clauses. *)
+implicit `kb {E_kb} : Reader E_kb (List Clause)
+implicit `bt {E_bt} : BT E_bt
+
+let fail () = `bt.fail ()
+
+(* Check whether a variable occurs in a term. *)
+method occurs (x : Int) = fix (fn occurs (t : Term) =>
+  match t.view with
+  | TVar y    => x.equal y
+  | TFun _ ts => exists occurs ts
+  end) self
+
+(* Attempt to unify two terms, and signal the need to backtrack on failure. *)
+let unify = fix (fn unify (t1 : Term) (t2 : Term) =>
+  match Pair t1.view t2.view with
+  | Pair (TVar x) (TVar y) =>
+    if x.equal y then () else setVar x (TVar y)
+  | Pair (TVar x) t =>
+    if t.occurs x then fail () else setVar x t
+  | Pair t (TVar x) =>
+    if t.occurs x then fail () else setVar x t
+  | Pair (TFun f ts1) (TFun g ts2) =>
+    if f.equal g then iter2 {`re = fail} unify ts1 ts2
+    else fail ()
+  end)
+
+(* Retrieve some clause from the knowledge base non-deterministically. *)
+let kbChoose () = `bt.choose (`kb.ask ())
+
+(* Try to derive a term using the knowledge base. *)
+let eval = fix (fn eval (t : Term) =>
+  let Cl t' ts = (kbChoose ()).refresh in
+  let _ = unify t t' in
+  iter eval ts)
+
+(* Perform a query by substituting fresh unification variables in a term and
+  calling the `eval` function. *)
+let query (t : Term) = eval t.refresh
+
+(* ========================================================================= *)
+(* Below we finally install some handlers for the interpreter and show its
+  use on a simple hardcoded query. *)
+
+(* Example database. *)
+let kb = Cons (Cl (TFun "f" (Cons (TVar 0) (Cons (TVar 0) Nil))) Nil) Nil
+
+handle `kb = Reader (fn () => kb)
+
+handle `fresh = Fresh (effect _ / r => fn v => r v (1.add v))
+  return x  => fn _ => x
+  finally f => f 0
+
+let _ =
+  match
+    hBT (fn `bt =>
+    hState Nil (fn `st =>
+	(* Example query. *)
+    query (TFun "f" (Cons (TFun "a" Nil) (Cons (TFun "a" Nil) Nil)))))
+  with
+  | Some _ => printStrLn "Yes."
+  | None   => printStrLn "No."
+  end

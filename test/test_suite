@@ -6,3 +6,12 @@ function simple_run_tests {
 }
 
 run_with_flags simple_run_tests "-no-prelude"
+
+function simple_examples {
+  simple_test examples/Tick.dbl
+  simple_test examples/LWT_lexical.dbl
+  simple_test examples/LWT.dbl
+  simple_test examples/Prolog.dbl
+}
+
+run_with_flags simple_examples ""
