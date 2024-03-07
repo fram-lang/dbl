@@ -42,9 +42,6 @@ type expr =
 
 (** Values *)
 and value =
-  | VUnit
-    (** Unit value *)
-
   | VNum of int
     (** Integer literal *)
 

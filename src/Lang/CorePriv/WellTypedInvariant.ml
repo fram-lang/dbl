@@ -116,7 +116,6 @@ end
 let rec tr_type : type k. Env.t -> k typ -> k typ =
   fun env tp ->
   match tp with
-  | TUnit  -> TUnit
   | TEffPure -> TEffPure
   | TEffJoin(eff1, eff2) ->
     TEffJoin(tr_type env eff1, tr_type env eff2)
@@ -216,7 +215,7 @@ let rec infer_type_eff env e =
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
-    | TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
+    | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
   | ETApp(v, tp) ->
@@ -227,7 +226,7 @@ let rec infer_type_eff env e =
       | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
-    | TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ ->
+    | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -294,7 +293,7 @@ let rec infer_type_eff env e =
       check_type_eff env body tp0 eff0;
       (tp, eff)
 
-    | TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
+    | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -306,7 +305,7 @@ let rec infer_type_eff env e =
       check_type_eff env ret tp0 eff0;
       (tp0, eff0)
 
-    | TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
+    | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -321,7 +320,6 @@ let rec infer_type_eff env e =
 
 and infer_vtype env v =
   match v with
-  | VUnit  -> TUnit
   | VNum _ -> TVar BuiltinType.tv_int
   | VStr _ -> TVar BuiltinType.tv_string
   | VVar x -> Env.lookup_var env x
@@ -384,4 +382,4 @@ and check_vtype env v tp =
   else failwith "Internal type error"
 
 let check_program p =
-  check_type_eff Env.empty p TUnit Effect.prog_effect
+  check_type_eff Env.empty p Type.t_unit Effect.prog_effect

@@ -134,8 +134,7 @@ let get_ctor_info ~pos ~env (cname : S.ctor_name S.node) tp =
       Error.fatal (Error.unbound_constructor ~pos:cname.pos cname.data)
     end
 
-  | Whnf_Unit | Whnf_PureArrow _
-  | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
+  | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
     Error.fatal (Error.ctor_pattern_on_non_adt ~pos ~env tp)
 
   | Whnf_Effect _ | Whnf_Effrow _ ->
@@ -183,7 +182,7 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
     let owner = TypeUtils.method_owner_of_scheme ~pos:pat.pos ~env sch in
     let (env, x) = Env.add_poly_method env owner name sch in
     (env, make (T.PVar(x, sch)), bn, Pure)
-  | PUnit | PCtor _ | PId IdLabel ->
+  | PCtor _ | PId IdLabel ->
     begin match sch with
     | { sch_targs = []; sch_named = []; sch_body = tp } ->
       check_type ~env ~scope pat tp
@@ -204,12 +203,6 @@ and check_type ~env ~scope (pat : S.pattern) tp =
   | PWildcard | PId (IdVar _ | IdImplicit _ | IdMethod _) | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
     check_scheme ~env ~scope pat sch
-
-  | PUnit ->
-    if not (Unification.subtype env tp T.Type.t_unit) then
-      Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
-        T.Type.t_unit tp);
-    (env, make T.PUnit, T.Name.Map.empty, Pure)
 
   | PId IdLabel ->
     begin match Unification.as_label env tp with

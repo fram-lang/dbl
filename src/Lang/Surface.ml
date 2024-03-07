@@ -112,9 +112,6 @@ and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
-  | PUnit
-    (** Unit pattern *)
-
   | PId of ident
     (** Pattern that binds an identifier*)
 
@@ -161,7 +158,8 @@ and poly_expr_data =
 and expr = expr_data node
 and expr_data =
   | EUnit
-    (** Unit expression *)
+    (** Unit expression. Used only as the expression after the last definition
+      in a program. *)
 
   | ENum of int
     (** Integer literal *)

@@ -81,7 +81,6 @@ let rec in_effrow_end sub ee =
 
 and in_type_rec sub tp =
   match TypeBase.view tp with
-  | TUnit -> tp
   | TUVar(p, u) ->
     let p = in_uvar sub p u in
     t_uvar p u

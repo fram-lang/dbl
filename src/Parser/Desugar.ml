@@ -226,7 +226,7 @@ let rec tr_pattern (p : Raw.expr) =
   let make data = { p with data = data } in
   match p.data with
   | EWildcard   -> make PWildcard
-  | EUnit       -> make PUnit
+  | EUnit       -> make (PCtor(make "()", [], [], []))
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern p).data
@@ -235,12 +235,19 @@ let rec tr_pattern (p : Raw.expr) =
   | ECtor     c -> make (PCtor(make c, [], [], []))
   | EApp(p1, ps) ->
     begin match p1.data with
-    | ECtor c ->
+    | ECtor _ | EUnit ->
+      let name =
+        match p1.data with
+        | EUnit   -> "()"
+        | ECtor c -> c
+        | _ -> assert false
+      in
       let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
       let (targs, iargs) = map_inst_like tr_named_pattern flds in
-      make (PCtor({ p1 with data = c}, targs, iargs, List.map tr_pattern ps))
+      make (PCtor({ p1 with data = name},
+        targs, iargs, List.map tr_pattern ps))
 
-    | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
+    | EWildcard | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
     | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
     | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
       Error.fatal (Error.desugar_error p1.pos)
@@ -354,13 +361,14 @@ let rec tr_function args body =
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
+  | EUnit       -> make (ECtor  "()")
   | EVar      x -> make (EVar      x)
   | EImplicit n -> make (EImplicit n)
   | ECtor     c -> make (ECtor     c)
   | EMethod(e, name) ->
     make (EMethod(tr_expr e, name))
 
-  | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
+  | EWildcard | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ ->
     Error.fatal (Error.desugar_error e.pos)
@@ -368,9 +376,8 @@ let rec tr_poly_expr (e : Raw.expr) =
 and tr_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit          -> make EUnit
   | EParen e       -> make (tr_expr e).data
-  | EVar _ | EImplicit _ | ECtor _ | EMethod _ ->
+  | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ ->
     make (EPoly(tr_poly_expr e, [], []))
   | ENum n -> make (ENum n)
   | EStr s -> make (EStr s)

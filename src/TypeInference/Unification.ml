@@ -176,9 +176,6 @@ and unify env tp1 tp2 =
     else
       set_uvar env p u tp1
 
-  | TUnit, TUnit -> ()
-  | TUnit, _ -> raise Error
-
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
     else raise Error
@@ -254,9 +251,6 @@ let rec check_subtype env tp1 tp2 =
       raise Error
     else
       set_uvar env p u (T.Type.open_up ~scope:(Env.scope env) tp1)
-
-  | TUnit, TUnit -> ()
-  | TUnit, _ -> raise Error
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
@@ -349,7 +343,7 @@ let to_arrow env tp =
   | TPureArrow(sch, tp2)  -> Arr_Pure(sch, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
 
-  | TUnit | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
+  | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
@@ -360,7 +354,7 @@ let from_arrow env tp =
   | TPureArrow(tp1, tp2) -> Arr_Pure(tp1, tp2)
   | TArrow(tp1, tp2, eff) -> Arr_Impure(tp1, tp2, eff)
 
-  | TUnit | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
+  | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
@@ -378,7 +372,7 @@ let to_handler env tp =
   | THandler(a, tp, tp0, eff0) ->
     H_Handler(a, tp, tp0, eff0)
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
+  | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
@@ -396,7 +390,7 @@ let from_handler env tp =
   | THandler(a, tp, tp0, eff0) ->
     H_Handler(a, tp, tp0, eff0)
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
+  | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
@@ -417,7 +411,7 @@ let as_label env tp =
 
   | TLabel(eff, tp0, eff0) -> L_Label(eff, tp0, eff0)
 
-  | TUnit | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _ -> L_No
+  | TVar _ | TPureArrow _ | TArrow _ | THandler _ | TApp _ -> L_No
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"

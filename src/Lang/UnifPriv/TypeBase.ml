@@ -39,7 +39,6 @@ and typ = type_view
 and effect = typ
 and effrow = typ
 and type_view =
-  | TUnit
   | TUVar      of TVar.Perm.t * uvar
   | TVar       of tvar
   | TEffect    of TVar.Set.t
@@ -70,8 +69,6 @@ type ctor_decl = {
   ctor_named       : named_scheme list;
   ctor_arg_schemes : scheme list
 }
-
-let t_unit = TUnit
 
 let t_uvar p u = TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
 
@@ -118,12 +115,12 @@ let rec view tp =
     | TApp(tp1, tp2) -> TEffrow(xs, EEApp(tp1, tp2))
     | TEffrow(ys, ee) -> TEffrow(TVar.Set.union xs ys, ee)
 
-    | TUnit | TEffect _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
+    | TEffect _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
       failwith "Internal kind error"
     end
   | TEffrow(xs, ee) -> tp
 
-  | TUnit | TVar _ | TEffect _ | TPureArrow _ | TArrow _ | THandler _
+  | TVar _ | TEffect _ | TPureArrow _ | TArrow _ | THandler _
   | TLabel _ | TApp _ -> tp
 
 and perm p tp =
@@ -132,7 +129,6 @@ and perm p tp =
 
 and perm_rec p tp =
   match view tp with
-  | TUnit -> TUnit
   | TUVar(p', u) ->
     let p = TVar.Perm.compose p p' in
     TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
@@ -179,7 +175,7 @@ let effect_view eff =
 
   | TUVar _ | TApp _ -> assert false
 
-  | TUnit | TEffrow _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
+  | TEffrow _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
     failwith "Internal kind error"
 
 let effrow_view eff =
@@ -190,7 +186,7 @@ let effrow_view eff =
 
   | TEffrow(xs, ee) -> (xs, ee)
 
-  | TUnit | TEffect _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
+  | TEffect _ | TPureArrow _ | TArrow _ | THandler _ | TLabel _ ->
     failwith "Internal kind error"
 
 module UVar = struct

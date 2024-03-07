@@ -14,6 +14,9 @@ let tv_int = TVar.fresh KType
 (** String type *)
 let tv_string = TVar.fresh KType
 
+(** Unit type *)
+let tv_unit = TVar.fresh KType
+
 (** IO effect *)
 let tv_io = TVar.fresh KEffect
 
@@ -24,5 +27,6 @@ let tv_nterm = TVar.fresh KEffect
 let all =
   [ "Int",    TVar.Ex tv_int;
     "String", TVar.Ex tv_string;
+    "Unit",   TVar.Ex tv_unit;
     "IO",     TVar.Ex tv_io;
     "#NTerm", TVar.Ex tv_nterm ]

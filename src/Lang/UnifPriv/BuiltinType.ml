@@ -12,6 +12,9 @@ let tv_int = TVar.fresh KindBase.k_type
 (** Int type *)
 let tv_string = TVar.fresh KindBase.k_type
 
+(** Unit type *)
+let tv_unit = TVar.fresh KindBase.k_type
+
 (** IO effect *)
 let tv_io = TVar.fresh KindBase.k_effect
 
@@ -19,4 +22,5 @@ let tv_io = TVar.fresh KindBase.k_effect
 let all =
   [ "Int",    tv_int;
     "String", tv_string;
+    "Unit",   tv_unit;
     "IO",     tv_io ]

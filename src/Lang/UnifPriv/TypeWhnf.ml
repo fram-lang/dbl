@@ -13,7 +13,6 @@ type neutral_head =
   | NH_Var  of tvar
 
 type whnf =
-  | Whnf_Unit
   | Whnf_Neutral   of neutral_head * typ list
       (* Arguments are in reversed order! *)
   | Whnf_Effect    of effect
@@ -25,7 +24,6 @@ type whnf =
 
 let rec whnf tp =
   match view tp with
-  | TUnit       -> Whnf_Unit
   | TUVar(p, u) -> Whnf_Neutral(NH_UVar(p, u), [])
   | TVar x      -> Whnf_Neutral(NH_Var x, [])
   | TEffect _   -> Whnf_Effect tp
@@ -38,7 +36,7 @@ let rec whnf tp =
     begin match whnf tp1 with
     | Whnf_Neutral(h, args) -> Whnf_Neutral(h, tp2 :: args)
 
-    | Whnf_Unit | Whnf_Effect _ | Whnf_Effrow _ | Whnf_PureArrow _
+    | Whnf_Effect _ | Whnf_Effrow _ | Whnf_PureArrow _
     | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
       failwith "Internal kind error"
     end

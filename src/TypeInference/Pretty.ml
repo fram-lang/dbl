@@ -208,7 +208,7 @@ let fresh_for_tvar env name x =
 
 let rec fresh_for_type env name tp =
   match T.Type.view tp with
-  | TUnit | TUVar _ -> true
+  | TUVar _ -> true
   | TVar x -> fresh_for_tvar env name x
   | TEffect xs -> T.TVar.Set.for_all (fresh_for_tvar env name) xs
   | TEffrow(xs, ee) ->
@@ -246,7 +246,6 @@ and fresh_for_scheme env name { T.sch_targs = _; sch_named; sch_body } =
 
 let rec pp_type buf env prec tp =
   match T.Type.view tp with
-  | TUnit -> Buffer.add_string buf "Unit"
   | TUVar(_, u) -> Buffer.add_string buf (pp_uvar env u)
   | TVar x -> Buffer.add_string buf (pp_tvar env x)
   | TEffect xs ->

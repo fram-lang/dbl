@@ -41,7 +41,7 @@ let rec tr_expr (e : S.expr) =
 (** Translate value as an expression *)
 and tr_value (v : S.value) =
   match v with
-  | VUnit | VNum _ | VStr _ | VVar _ | VFn _ | VCtor _ | VExtern _ ->
+  | VNum _ | VStr _ | VVar _ | VFn _ | VCtor _ | VExtern _ ->
     tr_value_v v (fun v -> T.EValue v)
   | VTFun(_, body) ->
     tr_expr body
@@ -49,7 +49,6 @@ and tr_value (v : S.value) =
 (** Translate value as a value, and pass it to given meta-continuation *)
 and tr_value_v (v : S.value) cont =
   match v with
-  | VUnit  -> cont T.VUnit
   | VNum n -> cont (T.VNum n)
   | VStr s -> cont (T.VStr s)
   | VVar x -> cont (T.VVar x)

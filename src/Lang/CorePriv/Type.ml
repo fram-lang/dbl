@@ -8,10 +8,12 @@
 
 open TypeBase
 
+(** Unit type *)
+let t_unit = TVar BuiltinType.tv_unit
+
 (** Get the kind of given type *)
 let rec kind : type k. k typ -> k kind =
   function
-  | TUnit      -> KType
   | TEffPure   -> KEffect
   | TEffJoin _ -> KEffect
   | TVar     x -> TVar.kind x
@@ -36,9 +38,6 @@ let rec equal : type k. k typ -> k typ -> bool =
   | TEffJoin _, _ -> effect_equal tp1 tp2
   | _, TEffPure   -> effect_equal tp1 tp2
   | _, TEffJoin _ -> effect_equal tp1 tp2
-
-  | TUnit, TUnit -> true
-  | TUnit, _     -> false
 
   | TVar x, TVar y -> TVar.equal x y
   | TVar _, _      -> false
@@ -128,17 +127,13 @@ and simple_subeffect eff1 eff2 =
 (** Check if one type is a subtype of another *)
 let rec subtype tp1 tp2 =
   match tp1, tp2 with
-  | TUnit, TUnit  -> true
-  | TUnit, (TVar _ | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
-    false
-
   | TVar x, TVar y -> x == y
-  | TVar _, (TUnit | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+  | TVar _, (TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
     false
 
   | TArrow(atp1, vtp1, eff1), TArrow(atp2, vtp2, eff2) ->
     subtype atp2 atp1 && subtype vtp1 vtp2 && subeffect eff1 eff2
-  | TArrow _, (TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+  | TArrow _, (TVar _ | TForall _ | TLabel _ | TData _ | TApp _) ->
     false
 
   | TForall(x1, tp1), TForall(x2, tp2) ->
@@ -149,19 +144,19 @@ let rec subtype tp1 tp2 =
       subtype (subst_type x1 x tp1) (subst_type x2 x tp2)
     | NotEqual -> false
     end
-  | TForall _, (TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _) ->
+  | TForall _, (TVar _ | TArrow _ | TLabel _ | TData _ | TApp _) ->
     false
 
   | TLabel(_, _, _), TLabel(_, _, _) -> equal tp1 tp2
-  | TLabel _, (TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
+  | TLabel _, (TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
     false
 
   | TData _, TData _ -> equal tp1 tp2
-  | TData _, (TUnit | TVar _ | TArrow _ | TForall _ | TLabel _ | TApp _) ->
+  | TData _, (TVar _ | TArrow _ | TForall _ | TLabel _ | TApp _) ->
     false
 
   | TApp _, TApp _ -> equal tp1 tp2
-  | TApp _, (TUnit | TVar _ | TArrow _ | TForall _ | TLabel _ | TData _) ->
+  | TApp _, (TVar _ | TArrow _ | TForall _ | TLabel _ | TData _) ->
     false
 
 let rec forall_map f xs =
@@ -178,7 +173,7 @@ let rec forall_map f xs =
 let rec type_in_scope : type k. _ -> k typ -> k typ option =
   fun scope tp ->
   match tp with
-  | TUnit | TEffPure -> Some tp
+  | TEffPure -> Some tp
   | TEffJoin(eff1, eff2) ->
     begin match type_in_scope scope eff1, type_in_scope scope eff2 with
     | Some eff1, Some eff2 -> Some (TEffJoin(eff1, eff2))
@@ -271,7 +266,6 @@ let rec subeffect_in_scope scope (eff : effect) =
   are members of given set ([scope]) *)
 let rec supertype_in_scope scope (tp : ttype) =
   match tp with
-  | TUnit -> Some tp
   | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
@@ -292,7 +286,6 @@ let rec supertype_in_scope scope (tp : ttype) =
   are members of given set ([scope]) *)
 and subtype_in_scope scope (tp : ttype) =
   match tp with
-  | TUnit -> Some tp
   | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match

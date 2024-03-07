@@ -49,6 +49,18 @@ type t = {
     (** Scope of type variables *)
 }
 
+let unit_info =
+  { adt_proof = { T.pos = Position.nowhere; T.data = T.EUnitPrf };
+    adt_args  = [];
+    adt_ctors =
+      [ { ctor_name        = "()";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        } ];
+    adt_type  = T.Type.t_unit
+  }
+
 let mk_builtin_pp_info (name, x) =
   let info =
     { pp_base_name = name;
@@ -62,11 +74,10 @@ let empty =
     tvar_map     =
       T.BuiltinType.all
       |> List.map (fun (name, tv) -> (name, T.Type.t_var tv))
-      |> List.to_seq |> StrMap.of_seq
-      |> StrMap.add "Unit" T.Type.t_unit;
+      |> List.to_seq |> StrMap.of_seq;
     implicit_map = StrMap.empty;
-    ctor_map     = StrMap.empty;
-    adt_map      = T.TVar.Map.empty;
+    ctor_map     = StrMap.singleton "()" (0, unit_info);
+    adt_map      = T.TVar.Map.singleton T.BuiltinType.tv_unit unit_info;
     method_map   = T.TVar.Map.empty;
     pp_map       =
       T.BuiltinType.all

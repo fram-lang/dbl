@@ -8,9 +8,6 @@
 
 (** Value of the evaluator *)
 type value =
-  | VUnit
-    (** Unit value *)
-
   | VNum of int
     (** Number *)
 
@@ -54,6 +51,8 @@ let str_fun f = VFn (fun v cont ->
   | VStr s -> cont (f s)
   | _ -> failwith "Runtime error!")
 
+let v_unit = VCtor(0, [])
+
 let of_bool b =
   VCtor((if b then 1 else 0), [])
 
@@ -93,9 +92,9 @@ let extern_map =
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
     "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum(Char.code s.[n])));
     "dbl_strMake", int_fun (fun n -> VStr (String.make 1 (Char.chr n)));
-    "dbl_printStrLn", str_fun (fun s -> print_endline s; VUnit);
-    "dbl_printStr",   str_fun (fun s -> print_string s; VUnit);
-    "dbl_printInt",   int_fun (fun n -> print_int n; VUnit);
+    "dbl_printStrLn", str_fun (fun s -> print_endline s; v_unit);
+    "dbl_printStr",   str_fun (fun s -> print_string s; v_unit);
+    "dbl_printInt",   int_fun (fun n -> print_int n; v_unit);
     "dbl_readLine",   unit_fun (fun () -> VStr (read_line ()));
     "dbl_exit",       int_fun exit;
   ] |> List.to_seq |> Hashtbl.of_seq
@@ -104,7 +103,6 @@ let extern_map =
 
 let to_string (v : value) =
   match v with
-  | VUnit    -> "()"
   | VNum n   -> string_of_int n
   | VStr s   -> Printf.sprintf "\"%s\"" (String.escaped s)
   | VFn    _ -> "<fun>"
@@ -208,7 +206,6 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
 
 and eval_value env (v : Lang.Untyped.value) =
   match v with
-  | VUnit  -> VUnit
   | VNum n -> VNum n
   | VStr s -> VStr s
   | VVar x -> Env.lookup env x

@@ -50,9 +50,6 @@ end
 
 (** Types, indexed by a type-represented kind *)
 type _ typ =
-  | TUnit : ktype typ
-    (** Unit type *)
-
   | TEffPure : keffect typ
     (** Pure effect *)
 
@@ -144,6 +141,9 @@ module Type : sig
   (** Create a sequence of universal types *)
   val t_foralls : TVar.ex list -> ttype -> ttype
 
+  (** Unit type *)
+  val t_unit : ttype
+
   (** Existential version of type representation, where its kind is packed *)
   type ex = Ex : 'k typ -> ex
 end
@@ -218,9 +218,6 @@ type expr =
 
 (** Values *)
 and value =
-  | VUnit
-    (** Unit value *)
-
   | VNum of int
     (** Integer literal *)
 

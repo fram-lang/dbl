@@ -23,7 +23,7 @@ let as_variable (v : T.value) cont =
   Target), and list of variables together with their types. *)
 let rec var_of_pattern env (p : S.pattern) =
   match p.data with
-  | PWildcard | PUnit -> (env, [], [])
+  | PWildcard -> (env, [], [])
   | PVar(x, sch) -> (env, [], [(x, Type.tr_scheme env sch)])
   | PCtor(_, _, _, _, tvs, ps) ->
     let (env, tvs1) = Env.add_tvars env tvs in
@@ -44,7 +44,7 @@ and var_of_patterns env ps =
 (** Create a function that represents a clause. *)
 let rec mk_clause_fun tvs xs body =
   match tvs, xs with
-  | [], [] -> T.EValue (T.VFn(Var.fresh (), T.TUnit, body))
+  | [], [] -> T.EValue (T.VFn(Var.fresh (), T.Type.t_unit, body))
   | [], (x, tp) :: xs ->
     T.EValue (T.VFn(x, tp, mk_clause_fun [] xs body))
   | T.TVar.Ex tv :: tvs, xs ->
@@ -53,7 +53,7 @@ let rec mk_clause_fun tvs xs body =
 (** Build an application of a clause-representing function *)
 let rec mk_clause_app f tvs xs env =
   match tvs, xs with
-  | [], [] -> T.EApp(T.VVar f, T.VUnit)
+  | [], [] -> T.EApp(T.VVar f, v_unit)
   | [], (x, _) :: xs ->
     let fv = Var.fresh () in
     T.ELetPure(fv, T.EApp(T.VVar f, T.VVar x),
@@ -115,7 +115,7 @@ module Make(Ctx : MatchContext) = struct
     | { cl_patterns = []; _ } :: _ -> assert false
     | { cl_patterns = p :: _; cl_env; _ } :: cls ->
       begin match p.data with
-      | PWildcard | PUnit | PVar _ -> column_class cls
+      | PWildcard | PVar _ -> column_class cls
       | PCtor(_, _, proof, ctors, _, _) ->
         CC_ADT(Ctx.tr_expr cl_env proof, ctors)
       end
@@ -128,7 +128,7 @@ module Make(Ctx : MatchContext) = struct
     | _ when cl.cl_small -> cont cl
     | [] -> assert false
     | { data = PCtor _; _ } :: _ -> cont cl
-    | { data = (PWildcard | PUnit | PVar _ ); _ } :: _ ->
+    | { data = (PWildcard | PVar _ ); _ } :: _ ->
       let (env, tvs, xs) = var_of_patterns cl.cl_env cl.cl_patterns in
       let cl_f = Var.fresh () in
       T.ELetPure(cl_f, mk_clause_fun (List.map snd tvs) xs (cl.cl_body env),
@@ -157,7 +157,7 @@ module Make(Ctx : MatchContext) = struct
     | [] -> assert false
     | p :: ps ->
       begin match p.data with
-      | PWildcard | PUnit ->
+      | PWildcard ->
         { cl_env      = cl.cl_env;
           cl_patterns = ps;
           cl_body     = cl.cl_body;
@@ -185,7 +185,7 @@ module Make(Ctx : MatchContext) = struct
   let simplify_ctor_clause v vs1 idx tvs cl =
     match cl.cl_patterns with
     | [] -> assert false
-    | { data = (PWildcard | PUnit); pos } :: ps ->
+    | { data = PWildcard; pos } :: ps ->
       assert cl.cl_small;
       let dummy_pat = { S.data = S.PWildcard; S.pos = pos } in
       Some {

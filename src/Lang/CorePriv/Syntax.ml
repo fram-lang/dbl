@@ -33,7 +33,6 @@ type expr =
   | EReplExpr of expr * string * expr
 
 and value =
-  | VUnit
   | VNum    of int
   | VStr    of string
   | VVar    of var

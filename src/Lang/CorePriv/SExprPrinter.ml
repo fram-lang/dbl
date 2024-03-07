@@ -39,7 +39,6 @@ let tr_tvar_binder_ex (TVar.Ex x) =
 let rec tr_type : type k. k typ -> SExpr.t =
   fun tp ->
   match tp with
-  | TUnit -> Sym "unit"
   | TEffPure -> List [ Sym "effect" ]
   | TEffJoin _ -> List (Sym "effect" :: tr_effect tp)
   | TVar x -> tr_tvar x
@@ -68,7 +67,7 @@ and tr_arrow : ttype -> SExpr.t list =
   | TArrow(tp1, tp2, eff) ->
     [ tr_type tp1; Sym "->"; tr_type tp2; tr_type eff ]
 
-  | TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
+  | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
     [ Sym "->"; tr_type tp ]
 
 and tr_forall : ttype -> SExpr.t list =
@@ -77,7 +76,7 @@ and tr_forall : ttype -> SExpr.t list =
   | TForall(x, body) ->
     tr_tvar_binder x :: tr_forall body
 
-  | TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ -> [ tr_type tp ]
+  | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ -> [ tr_type tp ]
 
 and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   fun tp args ->
@@ -85,7 +84,7 @@ and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   | TApp(tp1, tp2) ->
     tr_type_app tp1 (tr_type tp2 :: args)
 
-  | TUnit | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TLabel _
+  | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TLabel _
   | TData _ ->
     List (Sym "app" :: tr_type tp :: args)
 
@@ -123,7 +122,6 @@ let rec tr_expr (e : Syntax.expr) =
 
 and tr_value (v : Syntax.value) =
   match v with
-  | VUnit  -> List [ Sym "unit" ]
   | VNum n -> List [ Sym (string_of_int n) ]
   | VStr s -> List [ Sym (Printf.sprintf "\"%s\"" (String.escaped s)) ]
   | VVar x -> tr_var x

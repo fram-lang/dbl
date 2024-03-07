@@ -36,8 +36,7 @@ let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
   | Whnf_Neutral(NH_UVar _, _) ->
     Error.fatal (Error.method_of_unknown_type ~pos ~env sch)
   
-  | Whnf_Unit | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _
-  | Whnf_Label _ ->
+  | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
     Error.fatal (Error.method_of_invalid_type ~pos ~env sch self_tp)
 
   | Whnf_Effect _ | Whnf_Effrow _ ->

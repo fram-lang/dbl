@@ -22,3 +22,15 @@ let rec tr_kind k =
     let (Ex k1) = tr_kind k1 in
     let (Ex k2) = tr_kind k2 in
     T.Kind.Ex (KArrow(k1, k2))
+
+(** Proof that unit is an ADT *)
+let v_unit_prf =
+  let ctor =
+    { T.ctor_name      = "()";
+      T.ctor_tvars     = [];
+      T.ctor_arg_types = []
+    } in
+  T.VExtern("__Unit_Proof__", T.TData(T.Type.t_unit, [ ctor ]))
+
+let v_unit =
+  T.VCtor(T.EValue v_unit_prf, 0, [], [])

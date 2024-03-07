@@ -12,6 +12,8 @@ let view = TypeBase.view
 
 let fresh_uvar ~scope kind = t_uvar TVar.Perm.id (UVar.fresh ~scope kind)
 
+let t_unit = t_var BuiltinType.tv_unit
+
 let t_pure_arrows tps tp = List.fold_right t_pure_arrow tps tp
 
 let t_apps tp tps = List.fold_left t_app tp tps
@@ -22,7 +24,7 @@ let rec kind tp =
   | TVar      x -> TVar.kind x
   | TEffect   _ -> KindBase.k_effect
   | TEffrow   _ -> KindBase.k_effrow
-  | TUnit | TPureArrow _ | TArrow _ | THandler _ | TLabel _ -> KindBase.k_type
+  | TPureArrow _ | TArrow _ | THandler _ | TLabel _ -> KindBase.k_type
   | TApp(tp, _) ->
     begin match KindBase.view (kind tp) with
     | KArrow(_, k) -> k
@@ -51,7 +53,7 @@ let open_effrow_up ~scope eff =
 
 let rec open_down ~scope tp =
   match view tp with
-  | TUnit | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
+  | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
   | TPureArrow(sch, tp2) ->
     t_pure_arrow (open_scheme_up ~scope sch) (open_down ~scope tp2)
   | TArrow(sch, tp2, eff) ->
@@ -74,7 +76,7 @@ and open_scheme_down ~scope sch =
 
 and open_up ~scope tp =
   match view tp with
-  | TUnit | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
+  | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
   | TPureArrow(sch, tp2) ->
     t_pure_arrow (open_scheme_down ~scope sch) (open_up ~scope tp2)
   | TArrow(sch, tp2, eff) ->
@@ -100,7 +102,7 @@ and open_scheme_up ~scope sch =
 
 let rec contains_uvar u tp =
   match view tp with
-  | TUnit | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> false
+  | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> false
   | TUVar(_, u') | TEffrow(_, EEUVar(_, u')) -> UVar.equal u u'
   | TPureArrow(sch, tp2) ->
     scheme_contains_uvar u sch || contains_uvar u tp2
@@ -119,7 +121,7 @@ and scheme_contains_uvar u sch =
 
 let rec collect_uvars tp uvs =
   match view tp with
-  | TUnit | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> uvs
+  | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> uvs
   | TUVar(_, u) | TEffrow(_, EEUVar(_, u)) -> UVar.Set.add u uvs
   | TEffrow(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
     collect_uvars tp1 (collect_uvars tp2 uvs)
@@ -173,7 +175,6 @@ let rec shrink_effrow_end_scope ~scope ee =
 
 and shrink_scope ~scope tp =
   match view tp with
-  | TUnit -> ()
   | TUVar(p, u) -> shrink_uvar_scope ~scope p u
   | TVar  x -> shrink_var_scope  ~scope x
   | TEffect xs ->

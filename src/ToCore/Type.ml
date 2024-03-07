@@ -50,7 +50,6 @@ let rec tr_effrow_end env (eff : S.Type.effrow_end) =
 (** Translate type *)
 and tr_type env tp =
   match S.Type.view tp with
-  | TUnit    -> T.Type.Ex TUnit
   | TUVar _  ->
     (* TODO: they can be supported, and its especially useful in REPL *)
     InterpLib.Error.report ~cls:FatalError

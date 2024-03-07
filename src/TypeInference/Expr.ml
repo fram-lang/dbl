@@ -141,7 +141,7 @@ let rec infer_poly_scheme env (e : S.poly_expr) eff =
     | Whnf_Neutral(NH_UVar _, _) ->
       Error.fatal (Error.method_call_on_unknown_type ~pos:e.pos)
 
-    | Whnf_Unit | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _
+    | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _
     | Whnf_Label _ ->
       Error.fatal (Error.method_call_on_invalid_type ~pos:e.pos ~env self_tp)
 
@@ -188,7 +188,7 @@ and infer_expr_type env (e : S.expr) eff =
     (e, tp, r_eff)
 
   | EUnit ->
-    (make T.EUnit, T.Type.t_unit, Pure)
+    (make (T.ECtor(make T.EUnitPrf, 0, [], [])), T.Type.t_unit, Pure)
 
   | ENum n ->
     (make (T.ENum n), T.Type.t_var T.BuiltinType.tv_int, Pure)
@@ -328,7 +328,7 @@ and check_expr_type env (e : S.expr) tp eff =
         Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
       end
 
-    | Whnf_Unit | Whnf_Neutral(NH_UVar _, _) | Whnf_PureArrow _
+    | Whnf_Neutral(NH_UVar _, _) | Whnf_PureArrow _
     | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
       Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
 

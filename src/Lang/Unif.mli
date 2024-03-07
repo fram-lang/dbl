@@ -122,9 +122,6 @@ and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
-  | PUnit
-    (** Unit pattern *)
-
   | PVar of var * scheme
     (** Pattern that binds a variable of given scheme *)
 
@@ -136,8 +133,8 @@ and pattern_data =
 (** Expression *)
 and expr = expr_data node
 and expr_data =
-  | EUnit
-    (** Unit expression *)
+  | EUnitPrf
+    (** The proof that Unit is an ADT with only one constructor *)
 
   | ENum of int
     (** Integer literal *)
@@ -449,9 +446,6 @@ module Type : sig
 
   (** View of a type *)
   type type_view =
-    | TUnit
-      (** Unit type *)
-
     | TUVar of TVar.Perm.t * uvar
       (** Unification variable, associated with a delayed partial permutation,
       of type variables. Mappings of variables not in scope of the
@@ -497,9 +491,6 @@ module Type : sig
 
   (** Weak head normal form of a type *)
   type whnf =
-    | Whnf_Unit
-      (** Unit type *)
-
     | Whnf_Neutral of neutral_head * typ list
       (** Neutral type. Its parameters are in reversed order. *)
 
@@ -720,6 +711,9 @@ module BuiltinType : sig
 
   (** String type *)
   val tv_string : tvar
+
+  (** Unit type *)
+  val tv_unit : tvar
 
   (** List of all built-in types with their names *)
   val all : (string * tvar) list

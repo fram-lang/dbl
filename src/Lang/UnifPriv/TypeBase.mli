@@ -36,7 +36,6 @@ type effrow_end =
   | EEApp  of typ * typ
 
 type type_view =
-  | TUnit
   | TUVar      of TVar.Perm.t * uvar
   | TVar       of tvar
   | TEffect    of TVar.Set.t
@@ -61,9 +60,6 @@ type ctor_decl = {
   ctor_named       : named_scheme list;
   ctor_arg_schemes : scheme list
 }
-
-(** Unit type *)
-val t_unit : typ
 
 (** Unification variable *)
 val t_uvar : TVar.Perm.t -> uvar -> typ
