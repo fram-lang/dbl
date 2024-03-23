@@ -57,4 +57,4 @@ of the implementation we encourage to look into the `src/Pipeline.ml` file
 and `src/Lang` directory to see phases and intermediate languages of the
 interpreter. To run DBL interpreter on all test programs just type
 `./test.sh dbl test/test_suite`. Bugs can be reported on our
-[issue tracker](https://bitbucket.org/pl-uwr/dbl/issues).
+[issue tracker](https://github.com/fram-lang/dbl/issues).
