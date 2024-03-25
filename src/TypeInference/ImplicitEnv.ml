@@ -49,7 +49,7 @@ let rec build_implicit_type_args env sub (args : T.named_tvar list) =
     (env, sub, (tname, y) :: args)
 
 let generalize_implicit (env, ims) (name, args, sch) =
-  let used = BRef.ref None in
+  let used = BRef.create None in
   let (env, sub, targs) = build_implicit_type_args env T.Subst.empty args in
   let sch = T.Scheme.subst sub sch in
   let (env, x) =

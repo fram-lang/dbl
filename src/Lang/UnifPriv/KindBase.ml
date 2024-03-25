@@ -71,7 +71,7 @@ let set_non_effect k =
 
 module KUVar = struct
   let fresh ~non_effect () =
-    BRef.ref (Either.Left (if non_effect then KS_NonEffect else KS_Any))
+    BRef.create (Either.Left (if non_effect then KS_NonEffect else KS_Any))
 
   let equal x y = x == y
 

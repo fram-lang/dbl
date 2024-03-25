@@ -4,15 +4,18 @@
 
 (** Backtrackable references *)
 
-(* Author: Piotr Polesiuk, 2023 *)
+(* Author: Piotr Polesiuk, 2021 *)
 
 type 'a t
 
-(** Create a new reference *)
-val ref : 'a -> 'a t
+val create : 'a -> 'a t 
 
-(** Get the value stored in a mutable cell *)
+val equal : 'a t -> 'a t -> bool
+
 val get : 'a t -> 'a
 
-(** Set a new value of a mutable cell *)
 val set : 'a t -> 'a -> unit
+
+(** Run computation and commit changes on success and
+  * backtrack on failure *)
+val bracket : (unit -> 'a) -> 'a
