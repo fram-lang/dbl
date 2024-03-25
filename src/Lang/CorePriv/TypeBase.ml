@@ -82,6 +82,7 @@ type 'k tvar = 'k TVar.t
 
 type _ typ =
   | TUnit    : ktype typ
+  | TUVar    : UID.t * 'k kind -> 'k typ
   | TEffPure : keffect typ
   | TEffJoin : effect * effect -> keffect typ
   | TVar     : 'k tvar -> 'k typ

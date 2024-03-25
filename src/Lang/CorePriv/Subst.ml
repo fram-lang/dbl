@@ -36,6 +36,10 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   fun sub tp ->
   match tp with
   | TUnit | TEffPure -> tp
+  | TUVar _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
   | TEffJoin(eff1, eff2) ->
     TEffJoin(in_type_rec sub eff1, in_type_rec sub eff2)
   | TVar x ->

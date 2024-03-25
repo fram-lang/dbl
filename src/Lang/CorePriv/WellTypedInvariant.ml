@@ -116,6 +116,10 @@ end
 let rec tr_type : type k. Env.t -> k typ -> k typ =
   fun env tp ->
   match tp with
+  | TUVar _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
   | TUnit  -> TUnit
   | TEffPure -> TEffPure
   | TEffJoin(eff1, eff2) ->
@@ -216,6 +220,10 @@ let rec infer_type_eff env e =
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
+    | TUVar _ ->
+      InterpLib.Error.report ~cls:FatalError
+        ("Unsolved unification variables left.");
+      raise InterpLib.Error.Fatal_error
     | TUnit | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
@@ -227,6 +235,10 @@ let rec infer_type_eff env e =
       | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
+    | TUVar _ ->
+      InterpLib.Error.report ~cls:FatalError
+        ("Unsolved unification variables left.");
+      raise InterpLib.Error.Fatal_error
     | TUnit | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
@@ -294,6 +306,10 @@ let rec infer_type_eff env e =
       check_type_eff env body tp0 eff0;
       (tp, eff)
 
+    | TUVar _ ->
+      InterpLib.Error.report ~cls:FatalError
+        ("Unsolved unification variables left.");
+      raise InterpLib.Error.Fatal_error
     | TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
@@ -306,6 +322,10 @@ let rec infer_type_eff env e =
       check_type_eff env ret tp0 eff0;
       (tp0, eff0)
 
+    | TUVar _ ->
+      InterpLib.Error.report ~cls:FatalError
+        ("Unsolved unification variables left.");
+      raise InterpLib.Error.Fatal_error
     | TUnit | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end

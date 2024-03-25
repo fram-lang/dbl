@@ -53,6 +53,9 @@ type _ typ =
   | TUnit : ktype typ
     (** Unit type *)
 
+  | TUVar : UID.t * 'k kind -> 'k typ
+    (** UVar type kept for pretty printing *)
+
   | TEffPure : keffect typ
     (** Pure effect *)
 

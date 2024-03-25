@@ -11,14 +11,15 @@ open TypeBase
 (** Get the kind of given type *)
 let rec kind : type k. k typ -> k kind =
   function
-  | TUnit      -> KType
-  | TEffPure   -> KEffect
-  | TEffJoin _ -> KEffect
-  | TVar     x -> TVar.kind x
-  | TArrow   _ -> KType
-  | TForall  _ -> KType
-  | TLabel  _  -> KType
-  | TData    _ -> KType
+  | TUnit        -> KType
+  | TUVar (_, k) -> k
+  | TEffPure     -> KEffect
+  | TEffJoin _   -> KEffect
+  | TVar     x   -> TVar.kind x
+  | TArrow   _   -> KType
+  | TForall  _   -> KType
+  | TLabel  _    -> KType
+  | TData    _   -> KType
   | TApp(tp, _) ->
     begin match kind tp with
     | KArrow(_, k) -> k
@@ -32,6 +33,12 @@ let subst_type x stp tp =
 let rec equal : type k. k typ -> k typ -> bool =
   fun tp1 tp2 ->
   match tp1, tp2 with
+  | _, TUVar _
+  | TUVar _, _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
+
   | TEffPure,   _ -> effect_equal tp1 tp2
   | TEffJoin _, _ -> effect_equal tp1 tp2
   | _, TEffPure   -> effect_equal tp1 tp2
@@ -114,7 +121,7 @@ and subeffect eff1 eff2 =
   | TEffPure -> true
   | TEffJoin(eff_a, eff_b) ->
     subeffect eff_a eff2 && subeffect eff_b eff2
-  | TVar _ | TApp _ -> simple_subeffect eff1 eff2
+  | TUVar _ | TVar _ | TApp _ -> simple_subeffect eff1 eff2
 
 (** Check if simple effect (different than pure and join) is a subeffect of
   another effect *)
@@ -123,11 +130,17 @@ and simple_subeffect eff1 eff2 =
   | TEffPure -> false
   | TEffJoin(eff_a, eff_b) ->
     simple_subeffect eff1 eff_a || simple_subeffect eff1 eff_b
-  | TVar _ | TApp _ -> equal eff1 eff2
+  | TUVar _ | TVar _ | TApp _ -> equal eff1 eff2
 
 (** Check if one type is a subtype of another *)
 let rec subtype tp1 tp2 =
   match tp1, tp2 with
+  | _, TUVar _
+  | TUVar _, _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
+
   | TUnit, TUnit  -> true
   | TUnit, (TVar _ | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
     false
@@ -178,6 +191,10 @@ let rec forall_map f xs =
 let rec type_in_scope : type k. _ -> k typ -> k typ option =
   fun scope tp ->
   match tp with
+  | TUVar _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
   | TUnit | TEffPure -> Some tp
   | TEffJoin(eff1, eff2) ->
     begin match type_in_scope scope eff1, type_in_scope scope eff2 with
@@ -248,6 +265,10 @@ let supereffect_in_scope scope (eff : effect) =
   variables are members of given set ([scope]) *)
 let rec subeffect_in_scope scope (eff : effect) =
   match eff with
+  | TUVar _->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
   | TEffPure -> eff
   | TEffJoin(eff1, eff2) ->
     begin match
@@ -271,6 +292,10 @@ let rec subeffect_in_scope scope (eff : effect) =
   are members of given set ([scope]) *)
 let rec supertype_in_scope scope (tp : ttype) =
   match tp with
+  | TUVar _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
   | TUnit -> Some tp
   | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
@@ -292,6 +317,10 @@ let rec supertype_in_scope scope (tp : ttype) =
   are members of given set ([scope]) *)
 and subtype_in_scope scope (tp : ttype) =
   match tp with
+  | TUVar _ ->
+    InterpLib.Error.report ~cls:FatalError
+      ("Unsolved unification variables left.");
+    raise InterpLib.Error.Fatal_error
   | TUnit -> Some tp
   | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
