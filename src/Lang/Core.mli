@@ -48,6 +48,9 @@ end
 
 (** Types, indexed by a type-represented kind *)
 type _ typ =
+  | TUVar : UID.t * 'k kind -> 'k typ
+    (** UVar type kept for pretty printing *)
+
   | TEffPure : keffect typ
     (** Pure effect *)
 

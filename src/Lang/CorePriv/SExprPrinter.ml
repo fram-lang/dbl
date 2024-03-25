@@ -26,6 +26,9 @@ let tr_var  x = Sym (Var.unique_name x)
 let tr_tvar (x : _ tvar) =
   Sym (Printf.sprintf "tp%s" (UID.to_string x.uid))
 
+let tr_uvar (x : UID.t) =
+  Sym (Printf.sprintf "uvar%s" (UID.to_string x))
+
 let tr_tvar_ex (TVar.Ex x) = tr_tvar x
 
 let tr_tvar_binder x =
@@ -37,6 +40,7 @@ let tr_tvar_binder_ex (TVar.Ex x) =
 let rec tr_type : type k. k typ -> SExpr.t =
   fun tp ->
   match tp with
+  | TUVar (x, _) -> tr_uvar x
   | TEffPure -> List [ Sym "effect" ]
   | TEffJoin _ -> List (Sym "effect" :: tr_effect tp)
   | TVar x -> tr_tvar x
@@ -55,7 +59,7 @@ and tr_effect : effect -> SExpr.t list =
   | TEffJoin(eff1, eff2) ->
     tr_effect eff1 @ tr_effect eff2
   | TVar x -> [ tr_tvar x ]
-  | TApp _ -> [ tr_type tp ]
+  | TUVar _ | TApp _ -> [ tr_type tp ]
 
 and tr_arrow : ttype -> SExpr.t list =
   fun tp ->
@@ -65,7 +69,7 @@ and tr_arrow : ttype -> SExpr.t list =
   | TArrow(tp1, tp2, eff) ->
     [ tr_type tp1; Sym "->"; tr_type tp2; tr_type eff ]
 
-  | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
+  | TUVar _ | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
     [ Sym "->"; tr_type tp ]
 
 and tr_forall : ttype -> SExpr.t list =
@@ -74,7 +78,7 @@ and tr_forall : ttype -> SExpr.t list =
   | TForall(x, body) ->
     tr_tvar_binder x :: tr_forall body
 
-  | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ -> [ tr_type tp ]
+  | TUVar _ | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ -> [ tr_type tp ]
 
 and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   fun tp args ->
@@ -82,7 +86,7 @@ and tr_type_app : type k. k typ -> SExpr.t list -> SExpr.t =
   | TApp(tp1, tp2) ->
     tr_type_app tp1 (tr_type tp2 :: args)
 
-  | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TLabel _
+  | TUVar _ | TEffPure | TEffJoin _ | TVar _ | TArrow _ | TForall _ | TLabel _
   | TData _ ->
     List (Sym "app" :: tr_type tp :: args)
 

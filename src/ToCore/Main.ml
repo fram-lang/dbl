@@ -151,5 +151,5 @@ and tr_expr_vs env es cont =
 
 (* ========================================================================= *)
 
-let tr_program p =
-  tr_expr Env.empty p
+let tr_program ~repl_mode p =
+  tr_expr (Env.empty ~repl_mode) p

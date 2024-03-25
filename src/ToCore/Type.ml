@@ -32,8 +32,10 @@ let pack_type (type k) (k : S.kind) (tp : k T.typ) : T.Type.ex =
 let rec tr_effrow_end env (eff : S.Type.effrow_end) =
   match eff with
   | EEClosed -> T.TEffPure
+  | EEUVar(_,uvar) when Env.in_repl_mode env ->
+    let uid = Lang.Unif.UVar.uid uvar in
+    TUVar(uid, KEffect)
   | EEUVar _  ->
-    (* TODO: they can be supported, and its especially useful in REPL *)
     InterpLib.Error.report ~cls:FatalError
       "Unsolved unification variables left.";
     raise InterpLib.Error.Fatal_error
@@ -48,8 +50,11 @@ let rec tr_effrow_end env (eff : S.Type.effrow_end) =
 (** Translate type *)
 and tr_type env tp =
   match S.Type.view tp with
+  | TUVar(_,uvar) when Env.in_repl_mode env ->
+    let uid = Lang.Unif.UVar.uid uvar in
+    let (T.Kind.Ex k) = S.Type.kind tp |> tr_kind in
+    pack_type (S.Type.kind tp) (TUVar (uid, k))
   | TUVar _  ->
-    (* TODO: they can be supported, and its especially useful in REPL *)
     InterpLib.Error.report ~cls:FatalError
       "Unsolved unification variables left.";
     raise InterpLib.Error.Fatal_error

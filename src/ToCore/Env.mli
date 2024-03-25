@@ -9,7 +9,7 @@ open Common
 type t
 
 (** Empty environment *)
-val empty : t
+val empty : repl_mode:bool -> t
 
 (** Extend environment with type variable. *)
 val add_tvar : t -> S.tvar -> t * T.TVar.ex
@@ -26,3 +26,5 @@ val add_tvars' : t -> S.tvar list -> T.TVar.ex list -> t
 
 (** Lookup for a type variable. It must be present in the environment *)
 val lookup_tvar : t -> S.tvar -> T.TVar.ex
+
+val in_repl_mode : t -> bool

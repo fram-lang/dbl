@@ -12,13 +12,14 @@ let t_unit = TVar BuiltinType.tv_unit
 (** Get the kind of given type *)
 let rec kind : type k. k typ -> k kind =
   function
-  | TEffPure   -> KEffect
-  | TEffJoin _ -> KEffect
-  | TVar     x -> TVar.kind x
-  | TArrow   _ -> KType
-  | TForall  _ -> KType
-  | TLabel  _  -> KType
-  | TData    _ -> KType
+  | TUVar (_, k) -> k
+  | TEffPure     -> KEffect
+  | TEffJoin _   -> KEffect
+  | TVar     x   -> TVar.kind x
+  | TArrow   _   -> KType
+  | TForall  _   -> KType
+  | TLabel  _    -> KType
+  | TData    _   -> KType
   | TApp(tp, _) ->
     begin match kind tp with
     | KArrow(_, k) -> k
@@ -32,6 +33,10 @@ let subst_type x stp tp =
 let rec equal : type k. k typ -> k typ -> bool =
   fun tp1 tp2 ->
   match tp1, tp2 with
+  | TUVar(x,_), TUVar(y,_) -> UID.compare x y = 0
+  | _, TUVar _
+  | TUVar _, _ -> false
+
   | TEffPure,   _ -> effect_equal tp1 tp2
   | TEffJoin _, _ -> effect_equal tp1 tp2
   | _, TEffPure   -> effect_equal tp1 tp2
@@ -111,7 +116,7 @@ and subeffect eff1 eff2 =
   | TEffPure -> true
   | TEffJoin(eff_a, eff_b) ->
     subeffect eff_a eff2 && subeffect eff_b eff2
-  | TVar _ | TApp _ -> simple_subeffect eff1 eff2
+  | TUVar _ | TVar _ | TApp _ -> simple_subeffect eff1 eff2
 
 (** Check if simple effect (different than pure and join) is a subeffect of
   another effect *)
@@ -120,18 +125,22 @@ and simple_subeffect eff1 eff2 =
   | TEffPure -> false
   | TEffJoin(eff_a, eff_b) ->
     simple_subeffect eff1 eff_a || simple_subeffect eff1 eff_b
-  | TVar _ | TApp _ -> equal eff1 eff2
+  | TUVar _ | TVar _ | TApp _ -> equal eff1 eff2
 
 (** Check if one type is a subtype of another *)
 let rec subtype tp1 tp2 =
   match tp1, tp2 with
+  | TUVar _, TUVar _ -> equal tp1 tp2
+  | TUVar _, (TVar _ | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+    false
+
   | TVar x, TVar y -> x == y
-  | TVar _, (TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+  | TVar _, (TUVar _ | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _) ->
     false
 
   | TArrow(atp1, vtp1, eff1), TArrow(atp2, vtp2, eff2) ->
     subtype atp2 atp1 && subtype vtp1 vtp2 && subeffect eff1 eff2
-  | TArrow _, (TVar _ | TForall _ | TLabel _ | TData _ | TApp _) ->
+  | TArrow _, (TUVar _ | TVar _ | TForall _ | TLabel _ | TData _ | TApp _) ->
     false
 
   | TForall(x1, tp1), TForall(x2, tp2) ->
@@ -142,19 +151,19 @@ let rec subtype tp1 tp2 =
       subtype (subst_type x1 x tp1) (subst_type x2 x tp2)
     | NotEqual -> false
     end
-  | TForall _, (TVar _ | TArrow _ | TLabel _ | TData _ | TApp _) ->
+  | TForall _, (TUVar _ | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _) ->
     false
 
   | TLabel(_, _, _), TLabel(_, _, _) -> equal tp1 tp2
-  | TLabel _, (TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
+  | TLabel _, (TUVar _ | TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
     false
 
   | TData _, TData _ -> equal tp1 tp2
-  | TData _, (TVar _ | TArrow _ | TForall _ | TLabel _ | TApp _) ->
+  | TData _, (TUVar _ | TVar _ | TArrow _ | TForall _ | TLabel _ | TApp _) ->
     false
 
   | TApp _, TApp _ -> equal tp1 tp2
-  | TApp _, (TVar _ | TArrow _ | TForall _ | TLabel _ | TData _) ->
+  | TApp _, (TUVar _ | TVar _ | TArrow _ | TForall _ | TLabel _ | TData _) ->
     false
 
 let rec forall_map f xs =
@@ -171,7 +180,7 @@ let rec forall_map f xs =
 let rec type_in_scope : type k. _ -> k typ -> k typ option =
   fun scope tp ->
   match tp with
-  | TEffPure -> Some tp
+  | TUVar _ | TEffPure -> Some tp
   | TEffJoin(eff1, eff2) ->
     begin match type_in_scope scope eff1, type_in_scope scope eff2 with
     | Some eff1, Some eff2 -> Some (TEffJoin(eff1, eff2))
@@ -241,7 +250,7 @@ let supereffect_in_scope scope (eff : effect) =
   variables are members of given set ([scope]) *)
 let rec subeffect_in_scope scope (eff : effect) =
   match eff with
-  | TEffPure -> eff
+  | TUVar _ | TEffPure -> eff
   | TEffJoin(eff1, eff2) ->
     begin match
       subeffect_in_scope scope eff1,
@@ -264,7 +273,7 @@ let rec subeffect_in_scope scope (eff : effect) =
   are members of given set ([scope]) *)
 let rec supertype_in_scope scope (tp : ttype) =
   match tp with
-  | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
+  | TUVar _ | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       subtype_in_scope     scope tp1,
@@ -284,7 +293,7 @@ let rec supertype_in_scope scope (tp : ttype) =
   are members of given set ([scope]) *)
 and subtype_in_scope scope (tp : ttype) =
   match tp with
-  | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
+  | TUVar _ | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       supertype_in_scope scope tp1,

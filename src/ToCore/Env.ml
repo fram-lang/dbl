@@ -7,20 +7,22 @@
 open Common
 
 type t =
-  { tvar_map : T.TVar.ex S.TVar.Map.t
+  { tvar_map  : T.TVar.ex S.TVar.Map.t;
+    repl_mode : bool;
   }
 
-let empty =
+let empty ~repl_mode =
   { tvar_map =
       S.BuiltinType.all
       |> List.map (fun (name, x) -> (x, List.assoc name T.BuiltinType.all))
-      |> List.to_seq |> S.TVar.Map.of_seq
+    |> List.to_seq |> S.TVar.Map.of_seq;
+    repl_mode;
   }
 
 let add_tvar env x =
   let (Ex k) = tr_kind (S.TVar.kind x) in
   let y = T.TVar.Ex (T.TVar.fresh k) in
-  { tvar_map = S.TVar.Map.add x y env.tvar_map
+  { env with tvar_map = S.TVar.Map.add x y env.tvar_map
   }, y
 
 let add_named_tvar env (_, x) =
@@ -30,7 +32,7 @@ let add_tvars env xs =
   List.fold_left_map add_tvar env xs
 
 let add_tvar_ex' env x y =
-  { tvar_map = S.TVar.Map.add x y env.tvar_map }
+  { env with tvar_map = S.TVar.Map.add x y env.tvar_map }
 
 let add_tvars' env xs ys =
   List.fold_left2 add_tvar_ex' env xs ys
@@ -39,3 +41,5 @@ let lookup_tvar env x =
   try S.TVar.Map.find x env.tvar_map with
   | Not_found ->
     failwith "Internal error: unbound type variable"
+
+let in_repl_mode env = env.repl_mode
