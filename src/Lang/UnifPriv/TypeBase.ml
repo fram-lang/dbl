@@ -200,8 +200,8 @@ module UVar = struct
     assert (KindBase.non_effect kind);
     { uid   = UID.fresh ();
       kind  = kind;
-      state = BRef.ref UV_UVar;
-      scope = BRef.ref scope
+      state = BRef.create UV_UVar;
+      scope = BRef.create scope
     }
 
   let kind u = u.kind

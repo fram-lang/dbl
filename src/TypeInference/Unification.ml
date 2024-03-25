@@ -57,8 +57,7 @@ let rec check_kind_equal k1 k2 =
   | KArrow _, _ -> raise Error
 
 let unify_kind k1 k2 =
-  (* TODO: create reference backtracking point *)
-  match check_kind_equal k1 k2 with
+  match BRef.bracket (fun () -> check_kind_equal k1 k2) with
   | ()              -> true
   | exception Error -> false
 
@@ -309,26 +308,23 @@ and check_subscheme env sch1 sch2 =
     (T.Type.subst sub1 sch1.sch_body) (T.Type.subst sub2 sch2.sch_body)
 
 let unify_type env tp1 tp2 =
-  (* TODO: create reference backtracking point *)
-  match unify_at_kind env tp1 tp2 (T.Type.kind tp1) with
+  match BRef.bracket (fun () -> 
+  	unify_at_kind env tp1 tp2 (T.Type.kind tp1)) with
   | ()              -> true
   | exception Error -> false
 
 let subeffect env eff1 eff2 =
-  (* TODO: create reference backtracking point *)
-  match check_subeffect env eff1 eff2 with
+  match BRef.bracket (fun () -> check_subeffect env eff1 eff2) with
   | ()              -> true
   | exception Error -> false
 
 let subtype env tp1 tp2 =
-  (* TODO: create reference backtracking point *)
-  match check_subtype env tp1 tp2 with
+  match BRef.bracket (fun () -> check_subtype env tp1 tp2) with
   | ()              -> true
   | exception Error -> false
 
 let subscheme env sch1 sch2 =
-  (* TODO: create reference backtracking point *)
-  match check_subscheme env sch1 sch2 with
+  match BRef.bracket (fun () -> check_subscheme env sch1 sch2) with
   | ()              -> true
   | exception Error -> false
 
