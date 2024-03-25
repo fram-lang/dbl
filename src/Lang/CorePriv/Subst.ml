@@ -33,7 +33,7 @@ let add_tvars sub xs =
 let rec in_type_rec : type k. t -> k typ -> k typ =
   fun sub tp ->
   match tp with
-  | TEffPure -> tp
+  | TUVar _ | TEffPure -> tp
   | TEffJoin(eff1, eff2) ->
     TEffJoin(in_type_rec sub eff1, in_type_rec sub eff2)
   | TVar x ->
