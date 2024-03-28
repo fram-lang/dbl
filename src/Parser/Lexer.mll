@@ -26,7 +26,10 @@ let kw_map =
   ; "let",      KW_LET
   ; "match",    KW_MATCH
   ; "method",   KW_METHOD
+  ; "module",   KW_MODULE
   ; "of",       KW_OF
+  ; "open",     KW_OPEN
+  ; "pub",      KW_PUB
   ; "rec",      KW_REC
   ; "return",   KW_RETURN
   ; "then",     KW_THEN

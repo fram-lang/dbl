@@ -23,6 +23,19 @@ type ctor_name = string
 (** Name of a method *)
 type method_name = string
 
+(** Name of a module *)
+type module_name = string
+
+(** Module path to an identifier of type 'a *)
+type 'a path =
+  | NPName of 'a
+  | NPSel  of module_name * 'a path
+
+(** Extract the base name from a path *)
+let rec path_name = function
+  | NPName x    -> x
+  | NPSel(_, p) -> path_name p
+
 (** Name of a named type parameter *)
 type tname =
   | TNAnon
@@ -50,7 +63,7 @@ and type_expr_data =
   | TWildcard
     (** A placeholder for a fresh unification variable *)
 
-  | TVar of tvar
+  | TVar of tvar path
     (** A (non-unification) type variable *)
 
   | TPureArrow of scheme_expr * type_expr
@@ -115,7 +128,7 @@ and pattern_data =
   | PId of ident
     (** Pattern that binds an identifier*)
 
-  | PCtor of ctor_name node * named_type_arg list *
+  | PCtor of ctor_name path node * named_type_arg list *
              named_pattern list * pattern list
     (** ADT constructor pattern *)
 
@@ -142,13 +155,13 @@ type type_inst = (tname * type_expr) node
 (** Polymorphic expressions *)
 type poly_expr = poly_expr_data node
 and poly_expr_data =
-  | EVar      of var
+  | EVar      of var path
     (** Variable *)
 
-  | EImplicit of iname
+  | EImplicit of iname path
     (** Implicit parameter *)
 
-  | ECtor     of ctor_name
+  | ECtor     of ctor_name path
     (** ADT constructor *)
 
   | EMethod   of expr * method_name
@@ -249,9 +262,18 @@ and def_data =
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
 
+  | DModule of module_name * def list
+    (** Definition of a module *)
+
+  | DOpen of module_name path
+    (** Opening a module *)
+
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
+
+  | DPub of def
+    (** Mark a definition as public *)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

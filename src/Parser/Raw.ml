@@ -30,6 +30,14 @@ type ctor_name = string
 (** Names of methods *)
 type method_name = string
 
+(** Names of modules *)
+type module_name = string
+
+(** Module path to an identifier of type 'a *)
+type 'a path = 'a Lang.Surface.path =
+  | NPName of 'a
+  | NPSel  of module_name * 'a path
+
 (** Field of record-like, e.g., scheme name parameters, or explicit
   instantiation *)
 type ('tp, 'e) field_data =
@@ -66,7 +74,7 @@ and type_expr_data =
   | TParen of type_expr
     (** Parentheses *)
 
-  | TVar of tvar
+  | TVar of tvar path
     (** Type variable *)
 
   | TArrow of type_expr * type_expr
@@ -162,6 +170,9 @@ and expr_data =
   | EIf of expr * expr * expr
     (** If-then-else expression *)
 
+  | ESelect of module_name path * expr
+    (** Selection from a module *)
+
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =
@@ -196,6 +207,15 @@ and def_data =
 
   | DMethod of expr * expr
     (** Method definition *)
+
+  | DModule of module_name * def list
+    (** Definition of a module *)
+
+  | DOpen of module_name path
+    (** Opening a module *)
+
+  | DPub of def
+    (** Mark a definition as public *)
 
 (** Additional clauses of handlers *)
 and h_clause = h_clause_data node

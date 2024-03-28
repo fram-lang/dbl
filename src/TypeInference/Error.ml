@@ -24,6 +24,11 @@ let warn (pos, msg, notes) =
   InterpLib.Error.report ~pos ~cls:Warning msg;
   List.iter report_note notes
 
+let rec string_of_path (p : string Lang.Surface.path) =
+  match p with
+  | NPName x    -> x
+  | NPSel(n, p) -> Printf.sprintf "%s.%s" n (string_of_path p)
+
 let string_of_name (name : Lang.Unif.name) =
   match name with
   | NLabel -> "the effect label"
@@ -59,16 +64,19 @@ let type_not_function ~pos k =
   in (pos, msg, [])
 
 let unbound_var ~pos x =
-  (pos, Printf.sprintf "Unbound variable %s" x, [])
+  (pos, Printf.sprintf "Unbound variable %s" (string_of_path x), [])
 
 let unbound_implicit ~pos name =
-  (pos, Printf.sprintf "Unbound implicit %s" name, [])
+  (pos, Printf.sprintf "Unbound implicit %s" (string_of_path name), [])
 
 let unbound_constructor ~pos name =
-  (pos, Printf.sprintf "Unbound constructor %s" name, [])
+  (pos, Printf.sprintf "Unbound constructor %s" (string_of_path name), [])
 
 let unbound_type_var ~pos x =
-  (pos, Printf.sprintf "Unbound type %s" x, [])
+  (pos, Printf.sprintf "Unbound type %s" (string_of_path x), [])
+
+let unbound_module ~pos name =
+  (pos, Printf.sprintf "Unbound module %s" (string_of_path name), [])
 
 let unbound_the_effect ~pos =
   (pos, Printf.sprintf "There is no default effect in this context", [])
@@ -378,10 +386,10 @@ let type_generalized_twice ~pos name =
       (Pretty.tname_to_string name) in
   (pos, msg, [])
 
-let ctor_arity_mismatch ~pos cname req_n prov_n =
+let ctor_arity_mismatch ~pos cpath req_n prov_n =
   (pos,
     Printf.sprintf "Constructor %s expects %d parameter(s), but is applied to %d"
-      cname req_n prov_n,
+      (string_of_path cpath) req_n prov_n,
     [])
 
 let redundant_named_type ~pos (name : Lang.Unif.tname) =

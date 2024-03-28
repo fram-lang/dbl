@@ -277,6 +277,7 @@ and infer_expr_type env (e : S.expr) eff =
   the purity of an expression. *)
 and check_expr_type env (e : S.expr) tp eff =
   let make data = { e with data = data } in
+  let pos = e.pos in
   match e.data with
   | EUnit | ENum _ | EStr _ | EPoly _ | EApp _ ->
     check_expr_type_default env e tp eff
@@ -290,7 +291,7 @@ and check_expr_type env (e : S.expr) tp eff =
       let (env, pat, r_eff1) = Pattern.check_arg_scheme env arg sch in
       let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
       if ret_effect_join r_eff1 r_eff2 <> Pure then
-        Error.report (Error.func_not_pure ~pos:e.pos);
+        Error.report (Error.func_not_pure ~pos);
       let (x, body) = ExprUtils.arg_match pat body tp2 T.Effect.pure in
       (make (T.EPureFn(x, sch, body)), Pure)
 
@@ -301,7 +302,7 @@ and check_expr_type env (e : S.expr) tp eff =
       (make (T.EFn(x, sch, body)), Pure)
 
     | Arr_No ->
-      Error.report (Error.expr_not_function_ctx ~pos:e.pos ~env tp);
+      Error.report (Error.expr_not_function_ctx ~pos ~env tp);
       let (e, _, r_eff) = infer_expr_type env e eff in
       (e, r_eff)
     end
@@ -324,14 +325,14 @@ and check_expr_type env (e : S.expr) tp eff =
         (make (T.EMatchEmpty(proof, me, tp, eff)), Impure)
 
       | Some { adt_ctors = _ :: _; _ } ->
-        Error.fatal (Error.empty_match_on_nonempty_adt ~pos:e.pos ~env me_tp)
+        Error.fatal (Error.empty_match_on_nonempty_adt ~pos ~env me_tp)
       | None ->
-        Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
+        Error.fatal (Error.empty_match_on_non_adt ~pos ~env me_tp)
       end
 
     | Whnf_Neutral(NH_UVar _, _) | Whnf_PureArrow _
     | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
-      Error.fatal (Error.empty_match_on_non_adt ~pos:e.pos ~env me_tp)
+      Error.fatal (Error.empty_match_on_non_adt ~pos ~env me_tp)
 
     | Whnf_Effect _ | Whnf_Effrow _ ->
       failwith "Internal kind error"
@@ -345,7 +346,7 @@ and check_expr_type env (e : S.expr) tp eff =
   | EHandler h ->
     begin match Unification.from_handler env tp with
     | H_Handler(b, tp, tp0, eff0) ->
-      let (env, a) = Env.add_the_effect ~pos:e.pos env in
+      let (env, a) = Env.add_the_effect ~pos env in
       let sub  = T.Subst.rename_to_fresh T.Subst.empty b a in
       let tp   = T.Type.subst sub tp in
       let tp0  = T.Type.subst sub tp0 in
@@ -354,13 +355,13 @@ and check_expr_type env (e : S.expr) tp eff =
       let (h, r_eff) = check_expr_type env h tp T.Effect.pure in
       begin match r_eff with
       | Pure -> ()
-      | Impure -> Error.report (Error.impure_handler ~pos:e.pos)
+      | Impure -> Error.report (Error.impure_handler ~pos)
       end;
       let e = make (T.EHandler(a, l, tp0, eff0, h)) in
       (e, Pure)
 
     | H_No ->
-      Error.fatal (Error.expr_not_handler_ctx ~pos:e.pos ~env tp)
+      Error.fatal (Error.expr_not_handler_ctx ~pos ~env tp)
     end
 
   | EEffect(arg, body) ->
@@ -368,7 +369,7 @@ and check_expr_type env (e : S.expr) tp eff =
     | Some(lx, l_eff0, res_tp, res_eff) ->
       let l_eff = T.Type.t_closed_effrow (T.Type.effect_view l_eff0) in
       if not (Unification.subeffect env l_eff eff) then
-        Error.report (Error.expr_effect_mismatch ~pos:e.pos ~env l_eff eff);
+        Error.report (Error.expr_effect_mismatch ~pos ~env l_eff eff);
       let r_tp = T.Type.t_arrow (T.Scheme.of_type tp) res_tp res_eff in
       let (env, rpat, _) =
         Pattern.check_arg_scheme env arg (T.Scheme.of_type r_tp) in
@@ -378,7 +379,7 @@ and check_expr_type env (e : S.expr) tp eff =
       (e, Impure)
 
     | None ->
-      Error.fatal (Error.unbound_the_label ~pos:e.pos)
+      Error.fatal (Error.unbound_the_label ~pos)
     end
 
   | EExtern name ->
@@ -387,7 +388,7 @@ and check_expr_type env (e : S.expr) tp eff =
   | EAnnot(e', tp') ->
     let tp' = Type.tr_ttype env tp' in
     if not (Unification.subtype env tp' tp) then
-      Error.report (Error.expr_type_mismatch ~pos:e.pos ~env tp' tp);
+      Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
     check_expr_type env e' tp' eff
 
   | ERepl def_seq ->
@@ -452,7 +453,7 @@ and extract_implicit_type_hints ~pos env (sch : T.scheme) inst eff =
           begin match name with
           | NLabel | NVar _ -> None
           | NImplicit n ->
-            Some (make (S.EPoly(make (S.EImplicit n), [], [])))
+            Some (make (S.EPoly(make (S.EImplicit (S.NPName n)), [], [])))
           end
         | Some e -> Some e
       in
@@ -525,10 +526,10 @@ and check_defs : type dir.
       { run = fun env ienv req eff -> check_defs env ienv defs req eff cont }
 
 and check_def : type dir.
-  Env.t -> ImplicitEnv.t -> S.def ->
+  Env.t -> ImplicitEnv.t -> ?public:bool -> S.def ->
     (T.typ, dir) request -> T.effrow -> def_cont ->
       T.expr * (T.typ, dir) response * ret_effect =
-  fun env ienv def req eff cont ->
+  fun env ienv ?(public=false) def req eff cont ->
   let make (e : T.expr) data =
     { T.pos  = Position.join def.pos e.pos;
       T.data = data
@@ -537,7 +538,8 @@ and check_def : type dir.
   match def.data with
   | DLetId(id, e1) ->
     let (sch, e1, r_eff1) = check_let ~pos env ienv e1 eff in
-    let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos env ienv id sch in
+    let (env, ienv, x) =
+      ImplicitEnv.add_poly_id ~pos env ienv ~public id sch in
     let (e2, resp, r_eff2) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, e1, e2)), resp, ret_effect_join r_eff1 r_eff2)
 
@@ -556,7 +558,8 @@ and check_def : type dir.
     let (tvars1, ims1) = ImplicitEnv.end_generalize_pure ims1 in
     let (body, sch) =
       ExprUtils.generalize ~pos env (tvars1 @ tvars2) (ims1 @ ims2) body tp in
-    let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos env ienv id sch in
+    let (env, ienv, x) =
+      ImplicitEnv.add_poly_id ~pos env ienv ~public id sch in
     let (e2, resp, r_eff) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
 
@@ -565,7 +568,8 @@ and check_def : type dir.
     let scope = Env.scope env1 in
     let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
     ImplicitEnv.end_generalize_impure ims;
-    let (env, pat, names, r_eff2) = Pattern.check_type ~env ~scope pat tp in
+    let (env, pat, names, r_eff2) =
+      Pattern.check_type ~env ~scope ~public pat tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, r_eff3) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
@@ -582,7 +586,8 @@ and check_def : type dir.
     let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
     let l_tp = T.Type.t_label (T.Type.t_var l_eff) tp0 eff0 in
     let scope1 = Env.scope env in
-    let (env, pat, names, _) = Pattern.check_type ~env ~scope:scope1 pat l_tp in
+    let (env, pat, names, _) =
+      Pattern.check_type ~env ~scope:scope1 ~public pat l_tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, _) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
@@ -674,7 +679,7 @@ and check_def : type dir.
         Error.report (Error.delim_effect_mismatch
           ~pos:def.pos ~env lbl.l_delim_eff res_eff);
       let (env, pat, names, _) =
-        Pattern.check_type ~env ~scope:(Env.scope env) pat cap_tp in
+        Pattern.check_type ~env ~scope:(Env.scope env) ~public pat cap_tp in
       let ienv = ImplicitEnv.shadow_names ienv names in
       let (ret_x, body_tp, ret_body) =
         check_return_clauses env rcs res_tp res_eff in
@@ -717,17 +722,36 @@ and check_def : type dir.
 
   | DData dd ->
     let scope = Env.scope env in
-    let (env, dd) = DataType.check_data_def env dd in
+    let (env, dd) = DataType.check_data_def env ~public dd in
     let (e, resp, r_eff) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData([dd], e)), resp, r_eff)
 
   | DDataRec dds ->
     let scope = Env.scope env in
-    let (env, dds) = DataType.check_rec_data_defs env dds in
+    let (env, dds) = DataType.check_rec_data_defs env ~public dds in
     let (e, resp, r_eff) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData(dds, e)), resp, r_eff)
+
+  | DModule(name, defs) ->
+    let env = Env.enter_module env in
+    check_defs env ImplicitEnv.empty defs req eff
+      { run = fun env _ req eff ->
+        let env = Env.leave_module env ~public name in
+        cont.run env ienv req eff }
+
+  | DOpen path ->
+    begin match Env.lookup_module env path with
+    | Some m ->
+      let env = Env.open_module env ~public m in
+      cont.run env ienv req eff
+    | None ->
+      Error.report (Error.unbound_module ~pos path);
+      cont.run env ienv req eff
+    end
+
+  | DPub def -> check_def env ienv ~public:true def req eff cont
 
   | DReplExpr e1 ->
     let (env1, ims) = ImplicitEnv.begin_generalize env ienv in

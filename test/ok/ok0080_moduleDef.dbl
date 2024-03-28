@@ -1,0 +1,9 @@
+module X
+  let     f x = x
+  pub let id  = f
+  pub let x   = 42
+end
+
+open X
+
+let z = id x
