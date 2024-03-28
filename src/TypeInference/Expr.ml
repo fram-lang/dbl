@@ -162,7 +162,8 @@ and method_call_ctx ~pos ~env ~self ~self_tp ~self_r_eff ~eff =
         (Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp');
     if not (Unification.subeffect env res_eff eff) then
       Error.report (Error.method_effect_mismatch ~pos ~env res_eff eff);
-    (result_expr, res_tp, ret_effect_join self_r_eff r_eff)
+    (* The method is impure, so the result is impure too. *)
+    (result_expr, res_tp, Impure)
   | TPureArrow(
       { sch_targs = []; sch_named = []; sch_body = self_tp' },
       res_tp) ->

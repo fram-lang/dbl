@@ -1,0 +1,5 @@
+data U = I
+
+method foo {self = I} = I
+
+let baz I (x : U) = x.foo
