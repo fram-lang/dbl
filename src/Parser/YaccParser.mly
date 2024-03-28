@@ -272,9 +272,6 @@ data_rec_rest
 def
 : KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
-| KW_LABEL  expr         { make (DLabel $2) }
-| KW_HANDLE expr EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
-| KW_HANDLE expr KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
 | KW_METHOD expr EQ expr { make (DMethod($2, $4)) }
 | KW_PUB def_10 { make (DPub $2) }
 | def_10 { $1 }
@@ -284,6 +281,9 @@ def_10
 : KW_LET expr EQ expr    { make (DLet($2, $4)) }
 | data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
+| KW_LABEL  expr         { make (DLabel $2) }
+| KW_HANDLE expr EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
+| KW_HANDLE expr KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
 | KW_MODULE UID def_list KW_END { make (DModule($2, $3)) }
 | KW_OPEN uid_path { make (DOpen $2) }
 ;
