@@ -45,7 +45,7 @@ val instantiate_named_params :
 
 (** Create a function that represents ADT constructor of given index,
   not applied to any parameters yet, even the type parameters of the ADT. *)
-val ctor_func : pos:Position.t -> int -> Env.adt_info -> T.expr
+val ctor_func : pos:Position.t -> int -> Module.adt_info -> T.expr
 
 (** Extend an expression with pattern-matching on argument or other form
   of binder. In call [arg_match pat body tp eff] the meaning of the parameters

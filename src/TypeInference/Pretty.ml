@@ -89,6 +89,11 @@ end = struct
       end
     | None    -> false
 
+  let rec pp_path (p : string S.path) =
+    match p with
+    | NPName x    -> x
+    | NPSel(n, p) -> Printf.sprintf "%s.%s" n (pp_path p)
+
   let lookup_tvar env x =
     match T.TVar.Map.find_opt x env.local_names with
     | Some name -> Some name
@@ -96,7 +101,7 @@ end = struct
       begin match Env.lookup_tvar_pp_info env.env x with
       | Some info ->
         begin match List.find_opt (tvar_valid_name env x) info.pp_names with
-        | Some name -> Some name
+        | Some path -> Some (pp_path path)
         | None -> T.TVar.Map.find_opt x env.context.tvar_map
         end
       | None -> T.TVar.Map.find_opt x env.context.tvar_map

@@ -23,12 +23,12 @@ let check_ctor_decl ~data_targs env (ctor : S.ctor_decl) =
 let check_ctor_decls ~data_targs env ctors =
   List.map (check_ctor_decl ~data_targs env) ctors
 
-let open_data_ctor adt (env, n) (ctor : T.ctor_decl) =
-  let env = Env.add_ctor env ctor.ctor_name n adt in
+let open_data_ctor ~public adt (env, n) (ctor : T.ctor_decl) =
+  let env = Env.add_ctor env ~public ctor.ctor_name n adt in
   (env, n+1)
 
-let open_data env (adt : Env.adt_info) =
-  List.fold_left (open_data_ctor adt) (env, 0) adt.adt_ctors
+let open_data env ~public adt =
+  List.fold_left (open_data_ctor ~public adt) (env, 0) adt.adt_ctors
   |> fst
 
 let check_data_def_main env (dd : S.data_def) kind =
@@ -46,19 +46,19 @@ let check_data_def_main env (dd : S.data_def) kind =
   let ctors = check_ctor_decls ~data_targs:args env ctors in
   (args, ctors)
 
-let finalize_data_def env (dd : S.data_def) x args ctors =
+let finalize_data_def env ~public (dd : S.data_def) x args ctors =
   let (DD_Data(name, _, _)) = dd.data in
   let px = Var.fresh ~name () in
   let info = {
-    Env.adt_proof = { T.pos = dd.pos; T.data = T.EVar px };
-    Env.adt_args  = args;
-    Env.adt_ctors = ctors;
-    Env.adt_type  =
+    Module.adt_proof = { T.pos = dd.pos; T.data = T.EVar px };
+    Module.adt_args  = args;
+    Module.adt_ctors = ctors;
+    Module.adt_type  =
       T.Type.t_apps (T.Type.t_var x)
         (List.map (fun (_, x) -> T.Type.t_var x) args)
   } in
   let env = Env.add_data env x info in
-  let env = open_data env info in
+  let env = open_data env ~public info in
   let dd = {
     T.dd_tvar  = x;
     T.dd_proof = px;
@@ -67,27 +67,27 @@ let finalize_data_def env (dd : S.data_def) x args ctors =
   } in
   (env, dd)
 
-let check_data_def env (dd : S.data_def) =
+let check_data_def env ~public (dd : S.data_def) =
   let (DD_Data(name, _, _)) = dd.data in
   let kind = T.Kind.fresh_uvar () in
   let (args, ctors) = check_data_def_main env dd kind in
-  let (env, x) = Env.add_tvar ~pos:dd.pos env name kind in
-  finalize_data_def env dd x args ctors
+  let (env, x) = Env.add_tvar ~pos:dd.pos env ~public name kind in
+  finalize_data_def env ~public dd x args ctors
 
-let prepare_rec_data_def env (dd : S.data_def) =
+let prepare_rec_data_def env ~public (dd : S.data_def) =
   let (DD_Data(name, args, _)) = dd.data in
   let (_, args) = Type.tr_named_type_args env args in
   let kind =
     T.Kind.k_arrows
       (List.map (fun (_, x) -> T.TVar.kind x) args)
       T.Kind.k_type in
-  let (env, x) = Env.add_tvar ~pos:dd.pos env name kind in
+  let (env, x) = Env.add_tvar ~pos:dd.pos env ~public name kind in
   (env, (x, dd))
 
-let finalize_rec_data_def env (x, dd) =
+let finalize_rec_data_def env ~public (x, dd) =
   let (args, ctors) = check_data_def_main env dd (T.TVar.kind x) in
-  finalize_data_def env dd x args ctors
+  finalize_data_def env ~public dd x args ctors
 
-let check_rec_data_defs env dds =
-  let (env, dds) = List.fold_left_map prepare_rec_data_def env dds in
-  List.fold_left_map finalize_rec_data_def env dds
+let check_rec_data_defs env ~public dds =
+  let (env, dds) = List.fold_left_map (prepare_rec_data_def ~public) env dds in
+  List.fold_left_map (finalize_rec_data_def ~public) env dds

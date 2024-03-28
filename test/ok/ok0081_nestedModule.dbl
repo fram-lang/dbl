@@ -1,0 +1,16 @@
+module Z
+  pub let id x = x
+end
+
+module X
+  let x = 42
+
+  pub module Y
+    pub open Z
+    pub let x = id x
+  end
+end
+
+open X.Y
+
+let y = id x

@@ -69,6 +69,11 @@ let ident_of_name (name : Raw.name) =
   | NVar x      -> IdVar x
   | NImplicit n -> IdImplicit n
 
+let rec path_append path rest =
+  match path with
+  | NPName name       -> NPSel(name, rest)
+  | NPSel(name, path) -> NPSel(name, path_append path rest)
+
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
@@ -161,30 +166,30 @@ and tr_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
-  | TVar x    -> make (TA_Var x)
-  | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ | TTypeLbl _
-  | TEffectLbl _ ->
+  | TVar (NPName x) -> make (TA_Var x)
+  | TVar (NPSel _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
+  | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a type expression as a named type parameter *)
 let rec tr_named_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
-  | TParen tp   -> make (tr_named_type_arg tp).data
-  | TVar   x    -> make (TNVar x, make (TA_Var x))
+  | TParen tp -> make (tr_named_type_arg tp).data
+  | TVar (NPName x) -> make (TNVar x, make (TA_Var x))
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
-  | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+  | TVar (NPSel _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
   parameter is an accumulated list of formal parameters *)
 let rec tr_type_def (tp : Raw.type_expr) args =
   match tp.data with
-  | TVar x -> TD_Id(x, args)
+  | TVar (NPName x) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
-  | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _ | TTypeLbl _
-  | TEffectLbl _ ->
+  | TVar (NPSel _) | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _
+  | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 let tr_ctor_decl (d : Raw.ctor_decl) =
@@ -221,37 +226,34 @@ let rec collect_fields ~ppos (es : Raw.expr list) =
     (flds @ flds', pos, es)
   | _ -> ([], ppos, es)
 
+(** Translate a constructor name in a pattern *)
+let rec tr_ctor_pattern (p : Raw.expr) =
+  match p.data with
+  | EUnit            -> NPName "()"
+  | ECtor c          -> NPName c
+  | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
+  | EWildcard | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
+  | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
+  | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
+    Error.fatal (Error.desugar_error p.pos)
+
 (** Translate a pattern *)
 let rec tr_pattern (p : Raw.expr) =
   let make data = { p with data = data } in
   match p.data with
   | EWildcard   -> make PWildcard
-  | EUnit       -> make (PCtor(make "()", [], [], []))
+  | EUnit | ECtor _ | ESelect _ ->
+    make (PCtor(make (tr_ctor_pattern p), [], [], []))
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern p).data
   | EVar      x -> make (PId (IdVar x))
   | EImplicit n -> make (PId (IdImplicit n))
-  | ECtor     c -> make (PCtor(make c, [], [], []))
   | EApp(p1, ps) ->
-    begin match p1.data with
-    | ECtor _ | EUnit ->
-      let name =
-        match p1.data with
-        | EUnit   -> "()"
-        | ECtor c -> c
-        | _ -> assert false
-      in
-      let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
-      let (targs, iargs) = map_inst_like tr_named_pattern flds in
-      make (PCtor({ p1 with data = name},
-        targs, iargs, List.map tr_pattern ps))
-
-    | EWildcard | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
-    | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-    | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
-      Error.fatal (Error.desugar_error p1.pos)
-    end
+    let cpath = { p1 with data = tr_ctor_pattern p1 } in
+    let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
+    let (targs, iargs) = map_inst_like tr_named_pattern flds in
+    make (PCtor(cpath, targs, iargs, List.map tr_pattern ps))
   | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -287,7 +289,7 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern p, tr_scheme_expr sch)
   | EWildcard | EUnit | ENum _ | EStr _ | EVar _ | EImplicit _ | ECtor _
-  | EApp _ ->
+  | EApp _ | ESelect _ ->
     ArgPattern (tr_pattern arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
@@ -334,7 +336,7 @@ let rec tr_let_pattern (p : Raw.expr) =
       let (targs, iargs) = map_inst_like tr_named_arg flds in
       LP_Fun(id, targs, iargs, ps)
 
-    | EUnit | ENum _ | EStr _ | ECtor _ ->
+    | EUnit | ENum _ | EStr _ | ECtor _ | ESelect _ ->
       LP_Pat(tr_pattern p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
@@ -342,7 +344,8 @@ let rec tr_let_pattern (p : Raw.expr) =
       Error.fatal (Error.desugar_error p1.pos)
     end
 
-  | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | ECtor _ | EAnnot _ ->
+  | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | ECtor _ | EAnnot _
+  | ESelect _ ->
     LP_Pat (tr_pattern p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -361,12 +364,25 @@ let rec tr_function args body =
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit       -> make (ECtor  "()")
-  | EVar      x -> make (EVar      x)
-  | EImplicit n -> make (EImplicit n)
-  | ECtor     c -> make (ECtor     c)
+  | EUnit       -> make (ECtor     (NPName "()"))
+  | EVar      x -> make (EVar      (NPName    x))
+  | EImplicit n -> make (EImplicit (NPName    n))
+  | ECtor     c -> make (ECtor     (NPName    c))
   | EMethod(e, name) ->
     make (EMethod(tr_expr e, name))
+  | ESelect(path, e) ->
+    let prepend_path n = path_append path (NPName n) in
+    begin match e.data with
+    | EUnit       -> make (ECtor     (prepend_path "()"))
+    | EVar      x -> make (EVar      (prepend_path x))
+    | EImplicit n -> make (EImplicit (prepend_path n))
+    | ECtor     c -> make (ECtor     (prepend_path c))
+
+    | EWildcard | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
+    | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
+    | EAnnot _ | EIf _ | EMethod _ | ESelect _ ->
+      Error.fatal (Error.desugar_error e.pos)
+    end
 
   | EWildcard | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
@@ -407,9 +423,13 @@ and tr_expr (e : Raw.expr) =
   | EExtern name -> make (EExtern name)
   | EAnnot(e, tp) -> make (EAnnot(tr_expr e, tr_type_expr tp))
   | EIf(e, e1, e2) ->
-    let cl1 = Clause(make (PCtor(make "True", [], [], [])), tr_expr e1) in
-    let cl2 = Clause(make (PCtor(make "False", [], [], [])), tr_expr e2) in
+    let cl1 =
+      Clause(make (PCtor(make (NPName "True"), [], [], [])), tr_expr e1) in
+    let cl2 =
+      Clause(make (PCtor(make (NPName "False"), [], [], [])), tr_expr e2) in
     make (EMatch(tr_expr e, [make cl1; make cl2]))
+  | ESelect(path, e) ->
+    make (EDefs([ make (DOpen path) ], tr_expr e))
   | EWildcard | ERecord _ ->
     Error.fatal (Error.desugar_error e.pos)
 
@@ -437,15 +457,15 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldEffectVal eff ->
     Either.Left (make (TNEffect, tr_type_expr eff))
   | FldType x ->
-    Either.Left (make (TNVar x, make (TVar x)))
+    Either.Left (make (TNVar x, make (TVar (NPName x))))
   | FldTypeVal(x, tp) ->
     Either.Left (make (TNVar x, tr_type_expr tp))
   | FldName n ->
     let pe =
       match n with
       | NLabel      -> Error.fatal (Error.desugar_error fld.pos)
-      | NVar      x -> make (EVar x)
-      | NImplicit n -> make (EImplicit n)
+      | NVar      x -> make (EVar (NPName x))
+      | NImplicit n -> make (EImplicit (NPName n))
     in
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
@@ -510,6 +530,9 @@ and tr_def (def : Raw.def) =
     let (lbl_opt, eff_opt, pat)  = tr_handle_pattern pat in
     let body = tr_expr e in
     make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs
+  | DModule(x, defs) -> make (DModule(x, tr_defs defs))
+  | DOpen path       -> make (DOpen path)
+  | DPub  def        -> make (DPub (tr_def def))
 
 and tr_defs defs = List.map tr_def defs
 

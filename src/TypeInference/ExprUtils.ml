@@ -143,12 +143,12 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
   | Some arg, _ ->
     { T.pos = e.pos; T.data = T.EApp(e, arg) }
   | None, T.NImplicit iname ->
-    begin match Env.lookup_implicit env iname with
+    begin match Env.lookup_implicit env (NPName iname) with
     | Some(x, sch, on_use) ->
       on_use e.pos;
       instantiate_with_var x sch
     | None ->
-      Error.fatal (Error.unbound_implicit ~pos:e.pos iname)
+      Error.fatal (Error.unbound_implicit ~pos:e.pos (NPName iname))
     end
   | None, T.NLabel ->
     begin match Env.lookup_the_label env with
@@ -166,7 +166,7 @@ let instantiate_named_params env e ims inst =
 
 (* ========================================================================= *)
 
-let ctor_func ~pos idx (info : Env.adt_info) =
+let ctor_func ~pos idx (info : Module.adt_info) =
   let type_of_named_targ (_, x) = T.Type.t_var x in
   let mk_var x = { T.pos = pos; T.data = T.EVar x } in
   let ctor = List.nth info.adt_ctors idx in

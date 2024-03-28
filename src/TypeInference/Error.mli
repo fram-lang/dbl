@@ -28,10 +28,11 @@ val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
 
 val type_not_function : pos:Position.t -> T.kind -> t
 
-val unbound_var : pos:Position.t -> S.var -> t
-val unbound_implicit : pos:Position.t -> S.iname -> t
-val unbound_constructor : pos:Position.t -> S.ctor_name -> t
-val unbound_type_var : pos:Position.t -> S.tvar -> t
+val unbound_var : pos:Position.t -> S.var S.path -> t
+val unbound_implicit : pos:Position.t -> S.iname S.path -> t
+val unbound_constructor : pos:Position.t -> S.ctor_name S.path -> t
+val unbound_type_var : pos:Position.t -> S.tvar S.path -> t
+val unbound_module : pos:Position.t -> S.module_name S.path -> t
 val unbound_the_effect : pos:Position.t -> t
 val unbound_named_param : pos:Position.t -> S.var -> t
 val unbound_the_label : pos:Position.t -> t
@@ -125,7 +126,7 @@ val multiple_name_binders :
 val type_generalized_twice : pos:Position.t -> T.tname -> t
 
 val ctor_arity_mismatch :
-  pos:Position.t -> S.ctor_name -> int -> int -> t
+  pos:Position.t -> S.ctor_name S.path -> int -> int -> t
 
 val redundant_named_type : pos:Position.t -> T.tname -> t
 val redundant_named_parameter : pos:Position.t -> T.name -> t

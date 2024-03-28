@@ -1,0 +1,22 @@
+module X
+  pub data T     = C
+  pub data rec N = Z | S of N
+  pub data P     = P of T, T
+  pub data R     = R of { l : T }
+
+  pub let id x = x
+end
+
+let f1 (C : X.T) = ()
+let f2 X.C = ()
+
+let X.C = X.id X.C
+let X.P x y = X.P X.C X.C
+
+let r = X.R { l = X.C }
+
+open X
+
+let g C = C
+
+let s (n : N) = S n

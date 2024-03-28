@@ -13,7 +13,8 @@
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
 %token KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY KW_FN
 %token KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH
-%token KW_METHOD KW_OF KW_REC KW_RETURN KW_THEN KW_TYPE KW_WITH
+%token KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN KW_THEN
+%token KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -54,6 +55,11 @@ name
 | TLID     { NImplicit $1 }
 ;
 
+uid_path
+: UID              { NPName $1     }
+| UID DOT uid_path { NPSel($1, $3) }
+;
+
 /* ========================================================================= */
 
 ty_expr
@@ -70,7 +76,7 @@ ty_expr_app
 
 ty_expr_simple
 : BR_OPN ty_expr BR_CLS { make (TParen $2) }
-| UID        { make (TVar $1) }
+| uid_path { make (TVar $1) }
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effect SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
@@ -171,9 +177,20 @@ expr_200
 | KW_EXTERN LID { make (EExtern $2) }
 ;
 
+expr_ctor
+: UID { make (ECtor $1) }
+;
+
+expr_select
+: UID DOT expr_ctor   { (NPName $1, $3) }
+| UID DOT expr_300    { (NPName $1, $3) }
+| UID DOT expr_select { let (p, e) = $3 in (NPSel($1, p), e) }
+;
+
 expr_250
-: expr_simple { $1 }
-| expr_250 DOT LID { make (EMethod($1, $3)) }
+: expr_300    { $1 }
+| expr_ctor   { $1 }
+| expr_select { let (p, e) = $1 in make (ESelect(p, e)) }
 ;
 
 expr_250_list1
@@ -185,10 +202,14 @@ expr_250_list
 | expr_250 expr_250_list { $1 :: $2 }
 ;
 
+expr_300
+: expr_simple { $1 }
+| expr_300 DOT LID { make (EMethod($1, $3)) }
+;
+
 expr_simple
 : LID                { make (EVar $1)      }
 | TLID               { make (EImplicit $1) }
-| UID                { make (ECtor $1)     }
 | UNDERSCORE         { make EWildcard      }
 | NUM                { make (ENum $1)      }
 | STR                { make (EStr $1)      }
@@ -249,15 +270,22 @@ data_rec_rest
 /* ========================================================================= */
 
 def
-: KW_LET expr EQ expr    { make (DLet($2, $4)) }
-| KW_IMPLICIT TLID implicit_ty_args type_annot_opt
+: KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
+| KW_METHOD expr EQ expr { make (DMethod($2, $4)) }
+| KW_PUB def_10 { make (DPub $2) }
+| def_10 { $1 }
+;
+
+def_10
+: KW_LET expr EQ expr    { make (DLet($2, $4)) }
 | data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
 | KW_LABEL  expr         { make (DLabel $2) }
 | KW_HANDLE expr EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
 | KW_HANDLE expr KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
-| KW_METHOD expr EQ expr { make (DMethod($2, $4)) }
+| KW_MODULE UID def_list KW_END { make (DModule($2, $3)) }
+| KW_OPEN uid_path { make (DOpen $2) }
 ;
 
 def_list
