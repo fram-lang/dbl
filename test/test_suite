@@ -15,3 +15,12 @@ function simple_examples {
 }
 
 run_with_flags simple_examples ""
+
+function simple_error_tests {
+  for file in test/err/*.dbl
+  do
+    exit_code_test 1 $file
+  done
+}
+
+run_with_flags simple_error_tests "-no-prelude"

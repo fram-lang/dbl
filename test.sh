@@ -8,6 +8,10 @@ if ! dune build; then
 	exit 1
 fi
 
+export DBL_LIB="lib/"
+
+TIMEOUT=1.0
+
 binary="_build/default/src/$1.exe"
 flags=""
 
@@ -53,7 +57,7 @@ function run_test {
 	local tmp_stdout=$(mktemp)
 	local tmp_stderr=$(mktemp)
 	echo "$1"
-	$1 >$tmp_stdout 2>$tmp_stderr
+	timeout $TIMEOUT $1 >$tmp_stdout 2>$tmp_stderr
 	local status=$?
 	if $2 $status $tmp_stdout $tmp_stderr; then
 		if check_output "stderr" $4 $tmp_stderr && check_output "stdout" $4 $tmp_stdout; then
