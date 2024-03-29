@@ -453,7 +453,14 @@ and extract_implicit_type_hints ~pos env (sch : T.scheme) inst eff =
           begin match name with
           | NLabel | NVar _ -> None
           | NImplicit n ->
-            Some (make (S.EPoly(make (S.EImplicit (S.NPName n)), [], [])))
+            (* type hints can be extracted only from monomorphic implicits
+              (and explicit instantiation, of course), in order to avoid
+              infinite loops: implicit parameters can depend on itself. *)
+            begin match Env.lookup_implicit env (NPName n) with
+            | Some(_, isch, _) when T.Scheme.is_monomorphic isch ->
+              Some (make (S.EPoly(make (S.EImplicit (S.NPName n)), [], [])))
+            | _ -> None
+            end
           end
         | Some e -> Some e
       in
