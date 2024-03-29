@@ -18,6 +18,9 @@ val report : t -> unit
 (** Report a warning *)
 val warn : t -> unit
 
+(** Add notes to an error *)
+val add_notes : t -> (Position.t * string) list -> t
+
 val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 
 val wildcard_in_effect : pos:Position.t -> t
@@ -86,7 +89,10 @@ val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val ctor_not_in_type : pos:Position.t -> env:Env.t -> S.ctor_name -> T.typ -> t
 
+val unification_error_to_string : Unification.unification_error -> string
+val escaping_tvar_message : env:Env.t -> T.tvar -> string
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
+val check_unify_result : is_fatal:bool -> pos:Position.t -> Unification.unification_result -> on_error:t -> unit
 
 val cannot_guess_effect_param : pos:Position.t -> T.tname -> t
 val cannot_guess_label_effect : pos:Position.t -> t

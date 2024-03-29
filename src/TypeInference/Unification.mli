@@ -41,6 +41,14 @@ type label =
   | L_Label of T.effect * T.typ * T.effrow
     (** Label type *)
 
+type unification_result =
+  | Unify_Success
+    (** Unification succeeded *)
+  | Unify_Fail of unification_error list
+    (** Unification failed with list of errors*)
+
+and unification_error = TVar_escaped_scope of Env.t * T.tvar
+
 (** Check if one kind is equal to another. It performs some unifications
   when necessary. *)
 val unify_kind : T.kind -> T.kind -> bool
@@ -51,19 +59,19 @@ val kind_to_arrow : T.kind -> (T.kind * T.kind) option
 
 (** Check if two types (of the same kind) are equivalent.
   It performs some unifications when necessary. *)
-val unify_type : Env.t -> T.typ -> T.typ -> bool
+val unify_type : Env.t -> T.typ -> T.typ -> unification_result
 
 (** Check if one effect (row) is a subeffect of another.
   It performs some unifications when necessary. *)
-val subeffect : Env.t -> T.effrow -> T.effrow -> bool
+val subeffect : Env.t -> T.effrow -> T.effrow -> unification_result
 
 (** Check if one type is a subtype of another.
   It performs some unifications when necessary. *)
-val subtype : Env.t -> T.typ -> T.typ -> bool
+val subtype : Env.t -> T.typ -> T.typ -> unification_result
 
 (** Check if one scheme is a subscheme of another.
   It performs some unifications when necessary. *)
-val subscheme : Env.t -> T.scheme -> T.scheme -> bool
+val subscheme : Env.t -> T.scheme -> T.scheme -> unification_result
 
 (** Coerce given type to an arrow.
   It performs some unifications when necessary. *)

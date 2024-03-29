@@ -21,8 +21,15 @@ type label =
   | L_NoEffect
   | L_Label of T.effect * T.typ * T.effrow
 
+type unification_result =
+  | Unify_Success
+  | Unify_Fail of unification_error list
+
+and unification_error = TVar_escaped_scope of Env.t * T.tvar
+
 (** Internal exception *)
 exception Error
+exception Escapes_scope of Env.t * T.tvar
 
 let unify_with_kuvar x k =
   if T.Kind.contains_uvar x k then
@@ -76,7 +83,7 @@ let set_uvar env p u tp =
   let scope = T.UVar.raw_set p u tp in
   match T.Type.try_shrink_scope ~scope tp with
   | Ok   () -> ()
-  | Error _ -> raise Error
+  | Error e -> raise (Escapes_scope (env, e))
 
 let rec unify_named_type_args env sub1 sub2 args1 args2 =
   match args1, args2 with
@@ -202,7 +209,7 @@ and unify env tp1 tp2 =
   | TLabel(eff1, rtp1, reff1), TLabel(eff2, rtp2, reff2) ->
     unify_at_kind env eff1 eff2 T.Kind.k_effect;
     unify env rtp1 rtp2;
-    unify_at_kind env reff1 reff2 T.Kind.k_effrow;
+    unify_at_kind  env reff1 reff2 T.Kind.k_effrow;
   | TLabel _, _ -> raise Error
 
   | TApp(ftp1, atp1), TApp(ftp2, atp2) ->
@@ -308,23 +315,27 @@ and check_subscheme env sch1 sch2 =
 let unify_type env tp1 tp2 =
   match BRef.bracket (fun () -> 
   	unify_at_kind env tp1 tp2 (T.Type.kind tp1)) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope (e, t) -> Unify_Fail [TVar_escaped_scope (e, t)]
 
 let subeffect env eff1 eff2 =
   match BRef.bracket (fun () -> check_subeffect env eff1 eff2) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope (e, t) -> Unify_Fail [TVar_escaped_scope (e, t)]
 
 let subtype env tp1 tp2 =
   match BRef.bracket (fun () -> check_subtype env tp1 tp2) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope (e, t) -> Unify_Fail [TVar_escaped_scope (e, t)]
 
 let subscheme env sch1 sch2 =
   match BRef.bracket (fun () -> check_subscheme env sch1 sch2) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope (e, t) -> Unify_Fail [TVar_escaped_scope (e, t)]
 
 let to_arrow env tp =
   match T.Type.view tp with

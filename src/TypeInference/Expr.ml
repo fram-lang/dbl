@@ -151,19 +151,20 @@ and method_call_ctx ~pos ~env ~self ~self_tp ~self_r_eff ~eff =
   | TArrow(
       { sch_targs = []; sch_named = []; sch_body = self_tp' },
       res_tp, res_eff) ->
-    if not (Unification.subtype env self_tp self_tp') then
-      Error.report
-        (Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp');
-    if not (Unification.subeffect env res_eff eff) then
-      Error.report (Error.method_effect_mismatch ~pos ~env res_eff eff);
+    let unification_result = Unification.subtype env self_tp self_tp'
+      in Error.check_unify_result ~is_fatal:false ~pos unification_result
+        ~on_error:(Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp');
+    let unification_result = Unification.subeffect env res_eff eff
+      in Error.check_unify_result ~is_fatal:false ~pos unification_result
+        ~on_error:(Error.method_effect_mismatch ~pos:pos ~env res_eff eff);
     (* The method is impure, so the result is impure too. *)
     (result_expr, res_tp, Impure)
   | TPureArrow(
       { sch_targs = []; sch_named = []; sch_body = self_tp' },
       res_tp) ->
-    if not (Unification.subtype env self_tp self_tp') then
-      Error.report
-        (Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp');
+    let unification_result = Unification.subtype env self_tp self_tp' in
+      (Error.check_unify_result ~is_fatal:false ~pos unification_result
+        ~on_error:(Error.expr_type_mismatch ~pos:self.pos ~env self_tp self_tp'));
     (result_expr, res_tp, ret_effect_join self_r_eff r_eff)
   | _ ->
     (* Method must be an arrow with monomorphic argument *)
@@ -218,7 +219,7 @@ and infer_expr_type env (e : S.expr) eff =
     begin match ret_effect_join r_eff1 r_eff2 with
     | Pure ->
       let b = Unification.subeffect env body_eff T.Effect.pure in
-      assert b;
+      assert (b = Unify_Success);
       (make (T.EPureFn(x, sch, body)), T.Type.t_pure_arrow sch tp2, Pure)
     | Impure ->
       (make (T.EFn(x, sch, body)), T.Type.t_arrow sch tp2 body_eff, Pure)
@@ -274,8 +275,9 @@ and infer_app_type ~pos env e1 e2 eff =
     (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
   | Arr_Impure(sch, vtp, f_eff) ->
     let (e2, r_eff2) = check_actual_arg ~pos env e2 sch eff in
-    if not (Unification.subeffect env f_eff eff) then
-      Error.report (Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
+    let unification_result = Unification.subeffect env f_eff eff in
+      Error.check_unify_result ~is_fatal:false ~pos unification_result
+        ~on_error:(Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
     (make (T.EApp(e1, e2)), vtp, Impure)
   | Arr_No ->
     Error.fatal (Error.expr_not_function ~pos:e1.pos ~env ftp)
@@ -376,8 +378,9 @@ and check_expr_type env (e : S.expr) tp eff =
     begin match Env.lookup_the_label env with
     | Some(lx, l_eff0, res_tp, res_eff) ->
       let l_eff = T.Type.t_closed_effrow (T.Type.effect_view l_eff0) in
-      if not (Unification.subeffect env l_eff eff) then
-        Error.report (Error.expr_effect_mismatch ~pos ~env l_eff eff);
+      let unification_result = Unification.subeffect env l_eff eff in
+        Error.check_unify_result ~is_fatal:false ~pos unification_result
+          ~on_error:(Error.expr_effect_mismatch ~pos ~env l_eff eff);
       let r_tp = T.Type.t_arrow (T.Scheme.of_type tp) res_tp res_eff in
       let (env, rpat, _) =
         Pattern.check_arg_scheme env arg (T.Scheme.of_type r_tp) in
@@ -395,8 +398,9 @@ and check_expr_type env (e : S.expr) tp eff =
 
   | EAnnot(e', tp') ->
     let tp' = Type.tr_ttype env tp' in
-    if not (Unification.subtype env tp' tp) then
-      Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
+    let unification_result = Unification.subtype env tp' tp in
+      Error.check_unify_result ~is_fatal:false ~pos unification_result
+        ~on_error:(Error.expr_type_mismatch ~pos:pos ~env tp' tp);
     check_expr_type env e' tp' eff
 
   | ERepl def_seq ->
@@ -406,8 +410,9 @@ and check_expr_type env (e : S.expr) tp eff =
 and check_expr_type_default env (e : S.expr) tp eff =
   let pos = e.pos in
   let (e, tp', r_eff) = infer_expr_type env e eff in
-  if not (Unification.subtype env tp' tp) then
-    Error.report (Error.expr_type_mismatch ~pos ~env tp' tp);
+  let unification_result = Unification.subtype env tp' tp in
+    Error.check_unify_result ~is_fatal:false ~pos unification_result
+      ~on_error:(Error.expr_type_mismatch ~pos ~env tp' tp);
   (e, r_eff)
 
 (** Bidirectional type-checker of expressions *)
@@ -507,10 +512,9 @@ and check_explicit_insts env named insts cache eff =
           (e, sch, r_eff1)
         | Some (e, tp, r_eff1) ->
           assert (T.Scheme.is_monomorphic sch);
-          if not (Unification.subtype env tp sch.sch_body) then
-            Error.report
-              (Error.named_param_type_mismatch ~pos:e.pos ~env n
-                tp sch.sch_body);
+          let unification_result = Unification.subtype env tp sch.sch_body in
+          Error.check_unify_result ~is_fatal:false ~pos unification_result
+            ~on_error:(Error.named_param_type_mismatch ~pos:e.pos ~env n tp sch.sch_body);
           (e, sch, r_eff1)
         end
       | None ->
@@ -692,12 +696,12 @@ and check_def : type dir.
       let cap_tp  = T.Type.subst sub cap_tp  in
       let res_tp  = T.Type.subst sub res_tp  in
       let res_eff = T.Type.subst sub res_eff in
-      if not (Unification.unify_type env lbl.l_delim_tp res_tp) then
-        Error.report (Error.delim_type_mismatch
-          ~pos:def.pos ~env lbl.l_delim_tp res_tp);
-      if not (Unification.unify_type env lbl.l_delim_eff res_eff) then
-        Error.report (Error.delim_effect_mismatch
-          ~pos:def.pos ~env lbl.l_delim_eff res_eff);
+      let unification_result = Unification.unify_type env lbl.l_delim_tp res_tp in
+        Error.check_unify_result ~is_fatal:false ~pos unification_result
+          ~on_error:(Error.delim_type_mismatch ~pos:def.pos ~env lbl.l_delim_tp res_tp);
+      let unification_result = Unification.unify_type env lbl.l_delim_eff res_eff in
+        Error.check_unify_result ~is_fatal:false ~pos unification_result
+          ~on_error:(Error.delim_effect_mismatch ~pos:def.pos ~env lbl.l_delim_eff res_eff);
       let (env, pat, names, _) =
         Pattern.check_type ~env ~scope:(Env.scope env) pat cap_tp in
       let ienv = ImplicitEnv.shadow_names ienv names in
@@ -707,8 +711,9 @@ and check_def : type dir.
       let (body, Checked, _) = cont.run env ienv (Check body_tp) body_eff in
       let (x, body) = ExprUtils.arg_match pat body body_tp body_eff in
       let pos = Position.join def.pos body.pos in
-      if not (Unification.subeffect env0 res_eff eff) then
-        Error.report (Error.expr_effect_mismatch ~pos ~env:env0 res_eff eff);
+      let unification_result = Unification.subeffect env0 res_eff eff in
+        Error.check_unify_result ~is_fatal:false ~pos unification_result
+          ~on_error:(Error.expr_effect_mismatch ~pos ~env:env0 res_eff eff);
       let e =
         make body (T.EHandle
           { label      = lbl.l_expr;
@@ -885,8 +890,9 @@ and check_finally_clauses : type dir.
     begin match req with
     | Infer -> (hexpr, Infered htp, Impure)
     | Check tp ->
-      if not (Unification.subtype env htp tp) then
-        Error.report (Error.expr_type_mismatch ~pos:hexpr.pos ~env htp tp);
+      let unification_result = Unification.subtype env htp tp in
+      Error.check_unify_result ~is_fatal:false ~pos:hexpr.pos unification_result
+        ~on_error:(Error.expr_type_mismatch ~pos:hexpr.pos ~env htp tp);
       (hexpr, Checked, Impure)
     end
   | _ ->

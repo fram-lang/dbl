@@ -1,3 +1,5 @@
 data T = Ex of {type X}, X
 
 let get (Ex x) = x
+// @stderr: Type variable
+// @stderr: escapes

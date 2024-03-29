@@ -194,8 +194,9 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
   | PAnnot(pat, sch') ->
     let sch_pos = sch'.sch_pos in
     let sch' = Type.tr_scheme env sch' in
-    if not (Unification.subscheme env sch sch') then
-      Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
+    let unification_result = Unification.subscheme env sch sch' in
+      Error.check_unify_result ~is_fatal:false ~pos:sch_pos unification_result
+        ~on_error:(Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
     check_scheme ~env ~scope:(Env.scope env) pat sch'
 
 and check_type ~env ~scope (pat : S.pattern) tp =
@@ -242,10 +243,10 @@ and check_type ~env ~scope (pat : S.pattern) tp =
     if List.length ctor_arg_schemes <> List.length args then
       Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
         cpath.data (List.length ctor_arg_schemes) (List.length args))
-    else if not (Unification.subtype env tp res_tp) then
-      Error.fatal (Error.pattern_type_mismatch ~pos:pat.pos ~env
-        res_tp tp)
     else
+      let unification_result = Unification.subtype env tp res_tp in
+        Error.check_unify_result ~is_fatal:true ~pos:pat.pos unification_result
+          ~on_error:(Error.pattern_type_mismatch ~pos:pat.pos ~env res_tp tp);
       let (env, ps2, bn2, _) =
         check_pattern_schemes ~env ~scope args ctor_arg_schemes in
       let cname = S.path_name cpath.data in
@@ -287,8 +288,9 @@ let check_arg_scheme env (arg : S.arg) sch =
   | ArgAnnot(pat, sch') ->
     let sch_pos = sch'.sch_pos in
     let sch' = Type.tr_scheme env sch' in
-    if not (Unification.subscheme env sch sch') then
-      Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
+    let unification_result = Unification.subscheme env sch sch' in
+      Error.check_unify_result ~is_fatal:false ~pos:sch_pos unification_result
+        ~on_error:(Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
     let (env, pat, _, r_eff) =
       check_scheme ~env ~scope:(Env.scope env) pat sch' in
     (env, pat, r_eff)
