@@ -97,3 +97,9 @@ function run_with_flags {
 source "$2"
 
 echo "Passed: ${passed_tests}/${total_tests}"
+
+if [ $passed_tests -eq $total_tests ]; then
+	exit 0
+else
+	exit 1
+fi
