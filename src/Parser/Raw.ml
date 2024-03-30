@@ -5,8 +5,9 @@
 (** The Raw language: result of yacc-generated. It is later post-parsed by
   [Desugar] in order to obtain the program in Surface language. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
+(* 2023,2024: Piotr Polesiuk: initial implementation
+   2024: Jakub  Chomiczewski: operators *)
+   
 include SyntaxNode.Export
 
 (** Type variables *)
@@ -124,6 +125,12 @@ and expr_data =
   | EVar  of var
     (** Variable *)
 
+  | EBOpID of string
+    (** identifiier of binary operator *)
+
+  | EUOpID of string
+    (** identifiier of unary operator *)
+
   | EImplicit of iname
     (** Named implicit parameter *)
 
@@ -172,6 +179,12 @@ and expr_data =
 
   | ESelect of module_name path * expr
     (** Selection from a module *)
+    
+  | EBOp of  expr * string node * expr
+    (** Binary operator *)
+
+  | EUOp of string node * expr
+    (** Unary operator*)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

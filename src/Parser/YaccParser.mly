@@ -4,13 +4,16 @@
 
 /** Yacc-generated parser */
 
-/* Author: Piotr Polesiuk, 2023,2024 */
+(* 2023,2024: Piotr Polesiuk: initial implementation
+   2024: Jakub  Chomiczewski: operators*)
 
 %token<string> LID UID TLID
+%token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
+%token<string> OP_225 
 %token<int> NUM
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
+%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH SEMICOLON
 %token KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY KW_FN
 %token KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH
 %token KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN KW_THEN
@@ -59,6 +62,80 @@ uid_path
 : UID              { NPName $1     }
 | UID DOT uid_path { NPSel($1, $3) }
 ;
+
+/* ========================================================================= */
+/* OPERATORS */
+
+op_0
+: OP_0      {  make $1  }
+| SEMICOLON {  make ";" }
+;
+
+op_20
+: OP_20 {  make $1 }
+;
+
+op_30
+: OP_30 {  make $1  }
+| COMMA {  make "," }
+;
+
+op_30_no_comma
+: OP_30 {  make $1  }
+;
+
+op_40
+: OP_40 {  make $1 }
+;
+
+op_50
+: OP_50 {  make $1 }
+;
+
+op_60
+: OP_60 {  make $1  }
+| EQ    { make "=" }
+;
+
+
+op_70
+: OP_70 {  make $1 }
+;
+
+op_80
+: OP_80 {  make $1 }
+;
+
+op_90
+: OP_90 {  make $1  }
+| SLASH {  make "/" }
+;
+
+op_100
+: OP_100 {  make $1 }
+;
+
+uop_150
+: OP_80 {  make $1 }
+;
+
+uop_225
+: OP_225 {  make $1 }
+;
+
+op
+: op_0   { $1 }
+| op_20  { $1 }
+| op_30  { $1 }
+| op_40  { $1 }
+| op_50  { $1 }
+| op_60  { $1 }
+| op_70  { $1 }
+| op_80  { $1 }
+| op_90  { $1 }
+| op_100 { $1 }
+| OP_225 { make $1 }
+; 
 
 /* ========================================================================= */
 
@@ -153,7 +230,30 @@ expr
 | KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr
     { make (EEffect($2, $3, $5)) }
 | KW_HANDLER expr { make (EHandler $2) }
+| expr_0 { $1 }
+;
+
+expr_no_comma
+: def_list1 KW_IN expr_no_comma  { make (EDefs($1, $3)) }
+| KW_FN expr_250_list1 ARROW2 expr_no_comma { make (EFn($2, $4))   }
+| KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr_no_comma
+    { make (EEffect($2, $3, $5)) }
+| KW_HANDLER expr_no_comma { make (EHandler $2) }
+| expr_0_no_comma { $1 }
+;
+
+
+//Evaluate first expresion then discard the resulte and after that evaluate second expression
+//pattern = exp1 ; exp2
+expr_0
+: expr_10 op_0 expr {make (EBOp($1, $2, $3))}
 | expr_10 { $1 }
+;
+
+
+expr_0_no_comma
+: expr_10_no_comma op_0 expr_no_comma {make (EBOp($1, $2, $3))}
+| expr_10_no_comma{ $1 }
 ;
 
 effect_resumption_opt
@@ -163,16 +263,99 @@ effect_resumption_opt
 
 expr_10
 : KW_IF expr KW_THEN expr_10 KW_ELSE expr_10 { make (EIf($2, $4, $6)) }
+| expr_20 { $1 }
+;
+
+expr_10_no_comma
+: KW_IF expr_no_comma KW_THEN expr_10_no_comma KW_ELSE expr_10_no_comma{ make (EIf($2, $4, $6)) }
+| expr_20_no_comma { $1 }
+;
+
+//pattern = exp1 <- exp2
+expr_20
+: expr_30 op_20 expr_20 { make (EBOp($1,$2,$3)) }
 | expr_30 { $1 }
+;
+
+expr_20_no_comma
+: expr_30_no_comma op_20 expr_20_no_comma { make (EBOp($1,$2,$3)) }
+| expr_30_no_comma { $1 }
 ;
 
 expr_30
 : expr_30 COLON ty_expr { make (EAnnot($1, $3)) }
+| expr_35 { $1 }
+;
+
+expr_30_no_comma
+: expr_30_no_comma COLON ty_expr { make (EAnnot($1, $3)) }
+| expr_35_no_comma { $1 }
+;
+
+expr_35
+// pattern = exp1 , exp2
+:  expr_35 op_30 expr_40  { make (EBOp($1,$2,$3)) }
+| expr_40 { $1 }
+;
+
+expr_35_no_comma
+// pattern = exp1 , exp2
+:  expr_35_no_comma op_30_no_comma expr_40  { make (EBOp($1,$2,$3)) }
+| expr_40 { $1 }
+;
+
+expr_40
+// pattern = exp1 || exp2
+: expr_50 op_40 expr_40 { make (EBOp($1,$2,$3)) }
+| expr_50 { $1 }
+;
+
+
+expr_50
+// pattern = exp1 && exp2
+: expr_60 op_50 expr_50 { make (EBOp($1,$2,$3)) }
+| expr_60 { $1 }
+;
+
+
+expr_60
+// pattern = exp1 | '==' | '<' | '>' | '|' | '&' | '$' | '#' | '?' exp2
+: expr_60 op_60 expr_70 { make (EBOp($1,$2,$3)) }
+| expr_70 { $1 }
+;
+
+
+expr_70
+// pattern = exp1 | '@' | ':' | '^' | '.' exp2
+: expr_80 op_70 expr_70 { make (EBOp($1,$2,$3)) }
+| expr_80 { $1 }
+;
+
+expr_80
+// pattern = exp1 | '+' | '-' | '~' exp2
+: expr_80 op_80 expr_90 { make (EBOp($1,$2,$3)) }
+| expr_90 { $1 }
+;
+
+expr_90
+// pattern = exp1 | '*' | '/' | '%'  exp2
+: expr_90 op_90 expr_100 { make (EBOp($1,$2,$3)) }
+| expr_100 { $1 }
+;
+
+expr_100 
+// pattern = exp1 ** exp2
+: expr_150 op_100 expr_100 { make (EBOp($1,$2,$3)) }
+| expr_150 { $1 }
+;
+
+expr_150
+: uop_150 expr_150 { make (EUOp($1,$2)) }
 | expr_200 { $1 }
 ;
 
 expr_200
-: expr_250 { $1 }
+: expr_225 { $1 }
 | expr_250 expr_250_list1 { make (EApp($1, $2)) }
 | KW_EXTERN LID { make (EExtern $2) }
 ;
@@ -185,6 +368,10 @@ expr_select
 : UID DOT expr_ctor   { (NPName $1, $3) }
 | UID DOT expr_300    { (NPName $1, $3) }
 | UID DOT expr_select { let (p, e) = $3 in (NPSel($1, p), e) }
+
+expr_225
+: uop_225 expr_225 { make (EUOp($1,$2))}
+| expr_250 { $1 }
 ;
 
 expr_250
@@ -208,17 +395,20 @@ expr_300
 ;
 
 expr_simple
-: LID                { make (EVar $1)      }
-| TLID               { make (EImplicit $1) }
-| UNDERSCORE         { make EWildcard      }
-| NUM                { make (ENum $1)      }
-| STR                { make (EStr $1)      }
-| BR_OPN BR_CLS      { make EUnit          }
-| BR_OPN expr BR_CLS { make (EParen $2)    }
-| KW_MATCH expr KW_WITH KW_END { make (EMatch($2, [])) }
+: LID                          { make (EVar $1)       }
+| TLID                         { make (EImplicit $1)  }
+| UNDERSCORE                   { make EWildcard       }
+| NUM                          { make (ENum $1)          }
+| STR                          { make (EStr $1)          }
+| BR_OPN BR_CLS                { make EUnit              }
+| BR_OPN expr BR_CLS           { make (EParen $2)        }
+| KW_MATCH expr KW_WITH KW_END { make (EMatch($2, []))}
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
+| BR_OPN op BR_CLS             { make (EBOpID ($2).data) }
+| BR_OPN op DOT BR_CLS  { make (EUOpID ($2).data) }
+
 ;
 
 /* ========================================================================= */
@@ -241,7 +431,7 @@ field
 | UID                  { make (FldType $1)           }
 | UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
 | name                 { make (FldName $1)           }
-| name EQ expr         { make (FldNameVal($1, $3))   }
+| name EQ expr_no_comma { make (FldNameVal($1, $3))   }
 | name COLON ty_expr   { make (FldNameAnnot($1, $3)) }
 ;
 
@@ -270,20 +460,20 @@ data_rec_rest
 /* ========================================================================= */
 
 def
-: KW_IMPLICIT TLID implicit_ty_args type_annot_opt
+:  KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
-| KW_METHOD expr EQ expr { make (DMethod($2, $4)) }
 | KW_PUB def_10 { make (DPub $2) }
 | def_10 { $1 }
 ;
 
 def_10
-: KW_LET expr EQ expr    { make (DLet($2, $4)) }
-| data_def               { make (DData $1)     }
+: data_def               { make (DData $1)     }
+| KW_LET expr_70 EQ expr    { make (DLet($2, $4)) }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
 | KW_LABEL  expr         { make (DLabel $2) }
-| KW_HANDLE expr EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
-| KW_HANDLE expr KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
+| KW_HANDLE expr_70 EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
+| KW_HANDLE expr_70 KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
+| KW_METHOD expr_70 EQ expr { make (DMethod($2, $4)) }
 | KW_MODULE UID def_list KW_END { make (DModule($2, $3)) }
 | KW_OPEN uid_path { make (DOpen $2) }
 ;
