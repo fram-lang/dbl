@@ -4,8 +4,6 @@
 
 (** Reporting errors related to type-inference. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Abstract representation of error *)

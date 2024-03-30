@@ -4,8 +4,6 @@
 
 (** Pretty printing of types and kinds *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 open Common
 
 (** Contexts of pretty-printing *)

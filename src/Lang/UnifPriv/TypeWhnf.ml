@@ -4,8 +4,6 @@
 
 (** Weak head normal form of a type *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 open TypeBase
 
 type neutral_head =

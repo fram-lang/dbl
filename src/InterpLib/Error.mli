@@ -4,8 +4,6 @@
 
 (** Main module for reporting errors *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** Fatal error, that aborts compilation *)
 exception Fatal_error
 

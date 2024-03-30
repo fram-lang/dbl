@@ -4,8 +4,6 @@
 
 (** Main module for reporting internal errors errors *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** Flag that indicate that internal error should be more verbose *)
 val verbose : bool ref
 

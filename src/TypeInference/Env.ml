@@ -4,8 +4,6 @@
 
 (** Environment of the type inference *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 module StrMap = Map.Make(String)

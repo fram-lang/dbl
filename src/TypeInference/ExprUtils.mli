@@ -4,8 +4,6 @@
 
 (** Utility functions that help to build Unif expressions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Make polymorphic function with given type parameters *)

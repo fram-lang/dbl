@@ -4,8 +4,6 @@
 
 (** Utility function for extracting information about types *)
 
-(* 2024: Piotr Polesiuk: initial implementation *)
-
 open Common
 
 type hints = T.typ T.TVar.Map.t

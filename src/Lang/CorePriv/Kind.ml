@@ -4,8 +4,6 @@
 
 (** Operations on kinds *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 open TypeBase
 
 let equal = kind_equal

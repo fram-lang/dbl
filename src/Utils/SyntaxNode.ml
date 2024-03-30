@@ -4,8 +4,6 @@
 
 (** Node of the abstract syntax tree *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 type 'a node = {
   pos  : Position.t;
   data : 'a

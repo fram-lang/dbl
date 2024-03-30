@@ -4,8 +4,6 @@
 
 (** Operations on names *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 open TypeBase
 
 module Ordered = struct

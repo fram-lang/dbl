@@ -4,8 +4,6 @@
 
 (** Internal type-checker of the Core language *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Syntax
 open TypeBase
 

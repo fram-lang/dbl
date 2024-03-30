@@ -4,8 +4,6 @@
 
 (** Translating Core to S-expressions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 open SExpr
 

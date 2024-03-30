@@ -4,8 +4,6 @@
 
 (** Translation of types *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 let eff_cons env x eff =

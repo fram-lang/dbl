@@ -4,8 +4,6 @@
 
 (** Built-in type variable *)
 
-(* 2024: Piotr Polesiuk: initial implementation *)
-
 (** Int type *)
 let tv_int = TVar.fresh KindBase.k_type
 

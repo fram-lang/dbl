@@ -4,8 +4,6 @@
 
 (** Translation of pattern-matching *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 open Common
 
 (** Translate a pattern-matching of a single value.

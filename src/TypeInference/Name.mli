@@ -4,8 +4,6 @@
 
 (** Translation of names of named parameters *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 open Common
 
 val tr_tname : S.tname -> T.tname

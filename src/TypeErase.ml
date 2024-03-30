@@ -4,8 +4,6 @@
 
 (** Type erasure. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 module S = Lang.Core
 module T = Lang.Untyped
 

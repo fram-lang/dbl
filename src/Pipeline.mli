@@ -4,9 +4,6 @@
 
 (** Pipeline of the compiler *)
 
-(* 2023: Piotr Polesiuk: initial implementation
-   2024: Patrycja Balik: add the use_prelude flag *)
-
 (** Dump internal Core representation if this flag is set. *)
 val dump_core : bool ref
 

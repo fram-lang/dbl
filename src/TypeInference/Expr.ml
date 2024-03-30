@@ -4,8 +4,6 @@
 
 (** Type-inference for expressions and related syntactic categories *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Type of continuation used to type-checking of definitions. It is defined

@@ -4,8 +4,6 @@
 
 (** Checking and processing algebraic data types (ADTs) *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Open ADT making its constructors immediately available. *)

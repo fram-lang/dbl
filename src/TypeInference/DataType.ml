@@ -4,8 +4,6 @@
 
 (** Checking and processing algebraic data types (ADTs) *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 let check_ctor_decl ~data_targs env (ctor : S.ctor_decl) =

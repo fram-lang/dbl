@@ -4,8 +4,6 @@
 
 (** Operations on types *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 
 (** Unit type *)

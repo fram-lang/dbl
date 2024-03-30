@@ -4,8 +4,6 @@
 
 (** Reporting errors related to parsing *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 type t = Position.t option * string
 
 let fatal (pos, msg) =

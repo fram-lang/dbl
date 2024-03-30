@@ -4,6 +4,4 @@
 
 (** Lexer *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 val token : Lexing.lexbuf -> YaccParser.token

@@ -4,8 +4,6 @@
 
 (** Main module for reporting internal errors errors *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 let verbose = ref false
 
 let sexpr_info name s =

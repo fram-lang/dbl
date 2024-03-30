@@ -4,9 +4,6 @@
 
 (** The first phase of desugaring and post-parsing *)
 
-(* 2023: Piotr Polesiuk: implemented desugaring
-   2024: Piotr Polesiuk, Patrycja Balik: minor changes *)
-
 open Lang.Surface
 
 type ty_def =

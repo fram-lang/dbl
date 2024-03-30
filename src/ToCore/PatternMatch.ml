@@ -4,8 +4,6 @@
 
 (** Translation of pattern-matching *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 open PatternContext
 

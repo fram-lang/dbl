@@ -4,8 +4,6 @@
 
 (** Kind-checking and translation of type expressions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Check kind and translate a type expression *)

@@ -4,8 +4,6 @@
 
 (** Unification and subtyping of types *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Arrow type *)

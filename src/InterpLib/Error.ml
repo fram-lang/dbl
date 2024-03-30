@@ -4,8 +4,6 @@
 
 (** Main module for reporting errors *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 exception Fatal_error
 
 type error_class =

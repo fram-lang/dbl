@@ -4,8 +4,6 @@
 
 (** Translation of names of named parameters *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 open Common
 
 let tr_tname (name : S.tname) =

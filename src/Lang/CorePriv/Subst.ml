@@ -4,8 +4,6 @@
 
 (** Type substitutions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 
 module Sub = TVar.Map.Make(struct type 'k t = 'k typ end)

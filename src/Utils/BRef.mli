@@ -4,8 +4,6 @@
 
 (** Backtrackable references *)
 
-(* Author: Piotr Polesiuk, 2021 *)
-
 type 'a t
 
 val create : 'a -> 'a t 

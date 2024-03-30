@@ -4,8 +4,6 @@
 
 (** Kinds *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 type kuvar
 
 type kind

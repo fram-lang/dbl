@@ -4,8 +4,6 @@
 
 (** Location in the source file *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 type t = {
   pos_fname      : string;
     (** File name *)

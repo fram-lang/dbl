@@ -4,8 +4,6 @@
 
 (** Core Language. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** Type-level constructor of a kind of all types. The main purpose of this
   type is to encode kind-system in OCaml's GADT. Values of this types are
   never used. *)

@@ -4,8 +4,6 @@
 
 (** Common definitions of the translation *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 module S = Lang.Unif
 module T = Lang.Core
 

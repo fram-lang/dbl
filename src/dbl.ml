@@ -2,9 +2,6 @@
  * See LICENSE for details.
  *)
 
-(* 2023: Piotr Polesiuk: initial implementation
-   2024: Patrycja Balik: add the use_prelude flag *)
-
 let usage_string =
   Printf.sprintf
     "Usage: %s [OPTION]... FILE [CMD_ARG]...\nAvailable OPTIONs are:"

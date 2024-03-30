@@ -4,8 +4,6 @@
 
 (** Operations on effects *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 
 (** Join of two effects. Same as TEffJoin constructor, but removes duplicates.

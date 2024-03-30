@@ -4,8 +4,6 @@
 
 (** Lexer *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 {
 let kw_map =
   let open YaccParser in

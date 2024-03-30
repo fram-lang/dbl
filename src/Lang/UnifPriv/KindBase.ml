@@ -4,8 +4,6 @@
 
 (** Kinds *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** The state of kind unification variable *)
 type kuvar_state =
   | KS_Any

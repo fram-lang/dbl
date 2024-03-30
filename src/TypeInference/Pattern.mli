@@ -4,8 +4,6 @@
 
 (** Type-inference for patterns *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Check if given pattern fits in given scope and has given type.

@@ -4,8 +4,6 @@
 
 (** Unique identifier *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 type t = int
 
 let compare = Int.compare

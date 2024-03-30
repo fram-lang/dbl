@@ -4,6 +4,4 @@
 
 (** Evaluator *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 val eval_program : Lang.Untyped.program -> unit

@@ -4,8 +4,6 @@
 
 (** Core Language. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 include CorePriv.TypeBase
 include CorePriv.Syntax
 

@@ -4,8 +4,6 @@
 
 (** Operations on effects and effect rows *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 
 type row_view =

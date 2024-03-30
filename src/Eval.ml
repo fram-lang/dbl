@@ -4,8 +4,6 @@
 
 (** Evaluator *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** Value of the evaluator *)
 type value =
   | VNum of int

@@ -4,8 +4,6 @@
 
 (** Translation of datatype definitions from Unif to Core *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 open Common
 
 (** Translate a constructor declaration *)

@@ -4,8 +4,6 @@
 
 (** Main module of a type inference *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 open Common
 
 let tr_program p =

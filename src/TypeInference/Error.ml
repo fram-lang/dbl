@@ -4,8 +4,6 @@
 
 (** Reporting errors related to type-inference. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 type t = Position.t * string * (Position.t * string) list
 
 let report_note (pos, msg) =

@@ -8,8 +8,6 @@
   name provided by the user. Names are used for pretty-printing and they
   don't need to be unique. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 type t = private {
   uid  : UID.t; (** Unique identifier *)
   name : string (** Name *)

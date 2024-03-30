@@ -4,8 +4,6 @@
 
 (** Environment of the translation *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 type t =

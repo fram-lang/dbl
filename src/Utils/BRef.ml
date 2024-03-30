@@ -4,8 +4,6 @@
 
 (** Backtrackable references *)
 
-(* Author: Piotr Polesiuk, 2021 *)
-
 type world_state =
 | Active   (** State of new world -- can change to Commited or Invalid *)
 | Commited (** Commited world -- cannot change *)

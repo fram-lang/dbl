@@ -4,10 +4,6 @@
 
 (** Heterogeneous maps with keys with one type parameter. *)
 
-(* Author: Piotr Polesiuk,
-    2023 -- base definition
-    2024 -- extended with finite sets *)
-
 (** Ordered type with single type parameter *)
 module type OrderedType1 = sig
   type 'a t

@@ -4,8 +4,6 @@
 
 (** Kind-checking and translation of type expressions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 let rec infer_kind env (tp : S.type_expr) =

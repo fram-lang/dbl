@@ -4,8 +4,6 @@
 
 (** S-expressions *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 type t =
   | Sym  of string
   | Num  of int

@@ -5,8 +5,6 @@
 (** The Unif language: result of type-inference.
   The main feature of the Unif language is a support for type-unification *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 include module type of SyntaxNode.Export
 
 (** Kind unification variable *)

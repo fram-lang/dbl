@@ -4,9 +4,6 @@
 
 (** Main module of the parser *)
 
-(* 2023: Piotr Polesiuk: initial implementation
-   2024: Patrycja Balik: add parse_lib *)
-
 (** File name *)
 type fname = string
 

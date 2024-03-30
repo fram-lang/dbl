@@ -4,8 +4,6 @@
 
 (** Global configuration of the interpreter *)
 
-(* 2024: Patrycja Balik: initial implementation *)
-
 let prelude_path =
   let prelude_filename = "Prelude.dbl" in
   match Sys.getenv_opt "DBL_LIB" with

@@ -4,8 +4,6 @@
 
 (** Untyped language. In A-normal form. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** Variables *)
 type var = Var.t
 

@@ -5,8 +5,6 @@
 (** Additional environment used in type-checking definition blocks. It stores
   information about declared named implicits. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 type t = (S.iname * T.named_tvar list * T.scheme) list (* in reversed order *)

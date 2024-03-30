@@ -4,8 +4,6 @@
 
 (** Utility functions that help to build Unif expressions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Make function that takes parameters of given type schemes *)

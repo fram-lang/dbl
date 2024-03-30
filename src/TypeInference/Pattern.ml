@@ -4,13 +4,6 @@
 
 (** Type-inference for patterns *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-(* 2023: Piotr Polesiuk: initial implementation
-   2024: Piotr Polesiuk: named parameters, type parameters, methods,
-     unit pattern
-   2024: Patrycja Balik: constructor pattern type checking now extracts info
-    from the checked type, module support via [~public] parameter *)
-
 open Common
 
 type named_type    = (T.tname * S.type_arg) S.node

@@ -5,8 +5,6 @@
 (** The Raw language: result of yacc-generated. It is later post-parsed by
   [Desugar] in order to obtain the program in Surface language. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 include SyntaxNode.Export
 
 (** Type variables *)

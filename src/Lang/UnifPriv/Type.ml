@@ -4,8 +4,6 @@
 
 (** Basic operations on types *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 
 let view = TypeBase.view

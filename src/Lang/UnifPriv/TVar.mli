@@ -4,8 +4,6 @@
 
 (** Type variables *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open KindBase
 
 type t = private {

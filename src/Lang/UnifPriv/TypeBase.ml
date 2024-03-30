@@ -4,8 +4,6 @@
 
 (** Internal implementation of types in the Unif Language. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open KindBase
 
 type tvar = TVar.t

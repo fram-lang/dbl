@@ -4,8 +4,6 @@
 
 (** Built-in type variable *)
 
-(* 2024: Piotr Polesiuk: initial implementation *)
-
 open TypeBase
 
 (** Int type *)

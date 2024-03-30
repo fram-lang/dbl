@@ -4,8 +4,6 @@
 
 (** Partial finite permutations *)
 
-(* Author: Piotr Polesiuk, 2024 *)
-
 (** Signature of a module with partial finite permutations *)
 module type S = sig
   (** Type of the permutation keys *)

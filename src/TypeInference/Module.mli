@@ -4,8 +4,6 @@
 
 (** Represention of module definitions *)
 
-(* 2024: Patrycja Balik: initial implementation *)
-
 open Common
 
 type t

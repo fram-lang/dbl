@@ -4,8 +4,6 @@
 
 (** Checking uniqueness of various mutual definitions *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Ensure that each constructor in given ADT has a unique name *)

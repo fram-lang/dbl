@@ -4,8 +4,6 @@
 
 (** Reporting errors that may occur during the translation from Unif to Core *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 (** Abstract representation of error *)
 type t
 

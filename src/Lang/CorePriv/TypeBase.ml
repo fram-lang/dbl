@@ -4,8 +4,6 @@
 
 (** Kinds and types *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 type ktype   = Dummy_Ktype
 type keffect = Dummy_Keffect
 

@@ -4,8 +4,6 @@
 
 (** Building counterexample of non-matched value in pattern-matching *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Example of not-matched pattern *)

@@ -4,8 +4,6 @@
 
 (** The Unif language: result of type-inference. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 include SyntaxNode.Export
 
 include UnifPriv.KindBase

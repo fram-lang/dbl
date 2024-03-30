@@ -4,8 +4,6 @@
 
 (** Generic variable representation. *)
 
-(* Author: Piotr Polesiuk, 2023 *)
-
 module Ordered = struct
   type t = {
     uid  : UID.t;

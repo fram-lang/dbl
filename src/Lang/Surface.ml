@@ -4,8 +4,6 @@
 
 (** The Surface language: result of parsing and input for type inference *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 include SyntaxNode.Export
 
 (** Type variables *)

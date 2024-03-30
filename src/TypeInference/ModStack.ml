@@ -4,8 +4,6 @@
 
 (** Stack of modules which are currently being defined *)
 
-(* 2024: Patrycja Balik: initial implementation *)
-
 open Common
 
 module StrMap = Map.Make(String)

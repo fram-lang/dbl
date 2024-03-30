@@ -4,8 +4,6 @@
 
 (** Syntax of the Core Language. *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open TypeBase
 
 type var = Var.t

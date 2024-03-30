@@ -4,9 +4,6 @@
 
 (** Pipeline of the compiler *)
 
-(* 2023: Piotr Polesiuk: initial implementation
-   2024: Patrycja Balik: add prepending the prelude *)
-
 let dump_core = ref false
 
 let use_prelude = ref true

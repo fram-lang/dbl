@@ -4,8 +4,6 @@
 
 /** Yacc-generated parser */
 
-/* Author: Piotr Polesiuk, 2023,2024 */
-
 %token<string> LID UID TLID
 %token<int> NUM
 %token<string> STR

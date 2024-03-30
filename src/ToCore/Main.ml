@@ -4,8 +4,6 @@
 
 (** Main module of a translation from Unif to Core *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 open Common
 
 (** Translate expression *)
