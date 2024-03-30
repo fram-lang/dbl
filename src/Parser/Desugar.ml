@@ -314,11 +314,11 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern p, tr_scheme_expr sch)
   | EWildcard | EUnit | ENum _ | EStr _ | EVar _ | EImplicit _ | ECtor _
-  | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _ ->
+  | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _  | ESelect _ ->
     ArgPattern (tr_pattern arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ | ESelect _  ->
+  | EMethod _ | EExtern _ | EIf _   ->
     Error.fatal (Error.desugar_error arg.pos)
 
 let tr_named_arg (fld : Raw.field) =
