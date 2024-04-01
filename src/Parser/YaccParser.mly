@@ -4,14 +4,13 @@
 
 /** Yacc-generated parser */
 
-
 %token<string> LID UID TLID
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
-%token<string> OP_225 
+%token<string> OP_230 
 %token<int> NUM
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH SEMICOLON
+%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
 %token KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY KW_FN
 %token KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH
 %token KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN KW_THEN
@@ -66,7 +65,7 @@ uid_path
 
 op_0
 : OP_0      {  make $1  }
-| SEMICOLON {  make ";" }
+// | SEMICOLON {  make ";" }
 ;
 
 op_20
@@ -117,8 +116,8 @@ uop_150
 : OP_80 {  make $1 }
 ;
 
-uop_225
-: OP_225 {  make $1 }
+uop_230
+: OP_230 {  make $1 }
 ;
 
 op
@@ -132,7 +131,7 @@ op
 | op_80  { $1 }
 | op_90  { $1 }
 | op_100 { $1 }
-| OP_225 { make $1 }
+| OP_230 { make $1 }
 ; 
 
 /* ========================================================================= */
@@ -241,8 +240,7 @@ expr_no_comma
 ;
 
 
-//Evaluate first expresion then discard the resulte and after that evaluate second expression
-//pattern = exp1 ; exp2
+// exp1 ; exp2
 expr_0
 : expr_10 op_0 expr {make (EBOp($1, $2, $3))}
 | expr_10 { $1 }
@@ -353,7 +351,7 @@ expr_150
 ;
 
 expr_200
-: expr_225 { $1 }
+: expr_230 { $1 }
 | expr_250 expr_250_list1 { make (EApp($1, $2)) }
 | KW_EXTERN LID { make (EExtern $2) }
 ;
@@ -367,8 +365,8 @@ expr_select
 | UID DOT expr_300    { (NPName $1, $3) }
 | UID DOT expr_select { let (p, e) = $3 in (NPSel($1, p), e) }
 
-expr_225
-: uop_225 expr_225 { make (EUOp($1,$2))}
+expr_230
+: uop_230 expr_230 { make (EUOp($1,$2))}
 | expr_250 { $1 }
 ;
 

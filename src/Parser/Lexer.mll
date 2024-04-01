@@ -4,9 +4,6 @@
 
 (** Lexer *)
 
-(* 2023,2024: Piotr Polesiuk: initial implementation
-   2024: Jakub  Chomiczewski: operators*)
-
 {
 let kw_map =
   let open YaccParser in
@@ -57,7 +54,7 @@ let op_map =
   ; ";",  SEMICOLON;
   ] |> List.to_seq |> Hashtbl.of_seq
 
-let tokenize__oper str = 
+let tokenize_oper str = 
   try Hashtbl.find op_map str with 
   | Not_found -> 
     let long = String.length str >= 2 in
@@ -65,7 +62,7 @@ let tokenize__oper str =
     | ';'                                           -> YaccParser.OP_0 str
     | '<' when (long && str.[1] = '-')              -> YaccParser.OP_20 str
     | ':' when (long && str.[1] = '=')              -> YaccParser.OP_20 str
-    | ','                                           -> YaccParser.OP_30 str
+    | ',' | '.'                                     -> YaccParser.OP_30 str
     | '|' when (long && str.[1] = '|')              -> YaccParser.OP_40 str
     | '&' when (long && str.[1] = '&')              -> YaccParser.OP_50 str
     | '=' | '<' | '>' | '|' | '&' | '$' | '#' | '?' -> YaccParser.OP_60 str
@@ -73,7 +70,7 @@ let tokenize__oper str =
     | '+' | '-' | '~'                               -> YaccParser.OP_80 str
     | '*' when (long && str.[1] = '*')              -> YaccParser.OP_100 str
     | '*' | '/' | '%'                               -> YaccParser.OP_90 str
-    | '!'                                           -> YaccParser.OP_225 str
+    | '!'                                           -> YaccParser.OP_230 str
     | _ -> assert false
     end
 
@@ -127,7 +124,8 @@ let escape =
 
 let op_char = [
   '<' '>' '&' '$' '#' '?' '!' '@' '^' '+' '-' 
-  '~' '*' '%' ';' ';' ',' '=' '|' ':' '.' '/'
+  '~' '*' '%' ';' ',' '=' '|' ':' '.' '/' '→'
+  '⇒' 
 ]
 
 rule token = parse
@@ -141,7 +139,7 @@ rule token = parse
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { YaccParser.CBR_OPN    }
   | '}'  { YaccParser.CBR_CLS    }
-  | op_char+ as x { tokenize__oper x }
+  | op_char+ as x { tokenize_oper x }
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
   | '`' lid_start var_char* as x { YaccParser.TLID x }

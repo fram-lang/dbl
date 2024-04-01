@@ -4,7 +4,6 @@
 
 (** Main module of the parser *)
 
-
 type fname = string
 
 let with_in_channel ?pos fname func =

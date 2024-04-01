@@ -242,8 +242,8 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   match p.data with
   | EUnit            -> NPName "()"
   | ECtor c          -> NPName c
-  | EBOpID name ->     NPName (make_bop_id name)
-  | EUOpID name ->     NPName (make_uop_id name)
+  | EBOpID name      -> NPName (make_bop_id name)
+  | EUOpID name      -> NPName (make_uop_id name)
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
   | EWildcard | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
   | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
