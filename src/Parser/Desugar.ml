@@ -4,10 +4,6 @@
 
 (** The first phase of desugaring and post-parsing *)
 
-(* 2023: Piotr Polesiuk: implemented desugaring
-   2024: Piotr Polesiuk, Patrycja Balik: minor changes
-         Jakub  Chomiczewski: operators*)
-
 open Lang.Surface
 
 (** Translation of the binary operator's name to the regular identifier. *)
@@ -18,11 +14,11 @@ let make_uop_id str = "(" ^ str ^ " .)"
 
 let tr_bop_to_expr (op : string node) = 
   let make data = { op with data = data } in
-  make (EPoly(make (EVar (NPName (make_bop_id op.data))),[],[]))
+  make (EPoly (make (EVar (NPName (make_bop_id op.data))),[],[]))
 
 let tr_uop_to_expr (op : string node) = 
   let make data = { op with data = data } in
-  make (EPoly(make (EVar( NPName (make_uop_id op.data))),[],[]))
+  make (EPoly (make (EVar (NPName (make_uop_id op.data))),[],[]))
 
 type ty_def =
   | TD_Id of tvar * Raw.type_expr list
@@ -367,8 +363,9 @@ let rec tr_let_pattern (p : Raw.expr) =
     | EUnit | ENum _ | EStr _ | ECtor _ | ESelect _ ->
       LP_Pat(tr_pattern p)
 
-    | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
-    | EEffect _ | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ |EUOp _  ->
+    | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
+    | EMatch _ | EHandler _| EEffect _ | ERecord _ | EMethod _ 
+    | EExtern _ | EAnnot _ | EIf _ | EBOp _ |EUOp _  ->
       Error.fatal (Error.desugar_error p1.pos)
     end
 
@@ -410,6 +407,7 @@ let rec tr_poly_expr (e : Raw.expr) =
     | ECtor     c -> make (ECtor     (prepend_path c))
     | EBOpID    x -> make (EVar      (prepend_path (make_bop_id x)))
     | EUOpID    x -> make (EVar      (prepend_path (make_uop_id x)))
+    
     | EWildcard | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
     | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
     | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _ ->
@@ -464,7 +462,8 @@ and tr_expr (e : Raw.expr) =
     make (EDefs([ make (DOpen path) ], tr_expr e))
   | EBOp(exp1,op,exp2) -> 
     let e1 = tr_expr exp1 and e2 = tr_expr exp2 in 
-    make (EApp({pos = Position.join e1.pos op.pos; data = EApp(tr_bop_to_expr op,e1) } ,e2))
+    make (EApp({pos = Position.join e1.pos op.pos; 
+    data = EApp(tr_bop_to_expr op,e1) } ,e2))
   | EUOp(op,exp) -> let e = tr_expr exp in 
     make (EApp (tr_uop_to_expr op,e))
   | EWildcard | ERecord _ ->

@@ -4,8 +4,6 @@
 
 /** Yacc-generated parser */
 
-(* 2023,2024: Piotr Polesiuk: initial implementation
-   2024: Jakub  Chomiczewski: operators*)
 
 %token<string> LID UID TLID
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
@@ -271,7 +269,7 @@ expr_10_no_comma
 | expr_20_no_comma { $1 }
 ;
 
-//pattern = exp1 <- exp2
+// exp1 <- exp2
 expr_20
 : expr_30 op_20 expr_20 { make (EBOp($1,$2,$3)) }
 | expr_30 { $1 }
@@ -293,58 +291,58 @@ expr_30_no_comma
 ;
 
 expr_35
-// pattern = exp1 , exp2
+// exp1 , exp2
 :  expr_35 op_30 expr_40  { make (EBOp($1,$2,$3)) }
 | expr_40 { $1 }
 ;
 
 expr_35_no_comma
-// pattern = exp1 , exp2
+// exp1 , exp2
 :  expr_35_no_comma op_30_no_comma expr_40  { make (EBOp($1,$2,$3)) }
 | expr_40 { $1 }
 ;
 
 expr_40
-// pattern = exp1 || exp2
+// exp1 || exp2
 : expr_50 op_40 expr_40 { make (EBOp($1,$2,$3)) }
 | expr_50 { $1 }
 ;
 
 
 expr_50
-// pattern = exp1 && exp2
+// exp1 && exp2
 : expr_60 op_50 expr_50 { make (EBOp($1,$2,$3)) }
 | expr_60 { $1 }
 ;
 
 
 expr_60
-// pattern = exp1 | '==' | '<' | '>' | '|' | '&' | '$' | '#' | '?' exp2
+// exp1 | '==' | '<' | '>' | '|' | '&' | '$' | '#' | '?' exp2
 : expr_60 op_60 expr_70 { make (EBOp($1,$2,$3)) }
 | expr_70 { $1 }
 ;
 
 
 expr_70
-// pattern = exp1 | '@' | ':' | '^' | '.' exp2
+// exp1 | '@' | ':' | '^' | '.' exp2
 : expr_80 op_70 expr_70 { make (EBOp($1,$2,$3)) }
 | expr_80 { $1 }
 ;
 
 expr_80
-// pattern = exp1 | '+' | '-' | '~' exp2
+// exp1 | '+' | '-' | '~' exp2
 : expr_80 op_80 expr_90 { make (EBOp($1,$2,$3)) }
 | expr_90 { $1 }
 ;
 
 expr_90
-// pattern = exp1 | '*' | '/' | '%'  exp2
+// exp1 | '*' | '/' | '%'  exp2
 : expr_90 op_90 expr_100 { make (EBOp($1,$2,$3)) }
 | expr_100 { $1 }
 ;
 
 expr_100 
-// pattern = exp1 ** exp2
+// exp1 ** exp2
 : expr_150 op_100 expr_100 { make (EBOp($1,$2,$3)) }
 | expr_150 { $1 }
 ;
@@ -398,16 +396,16 @@ expr_simple
 : LID                          { make (EVar $1)       }
 | TLID                         { make (EImplicit $1)  }
 | UNDERSCORE                   { make EWildcard       }
-| NUM                          { make (ENum $1)          }
-| STR                          { make (EStr $1)          }
-| BR_OPN BR_CLS                { make EUnit              }
-| BR_OPN expr BR_CLS           { make (EParen $2)        }
+| NUM                          { make (ENum $1)       }
+| STR                          { make (EStr $1)       }
+| BR_OPN BR_CLS                { make EUnit           }
+| BR_OPN expr BR_CLS           { make (EParen $2)     }
 | KW_MATCH expr KW_WITH KW_END { make (EMatch($2, []))}
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
-| BR_OPN op BR_CLS             { make (EBOpID ($2).data) }
-| BR_OPN op DOT BR_CLS  { make (EUOpID ($2).data) }
+| BR_OPN op BR_CLS           { make (EBOpID ($2).data)}
+| BR_OPN op DOT BR_CLS       { make (EUOpID ($2).data)}
 
 ;
 
@@ -460,9 +458,10 @@ data_rec_rest
 /* ========================================================================= */
 
 def
-:  KW_IMPLICIT TLID implicit_ty_args type_annot_opt
+: KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
 | KW_PUB def_10 { make (DPub $2) }
+| KW_METHOD expr_70 EQ expr { make (DMethod($2, $4)) }
 | def_10 { $1 }
 ;
 
@@ -473,7 +472,6 @@ def_10
 | KW_LABEL  expr         { make (DLabel $2) }
 | KW_HANDLE expr_70 EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
 | KW_HANDLE expr_70 KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
-| KW_METHOD expr_70 EQ expr { make (DMethod($2, $4)) }
 | KW_MODULE UID def_list KW_END { make (DModule($2, $3)) }
 | KW_OPEN uid_path { make (DOpen $2) }
 ;

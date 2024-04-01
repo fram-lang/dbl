@@ -4,8 +4,6 @@
 
 (** Reporting errors related to parsing *)
 
-(* Author: Piotr Polesiuk, 2023,2024 *)
-
 (** Abstract representation of error *)
 type t
 

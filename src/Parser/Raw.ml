@@ -4,9 +4,6 @@
 
 (** The Raw language: result of yacc-generated. It is later post-parsed by
   [Desugar] in order to obtain the program in Surface language. *)
-
-(* 2023,2024: Piotr Polesiuk: initial implementation
-   2024: Jakub  Chomiczewski: operators *)
    
 include SyntaxNode.Export
 
