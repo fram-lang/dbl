@@ -60,14 +60,14 @@ let tokenize_oper str =
     | ';'                                           -> YaccParser.OP_0 str
     | '<' when (long && str.[1] = '-')              -> YaccParser.OP_20 str
     | ':' when (long && str.[1] = '=')              -> YaccParser.OP_20 str
-    | ',' | '.'                                     -> YaccParser.OP_30 str
+    | ','                                           -> YaccParser.OP_30 str
     | '|' when (long && str.[1] = '|')              -> YaccParser.OP_40 str
     | '&' when (long && str.[1] = '&')              -> YaccParser.OP_50 str
     | '=' | '<' | '>' | '|' | '&' | '$' | '#' | '?' -> YaccParser.OP_60 str
     | '@' | ':' | '^'                               -> YaccParser.OP_70 str
     | '+' | '-' | '~'                               -> YaccParser.OP_80 str
     | '*' when (long && str.[1] = '*')              -> YaccParser.OP_100 str
-    | '*' | '/' | '%'                               -> YaccParser.OP_90 str
+    | '*' | '/' | '%' | '.'                         -> YaccParser.OP_90 str
     | '!'                                           -> YaccParser.OP_230 str
     | _ -> assert false
     end
@@ -136,8 +136,6 @@ rule token = parse
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { YaccParser.CBR_OPN    }
   | '}'  { YaccParser.CBR_CLS    }
-  | "→"  {YaccParser.ARROW       }
-  | "⇒"  {YaccParser.ARROW2      }
   | op_char+ as x { tokenize_oper x }
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
