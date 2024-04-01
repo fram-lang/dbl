@@ -4,7 +4,6 @@
 
 (** Main module of the parser *)
 
-
 (** File name *)
 type fname = string
 

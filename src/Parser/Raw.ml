@@ -3,8 +3,7 @@
  *)
 
 (** The Raw language: result of yacc-generated. It is later post-parsed by
-  [Desugar] in order to obtain the program in Surface language. *)
-   
+  [Desugar] in order to obtain the program in Surface language. *)   
 include SyntaxNode.Export
 
 (** Type variables *)

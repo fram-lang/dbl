@@ -40,10 +40,8 @@ let kw_map =
 let op_map = 
   let open YaccParser in
   [ "->", ARROW
-  ; "→",  ARROW
   ; "|",  BAR
   ; "=>", ARROW2
-  ; "⇒",  ARROW2
   ; "|",  BAR
   ; ":",  COLON
   ; ",",  COMMA
@@ -124,8 +122,7 @@ let escape =
 
 let op_char = [
   '<' '>' '&' '$' '#' '?' '!' '@' '^' '+' '-' 
-  '~' '*' '%' ';' ',' '=' '|' ':' '.' '/' '→'
-  '⇒' 
+  '~' '*' '%' ';' ',' '=' '|' ':' '.' '/'  
 ]
 
 rule token = parse
@@ -139,6 +136,8 @@ rule token = parse
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { YaccParser.CBR_OPN    }
   | '}'  { YaccParser.CBR_CLS    }
+  | "→"  {YaccParser.ARROW       }
+  | "⇒"  {YaccParser.ARROW2      }
   | op_char+ as x { tokenize_oper x }
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
