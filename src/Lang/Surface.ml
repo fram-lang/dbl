@@ -45,6 +45,7 @@ type name =
   | NLabel
   | NVar      of var
   | NImplicit of iname
+  | NMethod   of method_name 
 
 (** Identifier, i.e., object that can be bound in patterns *)
 type ident =

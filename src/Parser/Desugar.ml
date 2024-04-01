@@ -85,12 +85,8 @@ let ident_of_name (name : Raw.name) =
   | NLabel      -> IdLabel
   | NVar x      -> IdVar x
   | NImplicit n -> IdImplicit n
-
-let rec path_append path rest =
-  match path with
-  | NPName name       -> NPSel(name, rest)
-  | NPSel(name, path) -> NPSel(name, path_append path rest)
-
+  | NMethod   n -> IdMethod   n
+  
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
@@ -511,6 +507,7 @@ and tr_explicit_inst (fld : Raw.field) =
       | NLabel      -> Error.fatal (Error.desugar_error fld.pos)
       | NVar      x -> make (EVar (NPName x))
       | NImplicit n -> make (EImplicit (NPName n))
+      | NMethod   n -> Error.fatal (Error.desugar_error fld.pos)
     in
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->

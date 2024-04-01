@@ -49,6 +49,9 @@ type name =
   | NImplicit of string
     (** Implicit parameter *)
 
+  | NMethod   of string
+    (** Name of methods **)
+
 (** Types.
 
   This is an abstract type. Use [Type.view] to view it. *)

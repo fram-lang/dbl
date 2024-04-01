@@ -21,6 +21,7 @@ type name =
   | NLabel
   | NVar      of string
   | NImplicit of string
+  | NMethod   of string
 
 type typ
 
