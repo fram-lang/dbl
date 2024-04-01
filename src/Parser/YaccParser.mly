@@ -391,13 +391,13 @@ expr_300
 ;
 
 expr_simple
-: LID                          { make (EVar $1)       }
-| TLID                         { make (EImplicit $1)  }
-| UNDERSCORE                   { make EWildcard       }
-| NUM                          { make (ENum $1)       }
-| STR                          { make (EStr $1)       }
-| BR_OPN BR_CLS                { make EUnit           }
-| BR_OPN expr BR_CLS           { make (EParen $2)     }
+: LID                { make (EVar $1)     }
+| TLID               { make (EImplicit $1)}
+| UNDERSCORE         { make EWildcard     }
+| NUM                { make (ENum $1)     }
+| STR                { make (EStr $1)     }
+| BR_OPN BR_CLS      { make EUnit         }
+| BR_OPN expr BR_CLS { make (EParen $2)   }
 | KW_MATCH expr KW_WITH KW_END { make (EMatch($2, []))}
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
