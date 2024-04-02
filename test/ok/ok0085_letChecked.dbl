@@ -1,0 +1,6 @@
+let f x =
+  let y =
+    match x with
+    | _ => x
+    end
+  in y

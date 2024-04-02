@@ -8,7 +8,7 @@ open KindBase
 
 type uvar
 type tvar  = TVar.t
-type scope = TVar.Set.t
+type scope = Scope.t
 
 type tname =
   | TNAnon
@@ -114,6 +114,8 @@ module UVar : sig
 
   val scope : t -> scope
 
+  val level : t -> int
+
   (** Set a unification variable, without checking any constraints. It returns
     expected scope of set type. The first parameter is a permutation attached
     to unification variable *)
@@ -121,13 +123,9 @@ module UVar : sig
 
   val fix : t -> tvar
 
-  (** Shrink scope of given unification variable to intersection of current
-    and given scope. *)
-  val shrink_scope : scope:scope -> uvar -> unit
-
-  (** Shrink scope of given unification variable, leaving only those variables
-    which satisfy given predicate *)
-  val filter_scope : uvar -> (tvar -> bool) -> unit
+  (** Shrink scope of given unification variable to given level, leaving only
+    those variables which satisfy given predicate. *)
+  val filter_scope : uvar -> int -> (tvar -> bool) -> unit
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t

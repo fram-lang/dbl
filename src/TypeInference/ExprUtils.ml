@@ -52,18 +52,8 @@ let rec make_tapp e tps =
     in
     make_tapp e tps
 
-let generalize ~pos env tvs2 named e tp =
-  Uniqueness.check_generalized_named_types ~pos tvs2;
-  let tvs1 =
-    List.fold_left
-      (fun tvs (_, _, isch) -> T.Scheme.collect_uvars isch tvs)
-      (T.Type.uvars tp)
-      named
-    |> Fun.flip T.UVar.Set.diff (Env.uvars env)
-    |> T.UVar.Set.elements
-    |> List.map (fun x -> (T.TNAnon, T.UVar.fix x))
-  in
-  let tvs = tvs1 @ tvs2 in
+let generalize ~pos tvs named e tp =
+  Uniqueness.check_generalized_named_types ~pos tvs;
   let sch =
     { T.sch_targs = tvs
     ; T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named

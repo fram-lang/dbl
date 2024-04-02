@@ -59,8 +59,6 @@ let lookup_tvar stack = lookup_path stack Module.lookup_tvar
 
 let lookup_module stack = lookup_path stack Module.lookup_module
 
-let collect_uvars = fold_right Module.collect_uvars
-
 let enter_module (m, stack) = (Module.empty, m :: stack)
 
 let leave_module (old_top, stack) ~public name =

@@ -131,21 +131,6 @@ let rec lookup_path m lookup (p : 'a S.path) =
   | NPSel(x, p) ->
     Option.bind (lookup_module m x) (fun m -> lookup_path m lookup p)
 
-let rec collect_uvars m uvars =
-  uvars
-  |> StrMap.fold
-      (fun _ { data = (_, sch); _ } -> T.Scheme.collect_uvars sch)
-      m.var_map
-  |> StrMap.fold
-      (fun _ { data = tp; _ } -> T.Type.collect_uvars tp)
-      m.tvar_map
-  |> StrMap.fold
-      (fun _ { data = (_, sch, _); _ } -> T.Scheme.collect_uvars sch)
-      m.implicit_map
-  |> StrMap.fold
-      (fun _ { data = ns; _ } -> collect_uvars ns)
-      m.mod_map
-
 let filter_public m =
   let public _ info = info.public in
   { var_map      = StrMap.filter public m.var_map;

@@ -49,10 +49,6 @@ val lookup_tvar : t -> S.tvar S.path -> T.typ option
 (** Lookup for a module of the given name. *)
 val lookup_module : t -> S.module_name S.path -> Module.t option
 
-(** Extend the given set of unification variables by unification variables
-  found in the module stack. *)
-val collect_uvars : t -> T.UVar.Set.t -> T.UVar.Set.t
-
 (** Create a new module on top of the module stack *)
 val enter_module : t -> t
 
