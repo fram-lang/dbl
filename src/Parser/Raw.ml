@@ -31,6 +31,9 @@ type method_name = string
 (** Names of modules *)
 type module_name = string
 
+(** Names of operators *)
+type op_name = string 
+
 (** Module path to an identifier of type 'a *)
 type 'a path = 'a Lang.Surface.path =
   | NPName of 'a
@@ -122,6 +125,12 @@ and expr_data =
   | EVar  of var
     (** Variable *)
 
+  | EBOpID of op_name
+    (** identifier of binary operator *)
+
+  | EUOpID of op_name
+    (** identifier of unary operator *)
+
   | EImplicit of iname
     (** Named implicit parameter *)
 
@@ -170,6 +179,12 @@ and expr_data =
 
   | ESelect of module_name path * expr
     (** Selection from a module *)
+    
+  | EBOp of  expr * op_name node * expr
+    (** Binary operator *)
+
+  | EUOp of op_name node * expr
+    (** Unary operator*)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

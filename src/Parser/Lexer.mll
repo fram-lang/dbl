@@ -36,6 +36,41 @@ let kw_map =
   ; "_",        UNDERSCORE
   ] |> List.to_seq |> Hashtbl.of_seq
 
+(* let op_map = Hashtbl.create 32 *)
+let op_map = 
+  let open YaccParser in
+  [ "->", ARROW
+  ; "|",  BAR
+  ; "=>", ARROW2
+  ; "|",  BAR
+  ; ":",  COLON
+  ; ",",  COMMA
+  ; ".",  DOT
+  ; "=",  EQ
+  ; ";;", SEMICOLON2
+  ; "/",  SLASH
+  ] |> List.to_seq |> Hashtbl.of_seq
+
+let tokenize_oper str = 
+  try Hashtbl.find op_map str with 
+  | Not_found -> 
+    let long = String.length str >= 2 in
+    begin match str.[0] with
+    | ';'                                           -> YaccParser.OP_0 str
+    | '<' when (long && str.[1] = '-')              -> YaccParser.OP_20 str
+    | ':' when (long && str.[1] = '=')              -> YaccParser.OP_20 str
+    | ','                                           -> YaccParser.OP_30 str
+    | '|' when (long && str.[1] = '|')              -> YaccParser.OP_40 str
+    | '&' when (long && str.[1] = '&')              -> YaccParser.OP_50 str
+    | '=' | '<' | '>' | '|' | '&' | '$' | '#' | '?' -> YaccParser.OP_60 str
+    | '@' | ':' | '^'                               -> YaccParser.OP_70 str
+    | '+' | '-' | '~'                               -> YaccParser.OP_80 str
+    | '*' when (long && str.[1] = '*')              -> YaccParser.OP_100 str
+    | '*' | '/' | '%' | '.'                         -> YaccParser.OP_90 str
+    | '!'                                           -> YaccParser.OP_230 str
+    | _ -> assert false
+    end
+
 let tokenize_ident str =
   match Hashtbl.find_opt kw_map str with
   | Some tok -> tok
@@ -84,6 +119,11 @@ let escape =
   ['"' ''' '\\' '0' 'n' 'b' 't' 'r' 'v' 'a' 'f']
   | (['x' 'X'] hex_digit hex_digit)
 
+let op_char = [
+  '<' '>' '&' '$' '#' '?' '!' '@' '^' '+' '-' 
+  '~' '*' '%' ';' ',' '=' '|' ':' '.' '/'  
+]
+
 rule token = parse
     whitespace+ { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
@@ -95,17 +135,7 @@ rule token = parse
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { YaccParser.CBR_OPN    }
   | '}'  { YaccParser.CBR_CLS    }
-  | "->"
-  | "→"  { YaccParser.ARROW      }
-  | "=>"
-  | "⇒"  { YaccParser.ARROW2     }
-  | "|"  { YaccParser.BAR        }
-  | ":"  { YaccParser.COLON      }
-  | ","  { YaccParser.COMMA      }
-  | "."  { YaccParser.DOT        }
-  | "="  { YaccParser.EQ         }
-  | ";;" { YaccParser.SEMICOLON2 }
-  | "/"  { YaccParser.SLASH      }
+  | op_char+ as x { tokenize_oper x }
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
   | '`' lid_start var_char* as x { YaccParser.TLID x }

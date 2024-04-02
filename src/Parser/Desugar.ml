@@ -6,6 +6,20 @@
 
 open Lang.Surface
 
+(** Translation of the binary operator's name to the regular identifier. *)
+let make_bop_id str = "(" ^ str ^ ")"
+
+(** Translation of the unary operator's name to the regular identifier. *)
+let make_uop_id str = "(" ^ str ^ " .)"
+
+let tr_bop_to_expr (op : string node) = 
+  let make data = { op with data = data } in
+  make (EPoly (make (EVar (NPName (make_bop_id op.data))),[],[]))
+
+let tr_uop_to_expr (op : string node) = 
+  let make data = { op with data = data } in
+  make (EPoly (make (EVar (NPName (make_uop_id op.data))),[],[]))
+
 type ty_def =
   | TD_Id of tvar * Raw.type_expr list
     (** Name with parameters *)
@@ -228,10 +242,12 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   match p.data with
   | EUnit            -> NPName "()"
   | ECtor c          -> NPName c
+  | EBOpID name      -> NPName (make_bop_id name)
+  | EUOpID name      -> NPName (make_uop_id name)
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
   | EWildcard | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
   | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
+  | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -245,6 +261,8 @@ let rec tr_pattern (p : Raw.expr) =
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern p).data
   | EVar      x -> make (PId (IdVar x))
+  | EBOpID    n -> make (PId (IdVar (make_bop_id n)))
+  | EUOpID    n -> make (PId (IdVar (make_uop_id n)))
   | EImplicit n -> make (PId (IdImplicit n))
   | EApp(p1, ps) ->
     let cpath = { p1 with data = tr_ctor_pattern p1 } in
@@ -252,6 +270,12 @@ let rec tr_pattern (p : Raw.expr) =
     let (targs, iargs) = map_inst_like tr_named_pattern flds in
     make (PCtor(cpath, targs, iargs, List.map tr_pattern ps))
   | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
+  | EBOp (p1,op,p2) -> 
+    let c_name = {op with data = NPName (make_bop_id op.data)} in
+    make (PCtor (c_name,[],[],[tr_pattern p1; tr_pattern p2]))
+  | EUOp (op,p1) -> 
+    let c_name = {op with data = NPName (make_uop_id op.data)} in
+    make (PCtor (c_name,[],[],[tr_pattern p1]))
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
   | EMethod _ | EExtern _ | EIf _ ->
@@ -286,7 +310,7 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern p, tr_scheme_expr sch)
   | EWildcard | EUnit | ENum _ | EStr _ | EVar _ | EImplicit _ | ECtor _
-  | EApp _ | ESelect _ ->
+  | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _  | ESelect _ ->
     ArgPattern (tr_pattern arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
@@ -319,14 +343,17 @@ let rec tr_let_pattern (p : Raw.expr) =
   match p.data with
   | EVar      x -> LP_Id(IdVar x)
   | EImplicit n -> LP_Id(IdImplicit n)
-
+  | EBOpID    n -> LP_Id(IdVar (make_bop_id n))
+  | EUOpID    n -> LP_Id(IdVar (make_uop_id n))
   | EApp(p1, ps) ->
     begin match p1.data with
-    | EVar _ | EImplicit _ ->
+    | EVar _ | EImplicit _  | EBOpID _ | EUOpID _->
       let id =
         match p1.data with
         | EVar      x -> IdVar x
         | EImplicit n -> IdImplicit n
+        | EBOpID    n -> IdVar (make_bop_id n)
+        | EUOpID    n -> IdVar (make_uop_id n)
         | _ -> assert false
       in
       let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
@@ -336,13 +363,14 @@ let rec tr_let_pattern (p : Raw.expr) =
     | EUnit | ENum _ | EStr _ | ECtor _ | ESelect _ ->
       LP_Pat(tr_pattern p)
 
-    | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
-    | EEffect _ | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ ->
+    | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
+    | EMatch _ | EHandler _| EEffect _ | ERecord _ | EMethod _ 
+    | EExtern _ | EAnnot _ | EIf _ | EBOp _ |EUOp _  ->
       Error.fatal (Error.desugar_error p1.pos)
     end
 
   | EWildcard | EUnit | ENum _ | EStr _ | EParen _ | ECtor _ | EAnnot _
-  | ESelect _ ->
+  | EBOp _  | EUOp _  | ESelect _->
     LP_Pat (tr_pattern p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -362,9 +390,12 @@ let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
   | EUnit       -> make (ECtor     (NPName "()"))
-  | EVar      x -> make (EVar      (NPName    x))
-  | EImplicit n -> make (EImplicit (NPName    n))
-  | ECtor     c -> make (ECtor     (NPName    c))
+  | EVar      x -> make (EVar      (NPName x))
+  | EImplicit n -> make (EImplicit (NPName n))
+  | ECtor     c -> make (ECtor     (NPName c))
+  | EBOpID    x -> make (EVar      (NPName (make_bop_id x)))
+  | EUOpID    x -> make (EVar      (NPName (make_uop_id x)))
+
   | EMethod(e, name) ->
     make (EMethod(tr_expr e, name))
   | ESelect(path, e) ->
@@ -374,23 +405,25 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EVar      x -> make (EVar      (prepend_path x))
     | EImplicit n -> make (EImplicit (prepend_path n))
     | ECtor     c -> make (ECtor     (prepend_path c))
-
+    | EBOpID    x -> make (EVar      (prepend_path (make_bop_id x)))
+    | EUOpID    x -> make (EVar      (prepend_path (make_uop_id x)))
+    
     | EWildcard | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
     | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-    | EAnnot _ | EIf _ | EMethod _ | ESelect _ ->
+    | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _ ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
   | EWildcard | ENum _ | EStr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-  | EAnnot _ | EIf _ ->
+  | EAnnot _ | EIf _ | EBOp _ | EUOp _->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
   | EParen e       -> make (tr_expr e).data
-  | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ ->
+  | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (EPoly(tr_poly_expr e, [], []))
   | ENum n -> make (ENum n)
   | EStr s -> make (EStr s)
@@ -427,6 +460,15 @@ and tr_expr (e : Raw.expr) =
     make (EMatch(tr_expr e, [make cl1; make cl2]))
   | ESelect(path, e) ->
     make (EDefs([ make (DOpen path) ], tr_expr e))
+  | EBOp(exp1,op,exp2) -> 
+    let e1 = tr_expr exp1 and e2 = tr_expr exp2 in 
+    make (EApp(
+      { pos  = Position.join e1.pos op.pos; 
+        data = EApp(tr_bop_to_expr op, e1)
+      }, e2))
+  | EUOp(op,exp) ->
+    let e = tr_expr exp in 
+    make (EApp (tr_uop_to_expr op, e))
   | EWildcard | ERecord _ ->
     Error.fatal (Error.desugar_error e.pos)
 
