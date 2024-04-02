@@ -1,0 +1,7 @@
+data Box X = Box of X
+label l
+data A = A
+let foo (Box A) = ()
+handle {label=l} _ = ()
+  return  _ => foo
+  finally c => c (Box A)

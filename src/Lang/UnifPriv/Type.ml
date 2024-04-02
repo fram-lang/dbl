@@ -198,7 +198,7 @@ and shrink_scope ~scope tp =
     shrink_scope ~scope eff0
   | TApp(tp1, tp2) ->
     shrink_scope ~scope tp1;
-    shrink_scope ~scope tp1
+    shrink_scope ~scope tp2
 
 and shrink_scheme_scope ~scope sch =
   let scope = List.fold_left Scope.add_named scope sch.sch_targs in
