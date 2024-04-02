@@ -6,9 +6,8 @@
 
 open KindBase
 
-type tvar = TVar.t
-
-type scope = TVar.Set.t
+type tvar  = TVar.t
+type scope = Scope.t
 
 type tname =
   | TNAnon
@@ -68,7 +67,7 @@ type ctor_decl = {
   ctor_arg_schemes : scheme list
 }
 
-let t_uvar p u = TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
+let t_uvar p u = TUVar(Scope.shrink_perm_dom (BRef.get u.scope) p, u)
 
 let t_var x = TVar x
 
@@ -129,7 +128,7 @@ and perm_rec p tp =
   match view tp with
   | TUVar(p', u) ->
     let p = TVar.Perm.compose p p' in
-    TUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
+    TUVar(Scope.shrink_perm_dom (BRef.get u.scope) p, u)
   | TVar x -> TVar (TVar.Perm.apply p x)
   | TEffect xs ->
     TEffect (TVar.Perm.map_set p xs)
@@ -152,7 +151,7 @@ and perm_effrow_end_rec p ee =
   | EEClosed -> EEClosed
   | EEUVar(p', u) ->
     let p = TVar.Perm.compose p p' in
-    EEUVar(TVar.Perm.shrink_dom (BRef.get u.scope) p, u)
+    EEUVar(Scope.shrink_perm_dom (BRef.get u.scope) p, u)
   | EEVar x -> EEVar (TVar.Perm.apply p x)
   | EEApp(tp1, tp2) ->
     EEApp(perm_rec p tp1, perm_rec p tp2)
@@ -210,12 +209,14 @@ module UVar = struct
 
   let scope u = BRef.get u.scope
 
+  let level u = Scope.level (scope u)
+
   let raw_set p u tp =
     match BRef.get u.state with
     | UV_Type _ -> assert false
     | UV_UVar   ->
       BRef.set u.state (UV_Type (perm (TVar.Perm.inverse p) tp));
-      TVar.Perm.map_set p (BRef.get u.scope)
+      Scope.perm p (BRef.get u.scope)
 
   let fix u =
     match BRef.get u.state with
@@ -225,11 +226,8 @@ module UVar = struct
       BRef.set u.state (UV_Type (t_var x));
       x
 
-  let shrink_scope ~scope u =
-    BRef.set u.scope (TVar.Set.inter (BRef.get u.scope) scope)
-
-  let filter_scope u f =
-    BRef.set u.scope (TVar.Set.filter f (BRef.get u.scope))
+  let filter_scope u lvl f =
+    BRef.set u.scope (Scope.filter lvl f (BRef.get u.scope))
 
   module Set = Set.Make(Ordered)
   module Map = Map.Make(Ordered)

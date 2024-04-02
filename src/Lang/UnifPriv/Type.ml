@@ -160,7 +160,8 @@ let shrink_var_scope ~scope x =
   else raise (Escapes_scope x)
 
 let shrink_uvar_scope ~scope p u =
-  UVar.filter_scope u (fun x -> Scope.mem scope (TVar.Perm.apply p x))
+  UVar.filter_scope u (Scope.level scope)
+    (fun x -> Scope.mem scope (TVar.Perm.apply p x))
 
 let rec shrink_effrow_end_scope ~scope ee =
   match ee with

@@ -47,6 +47,7 @@ let is_empty sub =
 let in_uvar sub p u =
   let p = TVar.Perm.compose sub.perm p in
   UVar.filter_scope u
+    (UVar.level u)
     (fun x -> not (TVar.Map.mem (TVar.Perm.apply p x) sub.sub));
   p
 

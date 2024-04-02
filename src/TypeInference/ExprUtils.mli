@@ -15,12 +15,13 @@ val make_nfun : (T.name * T.var * T.scheme) list -> T.expr -> T.expr
 (** Generate a type application to given list of types *)
 val make_tapp : T.expr -> T.typ list -> T.expr
 
-(** Generalize type to polymorphic scheme. The second parameter is a list
-  of explicit type parameters, and the third parameter is a list of
+(** Generalize type to polymorphic scheme. The first parameter is a list
+  of type parameters (explicit or implicitly introduced by
+  [ImplicitEnv.end_generalize_pure], and the second parameter is a list of
   implicit parameters. *)
 val generalize :
   pos:Position.t ->
-  Env.t -> T.named_tvar list -> (T.name * T.var * T.scheme) list ->
+  T.named_tvar list -> (T.name * T.var * T.scheme) list ->
   T.expr -> T.typ -> T.expr * T.scheme
 
 (** Guess types used to instantiate polymorphic function. Some of these types

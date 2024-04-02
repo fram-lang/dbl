@@ -78,10 +78,6 @@ val lookup_module : t -> S.module_name -> t option
   Returns [None] if the path is invalid or the lookup fails. *)
 val lookup_path : t -> (t -> 'a -> 'b option) -> 'a S.path -> 'b option
 
-(** Extend the given set of unification variables by unification variables
-  found in the module stack. *)
-val collect_uvars : t -> T.UVar.Set.t -> T.UVar.Set.t
-
 (** Remove all private definitions from the module. *)
 val filter_public : t -> t
 

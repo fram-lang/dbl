@@ -369,6 +369,12 @@ module Scope : sig
 
   (** Apply permutation to a scope *)
   val perm : TVar.Perm.t -> scope -> scope
+
+  (** Increase a level of given scope *)
+  val incr_level : scope -> scope
+
+  (** Get a level of given scope *)
+  val level : scope -> int
 end
 
 (* ========================================================================= *)
@@ -385,6 +391,9 @@ module UVar : sig
   (** Get a scope of a unification variable *)
   val scope : t -> scope
 
+  (** Get a level of an unification variable *)
+  val level : t -> int
+
   (** Set a unification variable, without checking any constraints. It returns
     expected scope of set type. The first parameter is a permutation attached
     to the unification variable. *)
@@ -393,9 +402,9 @@ module UVar : sig
   (** Promote unification variable to fresh type variable *)
   val fix : t -> tvar
 
-  (** Shrink scope of given unification variable, leaving only those variables
-    which satisfy given predicate *)
-  val filter_scope : t -> (tvar -> bool) -> unit
+  (** Shrink scope of given unification variable to given level, leaving only
+    those variables which satisfy given predicate. *)
+  val filter_scope : t -> int -> (tvar -> bool) -> unit
 
   (** Set of unification variables *)
   module Set : Set.S with type elt = t

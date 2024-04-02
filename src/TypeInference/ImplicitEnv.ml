@@ -18,7 +18,13 @@ type implicit = {
     (** The location of the first usage *)
 }
 
-type implicit_list = implicit list
+type implicit_list = {
+  il_list : implicit list;
+    (** List of implicit parameter that potentially could be generalized. *)
+
+  il_env  : Env.t
+    (** Saved environment from the place of the call of [begin_generalize] *)
+}
 
 let empty = []
 
@@ -62,27 +68,49 @@ let generalize_implicit (env, ims) (name, args, sch) =
   (env, im :: ims)
 
 let begin_generalize env ims =
-  List.fold_left generalize_implicit (env, []) ims
+  let (new_env, il_list) =
+    List.fold_left generalize_implicit (Env.incr_level env, []) ims in
+  (new_env, { il_list; il_env = env })
 
-let end_generalize_pure ims =
+let end_generalize_pure ims uvs =
+  let level = Env.level ims.il_env in
+  (* List of used implicits *)
   let ims =
-    ims
+    ims.il_list
     |> List.filter (fun im -> Option.is_some (BRef.get im.i_used))
   in
-  let targs = List.concat_map (fun im -> im.i_targs) ims in
+  (* Named abstract type parameters of used implicits *)
+  let targs2 = List.concat_map (fun im -> im.i_targs) ims in
+  (* Generalized implicits as named parameters *)
   let ims =
     List.map (fun im -> (T.NImplicit im.i_name, im.i_var, im.i_scheme)) ims
   in
-  (targs, ims)
+  (* Implicitly generalized unification type variables *)
+  let targs1 =
+    List.fold_left
+      (fun tvs (_, _, isch) -> T.Scheme.collect_uvars isch tvs)
+      uvs
+      ims
+    |> T.UVar.Set.filter (fun x -> T.UVar.level x > level)
+    |> T.UVar.Set.elements
+    |> List.map (fun x -> (T.TNAnon, T.UVar.fix x))
+  in
+  (targs1 @ targs2, ims)
 
-let end_generalize_impure ims =
+let end_generalize_impure ~pos ~env ims tp =
+  let scope = Env.scope ims.il_env in
+  begin match T.Type.try_shrink_scope ~scope tp with
+  | Ok   () -> ()
+  | Error x ->
+    Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
+  end;
   List.iter
     (fun im ->
       match BRef.get im.i_used with
       | None -> ()
       | Some pos ->
         Error.fatal (Error.ungeneralizable_implicit ~pos im.i_name))
-    ims
+    ims.il_list
 
 let declare_implicit ienv name args sch = (name, args, sch) :: ienv
 

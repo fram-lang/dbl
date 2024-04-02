@@ -201,25 +201,12 @@ let lookup_method env owner name =
 let lookup_tvar_pp_info env x =
   T.TVar.Map.find_opt x env.pp_map
 
-let collect_adt_uvars (info : Module.adt_info) uvars =
-  uvars
-  |> List.fold_right T.CtorDecl.collect_uvars info.adt_ctors
-  |> T.Type.collect_uvars info.adt_type
-
-let collect_method_uvars =
-  StrMap.fold (fun _ (_, sch) -> T.Scheme.collect_uvars sch)
-
-let uvars env =
-  T.UVar.Set.empty
-  |> ModStack.collect_uvars env.mod_stack
-  |> T.TVar.Map.fold
-      (fun _ -> collect_adt_uvars)
-      env.adt_map
-  |> T.TVar.Map.fold
-      (fun _ -> collect_method_uvars)
-      env.method_map
+let incr_level env =
+  { env with scope = T.Scope.incr_level env.scope }
 
 let scope env = env.scope
+
+let level env = T.Scope.level env.scope
 
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind

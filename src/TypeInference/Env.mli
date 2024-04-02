@@ -116,11 +116,15 @@ val lookup_method : t -> T.tvar -> S.method_name -> (T.var * T.scheme) option
 (** Lookup for pretty-printing information about type variable *)
 val lookup_tvar_pp_info : t -> T.tvar -> pp_info option
 
-(** Set of unification variables in the environment *)
-val uvars : t -> T.UVar.Set.t
+(** Increase the level of the environment's scope. The level should be
+  increased for each place, when implicit type generalization can occur. *)
+val incr_level : t -> t
 
 (** Get current scope *)
 val scope : t -> T.scope
+
+(** Get a level of given environment *)
+val level : t -> int
 
 (** Create a fresh unification variable in current scope *)
 val fresh_uvar : t -> T.kind -> T.typ

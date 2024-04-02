@@ -560,19 +560,20 @@ and check_def : type dir.
     end;
     (* TODO: check if [tp] is in proper scope (ims2 may bind some types) *)
     let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
-    let (tvars1, ims1) = ImplicitEnv.end_generalize_pure ims1 in
+    let (tvars1, ims1) =
+      ImplicitEnv.end_generalize_pure ims1 (T.Type.uvars tp) in
     let (body, sch) =
-      ExprUtils.generalize ~pos env (tvars1 @ tvars2) (ims1 @ ims2) body tp in
+      ExprUtils.generalize ~pos (tvars1 @ tvars2) (ims1 @ ims2) body tp in
     let (env, ienv, x) =
       ImplicitEnv.add_poly_id ~pos env ienv ~public id sch in
     let (e2, resp, r_eff) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
 
   | DLetPat(pat, e1) ->
+    let scope = Env.scope env in
     let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
-    let scope = Env.scope env1 in
     let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
-    ImplicitEnv.end_generalize_impure ims;
+    ImplicitEnv.end_generalize_impure ~env:env1 ~pos:e1.pos ims tp;
     let (env, pat, names, r_eff2) =
       Pattern.check_type ~env ~scope ~public pat tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
@@ -641,7 +642,7 @@ and check_def : type dir.
       | Some le ->
         let (env', ims) = ImplicitEnv.begin_generalize env ienv in
         let (le, le_tp, _) = infer_expr_type env' le eff in
-        ImplicitEnv.end_generalize_impure ims;
+        ImplicitEnv.end_generalize_impure ~env:env' ~pos:le.pos ims le_tp;
         begin match Unification.as_label env le_tp with
         | L_Label(l_eff, tp0, eff0) ->
           let env = Type.check_type_alias_binder_opt env eff_opt l_eff in
@@ -670,7 +671,7 @@ and check_def : type dir.
     let (env_h, ims) = ImplicitEnv.begin_generalize env ienv in
     let (eh, eh_tp, _) = infer_expr_type env_h eh eff in
     (* TODO: effect capability may have a scheme instead of type *)
-    ImplicitEnv.end_generalize_impure ims;
+    ImplicitEnv.end_generalize_impure ~env:env_h ~pos:eh.pos ims eh_tp;
     begin match Unification.to_handler env eh_tp with
     | H_Handler(a, cap_tp, res_tp, res_eff) ->
       let sub = lbl.l_sub a in
@@ -714,13 +715,12 @@ and check_def : type dir.
     end
 
   | DImplicit(n, args, sch) ->
-    let (env1, args1) = Type.tr_named_type_args env args in
-    let sch  = Type.tr_scheme env1 sch in
-    let args2 =
-      T.UVar.Set.diff (T.Scheme.uvars sch) (Env.uvars env)
-      |> T.UVar.Set.elements
-      |> List.map (fun x -> (T.TNAnon, T.UVar.fix x))
-    in
+    let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
+    let (env1, args1) = Type.tr_named_type_args env1 args in
+    let sch = Type.tr_scheme env1 sch in
+    let (args2, ims) =
+      ImplicitEnv.end_generalize_pure ims (T.Scheme.uvars sch) in
+    assert (List.is_empty ims);
     let args = args1 @ args2 in
     let ienv = ImplicitEnv.declare_implicit ienv n args sch in
     cont.run env ienv req eff
@@ -759,10 +759,8 @@ and check_def : type dir.
   | DPub def -> check_def env ienv ~public:true def req eff cont
 
   | DReplExpr e1 ->
-    let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
-    let scope = Env.scope env1 in
-    let (e1, tp1, r_eff1) = check_repl_expr env e1 eff in
-    ImplicitEnv.end_generalize_impure ims;
+    let scope = Env.scope env in
+    let (e1, tp1, r_eff1) = check_repl_expr env ienv e1 eff in
     let (e, resp, r_eff2) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EReplExpr(e1, tp1, e)), resp, ret_effect_join r_eff1 r_eff2)
@@ -776,12 +774,12 @@ and check_let ~pos env ienv body eff =
     of an expression *)
   match r_eff with
   | Pure ->
-    let (targs, ims) = ImplicitEnv.end_generalize_pure ims in
+    let (targs, ims) = ImplicitEnv.end_generalize_pure ims (T.Type.uvars tp) in
     (* TODO: make sure that names do not overlap *)
-    let (body, sch) = ExprUtils.generalize ~pos env targs ims body tp in
+    let (body, sch) = ExprUtils.generalize ~pos targs ims body tp in
     (sch, body, Pure)
   | Impure ->
-    ImplicitEnv.end_generalize_impure ims;
+    ImplicitEnv.end_generalize_impure ~env:body_env ~pos:body.pos ims tp;
     let sch = T.Scheme.of_type tp in
     (sch, body, Impure)
 
@@ -924,7 +922,9 @@ and check_repl_def_seq env ienv def_seq tp eff =
 
 (* ------------------------------------------------------------------------- *)
 (** Check expression put into REPL *)
-and check_repl_expr env e eff =
+and check_repl_expr env ienv e eff =
+  let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
   let (e, tp, r_eff) = infer_expr_type env e eff in
+  ImplicitEnv.end_generalize_impure ~pos:e.pos ~env:env1 ims tp;
   let pp_ctx = Pretty.empty_context () in
   (e, Pretty.type_to_string pp_ctx env tp, r_eff)

@@ -109,7 +109,7 @@ let rec check_subeffect env eff1 eff2 =
     else
       begin match T.Effect.view_end eff2 with
       | EEUVar(p2, u2) when T.UVar.equal u1 u2 ->
-        T.UVar.filter_scope u1 (T.TVar.Perm.agree_on p1 p2)
+        T.UVar.filter_scope u1 (T.UVar.level u2) (T.TVar.Perm.agree_on p1 p2)
       | _ ->
         (** TODO: add constraint, instead of such combinations *)
         let scope = T.Scope.perm p1 (T.UVar.scope u1) in
@@ -161,7 +161,7 @@ and unify env tp1 tp2 =
     assert false
 
   | TUVar(p1, u1), TUVar(p2, u2) when T.UVar.equal u1 u2 ->
-    T.UVar.filter_scope u1 (T.TVar.Perm.agree_on p1 p2)
+    T.UVar.filter_scope u1 (T.UVar.level u2) (T.TVar.Perm.agree_on p1 p2)
   | TUVar(p, u), _ ->
     if T.Type.contains_uvar u tp2 then
       raise Error
@@ -237,7 +237,7 @@ let rec check_subtype env tp1 tp2 =
     failwith "Internal kind error"
 
   | TUVar(p1, u1), TUVar(p2, u2) when T.UVar.equal u1 u2 ->
-    T.UVar.filter_scope u1 (T.TVar.Perm.agree_on p1 p2)
+    T.UVar.filter_scope u1 (T.UVar.level u2) (T.TVar.Perm.agree_on p1 p2)
   | TUVar(p, u), _ ->
     if T.Type.contains_uvar u tp2 then
       raise Error
