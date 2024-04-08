@@ -145,6 +145,14 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     | None ->
       Error.fatal (Error.unbound_the_label ~pos:e.pos)
     end
+  | None, T.NMethod mname ->
+    let owner = TypeUtils.method_owner_of_scheme ~pos:e.pos ~env:env isch in
+    begin match Env.lookup_method env owner mname  with
+    | Some(x, sch) ->
+      instantiate_with_var x sch
+    | None ->
+      Error.fatal (Error.unbound_implicit ~pos:e.pos mname)
+    end
   | None, T.NVar x ->
     (* TODO: we could provide freshly bound parameters here *)
     Error.fatal (Error.unbound_named_param ~pos:e.pos x)

@@ -239,7 +239,9 @@ let open_scheme env sch =
             add_the_label env eff tp0 eff0
           | T.NVar x -> add_poly_var env x sch
           | T.NImplicit n -> add_poly_implicit env n sch ignore
-          | T.NMethod   n -> add_poly_method   env "?" n sch
+          | T.NMethod   n -> failwith "TODO"
+            (* let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in *)
+            (* add_poly_method   env owner n sch *)
         in
         (env, (name, x, sch)))
       env

@@ -76,7 +76,7 @@ let rec check_ctor_type_args ~pos ~env ~scope ~sub
     (env, scope, sub, a :: tvs)
 
 (** Extend the environment by a named parameter that is not explicitly
-  mentioned. The middle element of returned trpiple is a set of names
+  mentioned. The middle element of returned triple is a set of names
   implicity bound. *)
 let introduce_implicit_name ~pos env (name : T.name) sch =
   match name with
