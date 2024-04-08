@@ -54,12 +54,16 @@ let type_resp_in_scope (type dir) ~env ~pos ~scope
 let is_monomorphic_var env (e : S.expr) =
   match e.data with
   | EPoly(p, _, _) ->
-    let sch_opt  =
+    let sch_opt =
       match p.data with
-      | EVar x -> Option.map snd (Env.lookup_var env x)
+      | EVar x ->
+        begin match Env.lookup_var env x with
+        | None | Some (VI_Ctor _) | Some (VI_MethodFn _) -> None
+        | Some (VI_Var(_, sch)) -> Some sch
+        end
       | EImplicit name ->
         Option.map (fun (_, sch, _) -> sch) (Env.lookup_implicit env name)
-      | ECtor _ | EMethod _ -> None
+      | EMethod _ -> None
     in
     begin match sch_opt with
     | Some { sch_targs = []; sch_named = []; sch_body = _ } -> true
@@ -71,8 +75,19 @@ let is_monomorphic_var env (e : S.expr) =
 (** Infer scheme of type variable *)
 let infer_var_scheme ~pos env x =
   match Env.lookup_var env x with
-  | Some (x, sch) ->
+  | Some (VI_Var(x, sch)) ->
     ({ T.pos = pos; T.data = T.EVar x }, sch)
+  | Some (VI_Ctor(idx, info)) ->
+    let ctor = List.nth info.adt_ctors idx in
+    let targs = info.adt_args @ ctor.ctor_targs in
+    let sch = {
+        T.sch_targs = targs;
+        T.sch_named = ctor.ctor_named;
+        T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
+      } in
+    (ExprUtils.ctor_func ~pos idx info, sch)
+  | Some (VI_MethodFn name) ->
+    Error.fatal (Error.method_fn_without_arg ~pos x name)
   | None ->
     Error.fatal (Error.unbound_var ~pos x)
 
@@ -85,22 +100,6 @@ let infer_implicit_scheme ~pos env name =
     ({ T.pos = pos; T.data = T.EVar x }, sch)
   | None ->
     Error.fatal (Error.unbound_implicit ~pos name)
-
-(* ------------------------------------------------------------------------- *)
-(** Infer scheme of a constructor of ADT *)
-let infer_ctor_scheme ~pos env c =
-  match Env.lookup_ctor env c with
-  | Some (idx, info) ->
-    let ctor = List.nth info.adt_ctors idx in
-    let targs = info.adt_args @ ctor.ctor_targs in
-    let sch = {
-        T.sch_targs = targs;
-        T.sch_named = ctor.ctor_named;
-        T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
-      } in
-    (ExprUtils.ctor_func ~pos idx info, sch)
-  | None ->
-    Error.fatal (Error.unbound_constructor ~pos c)
 
 (* ------------------------------------------------------------------------- *)
 (** Infer scheme of a polymorphic expression. The effect of en expression is
@@ -119,9 +118,6 @@ let rec infer_poly_scheme env (e : S.poly_expr) eff =
     (default_ctx, e, sch, T.TVar.Map.empty)
   | EImplicit n ->
     let (e, sch) = infer_implicit_scheme ~pos env n in
-    (default_ctx, e, sch, T.TVar.Map.empty)
-  | ECtor c ->
-    let (e, sch) = infer_ctor_scheme ~pos env c in
     (default_ctx, e, sch, T.TVar.Map.empty)
   | EMethod(self, name) ->
     let (self, self_tp, self_r_eff) = infer_expr_type env self eff in
@@ -229,19 +225,16 @@ and infer_expr_type env (e : S.expr) eff =
     end
 
   | EApp(e1, e2) ->
-    let (e1, ftp, r_eff1) = infer_expr_type env e1 eff in
-    begin match Unification.to_arrow env ftp with
-    | Arr_UVar -> assert false
-    | Arr_Pure(sch, vtp) ->
-      let (e2, r_eff2) = check_actual_arg env e2 sch eff in
-      (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
-    | Arr_Impure(sch, vtp, f_eff) ->
-      let (e2, r_eff2) = check_actual_arg env e2 sch eff in
-      if not (Unification.subeffect env f_eff eff) then
-        Error.report (Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
-      (make (T.EApp(e1, e2)), vtp, Impure)
-    | Arr_No ->
-      Error.fatal (Error.expr_not_function ~pos:e1.pos ~env ftp)
+    begin match e1.data with
+    | EPoly({ data = EVar x; _ }, tinst, insts) ->
+      begin match Env.lookup_var env x with
+      | Some (VI_MethodFn name) ->
+        let new_m = { e with data = S.EMethod(e2, name) } in
+        let new_e = { e1 with data = S.EPoly(new_m, tinst, insts) } in
+        infer_expr_type env new_e eff
+      | _ -> infer_app_type ~pos env e1 e2 eff
+      end
+    | _ -> infer_app_type ~pos env e1 e2 eff
     end
 
   | EDefs(defs, e) ->
@@ -269,6 +262,23 @@ and infer_expr_type env (e : S.expr) eff =
     let tp = Type.tr_ttype env tp in
     let (e, r_eff) = check_expr_type env e tp eff in
     (e, tp, r_eff)
+
+(** Default behaviour of type-inferece for application *)
+and infer_app_type ~pos env e1 e2 eff =
+  let make data = T.{ data; pos } in
+  let (e1, ftp, r_eff1) = infer_expr_type env e1 eff in
+  match Unification.to_arrow env ftp with
+  | Arr_UVar -> assert false
+  | Arr_Pure(sch, vtp) ->
+    let (e2, r_eff2) = check_actual_arg env e2 sch eff in
+    (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
+  | Arr_Impure(sch, vtp, f_eff) ->
+    let (e2, r_eff2) = check_actual_arg env e2 sch eff in
+    if not (Unification.subeffect env f_eff eff) then
+      Error.report (Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
+    (make (T.EApp(e1, e2)), vtp, Impure)
+  | Arr_No ->
+    Error.fatal (Error.expr_not_function ~pos:e1.pos ~env ftp)
 
 (* ------------------------------------------------------------------------- *)
 (** Check type and effect of an expression. Returns also information about
@@ -582,6 +592,10 @@ and check_def : type dir.
     let res_tp = bidir_result req resp in
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
+
+  | DMethodFn(x, method_name) ->
+    let env = Env.add_method_fn ~public env x method_name in
+    cont.run env ienv req eff
 
   | DLabel(eff_opt, pat) ->
     let scope = Env.scope env in

@@ -1,0 +1,7 @@
+method add = (extern dbl_addInt : Int -> Int -> Int) self
+method add = (extern dbl_strCat : String -> String -> String) self
+
+method fn (+) = add
+
+let _ = 2 + 2
+let _ = "a" + "b"

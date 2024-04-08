@@ -24,6 +24,9 @@ let add_var (m, stack) ~public x sch =
   let m, y = Module.add_var m ~public x sch in
   (m, stack), y
 
+let add_method_fn (m, stack) ~public x name =
+  (Module.add_method_fn m ~public x name, stack)
+
 let add_tvar (m, stack) ~public name kind =
   let m, x = Module.add_tvar m ~public name kind in
   (m, stack), x

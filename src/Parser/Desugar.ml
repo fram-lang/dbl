@@ -20,6 +20,12 @@ let tr_uop_to_expr (op : string node) =
   let make data = { op with data = data } in
   make (EPoly (make (EVar (NPName (make_uop_id op.data))),[],[]))
 
+let tr_var_id (var : Raw.var_id) =
+  match var with
+  | VIdVar x  -> x
+  | VIdBOp op -> make_bop_id op
+  | VIdUOp op -> make_uop_id op
+
 type ty_def =
   | TD_Id of tvar * Raw.type_expr list
     (** Name with parameters *)
@@ -389,10 +395,10 @@ let rec tr_function args body =
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
-  | EUnit       -> make (ECtor     (NPName "()"))
+  | EUnit       -> make (EVar      (NPName "()"))
   | EVar      x -> make (EVar      (NPName x))
   | EImplicit n -> make (EImplicit (NPName n))
-  | ECtor     c -> make (ECtor     (NPName c))
+  | ECtor     c -> make (EVar      (NPName c))
   | EBOpID    x -> make (EVar      (NPName (make_bop_id x)))
   | EUOpID    x -> make (EVar      (NPName (make_uop_id x)))
 
@@ -401,10 +407,10 @@ let rec tr_poly_expr (e : Raw.expr) =
   | ESelect(path, e) ->
     let prepend_path n = path_append path (NPName n) in
     begin match e.data with
-    | EUnit       -> make (ECtor     (prepend_path "()"))
+    | EUnit       -> make (EVar      (prepend_path "()"))
     | EVar      x -> make (EVar      (prepend_path x))
     | EImplicit n -> make (EImplicit (prepend_path n))
-    | ECtor     c -> make (ECtor     (prepend_path c))
+    | ECtor     c -> make (EVar      (prepend_path c))
     | EBOpID    x -> make (EVar      (prepend_path (make_bop_id x)))
     | EUOpID    x -> make (EVar      (prepend_path (make_uop_id x)))
     
@@ -543,6 +549,8 @@ and tr_def (def : Raw.def) =
     | LP_Pat _ ->
       Error.fatal (Error.desugar_error p.pos)
     end
+  | DMethodFn(id1, id2) ->
+    make (DMethodFn(tr_var_id id1, tr_var_id id2))
   | DImplicit(n, args, sch) ->
     let args = List.map tr_named_type_arg args in
     let sch =

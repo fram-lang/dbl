@@ -14,6 +14,10 @@ val toplevel : t
 (** Extend the current module with a polymorphic variable *)
 val add_var : t -> public:bool -> S.var -> T.scheme -> t * T.var
 
+(** Extend the current module with information that given identifier when used
+  as function is a method of given name. *)
+val add_method_fn : t -> public:bool -> S.var -> S.method_name -> t
+
 (** Extend the current module with a named type variable. *)
 val add_tvar : t -> public:bool -> S.tvar -> T.kind -> t * T.tvar
 
@@ -28,9 +32,9 @@ val add_implicit :
 (** Add constructor of given name and index to the current module. *)
 val add_ctor : t -> public:bool -> string -> int -> Module.adt_info -> t
 
-(** Lookup for Unif representation and a scheme of a variable. Returns [None]
-  if variable is not bound. *)
-val lookup_var : t -> S.var S.path -> (T.var * T.scheme) option
+(** Lookup for variable-like identifier. Returns [None] if variable is not
+  bound. *)
+val lookup_var : t -> S.var S.path -> Module.var_info option
 
 (** Lookup for Unif representation, a scheme, and "on-use" function of a named
   implicit. Returns [None] if implicit is not bound. *)

@@ -159,9 +159,6 @@ and poly_expr_data =
   | EImplicit of iname path
     (** Implicit parameter *)
 
-  | ECtor     of ctor_name path
-    (** ADT constructor *)
-
   | EMethod   of expr * method_name
     (** Call of a method *)
 
@@ -224,6 +221,9 @@ and def_data =
 
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
+
+  | DMethodFn of var * method_name
+    (** Declaration of function that should be interpreted as a method *)
 
   | DLabel   of type_arg option * pattern
     (** Creating a new label. Optional type argument binds newly created

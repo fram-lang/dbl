@@ -44,6 +44,10 @@ val add_mono_implicit :
   be passed as a parameters. *)
 val add_the_label : t -> T.effect -> T.typ -> T.effrow -> t * T.var
 
+(** Extend an environment with information that given identifier when used
+  as function is a method of given name. *)
+val add_method_fn : public:bool -> t -> S.var -> S.method_name -> t
+
 (** Extend an environment with a named type variable. The optional position
   should point to the place of binding in the source code. *)
 val add_tvar :
@@ -78,9 +82,9 @@ val add_ctor : ?public:bool -> t -> string -> int -> Module.adt_info -> t
   as the owner *)
 val add_poly_method : t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
 
-(** Lookup for Unif representation and a scheme of a variable. Returns [None]
-  if variable is not bound. *)
-val lookup_var : t -> S.var S.path -> (T.var * T.scheme) option
+(** Lookup for variable-like identifier. Returns [None] if variable is not
+  bound. *)
+val lookup_var : t -> S.var S.path -> Module.var_info option
 
 (** Lookup for Unif representation, a scheme, and "on-use" function of a named
   implicit. Returns [None] if implicit is not bound. *)

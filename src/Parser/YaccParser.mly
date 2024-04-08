@@ -49,6 +49,12 @@ bar_opt
 
 /* ========================================================================= */
 
+var_id
+: LID                  { VIdVar $1 }
+| BR_OPN op BR_CLS     { VIdBOp ($2).data }
+| BR_OPN op DOT BR_CLS { VIdUOp ($2).data }
+;
+
 name
 : KW_LABEL { NLabel       }
 | LID      { NVar $1      }
@@ -454,8 +460,10 @@ def
 ;
 
 def_10
-: data_def               { make (DData $1)     }
-| KW_LET expr_70 EQ expr    { make (DLet($2, $4)) }
+: KW_LET expr_70 EQ expr { make (DLet($2, $4)) }
+| KW_METHOD KW_FN var_id { make (DMethodFn($3, $3)) }
+| KW_METHOD KW_FN var_id EQ var_id { make (DMethodFn($3, $5)) }
+| data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
 | KW_LABEL  expr         { make (DLabel $2) }
 | KW_HANDLE expr_70 EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
