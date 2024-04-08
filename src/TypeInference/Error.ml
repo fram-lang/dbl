@@ -94,6 +94,11 @@ let unbound_method ~pos ~env x name =
     name
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let method_fn_without_arg ~pos x name =
+  (pos, Printf.sprintf
+    "Variable %s is registered as method %s and cannot be used without argument"
+    (string_of_path x) name, [])
+
 let expr_type_mismatch ~pos ~env tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf

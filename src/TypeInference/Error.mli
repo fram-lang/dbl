@@ -38,6 +38,9 @@ val unbound_the_label : pos:Position.t -> t
 val unbound_method :
   pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
 
+val method_fn_without_arg :
+  pos:Position.t -> S.var S.path -> S.method_name -> t
+
 val expr_type_mismatch   : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val expr_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t

@@ -71,6 +71,9 @@ let add_mono_implicit ?(public=false) env name tp on_use =
 let add_the_label env eff tp0 eff0 =
   add_mono_var env "#label" (T.Type.t_label eff tp0 eff0)
 
+let add_method_fn ~public env x name =
+  { env with mod_stack = ModStack.add_method_fn ~public env.mod_stack x name }
+
 let add_tvar ?pos ?(public=false) env name kind =
   let mod_stack, x = ModStack.add_tvar ~public env.mod_stack name kind in
   let pp_info = 
@@ -179,9 +182,11 @@ let scheme_to_label sch =
 let lookup_the_label env =
   match lookup_var env (NPName "#label") with
   | None -> None
-  | Some(x, sch) ->
+  | Some(VI_Var (x, sch)) ->
     let (eff, tp0, eff0) = scheme_to_label sch in
     Some(x, eff, tp0, eff0)
+  | Some(VI_Ctor _ | VI_MethodFn _) ->
+    assert false
 
 let lookup_ctor env =
   ModStack.lookup_ctor env.mod_stack

@@ -26,8 +26,13 @@ type adt_info = {
     (** The type that is an ADT, already applied to [adt_args] *)
 }
 
+type var_info =
+  | VI_Var      of T.var * T.scheme
+  | VI_Ctor     of int * adt_info
+  | VI_MethodFn of S.method_name
+
 type t = {
-  var_map  : (T.var * T.scheme) ident_info StrMap.t;
+  var_map  : var_info ident_info StrMap.t;
     (** Information about regular variable names *)
 
   tvar_map : T.typ ident_info StrMap.t;
@@ -65,6 +70,8 @@ let empty =
 
 let toplevel =
   { empty with
+    var_map  =
+      StrMap.singleton "()" { data = VI_Ctor(0, unit_info); public = false };
     tvar_map =
       T.BuiltinType.all
       |> List.map (fun (name, tv) ->
@@ -76,8 +83,13 @@ let toplevel =
 let add_var m ~public x sch =
   let y = Var.fresh ~name:x () in
   { m with
-    var_map = StrMap.add x { data = (y, sch); public } m.var_map
+    var_map = StrMap.add x { data = VI_Var(y, sch); public } m.var_map
   }, y
+
+let add_method_fn m ~public x name =
+  { m with
+    var_map = StrMap.add x { data = VI_MethodFn name; public } m.var_map
+  }
 
 let add_tvar m ~public name kind =
   let x = T.TVar.fresh kind in
@@ -99,6 +111,7 @@ let add_implicit m ~public name sch on_use =
 
 let add_ctor m ~public name idx info =
   { m with
+    var_map  = StrMap.add name { data = VI_Ctor(idx, info); public } m.var_map;
     ctor_map = StrMap.add name { data = (idx, info); public } m.ctor_map
   }
 

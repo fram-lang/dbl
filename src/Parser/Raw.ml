@@ -16,6 +16,15 @@ type var = string
 (** Names of implicit parameters *)
 type iname = string
 
+(** Names of operators *)
+type op_name = string
+
+(** Variable-like identifier *)
+type var_id =
+  | VIdVar of var
+  | VIdBOp of op_name
+  | VIdUOp of op_name
+
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
   | NLabel
@@ -30,9 +39,6 @@ type method_name = string
 
 (** Names of modules *)
 type module_name = string
-
-(** Names of operators *)
-type op_name = string 
 
 (** Module path to an identifier of type 'a *)
 type 'a path = 'a Lang.Surface.path =
@@ -220,6 +226,9 @@ and def_data =
 
   | DMethod of expr * expr
     (** Method definition *)
+
+  | DMethodFn of var_id * var_id
+    (** Declaration of function that should be interpreted as a method *)
 
   | DModule of module_name * def list
     (** Definition of a module *)

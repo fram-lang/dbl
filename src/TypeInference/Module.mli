@@ -24,6 +24,17 @@ type adt_info = {
     (** The type that is an ADT, already applied to [adt_args] *)
 }
 
+(** Information about variable-like identifier (variable, constructor, etc.) *)
+type var_info =
+  | VI_Var  of T.var * T.scheme
+    (** Variable: its Unif representation and its type scheme *)
+
+  | VI_Ctor of int * adt_info
+    (** Constructor: its index and full information about ADT *)
+
+  | VI_MethodFn of S.method_name
+    (** Function that is automatically translated to method call *)
+
 (** The built-in unit type *)
 val unit_info : adt_info
 
@@ -35,6 +46,10 @@ val toplevel : t
 
 (** Extend the module with a polymorphic variable *)
 val add_var : t -> public:bool -> S.var -> T.scheme -> t * T.var
+
+(** Extend the module with information that given identifier when used
+  as function is a method of given name. *)
+val add_method_fn : t -> public:bool -> S.var -> S.method_name -> t
 
 (** Extend the module with a named type variable. *)
 val add_tvar : t -> public:bool -> S.tvar -> T.kind -> t * T.tvar
@@ -53,9 +68,9 @@ val add_ctor : t -> public:bool -> string -> int -> adt_info -> t
 (** Extend the module with the definition of a module with the given name. *)
 val add_module : t -> public:bool -> S.module_name -> t -> t
 
-(** Lookup for Unif representation and a scheme of a variable. Returns [None]
-  if variable is not bound. *)
-val lookup_var : t -> S.var -> (T.var * T.scheme) option
+(** Lookup for variable-like identifier. Returns [None] if variable is not
+  bound. *)
+val lookup_var : t -> S.var -> var_info option
 
 (** Lookup for Unif representation, a scheme, and "on-use" function of a named
   implicit. Returns [None] if implicit is not bound. *)
