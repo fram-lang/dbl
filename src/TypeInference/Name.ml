@@ -17,3 +17,4 @@ let tr_name env (name : S.name) =
   | NLabel      -> T.NLabel
   | NVar x      -> T.NVar x
   | NImplicit n -> T.NImplicit n
+  | NMethod   n -> T.NMethod   n 

@@ -8,6 +8,13 @@ open Common
 
 module StrMap = Map.Make(String)
 
+type adt_info = {
+  adt_proof : T.expr;
+  adt_args  : T.named_tvar list;
+  adt_ctors : T.ctor_decl list;
+  adt_type  : T.typ
+}
+
 type pp_info = {
   pp_base_name : string;
   pp_names     : S.tvar S.path list;
@@ -232,6 +239,7 @@ let open_scheme env sch =
             add_the_label env eff tp0 eff0
           | T.NVar x -> add_poly_var env x sch
           | T.NImplicit n -> add_poly_implicit env n sch ignore
+          | T.NMethod   n -> add_poly_method   env "?" n sch
         in
         (env, (name, x, sch)))
       env
