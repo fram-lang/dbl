@@ -143,8 +143,9 @@ method fn (>=) = ge
 method fn (<)  = lt
 method fn (<=) = le
 
-method fn (&) = land
-method fn (^) = lxor
+method fn (&&&) = land
+method fn (^^^) = lxor
+method fn (|||) = lor
 method fn (>>) = shiftl
 method fn (<<) = shiftr
 method fn (>>>) = ashiftr
