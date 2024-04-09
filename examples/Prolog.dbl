@@ -83,7 +83,7 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
 let exists f = fix (fn exists xs =>
   match xs with
   | Nil       => False
-  | Cons x xs => (f x : Bool).bor (exists xs)
+  | Cons x xs => f x && exists xs
   end)
 
 (* The following few functions on lists require a notion of equality, which is

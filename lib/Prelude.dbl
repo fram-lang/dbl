@@ -69,8 +69,28 @@ let not b = if b then False else True
 
 method toString = if self then "True" else "False"
 
-method band b = if self then b else False
-method bor b  = if self then True else b
+let (&&) b1 b2 = if b1 then b2 else False
+let (||) b1 b2 = if b1 then True else b2
+
+method fn (+) = add
+method fn (-) = sub
+method fn (%) = mod
+method fn (/) = div
+method fn ( * ) = mul
+
+method fn (==) = equal
+method fn (!=) = neq
+method fn (>)  = gt
+method fn (>=) = ge
+method fn (<)  = lt
+method fn (<=) = le
+
+method fn (&&&) = land
+method fn (^^^) = lxor
+method fn (|||) = lor
+method fn (>>)  = shiftl
+method fn (<<)  = shiftr
+method fn (>>>) = ashiftr
 
 method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
 method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
@@ -112,12 +132,12 @@ method le    = (extern dbl_leStr  : String -> String -> Bool) self
 
 method length = (extern dbl_strLen : String -> Int) self
 method get {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
-  if (n.ge 0).band (n.lt self.length) then
+  if n >= 0 && n < self.length then
     (extern dbl_strGet : String -> Int -> Int) self n
   else `re ()
 
 method makeString {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
-  if (n.ge 0).band (n.lt 256) then
+  if n >= 0 && n < 256 then
     (extern dbl_strMake : Int -> String) n
   else `re ()
 
