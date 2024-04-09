@@ -72,7 +72,7 @@ end = struct
   module Map = Map1.Make(struct
     type nonrec 'a t = 'a t
     let uid x = x.uid
-    let equal = hequal
+    let hequal = hequal
   end)
   module Set = Map.Set
 end
