@@ -94,7 +94,7 @@ let introduce_implicit_name ~pos env (name : T.name) sch =
      in practice. *)
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, T.Name.Map.singleton name pos, x)
-
+    (* Methods similar to implicits*)
 (** For a given constructor name and checked type, produce the ADT info for
     the type, the constructor index, proof that it is an ADT, and the needed
     substitution for the type parameters *)
@@ -307,7 +307,7 @@ let infer_named_arg_scheme env (na : S.named_arg) =
     | L_No ->
       Error.fatal (Error.label_type_mismatch ~pos:na.pos)
     end
-  | NVar _ | NImplicit _ -> ()
+  | NVar _ | NImplicit _ | NMethod _ -> ()
   end;
   (env, (name, pat, sch), r_eff)
 

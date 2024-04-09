@@ -223,6 +223,8 @@ let level env = T.Scope.level env.scope
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
 
+  
+(* Move to TypeUtils *)
 let open_scheme env sch =
   let sch = T.Scheme.refresh sch in
   let env = 

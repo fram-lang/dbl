@@ -151,6 +151,7 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     | Some(x, sch) ->
       instantiate_with_var x sch
     | None ->
+      (* TODO Correct Error msg *)
       Error.fatal (Error.unbound_implicit ~pos:e.pos mname)
     end
   | None, T.NVar x ->

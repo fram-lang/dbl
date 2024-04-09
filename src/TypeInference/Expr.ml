@@ -459,7 +459,7 @@ and extract_implicit_type_hints ~pos env (sch : T.scheme) inst eff =
         | None ->
           let make data = { S.pos = pos; S.data = data } in
           begin match name with
-          | NLabel | NVar _ -> None
+          | NLabel | NVar _ | NMethod _ -> None
           | NImplicit n ->
             (* type hints can be extracted only from monomorphic implicits
               (and explicit instantiation, of course), in order to avoid
