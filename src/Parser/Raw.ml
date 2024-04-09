@@ -111,10 +111,16 @@ and ctor_decl_data =
   | CtorDecl of ctor_name * type_expr list
     (** Declaration of a constructor *)
 
+(** Visibility of an ADT definition *)
+type data_vis = DV_Private | DV_Public | DV_Abstract
+
+(** Visibility of value definition *)
+type is_public = bool
+
 (** Definition of ADT *)
 type data_def = data_def_data node
 and data_def_data =
-  | DD_Data of type_expr * ctor_decl list
+  | DD_Data of data_vis * type_expr * ctor_decl list
 
 (** Expressions *)
 type expr = expr_data node
@@ -192,6 +198,9 @@ and expr_data =
   | EUOp of op_name node * expr
     (** Unary operator*)
 
+  | EPub of expr
+    (** Public modifier in patterns *)
+
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =
@@ -203,7 +212,7 @@ and field = (type_expr, expr) field_data node
 (** Definitions *)
 and def = def_data node
 and def_data =
-  | DLet of expr * expr
+  | DLet of is_public * expr * expr
     (** Let-definition *)
 
   | DImplicit of iname * type_expr list * type_expr option
@@ -215,29 +224,26 @@ and def_data =
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
 
-  | DLabel of expr
+  | DLabel of is_public * expr
     (** Creating a new label *)
 
-  | DHandle of expr * expr * h_clause list
+  | DHandle of is_public * expr * expr * h_clause list
     (** Effect handler *)
 
-  | DHandleWith of expr * expr * h_clause list
+  | DHandleWith of is_public * expr * expr * h_clause list
     (** Effect handler, with first-class handler *)
 
-  | DMethod of expr * expr
+  | DMethod of is_public * expr * expr
     (** Method definition *)
 
-  | DMethodFn of var_id * var_id
+  | DMethodFn of is_public * var_id * var_id
     (** Declaration of function that should be interpreted as a method *)
 
-  | DModule of module_name * def list
+  | DModule of is_public * module_name * def list
     (** Definition of a module *)
 
-  | DOpen of module_name path
+  | DOpen of is_public * module_name path
     (** Opening a module *)
-
-  | DPub of def
-    (** Mark a definition as public *)
 
 (** Additional clauses of handlers *)
 and h_clause = h_clause_data node
