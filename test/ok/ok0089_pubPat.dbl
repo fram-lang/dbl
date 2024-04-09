@@ -1,0 +1,7 @@
+module M
+  data Pair X Y = Pair of X, Y
+  
+  let Pair (pub x) y = Pair 42 0
+end
+
+let x = M.x

@@ -134,7 +134,7 @@ let get_ctor_info ~pos ~env (cpath : S.ctor_name S.path S.node) tp =
   | Whnf_Effect _ | Whnf_Effrow _ ->
     failwith "Internal kind error"
 
-let rec check_ctor_named_args ~pos ~env ~scope ~public nps named =
+let rec check_ctor_named_args ~pos ~env ~scope nps named =
   match named with
   | [] ->
     List.iter
@@ -148,40 +148,40 @@ let rec check_ctor_named_args ~pos ~env ~scope ~public nps named =
       let (env, bn1, x) = introduce_implicit_name ~pos env name sch in
       let p = { T.pos = pos; T.data = T.PVar(x, sch) } in
       let (env, bn2, ps) =
-        check_ctor_named_args ~pos ~env ~scope ~public nps named in
+        check_ctor_named_args ~pos ~env ~scope nps named in
       let bn = union_bound_names bn1 bn2 in
       (env, bn, p :: ps)
     | Some(p, nps) ->
-      let (env, p, bn1, _) = check_scheme ~env ~scope ~public p sch in
+      let (env, p, bn1, _) = check_scheme ~env ~scope p sch in
       let (env, bn2, ps) =
-        check_ctor_named_args ~pos ~env ~scope ~public nps named in
+        check_ctor_named_args ~pos ~env ~scope nps named in
       let bn = union_bound_names bn1 bn2 in
       (env, bn, p :: ps)
     end
 
-and check_scheme ~env ~scope ?(public=false) (pat : S.pattern) sch =
+and check_scheme ~env ~scope (pat : S.pattern) sch =
   let make data = { pat with T.data = data } in
   match pat.data with
   | PWildcard ->
     (env, make T.PWildcard, T.Name.Map.empty, Pure)
-  | PId (IdVar x) ->
+  | PId (IdVar(public, x)) ->
     let bn = T.Name.Map.singleton (T.NVar x) pat.pos in
     let (env, x) = Env.add_poly_var env ~public x sch in
     (env, make (T.PVar(x, sch)), bn, Pure)
-  | PId (IdImplicit n) ->
+  | PId (IdImplicit(public, n)) ->
     let bn = T.Name.Map.singleton (T.NImplicit n) pat.pos in
     let (env, x) = Env.add_poly_implicit env ~public n sch ignore in
     (env, make (T.PVar(x, sch)), bn, Pure)
-  | PId (IdMethod name) ->
+  | PId (IdMethod(public, name)) ->
     (* TODO: bettern bn *)
     let bn = T.Name.Map.empty in
     let owner = TypeUtils.method_owner_of_scheme ~pos:pat.pos ~env sch in
-    let (env, x) = Env.add_poly_method env owner name sch in
+    let (env, x) = Env.add_poly_method env ~public owner name sch in
     (env, make (T.PVar(x, sch)), bn, Pure)
   | PCtor _ | PId IdLabel ->
     begin match sch with
     | { sch_targs = []; sch_named = []; sch_body = tp } ->
-      check_type ~env ~scope ~public pat tp
+      check_type ~env ~scope pat tp
     | _ ->
       Error.fatal (Error.non_polymorphic_pattern ~pos:pat.pos)
     end
@@ -190,15 +190,15 @@ and check_scheme ~env ~scope ?(public=false) (pat : S.pattern) sch =
     let sch' = Type.tr_scheme env sch' in
     if not (Unification.subscheme env sch sch') then
       Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
-    check_scheme ~env ~scope:(Env.scope env) ~public pat sch'
+    check_scheme ~env ~scope:(Env.scope env) pat sch'
 
-and check_type ~env ~scope ?(public=false) (pat : S.pattern) tp =
+and check_type ~env ~scope (pat : S.pattern) tp =
   let make data = { pat with T.data = data } in
   let pos = pat.pos in
   match pat.data with
   | PWildcard | PId (IdVar _ | IdImplicit _ | IdMethod _) | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
-    check_scheme ~env ~scope ~public pat sch
+    check_scheme ~env ~scope pat sch
 
   | PId IdLabel ->
     begin match Unification.as_label env tp with
@@ -232,7 +232,7 @@ and check_type ~env ~scope ?(public=false) (pat : S.pattern) tp =
     Uniqueness.check_named_pattern_uniqueness nps;
     let nps = List.map (tr_named_pattern env) nps in
     let (env, bn1, ps1) =
-      check_ctor_named_args ~pos:pat.pos ~env ~scope ~public nps ctor_named in
+      check_ctor_named_args ~pos:pat.pos ~env ~scope nps ctor_named in
     if List.length ctor_arg_schemes <> List.length args then
       Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
         cpath.data (List.length ctor_arg_schemes) (List.length args))
@@ -241,7 +241,7 @@ and check_type ~env ~scope ?(public=false) (pat : S.pattern) tp =
         res_tp tp)
     else
       let (env, ps2, bn2, _) =
-        check_pattern_schemes ~env ~scope ~public args ctor_arg_schemes in
+        check_pattern_schemes ~env ~scope args ctor_arg_schemes in
       let cname = S.path_name cpath.data in
       let pat = make
         (T.PCtor(cname, idx, proof, ctors, tvars, ps1 @ ps2)) in
@@ -249,14 +249,14 @@ and check_type ~env ~scope ?(public=false) (pat : S.pattern) tp =
         be used to encode non-termination *)
       (env, pat, union_bound_names bn1 bn2, Impure)
 
-and check_pattern_schemes ~env ~scope ~public pats schs =
+and check_pattern_schemes ~env ~scope pats schs =
   match pats, schs with
   | [], [] -> (env, [], T.Name.Map.empty, Pure)
 
   | pat :: pats, sch :: schs ->
-    let (env, pat, bn1, r_eff1)  = check_scheme ~env ~scope ~public pat sch in
+    let (env, pat, bn1, r_eff1)  = check_scheme ~env ~scope pat sch in
     let (env, pats, bn2, r_eff2) =
-      check_pattern_schemes ~env ~scope ~public pats schs in
+      check_pattern_schemes ~env ~scope pats schs in
     let bn = union_bound_names bn1 bn2 in
     (env, pat :: pats, bn, ret_effect_join r_eff1 r_eff2)
 
@@ -268,12 +268,12 @@ let infer_arg_scheme env (arg : S.arg) =
     let sch = Type.tr_scheme env sch in
     let scope = Env.scope env in
     let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope ~public:false pat sch in
+      check_scheme ~env ~scope pat sch in
     (env, pat, sch, r_eff)
   | ArgPattern pat ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let scope = Env.scope env in
-    let (env, pat, _, r_eff) = check_type ~env ~scope ~public:false pat tp in
+    let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
     (env, pat, T.Scheme.of_type tp, r_eff)
 
 let check_arg_scheme env (arg : S.arg) sch =
@@ -284,11 +284,11 @@ let check_arg_scheme env (arg : S.arg) sch =
     if not (Unification.subscheme env sch sch') then
       Error.report (Error.pattern_annot_mismatch ~pos:sch_pos ~env sch sch');
     let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope:(Env.scope env) ~public:false pat sch' in
+      check_scheme ~env ~scope:(Env.scope env) pat sch' in
     (env, pat, r_eff)
   | ArgPattern pat ->
     let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope:(Env.scope env) ~public:false pat sch in
+      check_scheme ~env ~scope:(Env.scope env) pat sch in
     (env, pat, r_eff)
 
 let infer_named_arg_scheme env (na : S.named_arg) =

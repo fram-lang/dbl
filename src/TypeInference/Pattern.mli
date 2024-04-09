@@ -14,7 +14,7 @@ open Common
   top-down in a complex patterns, while the environment flows left-to-right.
   *)
 val check_type :
-  env:Env.t -> scope:T.scope -> ?public:bool -> S.pattern -> T.typ ->
+  env:Env.t -> scope:T.scope -> S.pattern -> T.typ ->
     Env.t * T.pattern * Position.t T.Name.Map.t * ret_effect
 
 (** Infer type-scheme of given formal argument. Returns extended environment,
