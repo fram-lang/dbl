@@ -6,24 +6,20 @@
 
 open Common
 
-let check_ctor_decl ~data_targs env (ctor : S.ctor_decl) =
-  match ctor.data with
-  | CtorDecl(_, name, tvs, named, schs) ->
-    Uniqueness.check_ctor_named_types data_targs tvs;
-    let (env, tvs) = Type.tr_named_type_args env tvs in
-    let named = List.map (Type.tr_named_scheme env) named in
-    { T.ctor_name        = name;
-      T.ctor_targs       = tvs;
-      T.ctor_named       = named;
-      T.ctor_arg_schemes = List.map (Type.tr_scheme env) schs
-    }
+let check_ctor_decl ~data_targs env ({ data = ctor; _ } : S.ctor_decl) =
+  Uniqueness.check_ctor_named_types data_targs ctor.cd_targs;
+  let (env, ctor_targs) = Type.tr_named_type_args env ctor.cd_targs in
+  { T.ctor_name        = ctor.cd_name;
+    T.ctor_targs;
+    T.ctor_named       = List.map (Type.tr_named_scheme env) ctor.cd_named;
+    T.ctor_arg_schemes = List.map (Type.tr_scheme env) ctor.cd_arg_schemes
+  }
 
 let check_ctor_decls ~data_targs env ctors =
   List.map (check_ctor_decl ~data_targs env) ctors
 
-let open_data_ctor adt (env, n) (ctor : S.ctor_decl) =
-  let (CtorDecl(public, name, _, _, _)) = ctor.data in
-  let env = Env.add_ctor env ~public name n adt in
+let open_data_ctor adt (env, n) ({ data = ctor; _ } : S.ctor_decl) =
+  let env = Env.add_ctor env ~public:ctor.cd_public ctor.cd_name n adt in
   (env, n+1)
 
 let open_data env (dd : S.data_def) adt =

@@ -154,7 +154,7 @@ let lookup_method_map env owner =
   | None     -> StrMap.empty
 
 let add_poly_method ?(public=false) env owner name sch =
-  (* TODO: implement public methods *)
+  (* TODO: implement method visibility *)
   let x = Var.fresh ~name () in
   let method_map =
     lookup_method_map env owner |> StrMap.add name (x, sch) in

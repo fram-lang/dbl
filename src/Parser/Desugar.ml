@@ -209,22 +209,27 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
-let tr_ctor_decl ~public (d : Raw.ctor_decl) =
+let tr_ctor_decl ~public:cd_public (d : Raw.ctor_decl) =
   let make data = { d with data = data } in
   match d.data with
-  | CtorDecl(name, { data = TRecord flds; _ } :: schs ) ->
-    let (tvs, implicit) = map_inst_like tr_scheme_field flds in
-    let schs = List.map tr_scheme_expr schs in
-    make (CtorDecl(public, name, tvs, implicit, schs))
-  | CtorDecl(name, schs) ->
-    make (CtorDecl(public, name, [], [], List.map tr_scheme_expr schs))
+  | CtorDecl(cd_name, { data = TRecord flds; _ } :: schs ) ->
+    let (cd_targs, cd_named) = map_inst_like tr_scheme_field flds in
+    let cd_arg_schemes = List.map tr_scheme_expr schs in
+    make { cd_public; cd_name; cd_targs; cd_named; cd_arg_schemes }
+  | CtorDecl(cd_name, schs) ->
+    let cd_arg_schemes = List.map tr_scheme_expr schs in
+    make { cd_public; cd_name; cd_targs = []; cd_named = []; cd_arg_schemes }
 
 let tr_data_def (dd : Raw.data_def) =
   let make data = { dd with data = data } in
   match dd.data with
   | DD_Data(vis, tp, cs) ->
-    let pub_type  = vis <> DV_Private in
-    let pub_ctors = vis =  DV_Public  in
+    let (pub_type, pub_ctors) =
+      match vis with
+      | DV_Private  -> (false, false)
+      | DV_Abstract -> (true,  false)
+      | DV_Public   -> (true,  true )
+    in
     begin match tr_type_def tp [] with
     | TD_Id(x, args) ->
       make (DD_Data(pub_type, x, List.map tr_named_type_arg args,

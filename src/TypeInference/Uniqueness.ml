@@ -26,8 +26,8 @@ let check_uniqueness ~on_error ~name_of ~pos_of xs =
   loop StrMap.empty xs
 
 let check_ctor_uniqueness ctors =
-  let name_of { S.data = S.CtorDecl(_, name, _, _, _); _ } = name in
-  let pos_of (ctor : S.ctor_decl) = ctor.pos in
+  let name_of (ctor : S.ctor_decl) = ctor.data.cd_name in
+  let pos_of  (ctor : S.ctor_decl) = ctor.pos in
   let on_error ~pos ~ppos ctor =
     Error.report (Error.ctor_redefinition ~pos ~ppos (name_of ctor)) in
   check_uniqueness ~on_error ~name_of ~pos_of ctors

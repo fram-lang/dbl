@@ -110,10 +110,13 @@ and named_type_arg = (tname * type_arg) node
 
 (** Declaration of constructor of ADT *)
 type ctor_decl = ctor_decl_data node
-and ctor_decl_data =
-  | CtorDecl of is_public * ctor_name *
-                named_type_arg list * named_scheme list * scheme_expr list
-    (** Declaration of constructor of ADT *)
+and ctor_decl_data = {
+  cd_public      : is_public;
+  cd_name        : ctor_name;
+  cd_targs       : named_type_arg list;
+  cd_named       : named_scheme list;
+  cd_arg_schemes : scheme_expr list
+}
 
 (** Definition of ADT *)
 type data_def = data_def_data node
