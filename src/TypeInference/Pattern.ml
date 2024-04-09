@@ -94,7 +94,13 @@ let introduce_implicit_name ~pos env (name : T.name) sch =
      in practice. *)
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, T.Name.Map.singleton name pos, x)
-    (* Methods similar to implicits*)
+
+    (* Methods are implicitly introduced to the environment.*)
+  | NMethod n ->
+    let owner = TypeUtils.method_owner_of_scheme ~pos:pos ~env:env sch in
+    let (env, x) = Env.add_poly_method env owner n sch in
+    (env, T.Name.Map.singleton name pos, x)
+    
 (** For a given constructor name and checked type, produce the ADT info for
     the type, the constructor index, proof that it is an ADT, and the needed
     substitution for the type parameters *)

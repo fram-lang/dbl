@@ -117,7 +117,7 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     Error.fatal (Error.looping_named_param ~pos:e.pos name);
   let nset = T.Name.Set.add name nset in
   let instantiate_with_var x sch =
-    let (env, tvs, named, tp) = Env.open_scheme env isch in
+    let (env, tvs, named, tp) = TypeUtils.open_scheme ~pos: e.pos env isch in
     let arg = { T.pos = e.pos; T.data = T.EVar x } in
     let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
     let arg = make_tfun tvs (make_nfun named arg) in

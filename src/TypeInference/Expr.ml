@@ -270,10 +270,10 @@ and infer_app_type ~pos env e1 e2 eff =
   match Unification.to_arrow env ftp with
   | Arr_UVar -> assert false
   | Arr_Pure(sch, vtp) ->
-    let (e2, r_eff2) = check_actual_arg env e2 sch eff in
+    let (e2, r_eff2) = check_actual_arg ~pos env e2 sch eff in
     (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
   | Arr_Impure(sch, vtp, f_eff) ->
-    let (e2, r_eff2) = check_actual_arg env e2 sch eff in
+    let (e2, r_eff2) = check_actual_arg ~pos env e2 sch eff in
     if not (Unification.subeffect env f_eff eff) then
       Error.report (Error.func_effect_mismatch ~pos:e1.pos ~env f_eff eff);
     (make (T.EApp(e1, e2)), vtp, Impure)
@@ -425,8 +425,8 @@ and tr_expr :
 
 (* ------------------------------------------------------------------------- *)
 (** Check the scheme of an actual parameter of a function *)
-and check_actual_arg env (arg : S.expr) sch eff =
-  let (env, tvars, named, body_tp) = Env.open_scheme env sch in
+and check_actual_arg ~pos env (arg : S.expr) sch eff =
+  let (env, tvars, named, body_tp) = TypeUtils.open_scheme ~pos env sch in
   let (body, res_eff) =
     match tvars, named with
     | [], [] -> check_expr_type env arg body_tp eff
@@ -503,7 +503,7 @@ and check_explicit_insts env named insts cache eff =
       | Some sch ->
         begin match T.Name.assoc n cache with
         | None ->
-          let (e, r_eff1) = check_actual_arg env e sch eff in
+          let (e, r_eff1) = check_actual_arg ~pos:e.pos env e sch eff in
           (e, sch, r_eff1)
         | Some (e, tp, r_eff1) ->
           assert (T.Scheme.is_monomorphic sch);

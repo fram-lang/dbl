@@ -40,6 +40,28 @@ let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
   | Whnf_Effect _ | Whnf_Effrow _ ->
     failwith "Internal kind error"
 
+let open_scheme ~pos (env : Env.t) (sch : T.scheme) =
+  let sch = T.Scheme.refresh sch in
+  let env = Env.extend_scope env sch in
+  let (env, ims) =
+    List.fold_left_map
+      (fun env (name, sch) ->
+        let (env, x) =
+          match name with
+          | T.NLabel ->
+            let (eff, tp0, eff0) = Env.scheme_to_label sch in
+            Env.add_the_label env eff tp0 eff0
+          | T.NVar x -> Env.add_poly_var env x sch
+          | T.NImplicit n -> Env.add_poly_implicit env n sch ignore
+          | T.NMethod   n ->
+            let owner = method_owner_of_scheme ~pos ~env sch in
+            Env.add_poly_method env owner n sch
+        in
+        (env, (name, x, sch)))
+      env
+      sch.sch_named in
+  (env, sch.sch_targs, ims, sch.sch_body)
+
 let merge_hints hints1 hints2 =
   T.TVar.Map.merge
     (fun _ h1 h2 ->

@@ -91,6 +91,9 @@ val lookup_var : t -> S.var S.path -> Module.var_info option
 val lookup_implicit :
   t -> S.var S.path -> (T.var * T.scheme * (Position.t -> unit)) option
 
+(* TODO: Add description *)
+val scheme_to_label : T.scheme -> T.typ * T.typ * T.typ 
+
 (** Lookup for variable labeled with "label". On success, returns the variable
   together with its label-type components *)
 val lookup_the_label : t -> (T.var * T.effect * T.typ * T.effrow) option
@@ -127,17 +130,14 @@ val incr_level : t -> t
 (** Get current scope *)
 val scope : t -> T.scope
 
+(* Extend the scope by adding all named parameters present in a given scheme. *)
+val extend_scope : t -> T.scheme -> t
+
 (** Get a level of given environment *)
 val level : t -> int
 
 (** Create a fresh unification variable in current scope *)
 val fresh_uvar : t -> T.kind -> T.typ
-
-(** Introduce all variables and named parameters bound by given scheme.
-  Returns extended environment, list of type variables, list of introduced
-  named parameters, and the type of the scheme body. *)
-val open_scheme : t -> T.scheme ->
-  t * T.named_tvar list * (T.name * T.var * T.scheme) list * T.typ
 
 (** Create a new module on top of the module stack. *)
 val enter_module : t -> t
