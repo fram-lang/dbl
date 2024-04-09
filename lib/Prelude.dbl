@@ -128,3 +128,26 @@ let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 let readLine = extern dbl_readLine : Unit ->[IO] String
 
 let exit {type X} = extern dbl_exit : Int ->[IO] X
+
+
+method fn (+) = add
+method fn (-) = sub
+method fn (%) = mod
+method fn (/) = div
+method fn ( * ) = mul
+
+method fn (==) = equal
+method fn (!=) = neq
+method fn (>)  = gt
+method fn (>=) = ge
+method fn (<)  = lt
+method fn (<=) = le
+
+method fn (&) = land
+method fn (^) = lxor
+method fn (>>) = shiftl
+method fn (<<) = shiftr
+method fn (>>>) = ashiftr
+
+method fn (&&) = band
+method fn (||) = bor
