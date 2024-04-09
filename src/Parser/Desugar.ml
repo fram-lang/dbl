@@ -86,6 +86,11 @@ let ident_of_name (name : Raw.name) =
   | NVar x      -> IdVar x
   | NImplicit n -> IdImplicit n
   | NMethod   n -> IdMethod   n
+
+let rec path_append path rest =
+  match path with
+  | NPName name       -> NPSel(name, rest)
+  | NPSel(name, path) -> NPSel(name, path_append path rest)
   
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
