@@ -32,7 +32,12 @@ type name = Lang.Surface.name =
   | NImplicit of iname
 
 (** Names of constructors of ADTs *)
-type ctor_name = string
+type ctor_name =
+  | CNUnit
+  | CNNil
+  | CNId  of string
+  | CNBOp of op_name
+  | CNUOp of op_name
 
 (** Names of methods *)
 type method_name = string
@@ -146,7 +151,7 @@ and expr_data =
   | EImplicit of iname
     (** Named implicit parameter *)
 
-  | ECtor of ctor_name
+  | ECtor of string
     (** ADT constructor *)
 
   | ENum of int
@@ -197,6 +202,9 @@ and expr_data =
 
   | EUOp of op_name node * expr
     (** Unary operator*)
+
+  | EList of expr list
+    (** List-like expression *)
 
   | EPub of expr
     (** Public modifier in patterns *)

@@ -4,16 +4,16 @@ data Option A = None | Some of A
 
 data rec Nat = Zero | Succ of Nat
 
-data rec List A = Nil | Cons of A, List A
+data rec List A = [] | (::) of A, List A
 
-data Pair X Y = Pair of X, Y
+data Pair X Y = (,) of X, Y
 
 let id x = x
 
 let flip f x y = f y x
 
-let fst (Pair x _) = x
-let snd (Pair _ y) = y
+let fst (x, _) = x
+let snd (_, y) = y
 
 let fix {type A, type B, type E} f =
   data rec Fix = Fix of (Fix -> A ->[|E] B)
@@ -22,47 +22,40 @@ let fix {type A, type B, type E} f =
 
 let map f = fix (fn map xs =>
   match xs with
-  | Nil       => Nil
-  | Cons x xs => Cons (f x) (map xs)
+  | []      => []
+  | x :: xs => f x :: map xs
   end)
 
 let filter f = fix (fn filter xs =>
   match xs with
-  | Nil       => Nil
-  | Cons x xs => if f x then Cons x (filter xs) else filter xs
+  | []      => []
+  | x :: xs => if f x then x :: filter xs else filter xs
   end)
 
 let append xs ys = fix (fn append xs =>
   match xs with
-  | Nil       => ys
-  | Cons x xs => Cons x (append xs)
+  | []      => ys
+  | x :: xs => x :: append xs
   end) xs
 
 let concat = fix (fn concat xss =>
   match xss with
-  | Nil         => Nil
-  | Cons xs xss => append xs (concat xss)
+  | []        => []
+  | xs :: xss => append xs (concat xss)
   end)
 
 let iter f = fix (fn iter xs =>
   match xs with
-  | Nil       => ()
-  | Cons x xs => let _ = f x in iter xs
+  | []      => ()
+  | x :: xs => let () = f x in iter xs
   end)
 
 let iter2 {`re : {type X} -> Unit ->[|_] X} f =
   fix (fn iter xs ys =>
-  match xs with
-  | Nil       =>
-    match ys with
-    | Nil       => ()
-    | Cons _ _  => `re ()
-    end
-  | Cons x xs =>
-    match ys with
-    | Nil       => `re ()
-    | Cons y ys => let _ = f x y in iter xs ys
-    end
+  match xs, ys with
+  | [],      []      => ()
+  | x :: xs, y :: ys => let () = f x y in iter xs ys
+  | _                => `re ()
   end)
 
 let not b = if b then False else True
