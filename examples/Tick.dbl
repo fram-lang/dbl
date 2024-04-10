@@ -6,7 +6,7 @@
   of a state handler: it evaluates a function that expects a current value
   of state. In the implementation of `tick`, when the captured continuation
   is called (`k ()`), the result is applied to a new value of state
-  `(n.add 1)`.
+  `(n + 1)`.
 
   Return clause is executed, when handled expression (after `in`) computes
   normally to a value. In this case the final value is discarded, and the
@@ -22,7 +22,7 @@
 *)
 
 let count (f : {type E} -> (_ ->[|E] _) ->[|E] _) g =
-  handle tick = effect _ / k => fn (n : Int) => k () (n.add 1)
+  handle tick = effect _ / k => fn (n : Int) => k () (n + 1)
     return  _ => fn n => n
     finally c => c 0
   in

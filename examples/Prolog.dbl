@@ -200,7 +200,7 @@ let fail () = `bt.fail ()
 (* Check whether a variable occurs in a term. *)
 method occurs (x : Int) = fix (fn occurs (t : Term) =>
   match t.view with
-  | TVar y    => x.equal y
+  | TVar y    => x == y
   | TFun _ ts => exists occurs ts
   end) self
 
@@ -208,13 +208,13 @@ method occurs (x : Int) = fix (fn occurs (t : Term) =>
 let unify = fix (fn unify (t1 : Term) (t2 : Term) =>
   match Pair t1.view t2.view with
   | Pair (TVar x) (TVar y) =>
-    if x.equal y then () else setVar x (TVar y)
+    if x == y then () else setVar x (TVar y)
   | Pair (TVar x) t =>
     if t.occurs x then fail () else setVar x t
   | Pair t (TVar x) =>
     if t.occurs x then fail () else setVar x t
   | Pair (TFun f ts1) (TFun g ts2) =>
-    if f.equal g then iter2 {`re = fail} unify ts1 ts2
+    if f == g then iter2 {`re = fail} unify ts1 ts2
     else fail ()
   end)
 
@@ -240,7 +240,7 @@ let kb = Cons (Cl (TFun "f" (Cons (TVar 0) (Cons (TVar 0) Nil))) Nil) Nil
 
 handle `kb = Reader (fn () => kb)
 
-handle `fresh = Fresh (effect _ / r => fn v => r v (1.add v))
+handle `fresh = Fresh (effect _ / r => fn v => r v (1 + v))
   return x  => fn _ => x
   finally f => f 0
 
