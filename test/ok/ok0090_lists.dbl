@@ -1,0 +1,19 @@
+data rec List X = [] | (::) of X, List X
+
+let tl xs =
+  match xs with
+  | []      => []
+  | _ :: xs => xs
+  end
+
+let swap_if_two xs =
+  match xs with
+  | [x,y] => [y,x]
+  | _     => xs
+  end
+
+let dup_hd xs =
+  match xs with
+  | []        => []
+  | (::) x xs => x :: x :: xs
+  end

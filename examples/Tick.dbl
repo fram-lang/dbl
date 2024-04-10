@@ -34,4 +34,6 @@ let length xs = count (flip map xs) id
 
 (* This code should print 2. *)
 let _ =
-  printStrLn (length (Cons () (Cons () Nil))).toString
+  printStrLn (length [13,42]).toString
+
+// @stdout:2

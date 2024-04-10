@@ -45,11 +45,11 @@ let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
 
 (* The function `takeAll` returns list of all triples found. *)
 let takeAll (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
-  handle bt = BT { flip = effect () / r =>
-    append (r True) (r False)
-  , fail = effect () => Nil
-  }
-  return x => Cons x Nil
+  handle bt = BT
+    { flip = effect () / r => append (r True) (r False)
+    , fail = effect () => []
+    }
+  return x => [x]
   in f bt n
 
 (* Printing utilities *)
@@ -59,10 +59,11 @@ let printTriple t =
     "(" + a.toString + " " + b.toString + " " + c.toString + ")")
   end
 
-let printList = fix (fn printList xs => match xs with
-| Nil => printStrLn ""
-  | Cons t xs => let _ = printTriple t in
-                         printList xs
+let printList = fix (fn printList xs =>
+  match xs with
+  | [] => printStrLn ""
+  | t :: xs => let _ = printTriple t in
+                       printList xs
   end)
 
 (* Main program *)

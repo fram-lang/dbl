@@ -197,9 +197,17 @@ ty_field_list
 
 /* ========================================================================= */
 
+ctor_name
+: BR_OPN  BR_CLS       { CNUnit   }
+| SBR_OPN SBR_CLS      { CNNil    }
+| UID                  { CNId  $1 }
+| BR_OPN op BR_CLS     { CNBOp ($2).data }
+| BR_OPN op DOT BR_CLS { CNUOp ($2).data }
+;
+
 ctor_decl
-: UID                     { make (CtorDecl($1, [])) }
-| UID KW_OF ty_expr_list1 { make (CtorDecl($1, $3)) }
+: ctor_name                     { make (CtorDecl($1, [])) }
+| ctor_name KW_OF ty_expr_list1 { make (CtorDecl($1, $3)) }
 ;
 
 ctor_decl_list1
@@ -395,13 +403,19 @@ expr_simple
 | STR                { make (EStr $1)     }
 | BR_OPN BR_CLS      { make EUnit         }
 | BR_OPN expr BR_CLS { make (EParen $2)   }
-| KW_MATCH expr KW_WITH KW_END { make (EMatch($2, []))}
+| SBR_OPN SBR_CLS    { make (EList [])    }
+| SBR_OPN expr_comma_sep SBR_CLS { make (EList $2)       }
+| KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
 | BR_OPN op BR_CLS           { make (EBOpID ($2).data)}
 | BR_OPN op DOT BR_CLS       { make (EUOpID ($2).data)}
+;
 
+expr_comma_sep
+: expr_40                      { [ $1 ]   }
+| expr_40 COMMA expr_comma_sep { $1 :: $3 }
 ;
 
 /* ========================================================================= */
