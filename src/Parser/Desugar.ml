@@ -267,7 +267,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | ECtor c          -> NPName c
   | EBOpID name      -> NPName (make_bop_id name)
   | EUOpID name      -> NPName (make_uop_id name)
-  | EList []         -> NPName (tr_ctor_name CNUnit)
+  | EList []         -> NPName (tr_ctor_name CNNil)
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
 
   | EWildcard | ENum _ | EStr _ | EParen _ | EVar _ | EImplicit _
