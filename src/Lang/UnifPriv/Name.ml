@@ -36,7 +36,6 @@ let equal n1 n2 =
 
   | NMethod n1, NMethod n2 -> n1 = n2
   | NMethod _, _ -> false
-  | _, NMethod _ -> false (** ASK PPO **)
 
   | NImplicit n1, NImplicit n2 -> n1 = n2
   | NImplicit _,  _ -> false
