@@ -56,9 +56,10 @@ var_id
 ;
 
 name
-: KW_LABEL { NLabel       }
-| LID      { NVar $1      }
-| TLID     { NImplicit $1 }
+: KW_LABEL  { NLabel       }
+| LID       { NVar $1      }
+| TLID      { NImplicit $1 }
+| KW_METHOD LID { NMethod $2   }
 ;
 
 uid_path
