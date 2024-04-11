@@ -80,7 +80,8 @@ val add_ctor : ?public:bool -> t -> string -> int -> Module.adt_info -> t
 (** Add a method associated with given type variable (owner). Method must have
   arrow type, where the head type variable of an argument is the same
   as the owner *)
-val add_poly_method : t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
+val add_poly_method :
+  ?public:bool -> t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
 
 (** Lookup for variable-like identifier. Returns [None] if variable is not
   bound. *)

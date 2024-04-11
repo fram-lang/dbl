@@ -1,3 +1,5 @@
 implicit `n
 let `n = `n
 let _ = `n
+
+// @stderr: infinite loop

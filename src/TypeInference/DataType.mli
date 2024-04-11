@@ -6,12 +6,8 @@
 
 open Common
 
-(** Open ADT making its constructors immediately available. *)
-val open_data : Env.t -> public:bool -> Module.adt_info -> Env.t
-
 (** Check non-recursive definition of ADT *)
-val check_data_def : Env.t -> public:bool -> S.data_def -> Env.t * T.data_def
+val check_data_def : Env.t -> S.data_def -> Env.t * T.data_def
 
 (** Check mutually recursive definitions of ADTs *)
-val check_rec_data_defs :
-  Env.t -> public:bool -> S.data_def list -> Env.t * T.data_def list
+val check_rec_data_defs : Env.t -> S.data_def list -> Env.t * T.data_def list

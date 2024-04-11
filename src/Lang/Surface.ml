@@ -47,12 +47,15 @@ type name =
   | NImplicit of iname
   | NMethod   of method_name 
 
+(** Visibility of definition *)
+type is_public = bool
+
 (** Identifier, i.e., object that can be bound in patterns *)
 type ident =
   | IdLabel
-  | IdVar      of var
-  | IdImplicit of iname
-  | IdMethod   of method_name
+  | IdVar      of is_public * var
+  | IdImplicit of is_public * iname
+  | IdMethod   of is_public * method_name
     (** Methods must have an arrow type, where the argument type is a type
       of "self" variable. *)
 
@@ -108,15 +111,18 @@ and named_type_arg = (tname * type_arg) node
 
 (** Declaration of constructor of ADT *)
 type ctor_decl = ctor_decl_data node
-and ctor_decl_data =
-  | CtorDecl of
-    ctor_name * named_type_arg list * named_scheme list * scheme_expr list
-    (** Declaration of constructor of ADT *)
+and ctor_decl_data = {
+  cd_public      : is_public;
+  cd_name        : ctor_name;
+  cd_targs       : named_type_arg list;
+  cd_named       : named_scheme list;
+  cd_arg_schemes : scheme_expr list
+}
 
 (** Definition of ADT *)
 type data_def = data_def_data node
 and data_def_data =
-  | DD_Data of tvar * named_type_arg list * ctor_decl list
+  | DD_Data of is_public * tvar * named_type_arg list * ctor_decl list
 
 (** Patterns *)
 type pattern = pattern_data node
@@ -223,7 +229,7 @@ and def_data =
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DMethodFn of var * method_name
+  | DMethodFn of is_public * var * method_name
     (** Declaration of function that should be interpreted as a method *)
 
   | DLabel   of type_arg option * pattern
@@ -261,18 +267,15 @@ and def_data =
   | DDataRec of data_def list
     (** Definition of mutually recursive ADTs *)
 
-  | DModule of module_name * def list
+  | DModule of is_public * module_name * def list
     (** Definition of a module *)
 
-  | DOpen of module_name path
+  | DOpen of is_public * module_name path
     (** Opening a module *)
 
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
-
-  | DPub of def
-    (** Mark a definition as public *)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

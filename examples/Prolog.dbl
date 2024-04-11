@@ -41,8 +41,8 @@ method fail {E, self = BT { fail } : BT E} = fail
   library. *)
 method choose {E, self : BT E} = fix (fn choose xs =>
   match xs with
-  | Nil       => self.fail ()
-  | Cons x xs => if self.flip () then x else choose xs
+  | []      => self.fail ()
+  | x :: xs => if self.flip () then x else choose xs
   end)
 
 (* The `Fresh` effect is used to model the generation of fresh variable
@@ -82,8 +82,8 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
 
 let exists f = fix (fn exists xs =>
   match xs with
-  | Nil       => False
-  | Cons x xs => (f x : Bool).bor (exists xs)
+  | []      => False
+  | x :: xs => f x && exists xs
   end)
 
 (* The following few functions on lists require a notion of equality, which is
@@ -93,8 +93,8 @@ implicit `eq
 
 let nub = fix (fn nub xs =>
   match xs with
-  | Nil       => Nil
-  | Cons x xs => Cons x (nub (filter (fn y => not (`eq x y)) xs))
+  | []      => []
+  | x :: xs => x :: nub (filter (fn y => not (`eq x y)) xs)
   end)
 
 let union xs ys = nub (append xs ys)
@@ -102,8 +102,8 @@ let unions xss = nub (concat xss)
 
 let assoc x = fix (fn assoc xs =>
   match xs with
-  | Nil                => None
-  | Cons (Pair y v) xs => if `eq x y then Some v else assoc xs
+  | []           => None
+  | (y, v) :: xs => if `eq x y then Some v else assoc xs
   end)
 
 (* ========================================================================= *)
@@ -114,7 +114,7 @@ method vars =
   let `eq (x : Int) = x.equal in
   fix (fn vars t =>
   match t with
-  | TVar x    => Cons x Nil
+  | TVar x    => [x]
   | TFun _ ts => unions (map vars ts)
   end) self
 
@@ -147,7 +147,7 @@ implicit `st {E_st} : State E_st (List (Pair Int Term))
 
 (* We also define a pair of functions that let us modify and read `st. *)
 
-let setVar (x : Int) t = `st.update (fn xs => Cons (Pair x t) xs)
+let setVar (x : Int) t = `st.update (fn xs => (x, t) :: xs)
 
 let getVar x =
   let `eq (x : Int) = x.equal in
@@ -182,10 +182,10 @@ let fresh () = `fresh.fresh ()
   all the variables in terms with fresh unification variables. *)
 
 method refresh {self : Term} =
-  self.rename (map (fn x => Pair x (fresh ())) self.vars)
+  self.rename (map (fn x => (x, fresh ())) self.vars)
 
 method refresh {self : Clause} =
-  self.rename (map (fn x => Pair x (fresh ())) self.vars)
+  self.rename (map (fn x => (x, fresh ())) self.vars)
 
 (* ========================================================================= *)
 
@@ -200,21 +200,21 @@ let fail () = `bt.fail ()
 (* Check whether a variable occurs in a term. *)
 method occurs (x : Int) = fix (fn occurs (t : Term) =>
   match t.view with
-  | TVar y    => x.equal y
+  | TVar y    => x == y
   | TFun _ ts => exists occurs ts
   end) self
 
 (* Attempt to unify two terms, and signal the need to backtrack on failure. *)
 let unify = fix (fn unify (t1 : Term) (t2 : Term) =>
-  match Pair t1.view t2.view with
-  | Pair (TVar x) (TVar y) =>
-    if x.equal y then () else setVar x (TVar y)
-  | Pair (TVar x) t =>
+  match t1.view, t2.view with
+  | TVar x, TVar y =>
+    if x == y then () else setVar x (TVar y)
+  | TVar x, t =>
     if t.occurs x then fail () else setVar x t
-  | Pair t (TVar x) =>
+  | t, TVar x =>
     if t.occurs x then fail () else setVar x t
-  | Pair (TFun f ts1) (TFun g ts2) =>
-    if f.equal g then iter2 {`re = fail} unify ts1 ts2
+  | TFun f ts1, TFun g ts2 =>
+    if f == g then iter2 {`re = fail} unify ts1 ts2
     else fail ()
   end)
 
@@ -236,20 +236,20 @@ let query (t : Term) = eval t.refresh
   use on a simple hardcoded query. *)
 
 (* Example database. *)
-let kb = Cons (Cl (TFun "f" (Cons (TVar 0) (Cons (TVar 0) Nil))) Nil) Nil
+let kb = [Cl (TFun "f" [TVar 0, TVar 0]) []]
 
 handle `kb = Reader (fn () => kb)
 
-handle `fresh = Fresh (effect _ / r => fn v => r v (1.add v))
+handle `fresh = Fresh (effect _ / r => fn v => r v (1 + v))
   return x  => fn _ => x
   finally f => f 0
 
 let _ =
   match
     hBT (fn `bt =>
-    hState Nil (fn `st =>
+    hState [] (fn `st =>
 	(* Example query. *)
-    query (TFun "f" (Cons (TFun "a" Nil) (Cons (TFun "a" Nil) Nil)))))
+    query (TFun "f" [TFun "a" [], TFun "a" []])))
   with
   | Some _ => printStrLn "Yes."
   | None   => printStrLn "No."

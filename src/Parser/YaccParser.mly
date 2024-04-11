@@ -11,10 +11,10 @@
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
-%token KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY KW_FN
-%token KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET KW_MATCH
-%token KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN KW_THEN
-%token KW_TYPE KW_WITH
+%token KW_ABSTR KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY
+%token KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET
+%token KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN
+%token KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -198,9 +198,17 @@ ty_field_list
 
 /* ========================================================================= */
 
+ctor_name
+: BR_OPN  BR_CLS       { CNUnit   }
+| SBR_OPN SBR_CLS      { CNNil    }
+| UID                  { CNId  $1 }
+| BR_OPN op BR_CLS     { CNBOp ($2).data }
+| BR_OPN op DOT BR_CLS { CNUOp ($2).data }
+;
+
 ctor_decl
-: UID                     { make (CtorDecl($1, [])) }
-| UID KW_OF ty_expr_list1 { make (CtorDecl($1, $3)) }
+: ctor_name                     { make (CtorDecl($1, [])) }
+| ctor_name KW_OF ty_expr_list1 { make (CtorDecl($1, $3)) }
 ;
 
 ctor_decl_list1
@@ -351,6 +359,7 @@ expr_200
 : expr_230 { $1 }
 | expr_250 expr_250_list1 { make (EApp($1, $2)) }
 | KW_EXTERN LID { make (EExtern $2) }
+| KW_PUB expr_230 { make (EPub $2) }
 ;
 
 expr_ctor
@@ -395,13 +404,19 @@ expr_simple
 | STR                { make (EStr $1)     }
 | BR_OPN BR_CLS      { make EUnit         }
 | BR_OPN expr BR_CLS { make (EParen $2)   }
-| KW_MATCH expr KW_WITH KW_END { make (EMatch($2, []))}
+| SBR_OPN SBR_CLS    { make (EList [])    }
+| SBR_OPN expr_comma_sep SBR_CLS { make (EList $2)       }
+| KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
 | BR_OPN op BR_CLS           { make (EBOpID ($2).data)}
 | BR_OPN op DOT BR_CLS       { make (EUOpID ($2).data)}
+;
 
+expr_comma_sep
+: expr_40                      { [ $1 ]   }
+| expr_40 COMMA expr_comma_sep { $1 :: $3 }
 ;
 
 /* ========================================================================= */
@@ -435,14 +450,20 @@ field_list
 
 /* ========================================================================= */
 
+data_vis
+: /* empty */ { DV_Private  }
+| KW_PUB      { DV_Public   }
+| KW_ABSTR    { DV_Abstract }
+;
+
 data_def
-: KW_DATA ty_expr EQ bar_opt ctor_decl_list
-  { make (DD_Data($2, $5)) }
+: data_vis KW_DATA ty_expr EQ bar_opt ctor_decl_list
+  { make (DD_Data($1, $3, $6)) }
 ;
 
 data_rec
-: KW_DATA KW_REC ty_expr EQ bar_opt ctor_decl_list
-  { make (DD_Data($3, $6)) }
+: data_vis KW_DATA KW_REC ty_expr EQ bar_opt ctor_decl_list
+  { make (DD_Data($1, $4, $7)) }
 ;
 
 data_rec_rest
@@ -452,25 +473,27 @@ data_rec_rest
 
 /* ========================================================================= */
 
-def
-: KW_IMPLICIT TLID implicit_ty_args type_annot_opt
-    { make (DImplicit($2, $3, $4)) }
-| KW_METHOD expr_70 EQ expr { make (DMethod($2, $4)) }
-| KW_PUB def_10 { make (DPub $2) }
-| def_10 { $1 }
+pub
+: /* empty */ { false }
+| KW_PUB      { true  }
 ;
 
-def_10
-: KW_LET expr_70 EQ expr { make (DLet($2, $4)) }
-| KW_METHOD KW_FN var_id { make (DMethodFn($3, $3)) }
-| KW_METHOD KW_FN var_id EQ var_id { make (DMethodFn($3, $5)) }
+def
+: pub KW_LET expr_70 EQ expr    { make (DLet($1, $3, $5)) }
+| KW_IMPLICIT TLID implicit_ty_args type_annot_opt
+    { make (DImplicit($2, $3, $4)) }
 | data_def               { make (DData $1)     }
 | data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
-| KW_LABEL  expr         { make (DLabel $2) }
-| KW_HANDLE expr_70 EQ expr h_clauses      { make (DHandle($2, $4, $5)) }
-| KW_HANDLE expr_70 KW_WITH expr h_clauses { make (DHandleWith($2, $4, $5)) }
-| KW_MODULE UID def_list KW_END { make (DModule($2, $3)) }
-| KW_OPEN uid_path { make (DOpen $2) }
+| pub KW_LABEL  expr         { make (DLabel($1, $3)) }
+| pub KW_HANDLE expr_70 EQ expr h_clauses
+  { make (DHandle($1, $3, $5, $6)) }
+| pub KW_HANDLE expr_70 KW_WITH expr h_clauses
+  { make (DHandleWith($1, $3, $5, $6)) }
+| pub KW_METHOD expr_70 EQ expr { make (DMethod($1, $3, $5)) }
+| pub KW_METHOD KW_FN var_id { make (DMethodFn($1, $4, $4)) }
+| pub KW_METHOD KW_FN var_id EQ var_id { make (DMethodFn($1, $4, $6)) }
+| pub KW_MODULE UID def_list KW_END { make (DModule($1, $3, $4)) }
+| pub KW_OPEN uid_path { make (DOpen($1, $3)) }
 ;
 
 def_list

@@ -36,7 +36,7 @@ handle {effect=Sched} (`st : State Sched (List (Thread [Sched,IO]))) =
   let update f = put (f (get ())) in
     State { get, put, update }
   return  x => fn _ => x
-  finally c => c Nil
+  finally c => c []
 
 (* The global label of an LWT effect. *)
 label {effect=LWT} lwt_lbl
@@ -56,13 +56,13 @@ method spawn {self = LWT {spawn}} = spawn
 (* Run the scheduler: just pick the next thread from the queue *)
 let sched () =
   match get () with
-  | Nil                 => ()
-  | Cons (Thread thr) q => let _ = put q in thr ()
+  | []              => ()
+  | Thread thr :: q => let _ = put q in thr ()
   end
 
 (* Put a thread to the scheduler queue *)
 let enqueue thr =
-  update (fn q => append q (Cons (Thread thr) Nil))
+  update (fn q => append q [Thread thr])
 
 (* Here, we handle LWT effect. Note that the handler does not provide any
   capability. It only plays a role of the delimiter (reset0) on given label.
@@ -87,13 +87,13 @@ let lwt = LWT
 (* Example code using LWT interface. Methods yield and spawn are accessible
   via the `lwt` object. *)
 let startThread (name : String) = lwt.spawn (fn _ =>
-  let _ = printStrLn (name.add "1") in
+  let _ = printStrLn (name + "1") in
   let _ = lwt.yield () in
-  let _ = printStrLn (name.add "2") in
+  let _ = printStrLn (name + "2") in
   let _ = lwt.yield () in
-  let _ = printStrLn (name.add "3") in
+  let _ = printStrLn (name + "3") in
   let _ = lwt.yield () in
-  printStrLn (name.add " exited"))
+  printStrLn (name + " exited"))
 
 let _ = startThread "A"
 let _ = startThread "B"

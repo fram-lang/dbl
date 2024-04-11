@@ -47,5 +47,4 @@ val shadow_names : t -> 'a T.Name.Map.t -> t
 (** Extend environment with a polymorphic identifier. If it is a name, then
   it will be shadowed in implicit environment. *)
 val add_poly_id :
-  pos:Position.t -> Env.t -> t -> public:bool ->
-    S.ident -> T.scheme -> Env.t * t * T.var
+  pos:Position.t -> Env.t -> t -> S.ident -> T.scheme -> Env.t * t * T.var

@@ -12,7 +12,7 @@ module type OrderedType1 = sig
   val uid : 'a t -> UID.t
 
   (** Heterogeneous equality of keys. *)
-  val equal : 'a t -> 'b t -> ('a, 'b) Eq.t
+  val hequal : 'a t -> 'b t -> ('a, 'b) Eq.t
 end
 
 (** Type with one parameter *)
@@ -183,7 +183,7 @@ struct
 
     let find (type a) (k : a key) m : a value =
       let (KV(k', v)) = find k m in
-      match Key.equal k k' with
+      match Key.hequal k k' with
       | Equal    -> v
       | NotEqual -> assert false
 
@@ -191,7 +191,7 @@ struct
       match find_opt k m with
       | None -> None
       | Some (KV(k', v)) ->
-        begin match Key.equal k k' with
+        begin match Key.hequal k k' with
         | Equal    -> Some v
         | NotEqual -> assert false
         end

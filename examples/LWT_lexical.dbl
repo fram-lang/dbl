@@ -52,19 +52,19 @@ handle {effect=Sched} `st =
   let update f = put (f (get ())) in
     State { get, put, update }
   return  x => fn _ => x
-  finally c => c Nil
+  finally c => c []
 
 (* Enqueue a ready thread to the scheduler queue. Note that thanks to the
   mechanism of implicit parameters, this function uses `st capability, without
   mentioning it explicitly. *)
 let enqueue thr =
-  update (fn queue => append queue (Cons thr Nil))
+  update (fn queue => append queue [thr])
 
 (* Run the scheduler. It picks one thread from the queue and runs it. *)
 let sched _ =
   match get () with
-  | Nil           => ()
-  | Cons thr thrs =>
+  | []          => ()
+  | thr :: thrs =>
     let _ = put thrs in
     thr ()
   end
@@ -109,13 +109,13 @@ handle {effect=LWT} (lwt : LWT_S [LWT,IO]) =
 (* Example code using LWT interface. Methods yield and spawn are accessible
   via the `lwt` object. *)
 let startThread (name : String) = lwt.spawn (fn _ =>
-  let _ = printStrLn (name.add "1") in
+  let _ = printStrLn (name + "1") in
   let _ = lwt.yield () in
-  let _ = printStrLn (name.add "2") in
+  let _ = printStrLn (name + "2") in
   let _ = lwt.yield () in
-  let _ = printStrLn (name.add "3") in
+  let _ = printStrLn (name + "3") in
   let _ = lwt.yield () in
-  printStrLn (name.add " exited"))
+  printStrLn (name + " exited"))
 
 let _ = startThread "A"
 let _ = startThread "B"

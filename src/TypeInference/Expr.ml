@@ -541,10 +541,10 @@ and check_defs : type dir.
       { run = fun env ienv req eff -> check_defs env ienv defs req eff cont }
 
 and check_def : type dir.
-  Env.t -> ImplicitEnv.t -> ?public:bool -> S.def ->
+  Env.t -> ImplicitEnv.t -> S.def ->
     (T.typ, dir) request -> T.effrow -> def_cont ->
       T.expr * (T.typ, dir) response * ret_effect =
-  fun env ienv ?(public=false) def req eff cont ->
+  fun env ienv def req eff cont ->
   let make (e : T.expr) data =
     { T.pos  = Position.join def.pos e.pos;
       T.data = data
@@ -554,7 +554,7 @@ and check_def : type dir.
   | DLetId(id, e1) ->
     let (sch, e1, r_eff1) = check_let ~pos env ienv e1 eff in
     let (env, ienv, x) =
-      ImplicitEnv.add_poly_id ~pos env ienv ~public id sch in
+      ImplicitEnv.add_poly_id ~pos env ienv id sch in
     let (e2, resp, r_eff2) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, e1, e2)), resp, ret_effect_join r_eff1 r_eff2)
 
@@ -575,7 +575,7 @@ and check_def : type dir.
     let (body, sch) =
       ExprUtils.generalize ~pos (tvars1 @ tvars2) (ims1 @ ims2) body tp in
     let (env, ienv, x) =
-      ImplicitEnv.add_poly_id ~pos env ienv ~public id sch in
+      ImplicitEnv.add_poly_id ~pos env ienv id sch in
     let (e2, resp, r_eff) = cont.run env ienv req eff in
     (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
 
@@ -585,7 +585,7 @@ and check_def : type dir.
     let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
     ImplicitEnv.end_generalize_impure ~env:env1 ~pos:e1.pos ims tp;
     let (env, pat, names, r_eff2) =
-      Pattern.check_type ~env ~scope ~public pat tp in
+      Pattern.check_type ~env ~scope pat tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, r_eff3) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
@@ -593,7 +593,7 @@ and check_def : type dir.
     (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
-  | DMethodFn(x, method_name) ->
+  | DMethodFn(public, x, method_name) ->
     let env = Env.add_method_fn ~public env x method_name in
     cont.run env ienv req eff
 
@@ -607,7 +607,7 @@ and check_def : type dir.
     let l_tp = T.Type.t_label (T.Type.t_var l_eff) tp0 eff0 in
     let scope1 = Env.scope env in
     let (env, pat, names, _) =
-      Pattern.check_type ~env ~scope:scope1 ~public pat l_tp in
+      Pattern.check_type ~env ~scope:scope1 pat l_tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, _) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
@@ -699,7 +699,7 @@ and check_def : type dir.
         Error.report (Error.delim_effect_mismatch
           ~pos:def.pos ~env lbl.l_delim_eff res_eff);
       let (env, pat, names, _) =
-        Pattern.check_type ~env ~scope:(Env.scope env) ~public pat cap_tp in
+        Pattern.check_type ~env ~scope:(Env.scope env) pat cap_tp in
       let ienv = ImplicitEnv.shadow_names ienv names in
       let (ret_x, body_tp, ret_body) =
         check_return_clauses env rcs res_tp res_eff in
@@ -741,26 +741,26 @@ and check_def : type dir.
 
   | DData dd ->
     let scope = Env.scope env in
-    let (env, dd) = DataType.check_data_def env ~public dd in
+    let (env, dd) = DataType.check_data_def env dd in
     let (e, resp, r_eff) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData([dd], e)), resp, r_eff)
 
   | DDataRec dds ->
     let scope = Env.scope env in
-    let (env, dds) = DataType.check_rec_data_defs env ~public dds in
+    let (env, dds) = DataType.check_rec_data_defs env dds in
     let (e, resp, r_eff) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData(dds, e)), resp, r_eff)
 
-  | DModule(name, defs) ->
+  | DModule(public, name, defs) ->
     let env = Env.enter_module env in
     check_defs env ImplicitEnv.empty defs req eff
       { run = fun env _ req eff ->
         let env = Env.leave_module env ~public name in
         cont.run env ienv req eff }
 
-  | DOpen path ->
+  | DOpen(public, path) ->
     begin match Env.lookup_module env path with
     | Some m ->
       let env = Env.open_module env ~public m in
@@ -769,8 +769,6 @@ and check_def : type dir.
       Error.report (Error.unbound_module ~pos path);
       cont.run env ienv req eff
     end
-
-  | DPub def -> check_def env ienv ~public:true def req eff cont
 
   | DReplExpr e1 ->
     let scope = Env.scope env in

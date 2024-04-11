@@ -1,0 +1,5 @@
+module M
+  abstr data T = C | D
+end
+
+let f (x : M.T) = x

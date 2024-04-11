@@ -7,7 +7,8 @@
 {
 let kw_map =
   let open YaccParser in
-  [ "and",      KW_AND
+  [ "abstr",    KW_ABSTR
+  ; "and",      KW_AND
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
   ; "else",     KW_ELSE
