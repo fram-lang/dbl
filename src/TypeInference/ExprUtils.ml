@@ -151,8 +151,7 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     | Some(x, sch) ->
       instantiate_with_var x sch
     | None ->
-      failwith "TODO"
-      (* TODO Correct Error msg *)
+      Error.fatal (Error.unbound_method ~pos:e.pos ~env:env owner mname)
     end
   | None, T.NVar x ->
     (* TODO: we could provide freshly bound parameters here *)
