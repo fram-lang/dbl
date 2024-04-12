@@ -8,7 +8,6 @@ open Common
 
 module StrMap = Map.Make(String)
 
-
 type pp_info = {
   pp_base_name : string;
   pp_names     : S.tvar S.path list;
