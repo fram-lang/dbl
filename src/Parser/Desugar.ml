@@ -99,7 +99,7 @@ let rec path_append path rest =
   match path with
   | NPName name       -> NPSel(name, rest)
   | NPSel(name, path) -> NPSel(name, path_append path rest)
- 
+
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
