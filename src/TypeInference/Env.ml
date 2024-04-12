@@ -8,12 +8,6 @@ open Common
 
 module StrMap = Map.Make(String)
 
-type adt_info = {
-  adt_proof : T.expr;
-  adt_args  : T.named_tvar list;
-  adt_ctors : T.ctor_decl list;
-  adt_type  : T.typ
-}
 
 type pp_info = {
   pp_base_name : string;
