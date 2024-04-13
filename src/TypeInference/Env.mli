@@ -92,8 +92,8 @@ val lookup_var : t -> S.var S.path -> Module.var_info option
 val lookup_implicit :
   t -> S.var S.path -> (T.var * T.scheme * (Position.t -> unit)) option
 
-(* TODO: Add description *)
-val scheme_to_label : T.scheme -> T.typ * T.typ * T.typ 
+(** Extend an environment with a label present in given scheme *)
+val add_the_label_sch : t -> T.scheme -> t * Var.t
 
 (** Lookup for variable labeled with "label". On success, returns the variable
   together with its label-type components *)

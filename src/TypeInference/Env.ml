@@ -180,6 +180,10 @@ let scheme_to_label sch =
     end
   | _ -> assert false
 
+let add_the_label_sch env sch =
+  let (eff, tp0, eff0) = scheme_to_label sch in
+  add_the_label env eff tp0 eff0
+
 let lookup_the_label env =
   match lookup_var env (NPName "#label") with
   | None -> None
