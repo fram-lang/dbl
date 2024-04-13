@@ -131,8 +131,9 @@ val incr_level : t -> t
 (** Get current scope *)
 val scope : t -> T.scope
 
-(** Refresh all named parameters from a given scheme and extend the scope of the environment
-   by adding all named parameters present in the refreshed scheme. *)
+(** Refresh all named parameters from a given scheme and extend the scope of
+  the environment by adding all named parameters present in the refreshed
+  scheme. *)
 val extend_scope : t -> T.scheme -> t * T.scheme
 
 (** Get a level of given environment *)
