@@ -41,8 +41,7 @@ let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
     failwith "Internal kind error"
 
 let open_scheme ~pos (env : Env.t) (sch : T.scheme) =
-  let sch = T.Scheme.refresh sch in
-  let env = Env.extend_scope env sch in
+  let (env, sch) = Env.extend_scope env sch in
   let (env, ims) =
     List.fold_left_map
       (fun env (name, sch) ->

@@ -217,7 +217,12 @@ let incr_level env =
 let scope env = env.scope
 
 let extend_scope env (sch : T.scheme) = 
-  { env with scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs }
+  let sch = T.Scheme.refresh sch in
+  let env = 
+    { env with 
+    scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs 
+    } in
+  (env, sch)
 
 let level env = T.Scope.level env.scope
 
