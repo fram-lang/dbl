@@ -76,7 +76,7 @@ let rec check_ctor_type_args ~pos ~env ~scope ~sub
     (env, scope, sub, a :: tvs)
 
 (** Extend the environment by a named parameter that is not explicitly
-  mentioned. The middle element of returned trpiple is a set of names
+  mentioned. The middle element of returned triple is a set of names
   implicity bound. *)
 let introduce_implicit_name ~pos env (name : T.name) sch =
   match name with
@@ -95,6 +95,12 @@ let introduce_implicit_name ~pos env (name : T.name) sch =
     let (env, x) = Env.add_poly_implicit env n sch ignore in
     (env, T.Name.Map.singleton name pos, x)
 
+    (* Methods are implicitly introduced to the environment.*)
+  | NMethod n ->
+    let owner = TypeUtils.method_owner_of_scheme ~pos:pos ~env:env sch in
+    let (env, x) = Env.add_poly_method env owner n sch in
+    (env, T.Name.Map.singleton name pos, x)
+    
 (** For a given constructor name and checked type, produce the ADT info for
     the type, the constructor index, proof that it is an ADT, and the needed
     substitution for the type parameters *)
@@ -307,7 +313,7 @@ let infer_named_arg_scheme env (na : S.named_arg) =
     | L_No ->
       Error.fatal (Error.label_type_mismatch ~pos:na.pos)
     end
-  | NVar _ | NImplicit _ -> ()
+  | NVar _ | NImplicit _ | NMethod _ -> ()
   end;
   (env, (name, pat, sch), r_eff)
 

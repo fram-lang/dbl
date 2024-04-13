@@ -45,6 +45,7 @@ type name =
   | NLabel
   | NVar      of var
   | NImplicit of iname
+  | NMethod   of method_name 
 
 (** Visibility of definition *)
 type is_public = bool

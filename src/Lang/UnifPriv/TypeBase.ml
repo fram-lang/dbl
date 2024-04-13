@@ -20,6 +20,7 @@ type name =
   | NLabel
   | NVar      of string
   | NImplicit of string
+  | NMethod   of string
 
 type uvar = {
   uid   : UID.t;
@@ -89,7 +90,7 @@ let t_app tp1 tp2 = TApp(tp1, tp2)
 
 let perm_name p n =
   match n with
-  | NLabel | NVar _ | NImplicit _ -> n
+  | NLabel | NVar _ | NImplicit _ | NMethod _ -> n
 
 let perm_named_tvar p (n, x) =
   (n, TVar.Perm.apply p x)

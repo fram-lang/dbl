@@ -19,6 +19,10 @@ module Ordered = struct
     | NVar _,  _       -> -1
     | _,       NVar _  -> 1
 
+    | NMethod n1, NMethod n2 -> String.compare n1 n2
+    | NMethod _, _ -> -1
+    | _, NMethod _ -> 1
+
     | NImplicit n1, NImplicit n2 -> String.compare n1 n2
 end
 
@@ -29,6 +33,9 @@ let equal n1 n2 =
 
   | NVar x1, NVar x2 -> x1 = x2
   | NVar _, _ -> false
+
+  | NMethod n1, NMethod n2 -> n1 = n2
+  | NMethod _, _ -> false
 
   | NImplicit n1, NImplicit n2 -> n1 = n2
   | NImplicit _,  _ -> false

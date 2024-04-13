@@ -16,6 +16,9 @@ type var = string
 (** Names of implicit parameters *)
 type iname = string
 
+(** Names of methods **)
+type method_name = string
+
 (** Names of operators *)
 type op_name = string
 
@@ -30,6 +33,7 @@ type name = Lang.Surface.name =
   | NLabel
   | NVar      of var
   | NImplicit of iname
+  | NMethod   of method_name
 
 (** Names of constructors of ADTs *)
 type ctor_name =
@@ -38,9 +42,6 @@ type ctor_name =
   | CNId  of string
   | CNBOp of op_name
   | CNUOp of op_name
-
-(** Names of methods *)
-type method_name = string
 
 (** Names of modules *)
 type module_name = string

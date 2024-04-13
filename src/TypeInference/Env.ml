@@ -180,6 +180,10 @@ let scheme_to_label sch =
     end
   | _ -> assert false
 
+let add_the_label_sch env sch =
+  let (eff, tp0, eff0) = scheme_to_label sch in
+  add_the_label env eff tp0 eff0
+
 let lookup_the_label env =
   match lookup_var env (NPName "#label") with
   | None -> None
@@ -212,32 +216,18 @@ let incr_level env =
 
 let scope env = env.scope
 
+let extend_scope env (sch : T.scheme) = 
+  let sch = T.Scheme.refresh sch in
+  let env = 
+    { env with 
+    scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs 
+    } in
+  (env, sch)
+
 let level env = T.Scope.level env.scope
 
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
-
-let open_scheme env sch =
-  let sch = T.Scheme.refresh sch in
-  let env = 
-    { env with
-      scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs
-    } in
-  let (env, ims) =
-    List.fold_left_map
-      (fun env (name, sch) ->
-        let (env, x) =
-          match name with
-          | T.NLabel ->
-            let (eff, tp0, eff0) = scheme_to_label sch in
-            add_the_label env eff tp0 eff0
-          | T.NVar x -> add_poly_var env x sch
-          | T.NImplicit n -> add_poly_implicit env n sch ignore
-        in
-        (env, (name, x, sch)))
-      env
-      sch.sch_named in
-  (env, sch.sch_targs, ims, sch.sch_body)
 
 let enter_module env =
   { env with mod_stack = ModStack.enter_module env.mod_stack }

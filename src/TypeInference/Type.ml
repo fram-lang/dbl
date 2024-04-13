@@ -113,6 +113,7 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     end
   | NVar      x -> (T.NVar x, sch)
   | NImplicit n -> (T.NImplicit n, sch)
+  | NMethod n   -> (T.NMethod n, sch)
 
 and tr_ttype env tp =
   check_kind env tp T.Kind.k_type

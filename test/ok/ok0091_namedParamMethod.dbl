@@ -1,0 +1,22 @@
+data rec List A = Nil | Cons of A, List A
+
+let fix {type A, type B, type E} f =
+  data rec Fix = Fix of (Fix -> A ->[|E] B)
+  let fi ix x = let Fix fi = ix in f (fi ix) x in
+  fi (Fix fi)
+
+let fold_left f acc xs = fix (fn fold acc xs =>
+  match xs with
+  | Nil       => acc
+  | Cons x xs => fold (f acc x) xs
+  end) acc xs 
+
+method toString = (extern dbl_intToString : Int -> String) self
+method add = (extern dbl_strCat : String -> String -> String) self
+
+method toString {A, method toString : A ->[] String, self : (List A) } =
+ fold_left (fn (acc : String) (x : A) => acc.add x.toString) "" self
+
+
+let x = Cons 1 (Cons 2 Nil)
+let _ = x.toString

@@ -117,7 +117,7 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     Error.fatal (Error.looping_named_param ~pos:e.pos name);
   let nset = T.Name.Set.add name nset in
   let instantiate_with_var x sch =
-    let (env, tvs, named, tp) = Env.open_scheme env isch in
+    let (env, tvs, named, tp) = TypeUtils.open_scheme ~pos: e.pos env isch in
     let arg = { T.pos = e.pos; T.data = T.EVar x } in
     let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
     let arg = make_tfun tvs (make_nfun named arg) in
@@ -144,6 +144,14 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
       instantiate_with_var x (T.Scheme.of_type (T.Type.t_label eff tp0 eff0))
     | None ->
       Error.fatal (Error.unbound_the_label ~pos:e.pos)
+    end
+  | None, T.NMethod mname ->
+    let owner = TypeUtils.method_owner_of_scheme ~pos:e.pos ~env:env isch in
+    begin match Env.lookup_method env owner mname  with
+    | Some(x, sch) ->
+      instantiate_with_var x sch
+    | None ->
+      Error.fatal (Error.unbound_method ~pos:e.pos ~env:env owner mname)
     end
   | None, T.NVar x ->
     (* TODO: we could provide freshly bound parameters here *)

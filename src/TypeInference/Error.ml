@@ -32,6 +32,7 @@ let string_of_name (name : Lang.Unif.name) =
   | NLabel -> "the effect label"
   | NImplicit n -> Printf.sprintf "implicit parameter %s" n
   | NVar x      -> Printf.sprintf "named parameter %s" x
+  | NMethod n   -> Printf.sprintf "method %s" n
 
 let kind_mismatch ~pos k1 k2 =
   let pp_ctx = Pretty.empty_context () in
@@ -352,6 +353,7 @@ let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
     | NLabel      -> Printf.sprintf "The label"
     | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
     | NVar      x -> Printf.sprintf "Named parameter %s" x
+    | NMethod   n -> Printf.sprintf "Method %s" n
   in
   (pos, Printf.sprintf "%s is provided more than once" nn,
     [ ppos, "Here is a previous definition" ])
@@ -373,6 +375,7 @@ let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
     | NLabel      -> Printf.sprintf "The label"
     | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
     | NVar      x -> Printf.sprintf "Named parameter %s" x
+    | NMethod   n -> Printf.sprintf "Method %s" n
   in
   (pos,
     Printf.sprintf "%s is provided more than once" nn,

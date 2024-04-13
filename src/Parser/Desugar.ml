@@ -93,6 +93,7 @@ let ident_of_name (name : Raw.name) =
   | NLabel      -> IdLabel
   | NVar x      -> IdVar(false, x)
   | NImplicit n -> IdImplicit(false, n)
+  | NMethod   n -> IdMethod(false, n)
 
 let rec path_append path rest =
   match path with
@@ -554,6 +555,7 @@ and tr_explicit_inst (fld : Raw.field) =
       | NLabel      -> Error.fatal (Error.desugar_error fld.pos)
       | NVar      x -> make (EVar (NPName x))
       | NImplicit n -> make (EImplicit (NPName n))
+      | NMethod   n -> Error.fatal (Error.desugar_error fld.pos)
     in
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
