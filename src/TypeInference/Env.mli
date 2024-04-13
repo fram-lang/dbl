@@ -92,7 +92,7 @@ val lookup_var : t -> S.var S.path -> Module.var_info option
 val lookup_implicit :
   t -> S.var S.path -> (T.var * T.scheme * (Position.t -> unit)) option
 
-(** Extend an environment with a label present in a given scheme. *)
+(** Extend an environment with the label of a given scheme. *)
 val add_the_label_sch : t -> T.scheme -> t * Var.t
 
 (** Lookup for variable labeled with "label". On success, returns the variable
@@ -132,7 +132,7 @@ val incr_level : t -> t
 val scope : t -> T.scope
 
 (** Refresh all named parameters from a given scheme and extend the scope of the environment
-   by adding all named parameters present in a given scheme. *)
+   by adding all named parameters present in the refreshed scheme. *)
 val extend_scope : t -> T.scheme -> t * T.scheme
 
 (** Get a level of given environment *)
