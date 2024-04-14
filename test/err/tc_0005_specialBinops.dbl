@@ -1,0 +1,4 @@
+let _ = "" && True
+let _ = "" && "" || ""
+let _ = True || 5
+let _ = ""; 5

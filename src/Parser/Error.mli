@@ -28,6 +28,7 @@ val invalid_escape_code : Position.t -> t
 val eof_in_string       : Position.t -> t
 
 val desugar_error : Position.t -> t
+val reserved_binop_error : Position.t -> string -> t
 val invalid_pattern_arg : Position.t -> t
 val impure_scheme : Position.t -> t
 val anon_type_pattern : Position.t -> t

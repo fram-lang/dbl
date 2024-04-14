@@ -9,7 +9,7 @@ open Lang.Surface
 (** Translation of the binary operator's name to the regular identifier. *)
 let tr_bop_id (op : string node) =
   if List.mem op.data ["&&"; "||"; ";"] then
-    Error.fatal (Error.desugar_error op.pos)
+    Error.fatal (Error.reserved_binop_error op.pos op.data)
   else "(" ^ op.data ^ ")"
 
 (** Translation of the unary operator's name to the regular identifier. *)
@@ -510,13 +510,23 @@ and tr_expr (e : Raw.expr) =
     make (EDefs([ make (DOpen(false, path)) ], tr_expr e))
   | EBOp(exp1,op,exp2) ->
     let with_nowhere data = { pos = Position.nowhere; data = data} in
+    let annot_tp e tp =
+      { pos = e.pos
+      ; data = Raw.EAnnot(e, with_nowhere tp)
+      } in
+    let exp1' = annot_tp exp1 (Raw.TVar(NPName "Bool")) in
+    let exp2' = annot_tp exp2 (Raw.TVar(NPName "Bool")) in
+    let e_true = with_nowhere (Raw.ECtor("True")) in
+    let e_false = with_nowhere (Raw.ECtor("False")) in
     begin match op.data with
-    | "&&" ->
-      tr_expr (make (Raw.EIf(exp1, exp2, with_nowhere (Raw.ECtor("False")))))
-    | "||" ->
-      tr_expr (make (Raw.EIf(exp1, with_nowhere (Raw.ECtor("True")), exp2)))
+    | "&&" -> tr_expr (make (Raw.EIf(exp1', exp2', e_false)))
+    | "||" -> tr_expr (make (Raw.EIf(exp1', e_true, exp2')))
     | ";" ->
-      tr_expr (make (Raw.EDefs([make (Raw.DLet(false, make Raw.EWildcard, exp1))], exp2)))
+      let lhs = annot_tp exp1 (Raw.TVar(NPName "Unit")) in
+      tr_expr (make (Raw.EDefs(
+        [make (Raw.DLet(false, make Raw.EWildcard, lhs))],
+        exp2
+      )))
     | _ ->
       let e1 = tr_expr exp1 and e2 = tr_expr exp2 in
       make (EApp(
