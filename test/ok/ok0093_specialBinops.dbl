@@ -1,0 +1,29 @@
+let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
+let printStr   = extern dbl_printStr   : String ->[IO] Unit
+
+data Bool = False | True
+
+let print b s = let _ = printStr s in b
+
+let _ = if print True  "1Succ" || print True  "FAIL" then printStrLn "ess!1" else printStrLn "FAIL"
+let _ = if print True  "2Succ" || print False "FAIL" then printStrLn "ess!2" else printStrLn "FAIL"
+let _ = if print False "3Succ" || print True  "3333" then printStrLn "ess!3" else printStrLn "FAIL"
+let _ = if print False "4Succ" || print False "4444" then printStrLn "FAIL!" else printStrLn "ess!4"
+
+let _ = if print True  "5Succ" && print True  "5555" then printStrLn "ess!5" else printStrLn "FAIL"
+let _ = if print True  "6Succ" && print False "6666" then printStrLn "FAIL!" else printStrLn "ess!6"
+let _ = if print False "7Succ" && print True  "FAIL" then printStrLn "FAIL!" else printStrLn "ess!7"
+let _ = if print False "8Succ" && print False "FAIL" then printStrLn "FAIL!" else printStrLn "ess!8"
+
+let _ = printStr "semi"; printStrLn "colon"
+
+// @stdout:1Success!1
+// @stdout:2Success!2
+// @stdout:3Succ3333ess!3
+// @stdout:4Succ4444ess!4
+// @stdout:5Succ5555ess!5
+// @stdout:6Succ6666ess!6
+// @stdout:7Success!7
+// @stdout:8Success!8
+// @stdout:semicolon
+
