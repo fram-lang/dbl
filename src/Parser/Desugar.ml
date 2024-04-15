@@ -48,8 +48,8 @@ let annot_tp e tp =
   }
 
 module RawTypes = struct
-  let unit = Raw.TVar(NPName "Unit")
-  let bool = Raw.TVar(NPName "Bool")
+  let unit = Raw.TVar(NPName "Unit", None)
+  let bool = Raw.TVar(NPName "Bool", None)
 end
 
 type ty_def =
@@ -118,12 +118,21 @@ let rec path_append path rest =
   | NPName name       -> NPSel(name, rest)
   | NPSel(name, path) -> NPSel(name, path_append path rest)
 
+let rec tr_kind_expr (k : Raw.kind_expr) = 
+  let make data = { k with data = data } in
+  match k.data with
+  | KWildcard -> make KWildcard
+  | KParen k -> make (tr_kind_expr k).data
+  | KArrow(k1, k2) -> make (KArrow(tr_kind_expr k1, tr_kind_expr k2))
+  | KType -> make KType
+  | KEffect -> make KEffect
+
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TWildcard -> make TWildcard
   | TParen tp -> make (tr_type_expr tp).data
-  | TVar x    -> make (TVar x)
+  | TVar(x, _)    -> make (TVar x)
   | TArrow(tp1, tp2) ->
     let sch = tr_scheme_expr tp1 in
     begin match tr_eff_type tp2 with
@@ -188,7 +197,7 @@ and tr_scheme_field (fld : Raw.ty_field) =
   | FldEffectVal arg ->
     Either.Left (make (TNEffect, tr_type_arg arg))
   | FldType x ->
-    Either.Left (make (TNVar x, make (TA_Var x)))
+    Either.Left (make (TNVar x, make (TA_Var(x, make KWildcard))))
   | FldTypeVal(x, arg) ->
     Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
@@ -210,8 +219,13 @@ and tr_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
-  | TVar (NPName x) -> make (TA_Var x)
-  | TVar (NPSel _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
+  | TVar (NPName x, k) -> 
+    let tr_k = begin match k with
+    | Some k -> tr_kind_expr k
+    | None   -> make KWildcard
+    end in
+    make (TA_Var(x, tr_k))
+  | TVar (NPSel _, _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -220,19 +234,24 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TParen tp -> make (tr_named_type_arg tp).data
-  | TVar (NPName x) -> make (TNVar x, make (TA_Var x))
+  | TVar (NPName x, k) -> 
+    let tr_k = begin match k with
+    | Some k -> tr_kind_expr k
+    | None   -> make KWildcard
+    end in
+    make (TNVar x, make (TA_Var(x, tr_k)))
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
-  | TVar (NPSel _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+  | TVar (NPSel _, _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
   parameter is an accumulated list of formal parameters *)
 let rec tr_type_def (tp : Raw.type_expr) args =
   match tp.data with
-  | TVar (NPName x) -> TD_Id(x, args)
+  | TVar (NPName x, _) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
-  | TVar (NPSel _) | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _
+  | TVar (NPSel _, _) | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -347,7 +366,7 @@ and tr_named_pattern ~public (fld : Raw.field) =
   | FldEffectVal arg ->
     Either.Left (make (TNEffect, tr_type_arg arg))
   | FldType x ->
-    Either.Left (make (TNVar x, make (TA_Var x)))
+    Either.Left (make (TNVar x, make (TA_Var(x, make KWildcard))))
   | FldTypeVal(x, arg) ->
     Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
@@ -383,7 +402,7 @@ let tr_named_arg (fld : Raw.field) =
   | FldEffectVal arg ->
     Either.Left (make (TNEffect, tr_type_arg arg))
   | FldType x ->
-    Either.Left (make (TNVar x, make (TA_Var x)))
+    Either.Left (make (TNVar x, make (TA_Var(x, make KWildcard))))
   | FldTypeVal(x, arg) ->
     Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->

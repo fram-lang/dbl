@@ -156,10 +156,29 @@ ty_expr_app
 
 ty_expr_simple
 : BR_OPN ty_expr BR_CLS { make (TParen $2) }
-| uid_path { make (TVar $1) }
+| uid_path  { make (TVar($1, None)) }
+| BR_OPN uid_path kind_annot BR_CLS { make (TVar($2, $3)) }
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effect SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
+;
+
+/* ------------------------------------------------------------------------- */
+
+kind_expr
+: kind_expr_simple ARROW kind_expr { make (KArrow($1, $3)) }
+| kind_expr_simple { $1 }
+;
+
+kind_expr_simple
+: BR_OPN kind_expr BR_CLS { make (KParen $2) }
+| KW_TYPE { make KType }
+| KW_EFFECT { make KEffect }
+| UNDERSCORE { make KWildcard }
+;
+
+kind_annot
+: COLON kind_expr { Some $2 }
 ;
 
 /* ------------------------------------------------------------------------- */

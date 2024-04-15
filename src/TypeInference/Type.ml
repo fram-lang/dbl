@@ -124,7 +124,7 @@ and tr_effrow env eff =
 and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
   | TA_Effect -> Env.add_the_effect ~pos:arg.pos env
-  | TA_Var x -> Env.add_tvar ~pos:arg.pos env x (T.Kind.fresh_uvar ())
+  | TA_Var(x, k) -> Env.add_tvar ~pos:arg.pos env x (tr_kind_expr k)
 
 and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
@@ -133,7 +133,11 @@ and check_type_arg env (arg : S.type_arg) kind =
     if not (Unification.unify_kind kind T.Kind.k_effect) then
       Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
     (env, x)
-  | TA_Var x -> Env.add_tvar ~pos:arg.pos env x kind
+  | TA_Var(x, k) -> 
+    let kind' = tr_kind_expr k in
+    if not (Unification.unify_kind kind' kind) then
+      Error.fatal (Error.kind_mismatch ~pos:arg.pos kind' kind);
+    Env.add_tvar ~pos:arg.pos env x kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =
   let name = Name.tr_tname (fst arg.data) in
@@ -154,6 +158,13 @@ and tr_named_type_args env args =
   Uniqueness.check_named_type_arg_uniqueness args;
   List.fold_left_map tr_named_type_arg env args
 
+and tr_kind_expr k = 
+  match k.data with
+  | KWildcard -> T.Kind.fresh_uvar ()
+  | KArrow(k1, k2) -> T.Kind.k_arrow (tr_kind_expr k1) (tr_kind_expr k2)
+  | KType -> T.Kind.k_type
+  | KEffect -> T.Kind.k_effect
+
 let check_type_alias_binder env (arg : S.type_arg) tp =
   let kind = T.Type.kind tp in
   match arg.data with
@@ -161,7 +172,7 @@ let check_type_alias_binder env (arg : S.type_arg) tp =
     if not (Unification.unify_kind kind T.Kind.k_effect) then
       Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
     Env.add_the_effect_alias env tp
-  | TA_Var x ->
+  | TA_Var(x, _) ->
     Env.add_type_alias env x tp
 
 let check_type_alias_binder_opt env arg_opt tp =

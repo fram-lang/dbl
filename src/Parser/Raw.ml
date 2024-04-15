@@ -78,6 +78,24 @@ type ('tp, 'e) field_data =
   | FldNameAnnot of name * 'tp
     (** type-annotated implicit parameter *)
 
+(** Kind expressions *)
+type kind_expr = kind_expr_data node
+and kind_expr_data = 
+  | KWildcard
+    (** A placeholder for a fresh kind unification variable*)
+
+  | KParen of kind_expr
+  (** Parentheses *)
+
+  | KArrow of kind_expr * kind_expr
+  (** Arrow kind *)
+
+  | KType 
+  (** Type kind *)
+
+  | KEffect
+  (** Effect kind*)
+
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =
@@ -87,7 +105,7 @@ and type_expr_data =
   | TParen of type_expr
     (** Parentheses *)
 
-  | TVar of tvar path
+  | TVar of tvar path * kind_expr option
     (** Type variable *)
 
   | TArrow of type_expr * type_expr
