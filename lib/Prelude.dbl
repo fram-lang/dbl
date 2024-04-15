@@ -62,9 +62,6 @@ let not b = if b then False else True
 
 method toString = if self then "True" else "False"
 
-let (&&) b1 b2 = if b1 then b2 else False
-let (||) b1 b2 = if b1 then True else b2
-
 method fn (+) = add
 method fn (-) = sub
 method fn (%) = mod

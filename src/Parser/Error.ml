@@ -44,6 +44,12 @@ let eof_in_string pos =
 let desugar_error pos =
   (Some pos, "Syntax error. This construction cannot be used in this context")
 
+let reserved_binop_error pos op =
+  (Some pos,
+    Printf.sprintf
+      "Syntax error. Operator %s can only be used in binary expressions"
+      op)
+
 let invalid_pattern_arg pos =
   (Some pos,
   "Syntax error. This argument is provided to a pattern that do not expect it")
