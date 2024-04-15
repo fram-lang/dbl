@@ -511,8 +511,8 @@ and tr_expr (e : Raw.expr) =
   | EBOp(exp1,op,exp2) ->
     let with_nowhere data = { pos = Position.nowhere; data = data} in
     let annot_tp e tp =
-      { pos = e.pos
-      ; data = Raw.EAnnot(e, with_nowhere tp)
+      { pos = e.pos;
+        data = Raw.EAnnot(e, with_nowhere tp)
       } in
     let exp1' = annot_tp exp1 (Raw.TVar(NPName "Bool")) in
     let exp2' = annot_tp exp2 (Raw.TVar(NPName "Bool")) in
