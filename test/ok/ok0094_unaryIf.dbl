@@ -1,0 +1,13 @@
+let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
+let printStr   = extern dbl_printStr   : String ->[IO] Unit
+
+data Bool = False | True
+
+let _ =
+  if (printStr "Succ"; False) then
+    if True
+    then printStr "FAIL"
+    else printStr "FAIL";
+  printStrLn "ess!"
+
+// @stdout:Success!
