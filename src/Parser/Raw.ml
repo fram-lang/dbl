@@ -192,7 +192,7 @@ and expr_data =
   | EAnnot of expr * type_expr
     (** Type annotation *)
 
-  | EIf of expr * expr * expr
+  | EIf of expr * expr * expr option
     (** If-then-else expression *)
 
   | ESelect of module_name path * expr

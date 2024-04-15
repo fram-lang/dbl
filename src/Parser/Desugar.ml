@@ -40,6 +40,18 @@ let tr_ctor_name (cname : Raw.ctor_name node) =
 let tr_ctor_name' (cname : Raw.ctor_name) =
   tr_ctor_name { pos = Position.nowhere; data = cname }
 
+let with_nowhere data = { pos = Position.nowhere; data = data}
+
+let annot_tp e tp =
+  { pos = e.pos;
+    data = Raw.EAnnot(e, with_nowhere tp)
+  }
+
+module RawTypes = struct
+  let unit = Raw.TVar(NPName "Unit")
+  let bool = Raw.TVar(NPName "Bool")
+end
+
 type ty_def =
   | TD_Id of tvar * Raw.type_expr list
     (** Name with parameters *)
@@ -501,6 +513,11 @@ and tr_expr (e : Raw.expr) =
   | EExtern name -> make (EExtern name)
   | EAnnot(e, tp) -> make (EAnnot(tr_expr e, tr_type_expr tp))
   | EIf(e, e1, e2) ->
+    let (e1, e2) =
+      match e2 with
+      | Some e2 -> (e1, e2)
+      | None -> (annot_tp e1 RawTypes.unit, with_nowhere Raw.EUnit)
+    in
     let cl1 =
       Clause(make (PCtor(make (NPName "True"), [], [], [])), tr_expr e1) in
     let cl2 =
@@ -509,20 +526,15 @@ and tr_expr (e : Raw.expr) =
   | ESelect(path, e) ->
     make (EDefs([ make (DOpen(false, path)) ], tr_expr e))
   | EBOp(exp1,op,exp2) ->
-    let with_nowhere data = { pos = Position.nowhere; data = data} in
-    let annot_tp e tp =
-      { pos = e.pos;
-        data = Raw.EAnnot(e, with_nowhere tp)
-      } in
-    let exp1' = annot_tp exp1 (Raw.TVar(NPName "Bool")) in
-    let exp2' = annot_tp exp2 (Raw.TVar(NPName "Bool")) in
+    let exp1' = annot_tp exp1 RawTypes.bool in
+    let exp2' = annot_tp exp2 RawTypes.bool in
     let e_true = with_nowhere (Raw.ECtor("True")) in
     let e_false = with_nowhere (Raw.ECtor("False")) in
     begin match op.data with
-    | "&&" -> tr_expr (make (Raw.EIf(exp1', exp2', e_false)))
-    | "||" -> tr_expr (make (Raw.EIf(exp1', e_true, exp2')))
+    | "&&" -> tr_expr (make (Raw.EIf(exp1', exp2', Some e_false)))
+    | "||" -> tr_expr (make (Raw.EIf(exp1', e_true, Some exp2')))
     | ";" ->
-      let lhs = annot_tp exp1 (Raw.TVar(NPName "Unit")) in
+      let lhs = annot_tp exp1 RawTypes.unit in
       tr_expr (make (Raw.EDefs(
         [make (Raw.DLet(false, make Raw.EWildcard, lhs))],
         exp2
