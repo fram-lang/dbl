@@ -223,7 +223,8 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   | TVar (NPName x) -> make (TNVar x, make (TA_Var x))
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
-  | TVar (NPSel _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+  | TWildcard -> make (TNAnon, make (TA_Var ""))
+  | TVar (NPSel _) | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
