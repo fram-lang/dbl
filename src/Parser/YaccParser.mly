@@ -272,35 +272,35 @@ effect_resumption_opt
 ;
 
 expr_10
-: expr_15_open { $1 }
-| expr_15_closed { $1 }
+: expr_10_open { $1 }
+| expr_10_closed { $1 }
 ;
 
 expr_10_no_comma
-: expr_15_no_comma_open { $1 }
-| expr_15_no_comma_closed { $1 }
+: expr_10_no_comma_open { $1 }
+| expr_10_no_comma_closed { $1 }
 ;
 
-expr_15_open
+expr_10_open
 : KW_IF expr KW_THEN expr_10 { make (EIf($2, $4, None)) }
-| KW_IF expr KW_THEN expr_15_closed KW_ELSE expr_15_open
+| KW_IF expr KW_THEN expr_10_closed KW_ELSE expr_10_open
   { make (EIf($2, $4, Some $6)) }
 ;
 
-expr_15_closed
-: KW_IF expr KW_THEN expr_15_closed KW_ELSE expr_15_closed
+expr_10_closed
+: KW_IF expr KW_THEN expr_10_closed KW_ELSE expr_10_closed
   { make (EIf($2, $4, Some $6)) }
 | expr_20 { $1 }
 ;
 
-expr_15_no_comma_open
+expr_10_no_comma_open
 : KW_IF expr KW_THEN expr_10_no_comma { make (EIf($2, $4, None)) }
-| KW_IF expr KW_THEN expr_15_no_comma_closed KW_ELSE expr_15_no_comma_open
+| KW_IF expr KW_THEN expr_10_no_comma_closed KW_ELSE expr_10_no_comma_open
   { make (EIf($2, $4, Some $6)) }
 ;
 
-expr_15_no_comma_closed
-: KW_IF expr KW_THEN expr_15_no_comma_closed KW_ELSE expr_15_no_comma_closed
+expr_10_no_comma_closed
+: KW_IF expr KW_THEN expr_10_no_comma_closed KW_ELSE expr_10_no_comma_closed
   { make (EIf($2, $4, Some $6)) }
 | expr_20_no_comma { $1 }
 ;
