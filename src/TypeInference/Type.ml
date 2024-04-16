@@ -125,6 +125,7 @@ and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
   | TA_Effect -> Env.add_the_effect ~pos:arg.pos env
   | TA_Var x -> Env.add_tvar ~pos:arg.pos env x (T.Kind.fresh_uvar ())
+  | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env (T.Kind.fresh_uvar ())
 
 and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
@@ -134,6 +135,7 @@ and check_type_arg env (arg : S.type_arg) kind =
       Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
     (env, x)
   | TA_Var x -> Env.add_tvar ~pos:arg.pos env x kind
+  | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =
   let name = Name.tr_tname (fst arg.data) in
@@ -163,6 +165,7 @@ let check_type_alias_binder env (arg : S.type_arg) tp =
     Env.add_the_effect_alias env tp
   | TA_Var x ->
     Env.add_type_alias env x tp
+  | TA_Wildcard -> env
 
 let check_type_alias_binder_opt env arg_opt tp =
   match arg_opt with
