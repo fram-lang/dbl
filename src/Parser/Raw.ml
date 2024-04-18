@@ -123,11 +123,6 @@ type data_vis = DV_Private | DV_Public | DV_Abstract
 (** Visibility of value definition *)
 type is_public = bool
 
-(** Definition of ADT *)
-type data_def = data_def_data node
-and data_def_data =
-  | DD_Data of data_vis * type_expr * ctor_decl list
-
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
@@ -227,11 +222,8 @@ and def_data =
   | DImplicit of iname * type_expr list * type_expr option
     (** Declaration of implicit parameter *)
 
-  | DData of data_def
+  | DData of data_vis * type_expr * ctor_decl list
     (** Definition of ADT *)
-
-  | DDataRec of data_def list
-    (** Definition of mutually recursive ADTs *)
 
   | DLabel of is_public * expr
     (** Creating a new label *)
@@ -253,6 +245,9 @@ and def_data =
 
   | DOpen of is_public * module_name path
     (** Opening a module *)
+
+  | DRec of is_public * def list
+    (** Block of mutually recursive definitions *)
 
 (** Additional clauses of handlers *)
 and h_clause = h_clause_data node

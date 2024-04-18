@@ -250,22 +250,6 @@ let tr_ctor_decl ~public:cd_public (d : Raw.ctor_decl) =
     let cd_arg_schemes = List.map tr_scheme_expr schs in
     make { cd_public; cd_name; cd_targs = []; cd_named = []; cd_arg_schemes }
 
-let tr_data_def (dd : Raw.data_def) =
-  let make data = { dd with data = data } in
-  match dd.data with
-  | DD_Data(vis, tp, cs) ->
-    let (pub_type, pub_ctors) =
-      match vis with
-      | DV_Private  -> (false, false)
-      | DV_Abstract -> (true,  false)
-      | DV_Public   -> (true,  true )
-    in
-    begin match tr_type_def tp [] with
-    | TD_Id(x, args) ->
-      make (DD_Data(pub_type, x, List.map tr_named_type_arg args,
-                                 List.map (tr_ctor_decl ~public:pub_ctors) cs))
-    end
-
 (* ========================================================================= *)
 
 (** collect fields of records from the prefix of given list of expressions.
@@ -443,6 +427,21 @@ let rec tr_function args body =
     { pos  = Position.join arg.pos body.pos;
       data = EFn(tr_function_arg arg, tr_function args body)
     }
+
+(* ========================================================================= *)
+
+type rec_defs =
+  | RD_Data of data_def list
+
+let collect_rec_defs defs =
+  let dds =
+    defs |> List.concat_map (fun def ->
+      match def.data with
+      | DData    dd  -> [ dd ]
+      | DDataRec dds -> dds
+      | _ -> Error.fatal (Error.desugar_error def.pos))
+  in
+  RD_Data dds
 
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
@@ -650,8 +649,21 @@ and tr_def (def : Raw.def) =
       | Some sch -> tr_scheme_expr sch
     in
     make (DImplicit(n, args, sch))
-  | DData    dd  -> make (DData (tr_data_def dd))
-  | DDataRec dds -> make (DDataRec (List.map tr_data_def dds))
+  | DData(vis, tp, cs) ->
+    let (pub_type, pub_ctors) =
+      match vis with
+      | DV_Private  -> (false, false)
+      | DV_Abstract -> (true,  false)
+      | DV_Public   -> (true,  true )
+    in
+    begin match tr_type_def tp [] with
+    | TD_Id(x, args) ->
+      let dd =
+        make (DD_Data(pub_type, x,
+          List.map tr_named_type_arg args,
+          List.map (tr_ctor_decl ~public:pub_ctors) cs)) in
+      make (DData dd)
+    end
   | DLabel(public, pat) ->
     let (eff_opt, pat) = tr_label_pattern ~public pat in
     make (DLabel (eff_opt, pat))
@@ -665,6 +677,11 @@ and tr_def (def : Raw.def) =
     make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs
   | DModule(public, x, defs) -> make (DModule(public, x, tr_defs defs))
   | DOpen(public, path)      -> make (DOpen(public, path))
+  | DRec(public, defs) ->
+    (* TODO: visibility flag is ignored, yet *)
+    begin match collect_rec_defs (tr_defs defs) with
+    | RD_Data dds -> make (DDataRec dds)
+    end
 
 and tr_defs defs = List.map tr_def defs
 

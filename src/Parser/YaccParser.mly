@@ -11,7 +11,7 @@
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
-%token KW_ABSTR KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY
+%token KW_ABSTR KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY
 %token KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET
 %token KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN
 %token KW_THEN KW_TYPE KW_WITH
@@ -37,6 +37,11 @@ let make data =
   { pos  = current_pos ()
   ; data = data
   }
+
+(** Make potentially recursive definition *)
+let make_def is_rec data =
+  let def = make data in
+  if is_rec then make (DRec(false, [def])) else def
 
 %}
 
@@ -480,43 +485,33 @@ data_vis
 | KW_ABSTR    { DV_Abstract }
 ;
 
-data_def
-: data_vis KW_DATA ty_expr EQ bar_opt ctor_decl_list
-  { make (DD_Data($1, $3, $6)) }
-;
-
-data_rec
-: data_vis KW_DATA KW_REC ty_expr EQ bar_opt ctor_decl_list
-  { make (DD_Data($1, $4, $7)) }
-;
-
-data_rec_rest
-: /* empty */                   { []       }
-| KW_AND data_def data_rec_rest { $2 :: $3 }
-;
-
-/* ========================================================================= */
-
 pub
 : /* empty */ { false }
 | KW_PUB      { true  }
 ;
 
+rec_opt
+: /* empty */ { false }
+| KW_REC      { true  }
+;
+
 def
-: pub KW_LET expr_70 EQ expr    { make (DLet($1, $3, $5)) }
+: pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
 | KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
-| data_def               { make (DData $1)     }
-| data_rec data_rec_rest { make (DDataRec ($1 :: $2)) }
-| pub KW_LABEL  expr         { make (DLabel($1, $3)) }
-| pub KW_HANDLE expr_70 EQ expr h_clauses
-  { make (DHandle($1, $3, $5, $6)) }
-| pub KW_HANDLE expr_70 KW_WITH expr h_clauses
-  { make (DHandleWith($1, $3, $5, $6)) }
-| pub KW_METHOD expr_70 EQ expr { make (DMethod($1, $3, $5)) }
+| data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
+    { make_def $3  (DData($1, $4, $7)) }
+| pub KW_LABEL rec_opt expr_70 { make_def $3 (DLabel($1, $4)) }
+| pub KW_HANDLE rec_opt expr_70 EQ expr h_clauses
+    { make_def $3 (DHandle($1, $4, $6, $7)) }
+| pub KW_HANDLE rec_opt expr_70 KW_WITH expr h_clauses
+    { make_def $3 (DHandleWith($1, $4, $6, $7)) }
+| pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
 | pub KW_METHOD KW_FN var_id { make (DMethodFn($1, $4, $4)) }
 | pub KW_METHOD KW_FN var_id EQ var_id { make (DMethodFn($1, $4, $6)) }
-| pub KW_MODULE UID def_list KW_END { make (DModule($1, $3, $4)) }
+| pub KW_MODULE rec_opt UID def_list KW_END
+    { make_def $3 (DModule($1, $4, $5)) }
+| pub KW_REC def_list KW_END { make (DRec($1, $3)) }
 | pub KW_OPEN uid_path { make (DOpen($1, $3)) }
 ;
 
