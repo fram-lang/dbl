@@ -88,6 +88,9 @@ val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val ctor_not_in_type : pos:Position.t -> env:Env.t -> S.ctor_name -> T.typ -> t
 
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
+val check_unify_result :
+  ?is_fatal:bool -> pos:Position.t -> Unification.result ->
+  on_error:(pos:Position.t -> t) -> unit
 
 val cannot_guess_effect_param : pos:Position.t -> T.tname -> t
 val cannot_guess_label_effect : pos:Position.t -> t

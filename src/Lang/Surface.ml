@@ -124,6 +124,9 @@ and type_arg_data =
 
   | TA_Var of tvar * kind_expr
     (** Type variable *)
+  
+  | TA_Wildcard
+    (** Wildcard *)
 
 and named_type_arg = (tname * type_arg) node
 

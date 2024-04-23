@@ -133,6 +133,7 @@ and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
   | TA_Effect -> Env.add_the_effect ~pos:arg.pos env
   | TA_Var(x, k) -> Env.add_tvar ~pos:arg.pos env x (tr_kind_expr k)
+  | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env (T.Kind.fresh_uvar ())
 
 and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
@@ -146,6 +147,7 @@ and check_type_arg env (arg : S.type_arg) kind =
     if not (Unification.unify_kind kind_annot kind) then
       Error.fatal (Error.kind_annot_mismatch ~pos:arg.pos kind kind_annot);
     Env.add_tvar ~pos:arg.pos env x kind
+  | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =
   let name = Name.tr_tname (fst arg.data) in
@@ -175,6 +177,7 @@ let check_type_alias_binder env (arg : S.type_arg) tp =
     Env.add_the_effect_alias env tp
   | TA_Var(x, _) ->
     Env.add_type_alias env x tp
+  | TA_Wildcard -> env
 
 let check_type_alias_binder_opt env arg_opt tp =
   match arg_opt with
