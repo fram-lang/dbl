@@ -21,8 +21,16 @@ type label =
   | L_NoEffect
   | L_Label of T.effect * T.typ * T.effrow
 
+type error_info =
+  | TVarEscapesScope of Env.t * T.tvar
+
+type result =
+  | Unify_Success
+  | Unify_Fail of error_info list
+
 (** Internal exception *)
 exception Error
+exception Escapes_scope of Env.t * T.tvar
 
 let unify_with_kuvar x k =
   if T.Kind.contains_uvar x k then
@@ -76,7 +84,7 @@ let set_uvar env p u tp =
   let scope = T.UVar.raw_set p u tp in
   match T.Type.try_shrink_scope ~scope tp with
   | Ok   () -> ()
-  | Error _ -> raise Error
+  | Error e -> raise (Escapes_scope (env, e))
 
 let rec unify_named_type_args env sub1 sub2 args1 args2 =
   match args1, args2 with
@@ -308,23 +316,27 @@ and check_subscheme env sch1 sch2 =
 let unify_type env tp1 tp2 =
   match BRef.bracket (fun () -> 
   	unify_at_kind env tp1 tp2 (T.Type.kind tp1)) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
 let subeffect env eff1 eff2 =
   match BRef.bracket (fun () -> check_subeffect env eff1 eff2) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
 let subtype env tp1 tp2 =
   match BRef.bracket (fun () -> check_subtype env tp1 tp2) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
 let subscheme env sch1 sch2 =
   match BRef.bracket (fun () -> check_subscheme env sch1 sch2) with
-  | ()              -> true
-  | exception Error -> false
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
 let to_arrow env tp =
   match T.Type.view tp with
