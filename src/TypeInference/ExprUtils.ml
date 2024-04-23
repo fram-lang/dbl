@@ -121,10 +121,10 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     let arg = { T.pos = e.pos; T.data = T.EVar x } in
     let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
     let arg = make_tfun tvs (make_nfun named arg) in
-    let unification_result = Unification.subtype env arg_tp tp in 
-      Error.check_unify_result ~is_fatal:true ~pos:e.pos unification_result
-        ~on_error:(Error.named_param_type_mismatch ~pos:e.pos ~env name arg_tp tp);
-        { T.pos = e.pos; T.data = T.EApp(e, arg) }
+    Error.check_unify_result ~is_fatal:true ~pos:e.pos
+      (Unification.subtype env arg_tp tp)
+      ~on_error:(Error.named_param_type_mismatch ~env name arg_tp tp);
+    { T.pos = e.pos; T.data = T.EApp(e, arg) }
   in
   match T.Name.assoc name inst, name with
   | Some arg, _ ->

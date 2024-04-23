@@ -291,10 +291,10 @@ let ctor_not_in_type ~pos ~env name tp =
 
 let escaping_tvar_message ~env x =
   let pp_ctx = Pretty.empty_context () in
-    let msg = Printf.sprintf
+  let msg = Printf.sprintf
     "Type variable %s escapes its scope"
-    (Pretty.tvar_to_string pp_ctx env x) in
-    msg ^ Pretty.additional_info pp_ctx
+    (Pretty.tvar_to_string pp_ctx env x)
+  in msg ^ Pretty.additional_info pp_ctx
 
 let type_escapes_its_scope ~pos ~env x =
   let pp_ctx = Pretty.empty_context () in
@@ -303,17 +303,18 @@ let type_escapes_its_scope ~pos ~env x =
     (Pretty.tvar_to_string pp_ctx env x)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let unification_error_to_string e =
-  match e with 
-  | Unification.TVar_escaped_scope (e, t) -> escaping_tvar_message ~env:e t
+let unification_error_to_string (err : Unification.error_info) =
+  match err with 
+  | TVarEscapesScope(env, tv) -> escaping_tvar_message ~env tv
 
-let check_unify_result ~is_fatal ~pos result ~on_error =
+let check_unify_result ?(is_fatal=false) ~pos
+    (result : Unification.result) ~on_error =
   let inform = if is_fatal then fatal else report in
   match result with
-  | Unification.Unify_Success -> ()
-  | Unification.Unify_Fail errors -> 
-    inform (add_notes on_error
-      (List.map (fun x -> (pos, unification_error_to_string x)) errors))
+  | Unify_Success -> ()
+  | Unify_Fail errors -> 
+    inform (add_notes (on_error ~pos)
+      (List.map (fun err -> (pos, unification_error_to_string err)) errors))
 
 let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
   (pos,
