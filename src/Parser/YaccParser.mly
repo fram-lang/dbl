@@ -11,9 +11,9 @@
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
-%token KW_ABSTR KW_AND KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN KW_FINALLY
-%token KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL KW_LET
-%token KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN
+%token KW_ABSTR KW_AND KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
+%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL
+%token KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC KW_RETURN
 %token KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
@@ -27,6 +27,7 @@
 %{
 
 open Raw
+module Surf = Lang.Surface
 
 let current_pos () =
   Position.of_pp
@@ -157,7 +158,7 @@ ty_expr_app
 ty_expr_simple
 : BR_OPN ty_expr BR_CLS { make (TParen $2) }
 | uid_path  { make (TVar($1, None)) }
-| BR_OPN uid_path kind_annot BR_CLS { make (TVar($2, $3)) }
+| BR_OPN uid_path COLON kind_expr BR_CLS { make (TVar($2, Some $4)) }
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effect SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
@@ -166,19 +167,16 @@ ty_expr_simple
 /* ------------------------------------------------------------------------- */
 
 kind_expr
-: kind_expr_simple ARROW kind_expr { make (KArrow($1, $3)) }
+: kind_expr_simple ARROW kind_expr { make (Surf.KArrow($1, $3)) }
 | kind_expr_simple { $1 }
 ;
 
 kind_expr_simple
-: BR_OPN kind_expr BR_CLS { make (KParen $2) }
-| KW_TYPE { make KType }
-| KW_EFFECT { make KEffect }
-| UNDERSCORE { make KWildcard }
-;
-
-kind_annot
-: COLON kind_expr { Some $2 }
+: BR_OPN kind_expr BR_CLS { make ($2).data }
+| KW_TYPE { make Surf.KType }
+| KW_EFFECT { make Surf.KEffect }
+| KW_EFFROW { make Surf.KEffrow }
+| UNDERSCORE { make Surf.KWildcard }
 ;
 
 /* ------------------------------------------------------------------------- */
@@ -201,13 +199,14 @@ ty_expr_list1
 /* ------------------------------------------------------------------------- */
 
 ty_field
-: KW_TYPE ty_expr      { make (FldAnonType $2)     }
-| KW_EFFECT            { make FldEffect            }
-| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)    }
-| UID                  { make (FldType $1)         }
-| UID EQ ty_expr       { make (FldTypeVal($1, $3)) }
-| name                 { make (FldName $1)         }
-| name COLON ty_expr   { make (FldNameVal($1, $3)) }
+: KW_TYPE ty_expr      { make (FldAnonType $2)       }
+| KW_EFFECT            { make FldEffect              }
+| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)      }
+| UID                  { make (FldType($1, None))    }
+| UID COLON kind_expr  { make (FldType($1, Some $3)) }
+| UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
+| name                 { make (FldName $1)           }
+| name COLON ty_expr   { make (FldNameVal($1, $3))   }
 ;
 
 ty_field_list
@@ -476,14 +475,14 @@ match_clause_list
 /* ========================================================================= */
 
 field
-: KW_TYPE ty_expr      { make (FldAnonType $2)       }
-| KW_EFFECT            { make FldEffect              }
-| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)      }
-| UID                  { make (FldType $1)           }
-| UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
-| name                 { make (FldName $1)           }
+: KW_TYPE ty_expr       { make (FldAnonType $2)       }
+| KW_EFFECT             { make FldEffect              }
+| KW_EFFECT EQ ty_expr  { make (FldEffectVal $3)      }
+| UID                   { make (FldType($1, None))    }
+| UID EQ ty_expr        { make (FldTypeVal($1, $3))   }
+| name                  { make (FldName $1)           }
 | name EQ expr_no_comma { make (FldNameVal($1, $3))   }
-| name COLON ty_expr   { make (FldNameAnnot($1, $3)) }
+| name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
 ;
 
 field_list

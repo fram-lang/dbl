@@ -74,6 +74,9 @@ and kind_expr_data =
   | KEffect
   (** Effect kind*)
 
+  | KEffrow
+  (** Effect row kind *)
+
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =
