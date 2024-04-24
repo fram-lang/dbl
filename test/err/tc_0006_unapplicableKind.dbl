@@ -1,0 +1,1 @@
+data rec Fix (F: type) = Fix of F (Fix F)

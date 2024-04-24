@@ -48,8 +48,8 @@ let annot_tp e tp =
   }
 
 module RawTypes = struct
-  let unit = Raw.TVar(NPName "Unit")
-  let bool = Raw.TVar(NPName "Bool")
+  let unit = Raw.TVar(NPName "Unit", None)
+  let bool = Raw.TVar(NPName "Bool", None)
 end
 
 type ty_def =
@@ -121,9 +121,9 @@ let rec path_append path rest =
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
-  | TWildcard -> make TWildcard
-  | TParen tp -> make (tr_type_expr tp).data
-  | TVar x    -> make (TVar x)
+  | TWildcard  -> make TWildcard
+  | TParen tp  -> make (tr_type_expr tp).data
+  | TVar(x, _) -> make (TVar x)
   | TArrow(tp1, tp2) ->
     let sch = tr_scheme_expr tp1 in
     begin match tr_eff_type tp2 with
@@ -187,8 +187,9 @@ and tr_scheme_field (fld : Raw.ty_field) =
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
     Either.Left (make (TNEffect, tr_type_arg arg))
-  | FldType x ->
-    Either.Left (make (TNVar x, make (TA_Var x)))
+  | FldType(x, ka) ->
+    let k = Option.value ka ~default:(make KWildcard) in
+    Either.Left (make (TNVar x, make (TA_Var(x, k))))
   | FldTypeVal(x, arg) ->
     Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
@@ -210,8 +211,10 @@ and tr_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TParen tp -> make (tr_type_arg tp).data
-  | TVar (NPName x) -> make (TA_Var x)
-  | TVar (NPSel _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
+  | TVar (NPName x, ka) -> 
+    let k = Option.value ka ~default:(make KWildcard) in
+    make (TA_Var(x, k))
+  | TVar (NPSel _, _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -220,20 +223,22 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
   | TParen tp -> make (tr_named_type_arg tp).data
-  | TVar (NPName x) -> make (TNVar x, make (TA_Var x))
+  | TVar (NPName x, ka) -> 
+    let k = Option.value ka ~default:(make KWildcard) in
+    make (TNVar x, make (TA_Var(x, k)))
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
   | TWildcard -> make (TNAnon, make (TA_Wildcard))
-  | TVar (NPSel _) | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
+  | TVar (NPSel _, _) | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
   parameter is an accumulated list of formal parameters *)
 let rec tr_type_def (tp : Raw.type_expr) args =
   match tp.data with
-  | TVar (NPName x) -> TD_Id(x, args)
+  | TVar (NPName x, _) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
-  | TVar (NPSel _) | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _
+  | TVar (NPSel _, _) | TWildcard | TParen _ | TArrow _ | TEffect _ | TRecord _
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -347,8 +352,9 @@ and tr_named_pattern ~public (fld : Raw.field) =
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
     Either.Left (make (TNEffect, tr_type_arg arg))
-  | FldType x ->
-    Either.Left (make (TNVar x, make (TA_Var x)))
+  | FldType(x, ka) ->
+    let k = Option.value ka ~default:(make KWildcard) in
+    Either.Left (make (TNVar x, make (TA_Var(x, k))))
   | FldTypeVal(x, arg) ->
     Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
@@ -383,8 +389,9 @@ let tr_named_arg (fld : Raw.field) =
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
     Either.Left (make (TNEffect, tr_type_arg arg))
-  | FldType x ->
-    Either.Left (make (TNVar x, make (TA_Var x)))
+  | FldType(x, ka) ->
+    let k = Option.value ka ~default:(make KWildcard) in
+    Either.Left (make (TNVar x, make (TA_Var(x, k))))
   | FldTypeVal(x, arg) ->
     Either.Left (make (TNVar x, tr_type_arg arg))
   | FldName n ->
@@ -586,7 +593,7 @@ and tr_explicit_inst (fld : Raw.field) =
     Error.fatal (Error.desugar_error fld.pos)
   | FldEffectVal eff ->
     Either.Left (make (TNEffect, tr_type_expr eff))
-  | FldType x ->
+  | FldType(x, None) ->
     Either.Left (make (TNVar x, make (TVar (NPName x))))
   | FldTypeVal(x, tp) ->
     Either.Left (make (TNVar x, tr_type_expr tp))
@@ -601,7 +608,7 @@ and tr_explicit_inst (fld : Raw.field) =
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
     Either.Right (make (n, tr_expr e))
-  | FldEffect | FldNameAnnot _ ->
+  | FldEffect | FldNameAnnot _ | FldType(_, Some _) ->
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_def (def : Raw.def) =

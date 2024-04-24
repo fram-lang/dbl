@@ -45,6 +45,14 @@ let kind_mismatch ~pos k1 k2 =
     (Pretty.kind_to_string pp_ctx k2)
   in (pos, msg, [])
 
+let kind_annot_mismatch ~pos k k_annot = 
+  let pp_ctx = Pretty.empty_context () in 
+  let msg = Printf.sprintf
+    "Kind %s of type differs from its annotation %s"
+    (Pretty.kind_to_string pp_ctx k)
+    (Pretty.kind_to_string pp_ctx k_annot)
+  in (pos, msg, [])
+
 let wildcard_in_effect ~pos =
   (pos, "Wild-cards in effects are forbidden", [])
 

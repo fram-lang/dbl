@@ -11,6 +11,7 @@ let kw_map =
   ; "and",      KW_AND
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
+  ; "effrow",   KW_EFFROW
   ; "else",     KW_ELSE
   ; "end",      KW_END
   ; "extern",   KW_EXTERN

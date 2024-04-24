@@ -59,6 +59,24 @@ type ident =
     (** Methods must have an arrow type, where the argument type is a type
       of "self" variable. *)
 
+(** Kind expressions *)
+type kind_expr = kind_expr_data node
+and kind_expr_data =
+  | KWildcard
+    (** A placeholder for a fresh kind unification variable *)
+
+  | KArrow of kind_expr * kind_expr
+    (** Arrow kind *)
+
+  | KType
+    (** Type kind *)
+
+  | KEffect
+    (** Effect kind *)
+
+  | KEffrow
+    (** Effect row kind *)
+
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =
@@ -104,7 +122,7 @@ and type_arg_data =
   | TA_Effect
     (** Effect variable *)
 
-  | TA_Var of tvar
+  | TA_Var of tvar * kind_expr
     (** Type variable *)
   
   | TA_Wildcard
