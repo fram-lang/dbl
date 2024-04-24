@@ -61,21 +61,21 @@ type ident =
 
 (** Kind expressions *)
 type kind_expr = kind_expr_data node
-and kind_expr_data = 
+and kind_expr_data =
   | KWildcard
-    (** A placeholder for a fresh kind unification variable*)
+    (** A placeholder for a fresh kind unification variable *)
 
   | KArrow of kind_expr * kind_expr
-  (** Arrow kind *)
+    (** Arrow kind *)
 
-  | KType 
-  (** Type kind *)
+  | KType
+    (** Type kind *)
 
   | KEffect
-  (** Effect kind*)
+    (** Effect kind *)
 
   | KEffrow
-  (** Effect row kind *)
+    (** Effect row kind *)
 
 (** Type expressions *)
 type type_expr = type_expr_data node

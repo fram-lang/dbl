@@ -51,6 +51,24 @@ type 'a path = 'a Lang.Surface.path =
   | NPName of 'a
   | NPSel  of module_name * 'a path
 
+(** Kind expressions *)
+type kind_expr = kind_expr_data node
+and kind_expr_data = Lang.Surface.kind_expr_data =
+  | KWildcard
+    (** A placeholder for a fresh kind unification variable *)
+
+  | KArrow of kind_expr * kind_expr
+    (** Arrow kind *)
+
+  | KType
+    (** Type kind *)
+
+  | KEffect
+    (** Effect kind*)
+
+  | KEffrow
+    (** Effect row kind *)
+
 (** Field of record-like, e.g., scheme name parameters, or explicit
   instantiation *)
 type ('tp, 'e) field_data =
@@ -63,7 +81,7 @@ type ('tp, 'e) field_data =
   | FldEffectVal of 'tp
     (** Effect associated with effect handler, together with its value *)
 
-  | FldType of tvar * Lang.Surface.kind_expr option
+  | FldType of tvar * kind_expr option
     (** Named type, possibly kind-annotated *)
 
   | FldTypeVal of tvar * 'tp
@@ -87,7 +105,7 @@ and type_expr_data =
   | TParen of type_expr
     (** Parentheses *)
 
-  | TVar of tvar path * Lang.Surface.kind_expr option
+  | TVar of tvar path * kind_expr option
     (** Type variable *)
 
   | TArrow of type_expr * type_expr

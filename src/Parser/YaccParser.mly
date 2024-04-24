@@ -27,7 +27,6 @@
 %{
 
 open Raw
-module Surf = Lang.Surface
 
 let current_pos () =
   Position.of_pp
@@ -167,16 +166,16 @@ ty_expr_simple
 /* ------------------------------------------------------------------------- */
 
 kind_expr
-: kind_expr_simple ARROW kind_expr { make (Surf.KArrow($1, $3)) }
+: kind_expr_simple ARROW kind_expr { make (KArrow($1, $3)) }
 | kind_expr_simple { $1 }
 ;
 
 kind_expr_simple
 : BR_OPN kind_expr BR_CLS { make ($2).data }
-| KW_TYPE { make Surf.KType }
-| KW_EFFECT { make Surf.KEffect }
-| KW_EFFROW { make Surf.KEffrow }
-| UNDERSCORE { make Surf.KWildcard }
+| KW_TYPE { make KType }
+| KW_EFFECT { make KEffect }
+| KW_EFFROW { make KEffrow }
+| UNDERSCORE { make KWildcard }
 ;
 
 /* ------------------------------------------------------------------------- */
