@@ -5,3 +5,5 @@ let foo (Box A) = ()
 handle {label=l} _ = ()
   return  _ => foo
   finally c => c (Box A)
+// @stderr: Type variable
+// @stderr: escapes

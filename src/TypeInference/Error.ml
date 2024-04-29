@@ -9,6 +9,9 @@ type t = Position.t * string * (Position.t * string) list
 let report_note (pos, msg) =
   InterpLib.Error.report ~pos ~cls:Note msg
 
+let add_notes (pos, msg, notes) new_notes =
+  (pos, msg, notes @ new_notes)
+
 let fatal (pos, msg, notes) =
   InterpLib.Error.report ~pos ~cls:FatalError msg;
   List.iter report_note notes;
@@ -40,6 +43,14 @@ let kind_mismatch ~pos k1 k2 =
     "This type has kind %s, but it was expected of kind %s"
     (Pretty.kind_to_string pp_ctx k1)
     (Pretty.kind_to_string pp_ctx k2)
+  in (pos, msg, [])
+
+let kind_annot_mismatch ~pos k k_annot = 
+  let pp_ctx = Pretty.empty_context () in 
+  let msg = Printf.sprintf
+    "Kind %s of type differs from its annotation %s"
+    (Pretty.kind_to_string pp_ctx k)
+    (Pretty.kind_to_string pp_ctx k_annot)
   in (pos, msg, [])
 
 let wildcard_in_effect ~pos =
@@ -289,12 +300,32 @@ let ctor_not_in_type ~pos ~env name tp =
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let escaping_tvar_message ~env x =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Type variable %s escapes its scope"
+    (Pretty.tvar_to_string pp_ctx env x)
+  in msg ^ Pretty.additional_info pp_ctx
+
 let type_escapes_its_scope ~pos ~env x =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Type variable %s escapes its scope"
     (Pretty.tvar_to_string pp_ctx env x)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let unification_error_to_string (err : Unification.error_info) =
+  match err with 
+  | TVarEscapesScope(env, tv) -> escaping_tvar_message ~env tv
+
+let check_unify_result ?(is_fatal=false) ~pos
+    (result : Unification.result) ~on_error =
+  let inform = if is_fatal then fatal else report in
+  match result with
+  | Unify_Success -> ()
+  | Unify_Fail errors -> 
+    inform (add_notes (on_error ~pos)
+      (List.map (fun err -> (pos, unification_error_to_string err)) errors))
 
 let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
   (pos,
