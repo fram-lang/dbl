@@ -81,6 +81,7 @@ and expr_data =
   | EApp        of expr * expr
   | ETApp       of expr * typ
   | ELet        of var * scheme * expr * expr
+  | ELetRec     of (var * scheme * expr) list * expr
   | ECtor       of expr * int * typ list * expr list
   | EData       of data_def list * expr
   | EMatchEmpty of expr * expr * typ * effrow

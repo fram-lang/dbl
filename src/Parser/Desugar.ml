@@ -430,18 +430,63 @@ let rec tr_function args body =
 
 (* ========================================================================= *)
 
+(** Mutually recursive definitions *)
 type rec_defs =
   | RD_Data of data_def list
+    (** Mutually recursive types *)
+
+  | RD_Fun of rec_fun list
+    (** Mutually recursive functions *)
+
+let determine_rec_defs_kind defs =
+  match defs with
+  | [] -> assert false
+  | def :: _ ->
+    begin match def.data with
+    | DLetId _ | DLetFun _ | DFunRec _ -> RD_Fun []
+    | DData _ | DDataRec _ -> RD_Data []
+    | DLetPat _ | DMethodFn _ | DLabel _ | DHandlePat _
+    | DImplicit _ | DModule _ | DOpen _ | DReplExpr _ ->
+      Error.fatal (Error.desugar_error def.pos)
+    end
+
+(** add more definitions in reversed order to given recursive definitions *)
+let rec prepend_rec_defs defs rdefs =
+  List.fold_left prepend_rec_def rdefs defs
+
+and prepend_rec_def rdefs def =
+  match def.data, rdefs with
+  | DLetId(x, body), RD_Fun fds ->
+    let fd = { def with data = RecFun(x, [], [], body) } in
+    RD_Fun(fd :: fds)
+  | DLetFun(x, targs, nargs, body), RD_Fun fds ->
+    let fd = { def with data = RecFun(x, targs, nargs, body) } in
+    RD_Fun(fd :: fds)
+  | DFunRec fds1, RD_Fun fds2 ->
+    RD_Fun (List.rev_append fds1 fds2)
+  | DData dd, RD_Data dds -> RD_Data (dd :: dds)
+  | DDataRec dds1, RD_Data dds2 ->
+    RD_Data (List.rev_append dds1 dds2)
+
+  | (DLetId _ | DLetFun _ | DFunRec _), RD_Data _
+  | (DData _ | DDataRec _), RD_Fun _
+  | DLetPat _, _ | DMethodFn _, _ | DLabel _, _ | DHandlePat _, _
+  | DImplicit _, _ | DModule _, _ | DOpen _, _ | DReplExpr _, _ ->
+    Error.fatal (Error.desugar_error def.pos)
+
+(** Reverse recursive definitions *)
+let rev_rec_defs defs =
+  match defs with
+  | RD_Data dds -> RD_Data (List.rev dds)
+  | RD_Fun  fds -> RD_Fun  (List.rev fds)
 
 let collect_rec_defs defs =
-  let dds =
-    defs |> List.concat_map (fun def ->
-      match def.data with
-      | DData    dd  -> [ dd ]
-      | DDataRec dds -> dds
-      | _ -> Error.fatal (Error.desugar_error def.pos))
-  in
-  RD_Data dds
+  defs
+  |> determine_rec_defs_kind
+  |> prepend_rec_defs defs
+  |> rev_rec_defs
+
+(* ========================================================================= *)
 
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
@@ -603,10 +648,11 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldEffect | FldNameAnnot _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
-and tr_def (def : Raw.def) =
+and tr_def ?(public=false) (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet(public, p, e) ->
+  | DLet(pub, p, e) ->
+    let public = public || pub in
     begin match tr_let_pattern ~public p with
     | LP_Id id -> 
       make (DLetId(id, tr_expr e))
@@ -615,7 +661,8 @@ and tr_def (def : Raw.def) =
     | LP_Pat p ->
       make (DLetPat(p, tr_expr e))
     end
-  | DMethod(public, p, e) ->
+  | DMethod(pub, p, e) ->
+    let public = public || pub in
     begin match tr_let_pattern ~public p with
     | LP_Id (IdVar(public, x)) ->
       make (DLetFun(IdMethod(public, x), [], [],
@@ -634,7 +681,8 @@ and tr_def (def : Raw.def) =
     | LP_Pat _ ->
       Error.fatal (Error.desugar_error p.pos)
     end
-  | DMethodFn(public, id1, id2) ->
+  | DMethodFn(pub, id1, id2) ->
+    let public = public || pub in
     make (DMethodFn(public, tr_var_id (make id1), tr_var_id (make id2)))
   | DImplicit(n, args, sch) ->
     let args = List.map tr_named_type_arg args in
@@ -652,9 +700,9 @@ and tr_def (def : Raw.def) =
   | DData(vis, tp, cs) ->
     let (pub_type, pub_ctors) =
       match vis with
-      | DV_Private  -> (false, false)
-      | DV_Abstract -> (true,  false)
-      | DV_Public   -> (true,  true )
+      | DV_Private  -> (public, public)
+      | DV_Abstract -> (true,   public)
+      | DV_Public   -> (true,   true  )
     in
     begin match tr_type_def tp [] with
     | TD_Id(x, args) ->
@@ -664,26 +712,33 @@ and tr_def (def : Raw.def) =
           List.map (tr_ctor_decl ~public:pub_ctors) cs)) in
       make (DData dd)
     end
-  | DLabel(public, pat) ->
+  | DLabel(pub, pat) ->
+    let public = public || pub in
     let (eff_opt, pat) = tr_label_pattern ~public pat in
     make (DLabel (eff_opt, pat))
-  | DHandle(public, pat, h, hcs) ->
+  | DHandle(pub, pat, h, hcs) ->
+    let public = public || pub in
     let (lbl_opt, eff_opt, pat)  = tr_handle_pattern ~public pat in
     let body = { h with data = EHandler(tr_expr h) } in
     make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs
-  | DHandleWith(public, pat, e, hcs) ->
+  | DHandleWith(pub, pat, e, hcs) ->
+    let public = public || pub in
     let (lbl_opt, eff_opt, pat)  = tr_handle_pattern ~public pat in
     let body = tr_expr e in
     make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs
-  | DModule(public, x, defs) -> make (DModule(public, x, tr_defs defs))
-  | DOpen(public, path)      -> make (DOpen(public, path))
+  | DModule(pub, x, defs) ->
+    let public = public || pub in
+    make (DModule(public, x, tr_defs defs))
+  | DOpen(pub, path) -> 
+    let public = public || pub in
+    make (DOpen(public, path))
   | DRec(public, defs) ->
-    (* TODO: visibility flag is ignored, yet *)
-    begin match collect_rec_defs (tr_defs defs) with
+    begin match collect_rec_defs (tr_defs ~public defs) with
     | RD_Data dds -> make (DDataRec dds)
+    | RD_Fun  fds -> make (DFunRec fds)
     end
 
-and tr_defs defs = List.map tr_def defs
+and tr_defs ?(public=false) defs = List.map (tr_def ~public) defs
 
 and tr_pattern_with_fields ~public (pat : Raw.expr) =
   match pat.data with

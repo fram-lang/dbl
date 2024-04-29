@@ -15,6 +15,8 @@ type expr =
   | ELet of var * expr * expr
     (** Let-expression *)
 
+  | ELetRec of (var * value) list * expr
+
   | EApp of value * value
     (** Function application *)
 

@@ -597,6 +597,19 @@ and check_def : type dir.
     let env = Env.add_method_fn ~public env x method_name in
     cont.run env ienv req eff
 
+  | DFunRec fds ->
+    let (rec_env, ims) = ImplicitEnv.begin_generalize env ienv in
+    let ((rec_env, _), fds) =
+      List.fold_left_map prepare_rec_fun (rec_env, ienv) fds in
+    let fds = List.map (check_rec_fun rec_env) fds in
+    let uvars = List.fold_left collect_rec_fun_uvars T.UVar.Set.empty fds in
+    let (tvars, ims) = ImplicitEnv.end_generalize_pure ims uvars in
+    let ((env, ienv), fds) =
+      List.fold_left_map (add_rec_fun tvars ims) (env, ienv) fds in
+    let fds = List.map (finalize_rec_fun fds) fds in
+    let (e2, resp, r_eff) = cont.run env ienv req eff in
+    (make e2 (T.ELetRec(fds, e2)), resp, r_eff)
+
   | DLabel(eff_opt, pat) ->
     let scope = Env.scope env in
     let (env, l_eff) = Env.add_the_effect ~pos:def.pos env in
@@ -794,6 +807,118 @@ and check_let ~pos env ienv body eff =
     ImplicitEnv.end_generalize_impure ~env:body_env ~pos:body.pos ims tp;
     let sch = T.Scheme.of_type tp in
     (sch, body, Impure)
+
+(* ------------------------------------------------------------------------- *)
+(** First pass of checking recursive function: guessing its scheme *)
+and prepare_rec_fun (env, ienv) fd =
+  let (RecFun(name, targs, nargs, body)) = fd.data in
+  let (body_env, tvars) = Type.tr_named_type_args env targs in
+  let (body_env, named, r_eff1) =
+    Pattern.infer_named_arg_schemes body_env nargs in
+  (* TODO: use type annotation to obtain this type *)
+  let body_tp = Env.fresh_uvar body_env T.Kind.k_type in
+  let sch =
+    { T.sch_targs = tvars;
+      T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named;
+      T.sch_body  = body_tp
+    } in
+  let (env, ienv, x) = ImplicitEnv.add_poly_id ~pos:fd.pos env ienv name sch in
+  let fd = (fd.pos, name, x, sch, targs, nargs, body) in
+  ((env, ienv), fd)
+
+(** Second pass of checking recursive function: type-checking *)
+and check_rec_fun env (pos, name, x, sch, targs, nargs, body) =
+  let (body_env, tvars) = Type.tr_named_type_args env targs in
+  let (body_env, named, r_eff1) =
+    Pattern.infer_named_arg_schemes body_env nargs in
+  let body_tp = Env.fresh_uvar body_env T.Kind.k_type in
+  let sch' =
+    { T.sch_targs = tvars;
+      T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named;
+      T.sch_body  = body_tp
+    } in
+  if not (Unification.subscheme env sch' sch) then
+    (* Both schemes come from the same definition. They should be unifiable *)
+    assert false;
+  let (body, r_eff2) = check_expr_type body_env body body_tp T.Effect.pure in
+  begin match ret_effect_join r_eff1 r_eff2 with
+  | Pure -> ()
+  | Impure -> Error.report (Error.func_not_pure ~pos)
+  end;
+  let (named, body) =
+    ExprUtils.inst_args_match named body body_tp T.Effect.pure in
+  let body = ExprUtils.make_nfun named body in
+  (pos, name, x, sch, tvars, body)
+
+(** Third pass of checking recursive function: collecting unification
+  variables *)
+and collect_rec_fun_uvars uvs (_, _, _, sch, _, _) =
+  T.Scheme.collect_uvars sch uvs
+
+(** Fourth pass of checking recursive function: building final environment *)
+and add_rec_fun tvs1 ims (env, ienv) (pos, name, x, sch, tvs2, body) =
+  let make data = { T.pos = pos; T.data = data } in
+  let make_app ims f =
+    List.fold_left
+      (fun f (_, x, _) -> make (T.EApp(f, make (T.EVar x))))
+      f ims in
+  let make_tapp tvs f =
+    List.fold_left
+      (fun f (_, x) -> make (T.ETApp(f, T.Type.t_var x)))
+      f tvs in
+  let y_sch =
+    { T.sch_targs = tvs1 @ sch.T.sch_targs;
+      T.sch_named =
+        List.map (fun (name, _, sch) -> (name, sch)) ims @ sch.T.sch_named;
+      T.sch_body  = sch.T.sch_body
+    } in
+  let (env, ienv, y) = ImplicitEnv.add_poly_id ~pos env ienv name y_sch in
+  (* Less-generalized form of this function *)
+  let x_body =
+    ExprUtils.make_tfun tvs2
+      (make (T.EVar y) |> make_tapp tvs1 |> make_tapp tvs2 |> make_app ims) in
+  let fd = (pos, y, y_sch, x, sch, x_body, tvs1 @ tvs2, ims, body) in
+  ((env, ienv), fd)
+
+(** Fifth and final pass of checking recursive function: build an expression
+  with local definitions of less-generalized functions *)
+and finalize_rec_fun fds (pos, y, y_sch, _, _, _, tvs, ims, body) =
+  let make data = { T.pos = pos; T.data = data } in
+  let build_local_inst (_, _, _, x, x_sch, x_body, _, _, _) body =
+    make (T.ELet(x, x_sch, x_body, body)) in
+  let build_local_ctx body =
+    List.fold_right build_local_inst fds body in
+  let rec update_body (body : T.expr) =
+    let make data = { body with data = data } in
+    match body.T.data with
+    | EUnitPrf | ENum _ | EStr _ | EExtern _ -> body
+    | EVar x ->
+      if List.exists (fun (_, _, _, x', _, _, _, _, _) -> Var.equal x x') fds
+      then
+        Error.fatal (Error.non_productive_rec_def ~pos:body.pos);
+      body
+    | EFn(arg, arg_sch, body) ->
+      make (T.EFn(arg, arg_sch, build_local_ctx body))
+    | EPureFn(arg, arg_sch, body) ->
+      make (T.EPureFn(arg, arg_sch, update_body body))
+    | ETFun(x, body) ->
+      make (T.ETFun(x, update_body body))
+    | ECtor(prf, n, tps, args) ->
+      make (T.ECtor(prf, n, tps, List.map update_body args))
+    | EApp _ | ETApp _ | ELet _ | ELetRec _ | EData _ | EMatchEmpty _
+    | EMatch _ | ELabel _ | EHandle _ | EHandler _ | EEffect _ | ERepl _
+    | EReplExpr _ ->
+      Error.fatal (Error.non_productive_rec_def ~pos:body.pos)
+  in
+(*
+  let body =
+    match body.T.data with
+    | T.EUnitPrf
+(*    | _ ->
+      Error.fatal (Error.non_func_rec_def ~pos) *)
+  in *)
+  let body = update_body body in
+  (y, y_sch, ExprUtils.make_tfun tvs (ExprUtils.make_nfun ims body))
 
 (* ------------------------------------------------------------------------- *)
 (** Check a pattern-matching clause

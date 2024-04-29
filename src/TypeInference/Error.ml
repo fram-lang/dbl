@@ -176,6 +176,9 @@ let impure_handler ~pos =
     "Cannot ensure that this handler expression is pure and always terminates",
     [])
 
+let non_productive_rec_def ~pos =
+  (pos, "Non-productive recursive definition", [])
+
 let expr_not_function ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf

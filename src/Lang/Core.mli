@@ -183,6 +183,10 @@ type expr =
   | ELetIrr of var * expr * expr
     (** Let expression, that binds computationally irrelevant expression *)
 
+  | ELetRec of (var * ttype * value) list * expr
+    (** Mutually recursive let-definitions. Recursive values must be
+      productive. See [CorePriv.Syntax] for details. *)
+
   | EApp of value * value
     (** Function application *)
 

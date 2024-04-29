@@ -105,7 +105,8 @@ let tr_data_def (dd : Syntax.data_def) =
 let rec tr_expr (e : Syntax.expr) =
   match e with
   | EValue v -> tr_value v
-  | ELet _ | ELetPure _ | ELetIrr _ | EData _ | ELabel _ | EReset _ ->
+  | ELet _ | ELetPure _ | ELetIrr _ | ELetRec _ | EData _ | ELabel _
+  | EReset _ -> 
     List (Sym "defs" :: tr_defs e)
   | EApp(v1, v2) ->
     List [ Sym "app"; tr_value v1; tr_value v2 ]
@@ -146,6 +147,8 @@ and tr_defs (e : Syntax.expr) =
     List [Sym "let-pure"; tr_var x; tr_expr e1] :: tr_defs e2
   | ELetIrr(x, e1, e2) ->
     List [Sym "let-irr"; tr_var x; tr_expr e1] :: tr_defs e2
+  | ELetRec(rds, e2) ->
+    List (Sym "let-rec" :: List.map tr_rec_def rds) :: tr_defs e2
   | EData(dds, e2) ->
     List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2
   | ELabel(a, x, tp, eff, e2) ->
@@ -157,6 +160,9 @@ and tr_defs (e : Syntax.expr) =
   | EValue _ | EApp _ | ETApp _ | EMatch _ | EShift _ | ERepl _
   | EReplExpr _ ->
     [ tr_expr e ]
+
+and tr_rec_def (x, tp, body) =
+  List [ tr_var x; tr_type tp; tr_value body ]
 
 and tr_clause (c : Syntax.match_clause) =
   List (

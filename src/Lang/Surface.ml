@@ -235,6 +235,9 @@ and def_data =
   | DMethodFn of is_public * var * method_name
     (** Declaration of function that should be interpreted as a method *)
 
+  | DFunRec of rec_fun list
+    (** Mutually recursive functions *)
+
   | DLabel   of type_arg option * pattern
     (** Creating a new label. Optional type argument binds newly created
       effect. *)
@@ -279,6 +282,11 @@ and def_data =
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
+
+(** Recursive function *)
+and rec_fun = rec_fun_data node
+and rec_fun_data =
+  | RecFun of ident * named_type_arg list * named_arg list * expr
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

@@ -1,0 +1,18 @@
+data rec Nat = Z | S of Nat
+data Bool = False | True
+
+rec
+  let odd n =
+    match n with
+    | Z   => False
+    | S n => even n
+    end
+  
+  let even n =
+    match n with
+    | Z   => True
+    | S n => odd n
+    end
+end
+
+let _ = even (S (S (S (S (S Z)))))
