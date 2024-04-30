@@ -40,5 +40,10 @@ let assert_no_error () =
   if !err_counter <> 0 then
     raise Fatal_error
 
+let wrap_repl_cont cont () =
+  let v = cont () in
+  assert_no_error ();
+  v
+
 let reset () =
   err_counter := 0
