@@ -115,16 +115,22 @@ module Env : sig
   val extend : t -> Var.t -> value -> t
 
   val lookup : t -> Var.t -> value
-end = struct
-  type t = value Var.Map.t
 
-  let empty = Var.Map.empty
+  val begin_fix  : t -> t
+  val update_fix : t -> t -> unit
+end = struct
+  type t = value Var.Map.t ref
+
+  let empty = ref Var.Map.empty
 
   let extend env x v =
-    Var.Map.add x v env
+    ref (Var.Map.add x v !env)
 
   let lookup env x =
-    Var.Map.find x env
+    Var.Map.find x !env
+
+  let begin_fix  env = ref !env
+  let update_fix env fix = fix := !env
 end
 
 let run_stack v stack =
@@ -165,6 +171,14 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
   | ELet(x, e1, e2) ->
     eval_expr env e1 (fun v ->
     eval_expr (Env.extend env x v) e2 cont)
+  | ELetRec(rds, e2) ->
+    let env = Env.begin_fix env in
+    let (env, fxs) =
+      List.fold_left_map
+        (fun env (x, v) -> (Env.extend env x (eval_value env v), env))
+        env rds in
+    List.iter (Env.update_fix env) fxs;
+    eval_expr env e2 cont
   | EApp(v1, v2) ->
     begin match eval_value env v1 with
     | VFn f -> f (eval_value env v2) cont

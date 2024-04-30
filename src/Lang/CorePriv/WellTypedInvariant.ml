@@ -211,6 +211,9 @@ let rec infer_type_eff env e =
   | ELetIrr(x, e1, e2) ->
     let tp1 = infer_type_check_eff (Env.irrelevant env) e1 TEffPure in
     infer_type_eff (Env.add_irr_var env x tp1) e2
+  | ELetRec(rds, e) ->
+    let env = check_rec_defs env rds in
+    infer_type_eff env e
   | EApp(v1, v2) ->
     begin match infer_vtype env v1 with
     | TArrow(tp2, tp1, eff) ->
@@ -393,6 +396,23 @@ and check_vtype env v tp =
   if Type.subtype tp' tp then
     ()
   else failwith "Internal type error"
+
+and check_rec_defs env rds =
+  let rec_names = List.map (fun (x, _, _) -> x) rds in
+  let (env, rds) = List.fold_left_map prepare_rec_def env rds in
+  List.iter (check_rec_def env rec_names) rds;
+  env
+
+and prepare_rec_def env (x, tp, body) =
+  let tp = tr_type env tp in
+  let env = Env.add_var env x tp in
+  (env, (body, tp))
+
+and check_rec_def env rec_names (body, tp) =
+  if is_productive rec_names body then
+    check_vtype env body tp
+  else
+    failwith "Internal error: non-productive recursive definition"
 
 let check_program p =
   check_type_eff Env.empty p Type.t_unit Effect.prog_effect

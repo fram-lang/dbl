@@ -26,6 +26,10 @@ let rec tr_expr env (e : S.expr) =
   | ELet(x, _, e1, e2) ->
     tr_expr_as env e1 x (tr_expr env e2)
 
+  | ELetRec(rds, e) ->
+    let rds = tr_rec_defs env rds in
+    T.ELetRec(rds, tr_expr env e)
+
   | EData(dds, e) ->
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr env e)
@@ -83,8 +87,8 @@ and tr_expr_as env (e : S.expr) x rest =
   | ECtor _ | EHandler _ | EExtern _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
-  | EApp _ | ETApp _ | ELabel _ | ELet _ | EData _ | EMatchEmpty _ | EMatch _
-  | EHandle _ | EEffect _ | ERepl _ | EReplExpr _ ->
+  | EApp _ | ETApp _ | ELabel _ | ELet _ | ELetRec _ | EData _ | EMatchEmpty _
+  | EMatch _ | EHandle _ | EEffect _ | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, rest)
 
 (** Translate expression and pass a result (as a value to given
@@ -104,8 +108,8 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, Ex x) = Env.add_tvar env x in
     cont (VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ | EMatchEmpty _ | EMatch _ | ELabel _ | EHandle _
-  | EEffect _ | ERepl _ ->
+  | EApp _ | ETApp _ | ELetRec _ | EMatchEmpty _ | EMatch _ | ELabel _
+  | EHandle _ | EEffect _ | ERepl _ ->
     let x = Var.fresh () in
     T.ELet(x, tr_expr env e, cont (VVar x))
 
@@ -148,6 +152,15 @@ and tr_expr_vs env es cont =
     tr_expr_v env  e  (fun v ->
     tr_expr_vs env es (fun vs ->
     cont (v :: vs)))
+
+(** Translate recursive definitions *)
+and tr_rec_defs env rds =
+  List.map (tr_rec_def env) rds
+
+and tr_rec_def env (x, sch, body) =
+  match tr_expr env body with
+  | EValue v -> (x, Type.tr_scheme env sch, v)
+  | _ -> failwith "Internal error: non-productive recursive definition"
 
 (* ========================================================================= *)
 

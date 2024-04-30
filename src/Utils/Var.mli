@@ -20,5 +20,8 @@ val fresh : ?name:string -> unit -> t
   different variables, [unique_name] return different names *)
 val unique_name : t -> string
 
+(** Equality of variables *)
+val equal : t -> t -> bool
+
 (** Finite maps from variables *)
 module Map : Map.S with type key = t
