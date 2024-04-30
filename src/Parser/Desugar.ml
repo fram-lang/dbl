@@ -457,11 +457,7 @@ let determine_rec_defs_kind defs =
       Error.fatal (Error.desugar_error def.pos)
     end
 
-(** add more definitions in reversed order to given recursive definitions *)
-let rec prepend_rec_defs defs rdefs =
-  List.fold_left prepend_rec_def rdefs defs
-
-and prepend_rec_def rdefs def =
+let prepend_rec_def rdefs def =
   match def.data, rdefs with
   | DLetId(x, body), RD_Fun fds ->
     let fd = { def with data = RecFun(x, [], [], body) } in
@@ -480,6 +476,10 @@ and prepend_rec_def rdefs def =
   | DLetPat _, _ | DMethodFn _, _ | DLabel _, _ | DHandlePat _, _
   | DImplicit _, _ | DModule _, _ | DOpen _, _ | DReplExpr _, _ ->
     Error.fatal (Error.desugar_error def.pos)
+
+(** add more definitions in reversed order to given recursive definitions *)
+let prepend_rec_defs defs rdefs =
+  List.fold_left prepend_rec_def rdefs defs
 
 (** Reverse recursive definitions *)
 let rev_rec_defs defs =

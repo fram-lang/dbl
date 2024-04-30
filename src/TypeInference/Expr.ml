@@ -915,13 +915,6 @@ and finalize_rec_fun fds (pos, y, y_sch, _, _, _, tvs, ims, body) =
     | EReplExpr _ ->
       Error.fatal (Error.non_productive_rec_def ~pos:body.pos)
   in
-(*
-  let body =
-    match body.T.data with
-    | T.EUnitPrf
-(*    | _ ->
-      Error.fatal (Error.non_func_rec_def ~pos) *)
-  in *)
   let body = update_body body in
   (y, y_sch, ExprUtils.make_tfun tvs (ExprUtils.make_nfun ims body))
 

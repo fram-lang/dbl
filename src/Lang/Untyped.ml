@@ -16,6 +16,7 @@ type expr =
     (** Let-expression *)
 
   | ELetRec of (var * value) list * expr
+    (** Mutually recursive let-definitions *)
 
   | EApp of value * value
     (** Function application *)
