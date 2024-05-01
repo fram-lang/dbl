@@ -47,16 +47,3 @@ and match_clause = {
 }
 
 type program = expr
-
-(** Check if value is productive and can be used as recursive definition.
-  The first parameter is a list of variables mutually defined together with
-  checked value, and therefore must be guarded by lambda-abstractions *)
-let rec is_productive rec_vars v =
-  match v with
-  | VNum _ | VStr _ | VFn _ | VExtern _ -> true
-  | VVar x -> not (List.exists (Var.equal x) rec_vars)
-
-  | VTFun(_, EValue v) -> is_productive rec_vars v
-  | VTFun _ -> false
-
-  | VCtor(_, _, _, vs) -> List.for_all (is_productive rec_vars) vs
