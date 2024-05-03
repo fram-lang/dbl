@@ -186,17 +186,35 @@ let rec check_data : type k.
     failwith "Internal kind error"
 
 let prepare_data_def env (dd : data_def) =
-  let (TVar.Ex a) = dd.dd_tvar in
-  let (env, a) = Env.add_tvar env a in
-  (env, (TVar.Ex a, dd))
+  match dd with
+  | DD_Data adt ->
+    let (TVar.Ex a) = adt.tvar in
+    let (env, a) = Env.add_tvar env a in
+    (env, DD_Data { adt with tvar = TVar.Ex a })
+  | DD_Label lbl ->
+    let (env, a) = Env.add_tvar env lbl.tvar in
+    (env, DD_Label { lbl with tvar = a })
 
-let finalize_data_def env (TVar.Ex a, dd) =
-  let (xs, data_tp, ctors) = check_data env (TVar a) dd.dd_args dd.dd_ctors in
-  Env.add_irr_var env dd.dd_proof (Type.t_foralls xs (TData(data_tp, ctors)))
+let finalize_data_def (env, dd_eff) dd =
+  match dd with
+  | DD_Data adt ->
+    let (TVar.Ex a) = adt.tvar in
+    let (xs, data_tp, ctors) = check_data env (TVar a) adt.args adt.ctors in
+    let env =
+      Env.add_irr_var env adt.proof
+        (Type.t_foralls xs (TData(data_tp, ctors))) in
+    (env, dd_eff)
+
+  | DD_Label lbl ->
+    let tp  = tr_type env lbl.delim_tp in
+    let eff = tr_type env lbl.delim_eff in
+    let env = Env.add_var env lbl.var (TLabel(TVar lbl.tvar, tp, eff)) in
+    (* We add nterm effect, since generation of a fresh label is not pure *)
+    (env, Effect.join Effect.nterm dd_eff)
 
 let check_data_defs env dds =
   let (env, dds) = List.fold_left_map prepare_data_def env dds in
-  List.fold_left finalize_data_def env dds
+  List.fold_left finalize_data_def (env, TEffPure) dds
 
 let rec infer_type_eff env e =
   match e with
@@ -242,12 +260,12 @@ let rec infer_type_eff env e =
 
   | EData(dds, e) ->
     let scope = Env.scope env in
-    let env = check_data_defs env dds in
-    let (tp, eff) = infer_type_eff env e in
+    let (env, eff1) = check_data_defs env dds in
+    let (tp, eff2) = infer_type_eff env e in
     begin match
-      Type.supertype_in_scope scope tp, Type.supereffect_in_scope scope eff
+      Type.supertype_in_scope scope tp, Type.supereffect_in_scope scope eff2
     with
-    | Some tp, Some eff -> (tp, eff)
+    | Some tp, Some eff2 -> (tp, Effect.join eff1 eff2)
     | _ ->
       failwith "Internal type error: escaping type variable"
     end
@@ -270,29 +288,6 @@ let rec infer_type_eff env e =
       (tp, Effect.join Effect.nterm eff)
     | _ ->
       failwith "Internal type error"
-    end
-
-  | ELabel(a, x, tp, eff, e) ->
-    let scope = Env.scope env in
-    let (env, a) = Env.add_tvar env a in
-    let tp  = tr_type env tp  in
-    let eff = tr_type env eff in
-    let env = Env.add_var env x (TLabel(TVar a, tp, eff)) in
-    let (tp, eff) = infer_type_eff env e in
-    begin match
-      Type.supertype_in_scope scope tp, Type.supereffect_in_scope scope eff
-    with
-    | Some tp, Some eff ->
-      (* We add nterm effect, since generation of a fresh label is not pure *)
-      (tp, Effect.join Effect.nterm eff)
-    | _ ->
-      InterpLib.InternalError.report
-        ~reason:"escaping type variable"
-        ~sloc:(SExprPrinter.tr_expr e)
-        ~var:(SExprPrinter.tr_tvar a)
-        ~in_type:(SExprPrinter.tr_type tp)
-        ~in_effect:(SExprPrinter.tr_type eff)
-        ()
     end
 
   | EShift(v, k, body, tp) ->
