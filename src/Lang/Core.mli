@@ -185,7 +185,7 @@ type expr =
 
   | ELetRec of (var * ttype * value) list * expr
     (** Mutually recursive let-definitions. Recursive values must be
-      productive. See [CorePriv.Syntax] for details. *)
+      productive. See [CorePriv.WellTypedInvariant] for details. *)
 
   | EApp of value * value
     (** Function application *)

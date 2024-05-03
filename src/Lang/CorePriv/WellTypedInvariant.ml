@@ -348,24 +348,27 @@ and infer_vtype env v =
     let (env, x) = Env.add_tvar env x in
     TForall(x, infer_type_check_eff env body TEffPure)
   | VCtor(proof, n, tps, args) ->
-    assert (n >= 0);
-    begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
-    | TData(tp, ctors) ->
-      begin match List.nth_opt ctors n with
-      | Some ctor ->
-        let sub = tr_types_sub env Subst.empty ctor.ctor_tvars tps in
-        if List.length ctor.ctor_arg_types <> List.length args then
-          failwith "Internal type error (constructor arity)";
-        List.iter2 (check_vtype env) args
-          (List.map (Subst.in_type sub) ctor.ctor_arg_types);
-        tp
-      | None ->
-        failwith "Internal type error"
-      end
-    | _ ->
+    infer_ctor_type env proof n tps args (check_vtype env)
+  | VExtern(_, tp) -> tr_type env tp
+
+and infer_ctor_type env proof n tps args check_arg =
+  assert (n >= 0);
+  begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
+  | TData(tp, ctors) ->
+    begin match List.nth_opt ctors n with
+    | Some ctor ->
+      let sub = tr_types_sub env Subst.empty ctor.ctor_tvars tps in
+      if List.length ctor.ctor_arg_types <> List.length args then
+        failwith "Internal type error (constructor arity)";
+      List.iter2 check_arg args
+        (List.map (Subst.in_type sub) ctor.ctor_arg_types);
+      tp
+    | None ->
       failwith "Internal type error"
     end
-  | VExtern(_, tp) -> tr_type env tp
+  | _ ->
+    failwith "Internal type error"
+  end
 
 and infer_type_check_eff env e eff =
   let (tp, eff') = infer_type_eff env e in
@@ -398,9 +401,9 @@ and check_vtype env v tp =
   else failwith "Internal type error"
 
 and check_rec_defs env rds =
-  let rec_names = List.map (fun (x, _, _) -> x) rds in
+  let rec_vars = List.map (fun (x, _, _) -> x) rds in
   let (env, rds) = List.fold_left_map prepare_rec_def env rds in
-  List.iter (check_rec_def env rec_names) rds;
+  List.iter (check_rec_def env rec_vars) rds;
   env
 
 and prepare_rec_def env (x, tp, body) =
@@ -408,11 +411,67 @@ and prepare_rec_def env (x, tp, body) =
   let env = Env.add_var env x tp in
   (env, (body, tp))
 
-and check_rec_def env rec_names (body, tp) =
-  if is_productive rec_names body then
-    check_vtype env body tp
-  else
-    failwith "Internal error: non-productive recursive definition"
+and check_rec_def env rec_vars (body, tp) =
+  check_vtype_productive env rec_vars body tp
+
+(** Check both type and productiveness of given value. Value is considered
+  productive if all non-trivial subexpressions are guarded by
+  lambda-abstraction with [NTerm] effect. The expression is considered
+  non-trivial if it is not a value or is a variable defined in current block
+  of recursive definitions. The [rec_vars] parameter should be a list of
+  such a variables. Only productive values can be used in recursive
+  definitions. *)
+and check_vtype_productive env rec_vars v tp =
+  match v with
+  | VNum _ | VStr _ | VExtern _ ->
+    check_vtype env v tp
+  | VVar x when not (List.exists (Var.equal x) rec_vars) ->
+    check_vtype env v tp
+
+  | VFn(x, xtp, body) ->
+    begin match body, tp with
+    | _, TArrow(_, _, eff) when Type.subeffect Effect.nterm eff ->
+      check_vtype env v tp
+    | EValue body, TArrow(tp1, tp2, _) ->
+      let xtp = tr_type env xtp in
+      if not (Type.subtype tp1 xtp) then
+        failwith "Internal type error";
+      let env = Env.add_var env x xtp in
+      let rec_vars = List.filter (Fun.negate (Var.equal x)) rec_vars in
+      check_vtype_productive env rec_vars body tp2
+    | _, TArrow _ ->
+      InterpLib.InternalError.report
+        ~reason:"non-productive recursive definition"
+        ()
+    | _ ->
+      failwith "Internal type error"
+    end
+
+  | VTFun(x, EValue body) ->
+    let (env, x) = Env.add_tvar env x in
+    begin match tp with
+    | TForall(y, tp) ->
+      begin match Kind.equal (TVar.kind x) (TVar.kind y) with
+      | Equal ->
+        let tp = Type.subst_type y (TVar x) tp in
+        check_vtype_productive env rec_vars body tp
+      | NotEqual ->
+        failwith "Internal kind error"
+      end
+    | _ -> failwith "Internal type error"
+    end
+
+  | VCtor(proof, n, tps, args) ->
+    let tp' = infer_ctor_type env proof n tps args
+      (check_vtype_productive env rec_vars) in
+    if Type.subtype tp' tp then
+      ()
+    else failwith "Internal type error"
+
+  | VVar _ | VTFun _ ->
+    InterpLib.InternalError.report
+      ~reason:"non-productive recursive definition"
+      ()
 
 let check_program p =
   check_type_eff Env.empty p Type.t_unit Effect.prog_effect
