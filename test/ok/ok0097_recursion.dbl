@@ -1,0 +1,9 @@
+data rec List A = [] | (::) of A, List A
+
+let rec map f xs =
+  match xs with
+  | []      => []
+  | x :: xs => f x :: map f xs
+  end
+
+let _ = map (fn _ => ()) (map (fn _ => "a") [1,2,3])

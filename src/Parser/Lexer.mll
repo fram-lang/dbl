@@ -8,7 +8,6 @@
 let kw_map =
   let open YaccParser in
   [ "abstr",    KW_ABSTR
-  ; "and",      KW_AND
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
   ; "effrow",   KW_EFFROW

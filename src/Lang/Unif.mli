@@ -164,6 +164,9 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
+  | ELetRec of (var * scheme * expr) list * expr
+    (** Mutually recursive let-definitions *)
+
   | ECtor of expr * int * typ list * expr list
     (** Fully-applied constructor of ADT. The meaning of the parameters
       is the following.

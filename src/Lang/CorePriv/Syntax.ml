@@ -20,6 +20,7 @@ type expr =
   | ELet      of var * expr * expr
   | ELetPure  of var * expr * expr
   | ELetIrr   of var * expr * expr
+  | ELetRec   of (var * ttype * value) list * expr
   | EApp      of value * value
   | ETApp      : value * 'k typ -> expr
   | EData     of data_def list * expr
