@@ -8,6 +8,7 @@
 let kw_map =
   let open YaccParser in
   [ "abstr",    KW_ABSTR
+  ; "as",       KW_AS
   ; "data",     KW_DATA
   ; "effect",   KW_EFFECT
   ; "effrow",   KW_EFFROW
@@ -20,6 +21,7 @@ let kw_map =
   ; "handler",  KW_HANDLER
   ; "if",       KW_IF
   ; "implicit", KW_IMPLICIT
+  ; "import",   KW_IMPORT
   ; "in",       KW_IN
   ; "label",    KW_LABEL
   ; "let",      KW_LET

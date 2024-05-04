@@ -8,6 +8,8 @@ let dump_core = ref false
 
 let use_prelude = ref true
 
+let use_stdlib = ref true
+
 let dump_sexpr flag to_sexpr p =
   if flag then
     SExpr.pretty_stdout (to_sexpr p);
@@ -18,12 +20,18 @@ let check_invariant check inv p =
   then inv p;
   p
 
-let add_prelude p =
-  if !use_prelude then Parser.Main.parse_lib Config.prelude_path p else p
+let set_module_dirs ?fname () =
+  if !use_stdlib then
+    Config.lib_search_dirs := Config.stdlib_path :: !Config.lib_search_dirs;
+  let cur_dir =
+    match fname with
+    | Some fname -> Filename.dirname fname
+    | None       -> Filename.current_dir_name
+  in
+  Config.local_search_dirs := cur_dir :: !Config.local_search_dirs
 
 let common_pipeline repl_mode prog =
   prog
-  |> add_prelude
   |> TypeInference.Main.tr_program
   |> ToCore.Main.tr_program ~repl_mode
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
@@ -32,9 +40,11 @@ let common_pipeline repl_mode prog =
   |> Eval.eval_program
 
 let run_repl () =
-  Parser.Main.repl
+  set_module_dirs ();
+  Parser.Main.repl ~use_prelude:!use_prelude
   |> common_pipeline true
 
 let run_file fname =
-  Parser.Main.parse_file fname
+  set_module_dirs ~fname ();
+  Parser.Main.parse_file ~use_prelude:!use_prelude fname
   |> common_pipeline false

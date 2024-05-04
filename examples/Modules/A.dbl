@@ -1,0 +1,3 @@
+import B/C/D
+
+pub let foo = D.id 42

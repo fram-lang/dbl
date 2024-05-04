@@ -1,0 +1,33 @@
+(** This example serves to showcase the files-as-modules feature.
+
+    The module hierarchy is as follows.
+    ```
+    /
+    ├─ Main
+    │  ├─ Main (this file)
+    │  ├─ A
+    │  ├─ B
+    │  │  ├─ A
+    │  │  └─ C
+    │  │      └─ D
+    │  └─ C
+    ├─ List
+    ⋮
+    ```
+    Modules under `/Main/` are local to this example and follow its directory
+    structure. Additionaly, the module `/List` from the standard library is
+    imported. *)
+
+import List
+
+import A
+import B/C/D as X
+import /Main/B/C/D as Y (* The same import, but as an absolute path. *)
+import B/A as A2
+
+(* Rather than binding a module name, import the module's contents *)
+import open C
+
+let _ =
+  List.iter (fn x => printInt x; printStr "\n")
+    [ X.id A.foo, Y.id A2.bar, mod_C_value ]

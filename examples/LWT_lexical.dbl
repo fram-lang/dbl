@@ -4,6 +4,8 @@
   to effect capabilities we can separate an interface from an implementation
   of algebraic effects. *)
 
+import List
+
 (* We start by defining the standard State effect representing a single
   mutable cell. Note that in DBL an effect signature is an ordinary record
   of functions. A special type parameter `(effect E)` is the effect of these
@@ -58,7 +60,7 @@ handle {effect=Sched} `st =
   mechanism of implicit parameters, this function uses `st capability, without
   mentioning it explicitly. *)
 let enqueue thr =
-  update (fn queue => append queue [thr])
+  update (fn queue => List.append queue [thr])
 
 (* Run the scheduler. It picks one thread from the queue and runs it. *)
 let sched _ =

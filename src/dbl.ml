@@ -22,6 +22,10 @@ let cmd_args_options = Arg.align
     Arg.Clear Pipeline.use_prelude,
     " Disable the prelude";
 
+    "-no-stdlib",
+    Arg.Clear Pipeline.use_stdlib,
+    " Do not use the standard library";
+
     "-verbose-internal-errors",
     Arg.Set InterpLib.InternalError.verbose,
     " Make internal errors more verbose (for debugging only)"
