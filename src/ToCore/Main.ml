@@ -53,7 +53,12 @@ let rec tr_expr env (e : S.expr) =
     let eff = Type.tr_effect env eff in
     begin match T.TVar.kind a with
     | KEffect ->
-      T.ELabel(a, l, tp, eff, tr_expr env e)
+      T.EData ([DD_Label
+        { tvar      = a;
+          var       = l;
+          delim_tp  = tp;
+          delim_eff = eff
+        }], tr_expr env e)
     | KType | KArrow _ -> failwith "Internal kind error"
     end
 

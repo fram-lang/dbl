@@ -96,17 +96,28 @@ and tr_ctor_type { ctor_name; ctor_tvars; ctor_arg_types } =
     List.map tr_type ctor_arg_types)
 
 let tr_data_def (dd : Syntax.data_def) =
-  List (
-    tr_tvar_ex dd.dd_tvar ::
-    tr_var  dd.dd_proof ::
-    List (List.map tr_tvar_ex dd.dd_args) ::
-    List.map tr_ctor_type dd.dd_ctors)
+  match dd with
+  | DD_Data adt ->
+    List (
+      Sym "data" ::
+      tr_tvar_ex adt.tvar ::
+      tr_var  adt.proof ::
+      List (List.map tr_tvar_ex adt.args) ::
+      List.map tr_ctor_type adt.ctors)
+
+  | DD_Label lbl ->
+    List [
+      Sym "label";
+      tr_tvar lbl.tvar;
+      tr_var lbl.var;
+      tr_type lbl.delim_tp;
+      tr_type lbl.delim_eff
+    ]
 
 let rec tr_expr (e : Syntax.expr) =
   match e with
   | EValue v -> tr_value v
-  | ELet _ | ELetPure _ | ELetIrr _ | ELetRec _ | EData _ | ELabel _
-  | EReset _ -> 
+  | ELet _ | ELetPure _ | ELetIrr _ | ELetRec _ | EData _ | EReset _ ->
     List (Sym "defs" :: tr_defs e)
   | EApp(v1, v2) ->
     List [ Sym "app"; tr_value v1; tr_value v2 ]
@@ -151,9 +162,6 @@ and tr_defs (e : Syntax.expr) =
     List (Sym "let-rec" :: List.map tr_rec_def rds) :: tr_defs e2
   | EData(dds, e2) ->
     List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2
-  | ELabel(a, x, tp, eff, e2) ->
-    List [Sym "label"; tr_tvar a; tr_var x; tr_type tp; tr_type eff ] ::
-      tr_defs e2
   | EReset(v, body, x, ret) ->
     List [Sym "reset"; tr_value v; tr_var x; tr_expr ret] :: tr_defs body
 

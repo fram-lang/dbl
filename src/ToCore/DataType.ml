@@ -28,10 +28,11 @@ let prepare_data_def env (dd : S.data_def) =
 let finalize_data_def env (x, (dd : S.data_def)) =
   let (env, args) = List.fold_left_map Env.add_named_tvar env dd.dd_args in
   let ctors = tr_ctor_decls env dd.dd_ctors in
-  { T.dd_tvar  = x;
-    T.dd_proof = dd.dd_proof;
-    T.dd_args  = args;
-    T.dd_ctors = ctors
+  T.DD_Data {
+    tvar  = x;
+    proof = dd.dd_proof;
+    args  = args;
+    ctors = ctors
   }
 
 let tr_data_defs env dds =

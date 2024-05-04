@@ -104,21 +104,36 @@ and ctor_type = {
 (** Variables *)
 type var = Var.t
 
-(** ADT definition *)
-type data_def = {
-  dd_tvar  : TVar.ex;
-    (** Type variable, that represents this ADT. *)
+(** Data-like definition (ADT or label) *)
+type data_def =
+  | DD_Data of (** Algebraic datatype *)
+    { tvar  : TVar.ex;
+        (** Type variable, that represents this ADT. *)
 
-  dd_proof : var;
-    (** An irrelevant variables that stores the proof that this ADT has
-      the following constructors. *)
+      proof : var;
+        (** An irrelevant variable that stores the proof that this ADT has
+          the following constructors. *)
 
-  dd_args  : TVar.ex list;
-    (** List of type parameters of this ADT. *)
+      args  : TVar.ex list;
+        (** List of type parameters of this ADT. *)
 
-  dd_ctors : ctor_type list
-    (** List of constructors. *)
-}
+      ctors : ctor_type list
+        (** List of constructors. *)
+    }
+
+  | DD_Label of (** Label *)
+    { tvar      : keffect tvar;
+        (** Type variable that represents effect of this label *)
+
+      var       : var;
+        (** Regular variable that would store the label *)
+
+      delim_tp  : ttype;
+        (** Type of the delimiter *)
+
+      delim_eff : effect
+        (** Effect of the delimiter *)
+    }
 
 (* ========================================================================= *)
 (** Operations on kinds *)
@@ -199,9 +214,6 @@ type expr =
   | EMatch  of expr * value * match_clause list * ttype * effect
     (** Shallow pattern matching. The first parameter is the proof that the
       type of the matched value is an ADT *)
-
-  | ELabel of keffect tvar * var * ttype * effect * expr
-    (** Create a fresh runtime tag for control operators. *)
 
   | EShift of value * var * expr * ttype
     (** Shift-0 operator parametrized by runtime tag, binder for continuation
