@@ -2,5 +2,5 @@
 (ocamllex  (modules Lexer))
 
 (library
-  (name parser)
-  (libraries str interpLib lang utils config))
+  (name parserDbl)
+  (libraries str interpLib lang utils configuration))
