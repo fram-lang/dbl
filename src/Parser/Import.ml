@@ -70,9 +70,13 @@ let find_mod prefix (p : Raw.import_path) =
   | IPRelative(p, n) -> find_mod_rel prefix (p, n)
 
 (** Find and parse imported module relative to the path [prefix] and add it
-    to the [mods] map with the absolute mod identifier as the key.
+    to the module graph [mods] with the absolute mod identifier as the map key.
+    Each vertex in the map stores a list of definition and the module's
+    dependencies (graph edges).
+
     Previously imported modules can be passed in the [imported] parameter
-    to avoid including them twice. *)
+    to avoid including them twice. These modules will not be added to the
+    graph, but edges from other vertices may point to them. *)
 let rec parse_import ~imported prefix mods (import : Raw.import) =
   let path, new_name =
     match import.data with

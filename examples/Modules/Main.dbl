@@ -4,19 +4,24 @@
     ```
     /
     ├─ Main
-    │  ├─ Main (this file)
-    │  ├─ A
+    │  ├─ Main      (this file)
+    │  ├─ A         (imports B/C/D, resolving to /Main/B/C/D)
     │  ├─ B
     │  │  ├─ A
     │  │  └─ C
-    │  │      └─ D
+    │  │      └─ D  (imports A, resolving to /Main/B/A)
     │  └─ C
     ├─ List
     ⋮
     ```
     Modules under `/Main/` are local to this example and follow its directory
     structure. Additionaly, the module `/List` from the standard library is
-    imported. *)
+    imported.
+
+    Relative imports refer to the module which is the closest to the importing
+    module, working upwards through the hierarchy. In this example the module
+    `/Main/B/C/D` imports the relative path `A`, and the nearest matching
+    module is `/Main/B/A`. *)
 
 import List
 
