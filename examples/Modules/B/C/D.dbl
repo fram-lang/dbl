@@ -1,0 +1,4 @@
+(* This import resolves to the absolute path `/Main/B/A`. *)
+import A
+
+pub let id = A.id

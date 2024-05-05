@@ -19,6 +19,12 @@ let cannot_read_file ?pos ~fname msg =
 let cannot_open_file ?pos ~fname msg =
   (pos, Printf.sprintf "Cannot open file %s (%s)" fname msg)
 
+let cannot_find_module pos path =
+  (Some pos, Printf.sprintf "Cannot find module `%s'" path)
+
+let module_dependency_cycle path =
+  (None, Printf.sprintf "Module dependency cycle detected for `%s'" path)
+
 let unexpected_token pos tok =
   (Some pos, Printf.sprintf "Unexpected token `%s'" tok)
 

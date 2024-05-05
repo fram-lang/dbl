@@ -16,6 +16,9 @@ val warn : t -> unit
 val cannot_read_file : ?pos:Position.t -> fname:string -> string -> t
 val cannot_open_file : ?pos:Position.t -> fname:string -> string -> t
 
+val cannot_find_module : Position.t -> string -> t
+val module_dependency_cycle : string -> t
+
 val unexpected_token  : Position.t -> string -> t
 val invalid_character : Position.t -> char -> t
 

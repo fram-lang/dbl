@@ -1,140 +1,103 @@
-data Bool = False | True
+pub data Bool = False | True
 
-data Option A = None | Some of A
+pub data Option A = None | Some of A
 
-data rec Nat = Zero | Succ of Nat
+pub data rec Nat = Zero | Succ of Nat
 
-data rec List A = [] | (::) of A, List A
+pub data rec List A = [] | (::) of A, List A
 
-data Pair X Y = (,) of X, Y
+pub data Pair X Y = (,) of X, Y
 
-let id x = x
+pub let id x = x
 
-let flip f x y = f y x
+pub let flip f x y = f y x
 
-let fst (x, _) = x
-let snd (_, y) = y
+pub let fst (x, _) = x
+pub let snd (_, y) = y
 
-let fix {type A, type B, type E} f =
-  data rec Fix = Fix of (Fix -> A ->[|E] B)
+pub let fix {type A, type B, type E} f =
+  pub data rec Fix = Fix of (Fix -> A ->[|E] B)
   let fi ix x = let Fix fi = ix in f (fi ix) x in
   fi (Fix fi)
 
-let map f = fix (fn map xs =>
-  match xs with
-  | []      => []
-  | x :: xs => f x :: map xs
-  end)
+pub let not b = if b then False else True
 
-let filter f = fix (fn filter xs =>
-  match xs with
-  | []      => []
-  | x :: xs => if f x then x :: filter xs else filter xs
-  end)
+pub method toString = if self then "True" else "False"
 
-let append xs ys = fix (fn append xs =>
-  match xs with
-  | []      => ys
-  | x :: xs => x :: append xs
-  end) xs
+pub method fn (+) = add
+pub method fn (-) = sub
+pub method fn (%) = mod
+pub method fn (/) = div
+pub method fn ( * ) = mul
 
-let concat = fix (fn concat xss =>
-  match xss with
-  | []        => []
-  | xs :: xss => append xs (concat xss)
-  end)
+pub method fn (==) = equal
+pub method fn (!=) = neq
+pub method fn (>)  = gt
+pub method fn (>=) = ge
+pub method fn (<)  = lt
+pub method fn (<=) = le
 
-let iter f = fix (fn iter xs =>
-  match xs with
-  | []      => ()
-  | x :: xs => let () = f x in iter xs
-  end)
+pub method fn (&&&) = land
+pub method fn (^^^) = lxor
+pub method fn (|||) = lor
+pub method fn (>>)  = shiftl
+pub method fn (<<)  = shiftr
+pub method fn (>>>) = ashiftr
 
-let iter2 {`re : {type X} -> Unit ->[|_] X} f =
-  fix (fn iter xs ys =>
-  match xs, ys with
-  | [],      []      => ()
-  | x :: xs, y :: ys => let () = f x y in iter xs ys
-  | _                => `re ()
-  end)
+pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
+pub method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
+pub method gt    = (extern dbl_gtInt  : Int -> Int -> Bool) self
+pub method lt    = (extern dbl_ltInt  : Int -> Int -> Bool) self
+pub method ge    = (extern dbl_geInt  : Int -> Int -> Bool) self
+pub method le    = (extern dbl_leInt  : Int -> Int -> Bool) self
 
-let not b = if b then False else True
+pub method toString = (extern dbl_intToString : Int -> String) self
 
-method toString = if self then "True" else "False"
+pub method add = (extern dbl_addInt : Int -> Int -> Int) self
+pub method sub = (extern dbl_subInt : Int -> Int -> Int) self
+pub method mul = (extern dbl_mulInt : Int -> Int -> Int) self
 
-method fn (+) = add
-method fn (-) = sub
-method fn (%) = mod
-method fn (/) = div
-method fn ( * ) = mul
-
-method fn (==) = equal
-method fn (!=) = neq
-method fn (>)  = gt
-method fn (>=) = ge
-method fn (<)  = lt
-method fn (<=) = le
-
-method fn (&&&) = land
-method fn (^^^) = lxor
-method fn (|||) = lor
-method fn (>>)  = shiftl
-method fn (<<)  = shiftr
-method fn (>>>) = ashiftr
-
-method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
-method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
-method gt    = (extern dbl_gtInt  : Int -> Int -> Bool) self
-method lt    = (extern dbl_ltInt  : Int -> Int -> Bool) self
-method ge    = (extern dbl_geInt  : Int -> Int -> Bool) self
-method le    = (extern dbl_leInt  : Int -> Int -> Bool) self
-
-method toString = (extern dbl_intToString : Int -> String) self
-
-method add = (extern dbl_addInt : Int -> Int -> Int) self
-method sub = (extern dbl_subInt : Int -> Int -> Int) self
-method mul = (extern dbl_mulInt : Int -> Int -> Int) self
-
-method div {`re : {type X} -> Unit ->[|_] X} (n : Int) =
+pub method div {`re : {type X} -> Unit ->[|_] X} (n : Int) =
   if n.equal 0 then `re ()
   else (extern dbl_divInt : Int -> Int -> Int) self n
 
-method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
+pub method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
   if n.equal 0 then `re ()
   else (extern dbl_modInt : Int -> Int -> Int) self n
 
-method land = (extern dbl_andInt : Int -> Int -> Int) self
-method lor  = (extern dbl_orInt  : Int -> Int -> Int) self
-method lxor = (extern dbl_xorInt : Int -> Int -> Int) self
+pub method land = (extern dbl_andInt : Int -> Int -> Int) self
+pub method lor  = (extern dbl_orInt  : Int -> Int -> Int) self
+pub method lxor = (extern dbl_xorInt : Int -> Int -> Int) self
 
-method shiftl  = (extern dbl_lslInt : Int -> Int -> Int) self
-method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int) self
-method ashiftr = (extern dbl_asrInt : Int -> Int -> Int) self
+pub method shiftl  = (extern dbl_lslInt : Int -> Int -> Int) self
+pub method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int) self
+pub method ashiftr = (extern dbl_asrInt : Int -> Int -> Int) self
 
-method add = (extern dbl_strCat : String -> String -> String) self
+pub method add = (extern dbl_strCat : String -> String -> String) self
 
-method equal = (extern dbl_eqStr  : String -> String -> Bool) self
-method neq   = (extern dbl_neqStr : String -> String -> Bool) self
-method gt    = (extern dbl_gtStr  : String -> String -> Bool) self
-method lt    = (extern dbl_ltStr  : String -> String -> Bool) self
-method ge    = (extern dbl_geStr  : String -> String -> Bool) self
-method le    = (extern dbl_leStr  : String -> String -> Bool) self
+pub method equal = (extern dbl_eqStr  : String -> String -> Bool) self
+pub method neq   = (extern dbl_neqStr : String -> String -> Bool) self
+pub method gt    = (extern dbl_gtStr  : String -> String -> Bool) self
+pub method lt    = (extern dbl_ltStr  : String -> String -> Bool) self
+pub method ge    = (extern dbl_geStr  : String -> String -> Bool) self
+pub method le    = (extern dbl_leStr  : String -> String -> Bool) self
 
-method length = (extern dbl_strLen : String -> Int) self
-method get {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
+pub method length = (extern dbl_strLen : String -> Int) self
+pub method get {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
   if n >= 0 && n < self.length then
     (extern dbl_strGet : String -> Int -> Int) self n
   else `re ()
 
-method makeString {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
+pub method makeString {`re : {type X} -> Unit ->[|_] X, self : String}
+    (n : Int) =
   if n >= 0 && n < 256 then
     (extern dbl_strMake : Int -> String) n
   else `re ()
 
-let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
-let printStr   = extern dbl_printStr   : String ->[IO] Unit
-let printInt   = extern dbl_printInt   : Int ->[IO] Unit
+pub let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
+pub let printStr   = extern dbl_printStr   : String ->[IO] Unit
+pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 
-let readLine = extern dbl_readLine : Unit ->[IO] String
+pub let readLine = extern dbl_readLine : Unit ->[IO] String
 
-let exit {type X} = extern dbl_exit : Int ->[IO] X
+pub let exit {type X} = extern dbl_exit : Int ->[IO] X
