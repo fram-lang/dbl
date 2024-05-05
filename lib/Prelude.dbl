@@ -2,8 +2,6 @@ pub data Bool = False | True
 
 pub data Option A = None | Some of A
 
-pub data rec Nat = Zero | Succ of Nat
-
 pub data rec List A = [] | (::) of A, List A
 
 pub data Pair X Y = (,) of X, Y
@@ -14,11 +12,6 @@ pub let flip f x y = f y x
 
 pub let fst (x, _) = x
 pub let snd (_, y) = y
-
-pub let fix {type A, type B, type E} f =
-  pub data rec Fix = Fix of (Fix -> A ->[|E] B)
-  let fi ix x = let Fix fi = ix in f (fi ix) x in
-  fi (Fix fi)
 
 pub let not b = if b then False else True
 

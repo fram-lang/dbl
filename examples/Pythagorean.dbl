@@ -15,12 +15,13 @@ method flip {E, self = BT { flip } : BT E} = flip
 method fail {E, self = BT { fail } : BT E} = fail
 
 (* The method `choose` on `BT` non-deterministically selects a number
-  from a given range. It's defined recursively using `fix` from the standard
-  library. *)
-method choose {E, self : BT E} = fix (fn choose (a: Int) (b: Int) =>
-  if a >= b  then self.fail () 
-  else if self.flip () then a
-  else choose (a + 1) b)
+  from a given range. *)
+method choose {E, self : BT E} =
+  let rec choose (a: Int) (b: Int) =
+    if a >= b  then self.fail ()
+    else if self.flip () then a
+    else choose (a + 1) b
+  in choose
 
 (* The method `triples` generates a Pythagorean triple. *)
 method triples {E, self : BT E} (n : Int) =
@@ -61,12 +62,12 @@ let printTriple t =
     "(" + a.toString + " " + b.toString + " " + c.toString + ")")
   end
 
-let printList = fix (fn printList xs =>
+let rec printList xs =
   match xs with
   | [] => printStrLn ""
   | t :: xs => let _ = printTriple t in
                        printList xs
-  end)
+  end
 
 (* Main program *)
 let maxValue = 25
