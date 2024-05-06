@@ -34,8 +34,8 @@ let rec repl_seq imported () =
     let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
     Seq.Cons(def, repl_seq imported)
 
-  | Raw.REPL_Def def ->
-    Seq.Cons(Desugar.tr_def def, repl_seq imported)
+  | Raw.REPL_Defs defs ->
+      (List.fold_left (fun ac def () -> Seq.Cons(Desugar.tr_def def, ac)) (repl_seq imported) defs) ()
 
   | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in

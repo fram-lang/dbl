@@ -304,7 +304,7 @@ type repl_cmd =
   | REPL_Expr of expr
     (** Evaluate given expression *)
   
-  | REPL_Def  of def
+  | REPL_Defs of def list
     (** Provide a new definition in a REPL session *)
 
   | REPL_Import of import
