@@ -40,3 +40,5 @@ val value_before_type_param : Position.t -> t
 val finally_before_return_clause : Position.t -> t
 
 val multiple_self_parameters : Position.t -> t
+
+val abstr_data_in_pub_block : Position.t -> t
