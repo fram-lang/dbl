@@ -708,7 +708,11 @@ and tr_def ?(public=false) (def : Raw.def) =
     let (pub_type, pub_ctors) =
       match vis with
       | DV_Private  -> (public, public)
-      | DV_Abstract -> (true,   public)
+      | DV_Abstract -> if public then
+                       (InterpLib.Error.report ~pos:def.pos
+                       ~cls:InterpLib.Error.Warning
+                       "'abstr' data modifier inside public rec block");
+                       (true,   public)
       | DV_Public   -> (true,   true  )
     in
     begin match tr_type_def tp [] with
