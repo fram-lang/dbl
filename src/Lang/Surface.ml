@@ -232,7 +232,7 @@ and expr_data =
   | EAnnot of expr * type_expr
     (** Type annotation *)
 
-  | ERepl of def Seq.t
+  | ERepl of def list Seq.t
     (** REPL. It is a lazy sequence of definitions provided by a user. *)
 
 (** Explicit instantiation of named parameters in polymorphic expression *)
@@ -300,9 +300,6 @@ and def_data =
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
-
-  | DReplDefs of def list
-    (** Group of REPL definitions *)
 
 (** Recursive function *)
 and rec_fun = rec_fun_data node

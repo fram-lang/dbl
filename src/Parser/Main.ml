@@ -32,15 +32,15 @@ let rec repl_seq imported () =
 
   | Raw.REPL_Expr e ->
     let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
-    Seq.Cons(def, repl_seq imported)
+    Seq.Cons([def], repl_seq imported)
 
   | Raw.REPL_Defs defs ->
-      let defs = make_nowhere (Lang.Surface.DReplDefs (List.map Desugar.tr_def defs)) in
+      let defs = List.map Desugar.tr_def defs in
       Seq.Cons(defs, repl_seq imported)
 
   | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
-    Seq.append (List.to_seq defs) (repl_seq imported) ()
+    Seq.append (List.to_seq (List.map (fun x -> [x]) defs)) (repl_seq imported) ()
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token

@@ -453,9 +453,6 @@ let check_def : type dir. tcfix:tcfix ->
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EReplExpr(e1, tp1, e)), resp, ret_effect_join r_eff1 r_eff2)
 
-  | DReplDefs defs ->
-      check_defs env ienv defs req eff cont
-
 (* ------------------------------------------------------------------------- *)
 let check_defs : type dir. tcfix:tcfix ->
   Env.t -> ImplicitEnv.t -> S.def list ->

@@ -453,7 +453,7 @@ let determine_rec_defs_kind defs =
     | DLetId _ | DLetFun _ | DFunRec _ -> RD_Fun []
     | DData _ | DDataRec _ -> RD_Data []
     | DLetPat _ | DMethodFn _ | DLabel _ | DHandlePat _
-    | DImplicit _ | DModule _ | DOpen _ | DReplExpr _ | DReplDefs _ ->
+    | DImplicit _ | DModule _ | DOpen _ | DReplExpr _ ->
       Error.fatal (Error.desugar_error def.pos)
     end
 
@@ -474,7 +474,7 @@ let prepend_rec_def rdefs def =
   | (DLetId _ | DLetFun _ | DFunRec _), RD_Data _
   | (DData _ | DDataRec _), RD_Fun _
   | DLetPat _, _ | DMethodFn _, _ | DLabel _, _ | DHandlePat _, _
-  | DImplicit _, _ | DModule _, _ | DOpen _, _ | DReplExpr _, _ | DReplDefs _, _ ->
+  | DImplicit _, _ | DModule _, _ | DOpen _, _ | DReplExpr _, _ ->
     Error.fatal (Error.desugar_error def.pos)
 
 (** add more definitions in reversed order to given recursive definitions *)
