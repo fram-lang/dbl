@@ -10,6 +10,9 @@ val dump_core : bool ref
 (** Include the prelude only if this flag is set. *)
 val use_prelude : bool ref
 
+(** Include the standard library only if this flag is set. *)
+val use_stdlib : bool ref
+
 (** Run in REPL mode *)
 val run_repl : unit -> unit
 

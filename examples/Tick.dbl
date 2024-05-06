@@ -21,6 +21,8 @@
   effects used internally by `f`. This would not be true for dynamic handlers.
 *)
 
+import List
+
 let count (f : {type E} -> (_ ->[|E] _) ->[|E] _) g =
   handle tick = effect _ / k => fn (n : Int) => k () (n + 1)
     return  _ => fn n => n
@@ -30,7 +32,7 @@ let count (f : {type E} -> (_ ->[|E] _) ->[|E] _) g =
 
 (* We can use `count` function to compute a length of a list, by counting
   how many times map function calls identity argument. *)
-let length xs = count (flip map xs) id
+let length xs = count (flip List.map xs) id
 
 (* This code should print 2. *)
 let _ =

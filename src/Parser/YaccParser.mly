@@ -11,14 +11,15 @@
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
-%token KW_ABSTR KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
-%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IN KW_LABEL
-%token KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB KW_REC
+%token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
+%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IMPORT
+%token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB
+%token KW_REC
 %token KW_RETURN KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
-%type<Raw.program> file
+%type<Raw.import list * Raw.program> file
 %start file
 
 %type<Raw.repl_cmd> repl
@@ -555,12 +556,40 @@ h_clauses
 
 /* ========================================================================= */
 
+import_path_rel
+: UID                       { ([] , $1)                       }
+| UID SLASH import_path_rel { let (p, n) = $3 in ($1 :: p, n) }
+;
+
+import_path
+: SLASH import_path_rel { let (p, n) = $2 in IPAbsolute(p, n) }
+| import_path_rel       { let (p, n) = $1 in IPRelative(p, n) }
+;
+
+import
+: KW_IMPORT import_path KW_AS UID { make (IImportAs($2, $4)) }
+| KW_IMPORT import_path { make (IImportAs($2, Raw.import_path_name $2)) }
+| KW_IMPORT KW_OPEN import_path { make (IImportOpen $3) }
+;
+
+import_list
+: /* empty */        { []       }
+| import import_list { $1 :: $2 }
+;
+
+/* ========================================================================= */
+
+program
+: def_list { make $1 }
+;
+
 file
-: def_list EOF { make $1 }
+: import_list program EOF { ($1, $2) }
 ;
 
 repl
-: EOF             { REPL_Exit    }
-| expr SEMICOLON2 { REPL_Expr $1 }
-| def SEMICOLON2  { REPL_Def  $1 }
+: EOF               { REPL_Exit      }
+| expr SEMICOLON2   { REPL_Expr   $1 }
+| def SEMICOLON2    { REPL_Def    $1 }
+| import SEMICOLON2 { REPL_Import $1 }
 ;

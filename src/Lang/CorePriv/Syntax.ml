@@ -8,12 +8,19 @@ open TypeBase
 
 type var = Var.t
 
-type data_def = {
-  dd_tvar  : TVar.ex;
-  dd_proof : var;
-  dd_args  : TVar.ex list;
-  dd_ctors : ctor_type list
-}
+type data_def =
+  | DD_Data of
+    { tvar  : TVar.ex;
+      proof : var;
+      args  : TVar.ex list;
+      ctors : ctor_type list
+    }
+  | DD_Label of
+    { tvar      : keffect tvar;
+      var       : var;
+      delim_tp  : ttype;
+      delim_eff : effect
+    }
 
 type expr =
   | EValue    of value
@@ -25,7 +32,6 @@ type expr =
   | ETApp      : value * 'k typ -> expr
   | EData     of data_def list * expr
   | EMatch    of expr * value * match_clause list * ttype * effect
-  | ELabel    of keffect tvar * var * ttype * effect * expr
   | EShift    of value * var * expr * ttype
   | EReset    of value * expr * var * expr
   | ERepl     of (unit -> expr) * ttype * effect

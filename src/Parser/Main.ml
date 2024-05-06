@@ -6,56 +6,21 @@
 
 type fname = string
 
-let with_in_channel ?pos fname func =
-  match open_in fname with
-  | chan ->
-    begin match func chan with
-    | result -> close_in_noerr chan; result
-    | exception Sys_error msg ->
-      close_in_noerr chan;
-      Error.fatal (Error.cannot_read_file ?pos ~fname msg)
-    | exception ex ->
-      close_in_noerr chan;
-      raise ex
-    end
-  | exception Sys_error msg ->
-    Error.fatal (Error.cannot_open_file ?pos ~fname msg)
-
-let parse_defs ?pos fname =
-  with_in_channel ?pos fname (fun chan ->
-    let lexbuf = Lexing.from_channel chan in
-    lexbuf.Lexing.lex_curr_p <-
-      { lexbuf.Lexing.lex_curr_p with
-        Lexing.pos_fname = fname
-      };
-    try YaccParser.file Lexer.token lexbuf with
-    | Parsing.Parse_error ->
-      Error.fatal (Error.unexpected_token
-        (Position.of_pp
-          lexbuf.Lexing.lex_start_p
-          lexbuf.Lexing.lex_curr_p)
-        (Lexing.lexeme lexbuf)))
-  |> Desugar.tr_program
-
-let parse_lib fname (e : Lang.Surface.program) =
-  let p = parse_defs fname in
-  let make data = { e with data = data } in
-  Lang.Surface.(make (EDefs(p.data, e)))
-
-let parse_file ?pos fname =
-  let p = parse_defs ?pos fname in
-  let make data = { p with data = data } in
-  Lang.Surface.(make (EDefs(p.data, make EUnit)))
+let parse_file ?pos ~use_prelude fname =
+  let imports, prog = File.parse_defs ?pos fname in
+  let make data = { prog with data } in
+  let prog = make (Lang.Surface.EDefs(prog.data, make Lang.Surface.EUnit)) in
+  Import.prepend_imports ~use_prelude imports prog
 
 let make_nowhere data =
   { Lang.Surface.pos  = Position.nowhere
   ; Lang.Surface.data = data
   }
 
-let rec repl_seq () =
-  InterpLib.Error.wrap_repl_cont repl_seq_main ()
+let rec repl_seq imported () =
+  InterpLib.Error.wrap_repl_cont (repl_seq_main imported) ()
 
-and repl_seq_main () =
+and repl_seq_main imported () =
   flush stderr;
   Printf.printf "> %!";
   let lexbuf = Lexing.from_channel stdin in
@@ -70,10 +35,14 @@ and repl_seq_main () =
 
   | Raw.REPL_Expr e ->
     let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
-    Seq.Cons(def, repl_seq)
+    Seq.Cons(def, repl_seq imported)
 
   | Raw.REPL_Def def ->
-    Seq.Cons(Desugar.tr_def def, repl_seq)
+    Seq.Cons(Desugar.tr_def def, repl_seq imported)
+
+  | Raw.REPL_Import import ->
+    let imported, defs = Import.import_one imported import in
+    Seq.append (List.to_seq defs) (repl_seq imported) ()
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token
@@ -82,4 +51,10 @@ and repl_seq_main () =
         lexbuf.Lexing.lex_curr_p)
       (Lexing.lexeme lexbuf))
 
-let repl = make_nowhere (Lang.Surface.ERepl repl_seq)
+let repl ~use_prelude =
+  if use_prelude then
+    let imported, prelude_defs = Import.import_prelude () in
+    let repl_expr = make_nowhere (Lang.Surface.ERepl (repl_seq imported)) in
+    make_nowhere (Lang.Surface.EDefs(prelude_defs, repl_expr))
+  else
+    make_nowhere (Lang.Surface.ERepl (repl_seq Import.import_set_empty))

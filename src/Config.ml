@@ -4,15 +4,19 @@
 
 (** Global configuration of the interpreter *)
 
-let prelude_path =
-  let prelude_filename = "Prelude.dbl" in
+let src_extension = ".dbl"
+
+let stdlib_path =
   match Sys.getenv_opt "DBL_LIB" with
-  | Some path -> Filename.concat path prelude_filename
+  | Some path -> path
   | None      ->
     begin match Sys.getenv_opt "OPAM_SWITCH_PREFIX" with
     | Some path ->
-      List.fold_left
-        Filename.concat
-        path [ "lib"; "dbl"; "stdlib"; prelude_filename ]
-    | None      -> "./lib"
+      List.fold_left Filename.concat path [ "lib"; "dbl"; "stdlib" ]
+    | None      -> Filename.concat Filename.current_dir_name "lib"
     end
+
+let local_mod_prefix = "Main"
+
+let lib_search_dirs   : string list ref = ref [ ]
+let local_search_dirs : string list ref = ref [ ]

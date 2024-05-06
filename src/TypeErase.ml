@@ -7,6 +7,12 @@
 module S = Lang.Core
 module T = Lang.Untyped
 
+(** Translate a data or label definition *)
+let tr_data_def (dd : S.data_def) e =
+  match dd with
+  | DD_Data _ -> e
+  | DD_Label lbl -> T.ELabel(lbl.var, e)
+
 (** Translate expression *)
 let rec tr_expr (e : S.expr) =
   match e with
@@ -23,12 +29,10 @@ let rec tr_expr (e : S.expr) =
     tr_value_v v2 (fun v2 ->
     T.EApp(v1, v2)))
   | ETApp(v, _) -> tr_value v
-  | EData(_, e) -> tr_expr e
+  | EData(dds, e) -> List.fold_right tr_data_def dds (tr_expr e)
   | EMatch(_, v, cls, _, _) ->
     tr_value_v v (fun v ->
     T.EMatch(v, List.map tr_clause cls))
-  | ELabel(_, x, _, _, e) ->
-    T.ELabel(x, tr_expr e)
   | EShift(v, x, e, _) ->
     tr_value_v v (fun v ->
     T.EShift(v, x, tr_expr e))

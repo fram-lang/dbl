@@ -1,6 +1,8 @@
 (* This example implements a simplified version of Prolog and serves to
   illustrate the combination of implicit parameters and effect capabilities. *)
 
+import List
+
 (* Prolog terms and clauses are fairly standard. Here variables are
   identified by integers and functors by strings. *)
 data rec Term = TVar of Int | TFun of String, List Term
@@ -94,11 +96,11 @@ implicit `eq
 let nub = fix (fn nub xs =>
   match xs with
   | []      => []
-  | x :: xs => x :: nub (filter (fn y => not (`eq x y)) xs)
+  | x :: xs => x :: nub (List.filter (fn y => not (`eq x y)) xs)
   end)
 
-let union xs ys = nub (append xs ys)
-let unions xss = nub (concat xss)
+let union xs ys = nub (List.append xs ys)
+let unions xss = nub (List.concat xss)
 
 let assoc x = fix (fn assoc xs =>
   match xs with
@@ -115,12 +117,12 @@ method vars =
   fix (fn vars t =>
   match t with
   | TVar x    => [x]
-  | TFun _ ts => unions (map vars ts)
+  | TFun _ ts => unions (List.map vars ts)
   end) self
 
 method vars { self = Cl t ts } =
   let `eq (x : Int) = x.equal in
-  union t.vars (unions (map (fn (t : Term) => t.vars) ts))
+  union t.vars (unions (List.map (fn (t : Term) => t.vars) ts))
 
 method rename sub =
   let `eq (x : Int) = x.equal in
@@ -131,11 +133,11 @@ method rename sub =
     | Some y => TVar y
     | None   => TVar x
     end
-  | TFun f ts => TFun f (map rename ts)
+  | TFun f ts => TFun f (List.map rename ts)
   end) self
 
 method rename { self = Cl t ts } sub =
-  Cl (t.rename sub) (map (fn (t : Term) => t.rename sub) ts)
+  Cl (t.rename sub) (List.map (fn (t : Term) => t.rename sub) ts)
 
 (* ========================================================================= *)
 
@@ -182,10 +184,10 @@ let fresh () = `fresh.fresh ()
   all the variables in terms with fresh unification variables. *)
 
 method refresh {self : Term} =
-  self.rename (map (fn x => (x, fresh ())) self.vars)
+  self.rename (List.map (fn x => (x, fresh ())) self.vars)
 
 method refresh {self : Clause} =
-  self.rename (map (fn x => (x, fresh ())) self.vars)
+  self.rename (List.map (fn x => (x, fresh ())) self.vars)
 
 (* ========================================================================= *)
 
@@ -214,7 +216,7 @@ let unify = fix (fn unify (t1 : Term) (t2 : Term) =>
   | t, TVar x =>
     if t.occurs x then fail () else setVar x t
   | TFun f ts1, TFun g ts2 =>
-    if f == g then iter2 {`re = fail} unify ts1 ts2
+    if f == g then List.iter2 {`re = fail} unify ts1 ts2
     else fail ()
   end)
 
@@ -225,7 +227,7 @@ let kbChoose () = `bt.choose (`kb.ask ())
 let eval = fix (fn eval (t : Term) =>
   let Cl t' ts = (kbChoose ()).refresh in
   let _ = unify t t' in
-  iter eval ts)
+  List.iter eval ts)
 
 (* Perform a query by substituting fresh unification variables in a term and
   calling the `eval` function. *)

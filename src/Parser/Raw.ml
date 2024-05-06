@@ -276,6 +276,23 @@ and h_clause_data =
   | HCFinally of expr * expr
     (** Finally clause *)
 
+(** Path to an imported module tagged as absolute or relative *)
+type import_path =
+  | IPAbsolute of module_name list * module_name
+  | IPRelative of module_name list * module_name
+
+(** Base name of imported module *)
+let import_path_name = function
+  | IPAbsolute(_, n) | IPRelative(_, n) -> n
+
+(** Module import *)
+type import = import_data node
+and import_data =
+  | IImportAs of import_path * module_name
+    (** Import as given module name *)
+  | IImportOpen of import_path
+    (** Import and immediately open the module *)
+
 (** Program *)
 type program = def list node
 
@@ -289,3 +306,6 @@ type repl_cmd =
   
   | REPL_Def  of def
     (** Provide a new definition in a REPL session *)
+
+  | REPL_Import of import
+    (** Import a module *)

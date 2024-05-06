@@ -1,6 +1,8 @@
 (* This example demonstrates the use of effect handlers 
   to implement a backtracking search for Pythagorean triples. *)
 
+import List
+
 data Triples = Triple of Int, Int, Int
 
 (* The standard backtracking effect. *)
@@ -46,7 +48,7 @@ let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
 (* The function `takeAll` returns list of all triples found. *)
 let takeAll (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
   handle bt = BT
-    { flip = effect () / r => append (r True) (r False)
+    { flip = effect () / r => List.append (r True) (r False)
     , fail = effect () => []
     }
   return x => [x]
