@@ -9,6 +9,15 @@ let usage_string =
 
 let args = ref []
 
+let cli_lib_search_dirs = ref []
+let cli_local_search_dirs = ref []
+
+let include_cli_search_dirs () = 
+  Config.lib_search_dirs :=
+    List.rev_append !cli_lib_search_dirs !Config.lib_search_dirs;
+  Config.local_search_dirs :=
+    List.rev_append !cli_local_search_dirs !Config.local_search_dirs
+
 let cmd_args_options = Arg.align
   [ "-args",
     Arg.Rest (fun arg -> args := arg :: !args),
@@ -28,7 +37,15 @@ let cmd_args_options = Arg.align
 
     "-verbose-internal-errors",
     Arg.Set InterpLib.InternalError.verbose,
-    " Make internal errors more verbose (for debugging only)"
+    " Make internal errors more verbose (for debugging only)";
+
+    "-L",
+    Arg.String (fun p -> cli_lib_search_dirs := p :: !cli_lib_search_dirs),
+    " Add a path to library search directories";
+
+    "-I",
+    Arg.String (fun p -> cli_local_search_dirs := p :: !cli_local_search_dirs),
+    " Add a path to local search directories";
   ]
 
 let fname = ref None
@@ -45,6 +62,7 @@ let proc_arg arg =
 
 let _ =
   Arg.parse cmd_args_options proc_arg usage_string;
+  include_cli_search_dirs ();
   try
     match !fname with
     | None       -> Pipeline.run_repl ()
