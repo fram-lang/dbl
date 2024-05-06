@@ -301,6 +301,9 @@ and def_data =
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
 
+  | DReplDefs of def list
+    (** Group of REPL definitions *)
+
 (** Recursive function *)
 and rec_fun = rec_fun_data node
 and rec_fun_data =
