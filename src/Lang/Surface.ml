@@ -232,8 +232,10 @@ and expr_data =
   | EAnnot of expr * type_expr
     (** Type annotation *)
 
-  | ERepl of def Seq.t
-    (** REPL. It is a lazy sequence of definitions provided by a user. *)
+  | ERepl of def list Seq.t
+    (** REPL. It is a lazy sequence of groups of definitions provided by a
+      user. Each group is treated as a monolith: if one of them fails, the
+      other have no effect. *)
 
 (** Explicit instantiation of named parameters in polymorphic expression *)
 and inst = (name * expr) node

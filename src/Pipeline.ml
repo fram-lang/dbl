@@ -22,13 +22,13 @@ let check_invariant check inv p =
 
 let set_module_dirs ?fname () =
   if !use_stdlib then
-    Config.lib_search_dirs := Config.stdlib_path :: !Config.lib_search_dirs;
+    DblConfig.lib_search_dirs := DblConfig.stdlib_path :: !DblConfig.lib_search_dirs;
   let cur_dir =
     match fname with
     | Some fname -> Filename.dirname fname
     | None       -> Filename.current_dir_name
   in
-  Config.local_search_dirs := cur_dir :: !Config.local_search_dirs
+  DblConfig.local_search_dirs := cur_dir :: !DblConfig.local_search_dirs
 
 let common_pipeline repl_mode prog =
   prog
@@ -41,10 +41,10 @@ let common_pipeline repl_mode prog =
 
 let run_repl () =
   set_module_dirs ();
-  Parser.Main.repl ~use_prelude:!use_prelude
+  DblParser.Main.repl ~use_prelude:!use_prelude
   |> common_pipeline true
 
 let run_file fname =
   set_module_dirs ~fname ();
-  Parser.Main.parse_file ~use_prelude:!use_prelude fname
+  DblParser.Main.parse_file ~use_prelude:!use_prelude fname
   |> common_pipeline false
