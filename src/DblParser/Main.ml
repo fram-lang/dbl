@@ -40,7 +40,7 @@ let rec repl_seq imported () =
 
   | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
-    Seq.append (List.to_seq (List.map (fun x -> [x]) defs)) (repl_seq imported) ()
+    Seq.Cons(defs, repl_seq imported)
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token
