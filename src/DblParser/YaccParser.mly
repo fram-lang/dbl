@@ -588,8 +588,8 @@ file
 ;
 
 repl
-: EOF               { REPL_Exit      }
-| expr SEMICOLON2   { REPL_Expr   $1 }
-| def SEMICOLON2    { REPL_Def    $1 }
-| import SEMICOLON2 { REPL_Import $1 }
+: EOF                  { REPL_Exit      }
+| expr SEMICOLON2      { REPL_Expr   $1 }
+| def_list1 SEMICOLON2 { REPL_Defs   $1 }
+| import SEMICOLON2    { REPL_Import $1 }
 ;

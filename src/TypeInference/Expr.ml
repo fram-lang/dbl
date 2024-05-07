@@ -155,7 +155,7 @@ let rec check_repl_def_seq ~tcfix env ienv def_seq tp eff =
           (e, Infered tp, Impure)
       in
       let (e, Checked, _) =
-        check_def env ienv def (Check tp) eff { run = cont } in
+        check_defs env ienv def (Check tp) eff { run = cont } in
       e
   in
   let e =
