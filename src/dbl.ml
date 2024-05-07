@@ -13,10 +13,10 @@ let cli_lib_search_dirs = ref []
 let cli_local_search_dirs = ref []
 
 let include_cli_search_dirs () = 
-  Config.lib_search_dirs :=
-    List.rev_append !cli_lib_search_dirs !Config.lib_search_dirs;
-  Config.local_search_dirs :=
-    List.rev_append !cli_local_search_dirs !Config.local_search_dirs
+  DblConfig.lib_search_dirs :=
+    List.rev_append !cli_lib_search_dirs !DblConfig.lib_search_dirs;
+  DblConfig.local_search_dirs :=
+    List.rev_append !cli_local_search_dirs !DblConfig.local_search_dirs
 
 let cmd_args_options = Arg.align
   [ "-args",
