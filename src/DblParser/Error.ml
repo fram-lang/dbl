@@ -74,3 +74,7 @@ let finally_before_return_clause pos =
 
 let multiple_self_parameters pos =
   (Some pos, "Multiple 'self' parameters of a method")
+
+let abstr_data_in_pub_block pos = 
+  (Some pos, "This 'abstr' data modifier has no effect. \
+  It is overridden by 'public' of entire group of definitions.")
