@@ -39,13 +39,14 @@ method flip {E, self = BT { flip } : BT E} = flip
 method fail {E, self = BT { fail } : BT E} = fail
 
 (* The method `choose` on `BT` non-deterministically selects an element
-  from a list. It's defined recursively using `fix` from the standard
-  library. *)
-method choose {E, self : BT E} = fix (fn choose xs =>
-  match xs with
-  | []      => self.fail ()
-  | x :: xs => if self.flip () then x else choose xs
-  end)
+  from a list. *)
+method choose {E, self : BT E} =
+  let rec choose xs =
+    match xs with
+    | []      => self.fail ()
+    | x :: xs => if self.flip () then x else choose xs
+    end
+  in choose
 
 (* The `Fresh` effect is used to model the generation of fresh variable
   identifiers in the evaluator. *)
@@ -82,31 +83,31 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
 (* ========================================================================= *)
 (* Some basic functionality on lists. *)
 
-let exists f = fix (fn exists xs =>
+let rec exists f xs =
   match xs with
   | []      => False
-  | x :: xs => f x && exists xs
-  end)
+  | x :: xs => f x && exists f xs
+  end
 
 (* The following few functions on lists require a notion of equality, which is
   passed as the implicit parameter `eq. *)
 
 implicit `eq
 
-let nub = fix (fn nub xs =>
+let rec nub xs =
   match xs with
   | []      => []
   | x :: xs => x :: nub (List.filter (fn y => not (`eq x y)) xs)
-  end)
+  end
 
 let union xs ys = nub (List.append xs ys)
 let unions xss = nub (List.concat xss)
 
-let assoc x = fix (fn assoc xs =>
+let rec assoc x xs =
   match xs with
   | []           => None
-  | (y, v) :: xs => if `eq x y then Some v else assoc xs
-  end)
+  | (y, v) :: xs => if `eq x y then Some v else assoc x xs
+  end
 
 (* ========================================================================= *)
 (* Methods on terms and clauses that are useful for implementing variable
@@ -114,11 +115,12 @@ let assoc x = fix (fn assoc xs =>
 
 method vars =
   let `eq (x : Int) = x.equal in
-  fix (fn vars t =>
-  match t with
-  | TVar x    => [x]
-  | TFun _ ts => unions (List.map vars ts)
-  end) self
+  let rec vars t =
+    match t with
+    | TVar x    => [x]
+    | TFun _ ts => unions (List.map vars ts)
+    end
+  in vars self
 
 method vars { self = Cl t ts } =
   let `eq (x : Int) = x.equal in
@@ -126,15 +128,16 @@ method vars { self = Cl t ts } =
 
 method rename sub =
   let `eq (x : Int) = x.equal in
-  fix (fn rename t =>
-  match t with
-  | TVar x    =>
-    match assoc x sub with
-    | Some y => TVar y
-    | None   => TVar x
+  let rec rename t =
+    match t with
+    | TVar x    =>
+      match assoc x sub with
+      | Some y => TVar y
+      | None   => TVar x
+      end
+    | TFun f ts => TFun f (List.map rename ts)
     end
-  | TFun f ts => TFun f (List.map rename ts)
-  end) self
+  in rename self
 
 method rename { self = Cl t ts } sub =
   Cl (t.rename sub) (List.map (fn (t : Term) => t.rename sub) ts)
@@ -159,18 +162,20 @@ let getVar x =
   term, accounting for the instantiation of unification variables.
   In a realistic implementation we would keep terms that haven't been viewed
   abstract to prevent accidentally pattern-matching on them. *)
-method view = fix (fn view t =>
-  match t with
-  | TVar x    =>
-    match getVar x with
-    | Some t =>
-      let t = view t in
-      let _ = setVar x t in
-      t
-    | None   => t
+method view =
+  let rec view t =
+    match t with
+    | TVar x    =>
+      match getVar x with
+      | Some t =>
+        let t = view t in
+        let _ = setVar x t in
+        t
+      | None   => t
+      end
+    | TFun f ts => t
     end
-  | TFun f ts => t
-  end) self
+  in view self
 
 (* As with `st, the capability to generate fresh identifiers `fresh is also
   declared implicit. *)
@@ -200,14 +205,16 @@ implicit `bt {E_bt} : BT E_bt
 let fail () = `bt.fail ()
 
 (* Check whether a variable occurs in a term. *)
-method occurs (x : Int) = fix (fn occurs (t : Term) =>
-  match t.view with
-  | TVar y    => x == y
-  | TFun _ ts => exists occurs ts
-  end) self
+method occurs (x : Int) =
+  let rec occurs (t : Term) =
+    match t.view with
+    | TVar y    => x == y
+    | TFun _ ts => exists occurs ts
+    end
+  in occurs self
 
 (* Attempt to unify two terms, and signal the need to backtrack on failure. *)
-let unify = fix (fn unify (t1 : Term) (t2 : Term) =>
+let rec unify (t1 : Term) (t2 : Term) =
   match t1.view, t2.view with
   | TVar x, TVar y =>
     if x == y then () else setVar x (TVar y)
@@ -218,16 +225,16 @@ let unify = fix (fn unify (t1 : Term) (t2 : Term) =>
   | TFun f ts1, TFun g ts2 =>
     if f == g then List.iter2 {`re = fail} unify ts1 ts2
     else fail ()
-  end)
+  end
 
 (* Retrieve some clause from the knowledge base non-deterministically. *)
 let kbChoose () = `bt.choose (`kb.ask ())
 
 (* Try to derive a term using the knowledge base. *)
-let eval = fix (fn eval (t : Term) =>
+let rec eval (t : Term) =
   let Cl t' ts = (kbChoose ()).refresh in
   let _ = unify t t' in
-  List.iter eval ts)
+  List.iter eval ts
 
 (* Perform a query by substituting fresh unification variables in a term and
   calling the `eval` function. *)

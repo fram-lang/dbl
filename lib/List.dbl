@@ -1,37 +1,38 @@
-pub let map f = fix (fn map xs =>
+pub let rec map f xs =
   match xs with
   | []      => []
-  | x :: xs => f x :: map xs
-  end)
+  | x :: xs => f x :: map f xs
+  end
 
-pub let filter f = fix (fn filter xs =>
+pub let rec filter f xs =
   match xs with
   | []      => []
-  | x :: xs => if f x then x :: filter xs else filter xs
-  end)
+  | x :: xs => if f x then x :: filter f xs else filter f xs
+  end
 
-pub let append xs ys = fix (fn append xs =>
+pub let rec append xs ys =
   match xs with
   | []      => ys
-  | x :: xs => x :: append xs
-  end) xs
+  | x :: xs => x :: append xs ys
+  end
 
-pub let concat = fix (fn concat xss =>
+pub let rec concat xss =
   match xss with
   | []        => []
   | xs :: xss => append xs (concat xss)
-  end)
+  end
 
-pub let iter f = fix (fn iter xs =>
+pub let rec iter f xs =
   match xs with
   | []      => ()
-  | x :: xs => let () = f x in iter xs
-  end)
+  | x :: xs => let () = f x in iter f xs
+  end
 
-pub let iter2 {`re : {type X} -> Unit ->[|_] X} f =
-  fix (fn iter xs ys =>
-  match xs, ys with
-  | [],      []      => ()
-  | x :: xs, y :: ys => let () = f x y in iter xs ys
-  | _                => `re ()
-  end)
+pub let iter2 {`re : {type X} -> Unit ->[|_] X} =
+  let rec iter f xs ys =
+    match xs, ys with
+    | [],      []      => ()
+    | x :: xs, y :: ys => let () = f x y in iter f xs ys
+    | _                => `re ()
+  end
+  in iter
