@@ -38,15 +38,15 @@ let find_file_in dirs path =
 (** Convert a module path to a (relative) file path to be found within the
     file system. *)
 let to_file_path (p, n) =
-  List.fold_right Filename.concat p (n ^ Config.src_extension)
+  List.fold_right Filename.concat p (n ^ DblConfig.src_extension)
 
 (** Find the file system path for a given absolute module path. *)
 let find_mod_abs (p, n) =
   match p with
-  | pref :: p when pref = Config.local_mod_prefix ->
-    find_file_in !Config.local_search_dirs (to_file_path (p, n))
+  | pref :: p when pref = DblConfig.local_mod_prefix ->
+    find_file_in !DblConfig.local_search_dirs (to_file_path (p, n))
   | [] | _ :: _ ->
-    find_file_in !Config.lib_search_dirs (to_file_path (p, n))
+    find_file_in !DblConfig.lib_search_dirs (to_file_path (p, n))
 
 (** Find a module relative to the module directory path [prefix], and return
     the absolute module path and file system path. *)
@@ -105,7 +105,7 @@ and parse_imports ~imported prefix =
 
 (** Build a graph of all (transitively) imported modules. *)
 let collect_imports ~imported =
-  parse_imports ~imported [ Config.local_mod_prefix ] StrMap.empty
+  parse_imports ~imported [ DblConfig.local_mod_prefix ] StrMap.empty
 
 let rec sort_dfs mods name on_path (visited, sorted) =
   (* TODO: Once recursive module files are implemented cycle detection in this
