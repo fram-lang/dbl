@@ -28,5 +28,10 @@ val report : ?pos:Position.t -> cls:error_class -> string -> unit
   of each phase. *)
 val assert_no_error : unit -> unit
 
+(** Wrap REPL continuation around additional call of [assert_no_error]. This
+  function should be used in transforming REPL continuations (e.g. those
+  stored in [Surface.ERepl]) in each phase that may raise an error. *)
+val wrap_repl_cont : (unit -> 'a) -> unit -> 'a
+
 (** Reset state of reported errors. Used in REPL in case of an error. *)
 val reset : unit -> unit

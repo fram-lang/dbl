@@ -160,7 +160,7 @@ let rec check_repl_def_seq ~tcfix env ienv def_seq tp eff =
   in
   let e =
     { T.pos  = Position.nowhere;
-      T.data = T.ERepl(func, tp, eff)
+      T.data = T.ERepl(InterpLib.Error.wrap_repl_cont func, tp, eff)
     } in
   e
 

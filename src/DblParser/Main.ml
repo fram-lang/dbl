@@ -18,6 +18,9 @@ let make_nowhere data =
   }
 
 let rec repl_seq imported () =
+  InterpLib.Error.wrap_repl_cont (repl_seq_main imported) ()
+
+and repl_seq_main imported () =
   flush stderr;
   Printf.printf "> %!";
   let lexbuf = Lexing.from_channel stdin in
