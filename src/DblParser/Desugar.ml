@@ -164,7 +164,7 @@ and erase_eff_type (tp : Raw.type_expr) =
   | TApp({ data = TEffect _; _ }, tp) -> tp 
   | TApp(tp1, tp2) ->
       let tp1 = (erase_eff_type tp1) in
-      { data = TApp(tp1, tp2) ; pos = Position.join tp1.pos tp2.pos }
+      { pos = Position.join tp1.pos tp2.pos; data = TApp(tp1, tp2) }
   | _ -> tp
 
 and tr_scheme_expr (tp : Raw.type_expr) =
