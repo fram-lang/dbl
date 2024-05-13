@@ -6,8 +6,21 @@
 
 open Common
 
-(** Check non-recursive definition of ADT *)
-val check_data_def : Env.t -> S.data_def -> Env.t * T.data_def
+(** Internal represenation of list of constructors. *)
+type ctor_decl_list
 
-(** Check mutually recursive definitions of ADTs *)
-val check_rec_data_defs : Env.t -> S.data_def list -> Env.t * T.data_def list
+(** Get the kind of ADT that has given its list of parameters *)
+val kind : T.named_tvar list -> T.kind
+
+(** Check well-formedness of ADT constructors. The [data_targs] parameter is a
+  list of parameters of the datatype. The evironment should contain these
+  parameters. *)
+val check_ctor_decls :
+  data_targs:T.named_tvar list ->
+  Env.t -> S.ctor_decl list -> ctor_decl_list
+
+(** Finalize checking of ADT definition. It extends environment by ADT
+  metadata (proof) and constructors. *)
+val finalize_check :
+  Env.t -> T.tvar -> name:S.tvar -> T.named_tvar list -> ctor_decl_list ->
+    Env.t * T.data_def

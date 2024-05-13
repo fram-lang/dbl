@@ -187,6 +187,9 @@ let impure_handler ~pos =
     "Cannot ensure that this handler expression is pure and always terminates",
     [])
 
+let invalid_rec_def ~pos =
+  (pos, "This kind of definition cannot be recursive", [])
+
 let non_productive_rec_def ~pos =
   (pos, "Non-productive recursive definition", [])
 
