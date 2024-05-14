@@ -138,34 +138,26 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     Error.fatal (Error.desugar_error tp.pos)
 
 and tr_eff_type (tp : Raw.type_expr) =
+  match try_detach_eff tp with
+  | None -> (None, tr_type_expr tp)
+  | Some(eff, tp) -> (Some (tr_type_expr eff), tr_type_expr tp)
+
+and try_detach_eff (tp : Raw.type_expr) = 
   let make l_pos data = { pos = Position.join l_pos tp.pos; data } in
   match tp.data with
-  | TWildcard | TParen _ | TVar _ | TEffect _ | TRecord _
-  | TTypeLbl _ | TEffectLbl _ ->
-    (None, tr_type_expr tp)
-
-  | TArrow(tp1, tp2) -> 
-    let (eff1, _) = tr_eff_type tp1 in
-    let sch = tr_scheme_expr (erase_eff_type tp1) in
-    begin match tr_eff_type tp2 with
-    | (None, tp2) -> (eff1, make sch.sch_pos (TPureArrow(sch, tp2)))
-    | (Some eff2, tp2) -> (eff1, make sch.sch_pos (TArrow(sch, tp2, eff2)))
-    end
-
   | TApp({ data = TEffect _; _ } as eff, tp) ->
-    (Some (tr_type_expr eff), tr_type_expr tp)
-
+    Some (eff, tp)
   | TApp(tp1, tp2) ->
-    let (eff, tp1) = tr_eff_type tp1 in
-    (eff, make tp1.pos (TApp(tp1, tr_type_expr tp2)))
-
-and erase_eff_type (tp : Raw.type_expr) = 
-  match tp.data with
-  | TApp({ data = TEffect _; _ }, tp) -> tp 
-  | TApp(tp1, tp2) ->
-      let tp1 = (erase_eff_type tp1) in
-      { pos = Position.join tp1.pos tp2.pos; data = TApp(tp1, tp2) }
-  | _ -> tp
+    begin match try_detach_eff tp1 with
+    | None -> None
+    | Some(eff, tp1) -> Some(eff, make tp1.pos (Raw.TApp(tp1, tp2)))
+    end
+  | TArrow(tp1, tp2) ->
+    begin match try_detach_eff tp1 with
+    | None -> None
+    | Some(eff, tp1) -> Some(eff, make tp1.pos (Raw.TArrow(tp1, tp2)))
+    end
+  | _ -> None
 
 and tr_scheme_expr (tp : Raw.type_expr) =
   let pos = tp.pos in

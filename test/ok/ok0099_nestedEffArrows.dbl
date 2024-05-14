@@ -1,1 +1,2 @@
 let foo (f : Unit ->[] Unit ->[] Unit) = f () ()
+let foo (f : Unit ->[] ({X} -> X) -> Unit) = ()
