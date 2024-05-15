@@ -1,14 +1,50 @@
-pub let rec map f xs =
-  match xs with
+pub let length xs = 
+  let rec length_aux xs (res : Int) =
+    match xs with 
+    | []      => res 
+    | x :: xs => length_aux xs (res + 1)
+    end 
+  in length_aux xs 0
+
+pub let hd {`re : {type X} -> Unit ->[|_] X} xs =
+  match xs with 
+  | []      => `re () 
+  | x :: xs => x 
+  end 
+
+pub let tl xs =
+  match xs with 
   | []      => []
-  | x :: xs => f x :: map f xs
+  | x :: xs => xs 
+  end 
+  
+pub let hd_opt  xs =
+  match xs with 
+  | []      => None
+  | x :: xs => Some x
   end
 
-pub let rec filter f xs =
-  match xs with
-  | []      => []
-  | x :: xs => if f x then x :: filter f xs else filter f xs
+pub let tl_opt xs =
+  match xs with 
+  | []      => None
+  | x :: xs => Some xs
   end
+
+pub let nth {`re : {type X} -> Unit ->[|_] X} xs (n : Int) = 
+  let rec nth_aux xs (n : Int) =
+    match xs with 
+    | []      => `re () 
+    | x :: xs => if n == 0 then x else nth_aux xs (n - 1)
+    end 
+  in if n < 0 then `re () else nth_aux xs 0
+  
+pub let nth_opt xs (n : Int) = 
+  let rec nth_opt_aux xs (n : Int) =
+    match xs with 
+    | []      => None 
+    | x :: xs => if n == 0 then Some x else nth_opt_aux xs (n - 1)
+    end 
+  in if n < 0 then None else nth_opt_aux xs n
 
 pub let rec append xs ys =
   match xs with
@@ -16,17 +52,106 @@ pub let rec append xs ys =
   | x :: xs => x :: append xs ys
   end
 
+pub let rec rev_append xs acc = 
+  match xs with 
+  | []      => acc 
+  | x :: xs => rev_append xs (x :: acc)
+  end 
+
+pub let rev xs = rev_append xs []
+
 pub let rec concat xss =
   match xss with
   | []        => []
   | xs :: xss => append xs (concat xss)
   end
 
+pub let flatten = concat
+
+pub let rec map f xs =
+  match xs with
+  | []      => []
+  | x :: xs => f x :: map f xs
+  end
+
+pub let mapi f xs = 
+  let rec mapi_aux (i : Int) f xs =
+    match xs with 
+    | []      => []
+    | x :: xs => (f i x) :: mapi_aux (i+1) f xs
+    end 
+  in mapi_aux 0 f xs
+
+pub let rec rev_map_append f xs ys =
+  match xs with 
+  | []      => ys 
+  | x :: xs => rev_map_append f xs (f x :: ys)
+  end 
+
+pub let rev_map f xs = rev_map_append f xs []
+
+pub let rec filter f xs =
+  match xs with
+  | []      => []
+  | x :: xs => if f x then x :: filter f xs else filter f xs
+  end
+
+pub let filteri p xs = 
+  let rec filteri_aux p (i : Int) xs =
+    match xs with 
+    | []      => [] 
+    | x :: xs => if p i x then x :: filteri_aux p (i + 1) xs else filteri_aux p (i + 1) xs
+    end 
+  in filteri_aux p 0 xs
+
+pub let rec filter_map f xs =
+  match xs with 
+  | []      => []
+  | x :: xs => 
+    match f x with 
+    | None   => filter_map f xs 
+    | Some x => x :: filter_map f xs 
+    end 
+  end
+
+pub let concat_map f xs = concat (map f xs)
+
+pub let rec take (n : Int) xs = 
+  match xs with 
+  | []      => [] 
+  | x :: xs => if n == 0 then [] else x :: take (n - 1) xs 
+  end
+
+pub let rec drop (n : Int) xs =
+  if n <= 0 then xs else 
+    match xs with 
+    | []      => [] 
+    | x :: xs => drop (n - 1) xs 
+    end 
+
+pub let rec take_while p xs =
+  match xs with 
+  | []      => []
+  | x :: xs => if p x then x :: take_while p xs else []
+  end 
+
+pub let rec drop_while p xs =
+  match xs with 
+  | []       => [] 
+  | x :: xs' => if p x then drop_while p xs' else xs 
+  end 
+
 pub let rec iter f xs =
   match xs with
   | []      => ()
   | x :: xs => let () = f x in iter f xs
   end
+
+pub let rec iteri (i : Int) f xs =
+  match xs with 
+  | []      => ()
+  | x :: xs => let _ = f i x in iteri (i + 1) f xs
+  end 
 
 pub let iter2 {`re : {type X} -> Unit ->[|_] X} =
   let rec iter f xs ys =
@@ -36,3 +161,95 @@ pub let iter2 {`re : {type X} -> Unit ->[|_] X} =
     | _                => `re ()
   end
   in iter
+
+pub let init (len : Int) f = 
+  let rec init_aux (i : Int) l f = if i > l then [] else (f i) :: init_aux (i+1) l f 
+  in init_aux 0 (len - 1) f
+
+pub let rec fold_left f acc xs = 
+  match xs with
+  | []      => acc 
+  | x :: xs => fold_left f (f acc x) xs 
+  end 
+
+pub let rec fold_right f xs acc =
+  match xs with 
+  | []      => acc 
+  | x :: xs => f x (fold_right f xs acc)
+  end 
+
+pub let rec for_all p xs =
+  match xs with 
+  | []      => True 
+  | x :: xs => p x && for_all p xs
+  end 
+
+pub let rec exists p xs =
+  match xs with 
+  | []      => False 
+  | x :: xs => p x || exists p xs 
+  end
+
+pub let find {`re : {type X} -> Unit ->[|_] X} p xs = 
+  let rec find_aux p xs =
+    match xs with 
+    | []      => `re () 
+    | x :: xs => if p x then x else find_aux p xs 
+    end  
+  in find_aux p xs
+
+pub let rec find_opt p xs =
+  match xs with 
+  | []      => None 
+  | x :: xs => if p x then Some x else find_opt p xs 
+  end 
+
+pub let rec find_index_opt p xs = 
+  let rec find_index_opt_aux p (i : Int) xs =
+    match xs with 
+    | []      => None 
+    | x :: xs => if p x then Some i else find_index_opt_aux p (i + 1) xs
+    end
+  in find_index_opt_aux p 0 xs
+
+pub let find_map {`re : {type X} -> Unit ->[|_] X} f xs =
+  let rec find_map_aux f xs =
+    match xs with
+    | []      => `re () 
+    | x :: xs => 
+      match f x with
+      | None   => find_map_aux f xs
+      | Some x => x
+      end 
+    end 
+  in find_map_aux f xs
+
+pub let rec find_map_opt f xs =
+  match xs with 
+  | []      => None 
+  | x :: xs => 
+    match f x with 
+    | Some x => Some x
+    | None    => find_map_opt f xs 
+    end 
+  end
+
+pub let rec find_mapi_opt f xs = 
+  let rec find_mapi_opt_aux f (i : Int) xs = 
+    match xs with 
+    | []      => None 
+    | x :: xs => 
+      match f i x with 
+      | Some x' => Some x'
+      | None    => find_mapi_opt_aux f (i + 1) xs 
+      end 
+    end 
+  in find_mapi_opt_aux f 0 xs
+
+pub let find_all = filter
+
+pub let is_empty xs =
+  match xs with 
+  | [] => True 
+  | _  => False 
+  end
