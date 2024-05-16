@@ -152,7 +152,7 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     | None ->
       Error.fatal (Error.unbound_method ~pos:e.pos ~env:env owner mname)
     end
-  | None, T.NVar x ->
+  | None, T.NVar x | None, T.NOptionalVar x ->
     (* TODO: we could provide freshly bound parameters here *)
     Error.fatal (Error.unbound_named_param ~pos:e.pos x)
 

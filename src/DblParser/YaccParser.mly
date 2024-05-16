@@ -4,7 +4,7 @@
 
 /** Yacc-generated parser */
 
-%token<string> LID UID TLID
+%token<string> LID UID TLID OLID
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
 %token<int> NUM
 %token<int64> NUM64
@@ -69,6 +69,7 @@ var_id
 name
 : KW_LABEL  { NLabel       }
 | LID       { NVar $1      }
+| OLID       { NOptionalVar $1 }
 | TLID      { NImplicit $1 }
 | KW_METHOD LID { NMethod $2   }
 ;

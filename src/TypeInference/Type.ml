@@ -120,6 +120,7 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     | L_No       -> Error.fatal (Error.label_type_mismatch ~pos:nsch.pos)
     end
   | NVar      x -> (T.NVar x, sch)
+  | NOptionalVar x -> (T. NOptionalVar x, sch)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)
 

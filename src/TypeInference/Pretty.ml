@@ -370,10 +370,11 @@ and pp_scheme_named_args buf env sep nargs =
   | (name, sch) :: nargs ->
     Buffer.add_string buf sep;
     begin match name with
-    | NLabel      -> Buffer.add_string buf "label"
-    | NVar x      -> Buffer.add_string buf x
-    | NImplicit n -> Buffer.add_string buf n
-    | NMethod n   -> Buffer.add_string buf n
+    | NLabel         -> Buffer.add_string buf "label"
+    | NVar x         -> Buffer.add_string buf x
+    | NOptionalVar x -> Buffer.add_string buf x
+    | NImplicit n    -> Buffer.add_string buf n
+    | NMethod n      -> Buffer.add_string buf n
     end;
     Buffer.add_string buf ":";
     pp_scheme buf env 0 sch;

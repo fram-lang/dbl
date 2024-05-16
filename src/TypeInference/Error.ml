@@ -33,9 +33,10 @@ let rec string_of_path (p : string Lang.Surface.path) =
 let string_of_name (name : Lang.Unif.name) =
   match name with
   | NLabel -> "the effect label"
-  | NImplicit n -> Printf.sprintf "implicit parameter %s" n
-  | NVar x      -> Printf.sprintf "named parameter %s" x
-  | NMethod n   -> Printf.sprintf "method %s" n
+  | NImplicit n    -> Printf.sprintf "implicit parameter %s" n
+  | NVar x         -> Printf.sprintf "named parameter %s" x
+  | NOptionalVar x -> Printf.sprintf "optional named parameter %s" x
+  | NMethod n      -> Printf.sprintf "method %s" n
 
 let kind_mismatch ~pos k1 k2 =
   let pp_ctx = Pretty.empty_context () in
@@ -387,10 +388,11 @@ let type_inst_redefinition ~pos ~ppos (name : Lang.Surface.tname) =
 let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
-    | NLabel      -> Printf.sprintf "The label"
-    | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar      x -> Printf.sprintf "Named parameter %s" x
-    | NMethod   n -> Printf.sprintf "Method %s" n
+    | NLabel         -> Printf.sprintf "The label"
+    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar         x -> Printf.sprintf "Named parameter %s" x
+    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
+    | NMethod      n -> Printf.sprintf "Method %s" n
   in
   (pos, Printf.sprintf "%s is provided more than once" nn,
     [ ppos, "Here is a previous definition" ])
@@ -409,10 +411,11 @@ let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
 let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
-    | NLabel      -> Printf.sprintf "The label"
-    | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar      x -> Printf.sprintf "Named parameter %s" x
-    | NMethod   n -> Printf.sprintf "Method %s" n
+    | NLabel         -> Printf.sprintf "The label"
+    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar         x -> Printf.sprintf "Named parameter %s" x
+    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
+    | NMethod      n -> Printf.sprintf "Method %s" n
   in
   (pos,
     Printf.sprintf "%s is provided more than once" nn,

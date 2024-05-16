@@ -84,7 +84,7 @@ let introduce_implicit_name ~pos env (name : T.name) sch =
     (* Do not introduce anything. Just create a fresh variable *)
     (env, T.Name.Map.empty, Var.fresh ~name:"label" ())
 
-  | NVar x ->
+  | NVar x | NOptionalVar x ->
     (* Do not introduce anything. Just create a fresh variable *)
     (env, T.Name.Map.empty, Var.fresh ~name:x ())
 
@@ -376,7 +376,7 @@ let infer_named_arg_scheme env (na : S.named_arg) =
     | L_No ->
       Error.fatal (Error.label_type_mismatch ~pos:na.pos)
     end
-  | NVar _ | NImplicit _ | NMethod _ -> ()
+  | NVar _ | NOptionalVar _ | NImplicit _ | NMethod _ -> ()
   end;
   (env, (name, pat, sch), r_eff)
 

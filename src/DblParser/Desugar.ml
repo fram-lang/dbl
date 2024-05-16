@@ -109,7 +109,7 @@ let rec find_self_arg args =
 let ident_of_name ~public (name : Raw.name) =
   match name with
   | NLabel      -> IdLabel
-  | NVar x      -> IdVar(public, x)
+  | NVar x | NOptionalVar x -> IdVar(public, x)
   | NImplicit n -> IdImplicit(public, n)
   | NMethod   n -> IdMethod(public, n)
 
@@ -632,10 +632,11 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldName n ->
     let pe =
       match n with
-      | NLabel      -> Error.fatal (Error.desugar_error fld.pos)
-      | NVar      x -> make (EVar (NPName x))
-      | NImplicit n -> make (EImplicit (NPName n))
-      | NMethod   n -> Error.fatal (Error.desugar_error fld.pos)
+      | NLabel         -> Error.fatal (Error.desugar_error fld.pos)
+      | NVar      x    -> make (EVar (NPName x))
+      | NOptionalVar x -> Error.fatal (Error.desugar_error fld.pos)
+      | NImplicit n    -> make (EImplicit (NPName n))
+      | NMethod   n    -> Error.fatal (Error.desugar_error fld.pos)
     in
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
