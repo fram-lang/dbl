@@ -1,0 +1,9 @@
+rec
+  data List X = [] | (::) of X, List X
+
+  method map {self : List _} f =
+    match self with
+    | []      => []
+    | x :: xs => x :: xs.map f
+    end
+end
