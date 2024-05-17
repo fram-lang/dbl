@@ -40,6 +40,7 @@ type expr =
 and value =
   | VNum    of int
   | VStr    of string
+  | VChr    of char
   | VVar    of var
   | VFn     of var * ttype * expr
   | VTFun    : 'k tvar * expr -> value

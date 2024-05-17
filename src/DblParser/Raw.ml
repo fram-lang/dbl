@@ -174,6 +174,9 @@ and expr_data =
   | EStr of string
     (** String literal *)
 
+  | EChr of char
+    (** Char literal *)
+
   | EFn   of expr list * expr
     (** Lambda-abstraction *)
 

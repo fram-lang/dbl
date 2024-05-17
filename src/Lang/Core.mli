@@ -241,6 +241,9 @@ and value =
   | VStr of string
     (** String literal *)
 
+  | VChr of char
+    (** String literal *)
+
   | VVar of var
     (** Variable *)
 

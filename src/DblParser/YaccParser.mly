@@ -9,6 +9,7 @@
 %token<string> OP_230 
 %token<int> NUM
 %token<string> STR
+%token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
@@ -449,6 +450,7 @@ expr_simple
 | UNDERSCORE         { make EWildcard     }
 | NUM                { make (ENum $1)     }
 | STR                { make (EStr $1)     }
+| CHR                { make (EChr $1)     }
 | BR_OPN BR_CLS      { make EUnit         }
 | BR_OPN expr BR_CLS { make (EParen $2)   }
 | SBR_OPN SBR_CLS    { make (EList [])    }

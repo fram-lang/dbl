@@ -333,6 +333,7 @@ and infer_vtype env v =
   match v with
   | VNum _ -> TVar BuiltinType.tv_int
   | VStr _ -> TVar BuiltinType.tv_string
+  | VChr _ -> TVar BuiltinType.tv_char
   | VVar x -> Env.lookup_var env x
   | VFn(x, tp, body) ->
     let tp = tr_type env tp in
@@ -418,7 +419,7 @@ and check_rec_def env rec_vars (body, tp) =
   definitions. *)
 and check_vtype_productive env rec_vars v tp =
   match v with
-  | VNum _ | VStr _ | VExtern _ ->
+  | VNum _ | VStr _ | VChr _ | VExtern _ ->
     check_vtype env v tp
   | VVar x when not (List.exists (Var.equal x) rec_vars) ->
     check_vtype env v tp

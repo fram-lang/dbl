@@ -12,6 +12,9 @@ type value =
   | VStr of string
     (** String *)
 
+  | VChr of char
+    (** Char *)
+
   | VFn of (value -> value comp)
     (** Function *)
 
@@ -49,10 +52,27 @@ let str_fun f = VFn (fun v cont ->
   | VStr s -> cont (f s)
   | _ -> failwith "Runtime error!")
 
+let chr_fun f = VFn (fun v cont ->
+  match v with
+  | VChr c -> cont (f c)
+  | _ -> failwith "Runtime error!")
+
+let list_chr_fun f = VFn (fun v cont ->
+  let rec parse_list = function
+  | VCtor(0, []) -> []
+  | VCtor(1, [VChr x; xs]) -> x :: parse_list xs 
+  | _ -> failwith "Runtime error!" in
+  cont (f @@ parse_list v))
+
+
 let v_unit = VCtor(0, [])
 
 let of_bool b =
   VCtor((if b then 1 else 0), [])
+
+let rec of_list = function
+  | [] -> VCtor(0, [])
+  | x :: xs -> VCtor(1, [x; of_list xs]) 
 
 let int2_fun f = int_fun (fun x -> int_fun (f x))
 
@@ -60,6 +80,8 @@ let int_binop op = int2_fun (fun x y -> VNum (op x y))
 let int_cmpop op = int2_fun (fun x y -> of_bool (op x y))
 
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
+
+let chr_cmpop op = chr_fun (fun s1 -> chr_fun (fun s2 -> of_bool (op s1 s2)))
 
 let extern_map =
   [ "dbl_addInt",      int_binop ( + );
@@ -88,8 +110,17 @@ let extern_map =
     "dbl_geStr",   str_cmpop ( >= );
     "dbl_leStr",   str_cmpop ( <= );
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
-    "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum(Char.code s.[n])));
+    "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VChr s.[n]));
     "dbl_strMake", int_fun (fun n -> VStr (String.make 1 (Char.chr n)));
+    "dbl_eqChr",   chr_cmpop ( = );
+    "dbl_neqChr",  chr_cmpop ( <> );
+    "dbl_gtChr",   chr_cmpop ( > );
+    "dbl_ltChr",   chr_cmpop ( < );
+    "dbl_geChr",   chr_cmpop ( >= );
+    "dbl_leChr",   chr_cmpop ( <= );
+    "dbl_chrToString",  chr_fun (fun c -> VStr (Char.escaped c));
+    "dbl_strToListChr", str_fun (fun s -> String.to_seq s |> List.of_seq |> List.map (fun c -> VChr c) |> of_list);
+    "dbl_chrListToStr", list_chr_fun (fun xs -> VStr (List.to_seq xs |> String.of_seq));
     "dbl_printStrLn", str_fun (fun s -> print_endline s; v_unit);
     "dbl_printStr",   str_fun (fun s -> print_string s; v_unit);
     "dbl_printInt",   int_fun (fun n -> print_int n; v_unit);
@@ -103,6 +134,7 @@ let to_string (v : value) =
   match v with
   | VNum n   -> string_of_int n
   | VStr s   -> Printf.sprintf "\"%s\"" (String.escaped s)
+  | VChr c   -> Printf.sprintf "\'%s\'" (Char.escaped c)
   | VFn    _ -> "<fun>"
   | VCtor  _ -> "<ctor>"
   | VLabel _ -> "<label>"
@@ -220,6 +252,7 @@ and eval_value env (v : Lang.Untyped.value) =
   match v with
   | VNum n -> VNum n
   | VStr s -> VStr s
+  | VChr c -> VChr c
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->
     VFn(fun v -> eval_expr (Env.extend env x v) body)

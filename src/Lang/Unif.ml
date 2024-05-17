@@ -82,6 +82,7 @@ and expr_data =
   | EUnitPrf
   | ENum        of int
   | EStr        of string
+  | EChr        of char
   | EVar        of var
   | EPureFn     of var * scheme * expr
   | EFn         of var * scheme * expr

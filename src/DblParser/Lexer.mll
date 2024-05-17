@@ -142,6 +142,8 @@ rule token = parse
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
   | '`' lid_start var_char* as x { YaccParser.TLID x }
+  | '\'' (_ as ch) '\''   { YaccParser.CHR ch }
+  | "\'\\" (_ as ch) '\'' { YaccParser.CHR (match ch with 'n' -> '\n' | 't' -> '\t' | '\\' -> '\\' | _ -> failwith "Invalid char escape")  }
   | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_start_p x }
   | '"' {
       let buf = Buffer.create 32 in
