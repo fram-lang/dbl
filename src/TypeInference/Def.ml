@@ -166,7 +166,7 @@ let check_def : type dir. tcfix:tcfix ->
     let (env, l_eff) = add_label_effect env eff_opt in
     let l_tp = T.Type.t_label (T.Type.t_var l_eff) tp0 eff0 in
     let (env, pat, names, _) =
-      Pattern.check_type ~env ~scope pat l_tp in
+      Pattern.check_type ~env ~scope:(Env.scope env) pat l_tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, _) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
