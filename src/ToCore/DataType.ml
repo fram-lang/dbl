@@ -6,6 +6,21 @@
 
 open Common
 
+(** Half-translated data-like definition *)
+type data_def =
+  | DD_Data of
+    { tvar  : T.TVar.ex;
+      proof : S.var;
+      args  : S.named_tvar list;
+      ctors : S.ctor_decl list;
+    }
+  | DD_Label of
+    { tvar      : T.keffect T.tvar;
+      var       : S.var;
+      delim_tp  : S.typ;
+      delim_eff : S.effrow
+    }
+
 (** Translate a constructor declaration *)
 let tr_ctor_decl env (ctor : S.ctor_decl) =
   let (env, tvars) =
@@ -22,18 +37,45 @@ let tr_ctor_decls env decls =
   List.map (tr_ctor_decl env) decls
 
 let prepare_data_def env (dd : S.data_def) =
-  let (env, x) = Env.add_tvar env dd.dd_tvar in
-  (env, (x, dd))
+  match dd with
+  | DD_Data dd ->
+    let (env, tvar) = Env.add_tvar env dd.tvar in
+    let dd =
+      DD_Data { tvar; proof = dd.proof; args = dd.args; ctors = dd.ctors } in
+    (env, dd)
 
-let finalize_data_def env (x, (dd : S.data_def)) =
-  let (env, args) = List.fold_left_map Env.add_named_tvar env dd.dd_args in
-  let ctors = tr_ctor_decls env dd.dd_ctors in
-  T.DD_Data {
-    tvar  = x;
-    proof = dd.dd_proof;
-    args  = args;
-    ctors = ctors
-  }
+  | DD_Label dd ->
+    let (env, Ex tvar) = Env.add_tvar env dd.tvar in
+    begin match T.TVar.kind tvar with
+    | KEffect ->
+      let dd = DD_Label {
+          tvar; var = dd.var;
+          delim_tp = dd.delim_tp; delim_eff = dd.delim_eff 
+        }
+      in
+      (env, dd)
+    | KType | KArrow _ -> failwith "Internal kind error"
+    end
+
+let finalize_data_def env (dd : data_def) =
+  match dd with
+  | DD_Data dd ->
+    let (env, args) = List.fold_left_map Env.add_named_tvar env dd.args in
+    let ctors = tr_ctor_decls env dd.ctors in
+    T.DD_Data {
+      tvar  = dd.tvar;
+      proof = dd.proof;
+      args  = args;
+      ctors = ctors
+    }
+
+  | DD_Label dd ->
+    T.DD_Label {
+      tvar      = dd.tvar;
+      var       = dd.var;
+      delim_tp  = Type.tr_ttype  env dd.delim_tp;
+      delim_eff = Type.tr_effect env dd.delim_eff
+    }
 
 let tr_data_defs env dds =
   let (env, dds) = List.fold_left_map prepare_data_def env dds in

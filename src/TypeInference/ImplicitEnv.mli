@@ -48,3 +48,8 @@ val shadow_names : t -> 'a T.Name.Map.t -> t
   it will be shadowed in implicit environment. *)
 val add_poly_id :
   pos:Position.t -> Env.t -> t -> S.ident -> T.scheme -> Env.t * t * T.var
+
+(** Extend environment with a monomorphic identifier. If it is a name, then
+  it will be shadowed in implicit environment. *)
+val add_mono_id :
+  pos:Position.t -> Env.t -> t -> S.ident -> T.typ -> Env.t * t * T.var

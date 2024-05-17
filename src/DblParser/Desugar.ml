@@ -445,64 +445,6 @@ let rec tr_function args body =
 
 (* ========================================================================= *)
 
-(** Mutually recursive definitions *)
-type rec_defs =
-  | RD_Data of data_def list
-    (** Mutually recursive types *)
-
-  | RD_Fun of rec_fun list
-    (** Mutually recursive functions *)
-
-let determine_rec_defs_kind defs =
-  match defs with
-  | [] -> assert false
-  | def :: _ ->
-    begin match def.data with
-    | DLetId _ | DLetFun _ | DFunRec _ -> RD_Fun []
-    | DData _ | DDataRec _ -> RD_Data []
-    | DLetPat _ | DMethodFn _ | DLabel _ | DHandlePat _
-    | DImplicit _ | DModule _ | DOpen _ | DReplExpr _ ->
-      Error.fatal (Error.desugar_error def.pos)
-    end
-
-let prepend_rec_def rdefs def =
-  match def.data, rdefs with
-  | DLetId(x, body), RD_Fun fds ->
-    let fd = { def with data = RecFun(x, [], [], body) } in
-    RD_Fun(fd :: fds)
-  | DLetFun(x, targs, nargs, body), RD_Fun fds ->
-    let fd = { def with data = RecFun(x, targs, nargs, body) } in
-    RD_Fun(fd :: fds)
-  | DFunRec fds1, RD_Fun fds2 ->
-    RD_Fun (List.rev_append fds1 fds2)
-  | DData dd, RD_Data dds -> RD_Data (dd :: dds)
-  | DDataRec dds1, RD_Data dds2 ->
-    RD_Data (List.rev_append dds1 dds2)
-
-  | (DLetId _ | DLetFun _ | DFunRec _), RD_Data _
-  | (DData _ | DDataRec _), RD_Fun _
-  | DLetPat _, _ | DMethodFn _, _ | DLabel _, _ | DHandlePat _, _
-  | DImplicit _, _ | DModule _, _ | DOpen _, _ | DReplExpr _, _ ->
-    Error.fatal (Error.desugar_error def.pos)
-
-(** add more definitions in reversed order to given recursive definitions *)
-let prepend_rec_defs defs rdefs =
-  List.fold_left prepend_rec_def rdefs defs
-
-(** Reverse recursive definitions *)
-let rev_rec_defs defs =
-  match defs with
-  | RD_Data dds -> RD_Data (List.rev dds)
-  | RD_Fun  fds -> RD_Fun  (List.rev fds)
-
-let collect_rec_defs defs =
-  defs
-  |> determine_rec_defs_kind
-  |> prepend_rec_defs defs
-  |> rev_rec_defs
-
-(* ========================================================================= *)
-
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
@@ -724,11 +666,9 @@ and tr_def ?(public=false) (def : Raw.def) =
     in
     begin match tr_type_def tp [] with
     | TD_Id(x, args) ->
-      let dd =
-        make (DD_Data(pub_type, x,
-          List.map tr_named_type_arg args,
-          List.map (tr_ctor_decl ~public:pub_ctors) cs)) in
-      make (DData dd)
+      make (DData(pub_type, x,
+        List.map tr_named_type_arg args,
+        List.map (tr_ctor_decl ~public:pub_ctors) cs))
     end
   | DLabel(pub, pat) ->
     let public = public || pub in
@@ -750,11 +690,9 @@ and tr_def ?(public=false) (def : Raw.def) =
   | DOpen(pub, path) -> 
     let public = public || pub in
     make (DOpen(public, path))
-  | DRec(public, defs) ->
-    begin match collect_rec_defs (tr_defs ~public defs) with
-    | RD_Data dds -> make (DDataRec dds)
-    | RD_Fun  fds -> make (DFunRec fds)
-    end
+  | DRec(pub, defs) ->
+    let public = public || pub in
+    make (DRec (tr_defs ~public defs))
 
 and tr_defs ?(public=false) defs = List.map (tr_def ~public) defs
 

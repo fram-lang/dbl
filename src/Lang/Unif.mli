@@ -99,21 +99,36 @@ type ctor_decl = {
 (** Variable *)
 type var = Var.t
 
-(** Definition of ADT *)
-type data_def = {
-  dd_tvar  : tvar;
-    (** Defined type (bound here) *)
+(** Data-like definition (ADT or label) *)
+type data_def =
+  | DD_Data of (** Algebraic datatype *)
+    { tvar  : tvar;
+        (** Type variable, that represents this ADT. *)
 
-  dd_proof : var;
-    (** A variables (bound here) that stores computationally irrelevant proof
-      that the type is an ADT. *)
+      proof : var;
+        (** An irrelevant variable that stores the proof that this ADT has
+          the following constructors. *)
 
-  dd_args  : named_tvar list;
-    (** Type parameters *)
+      args  : named_tvar list;
+        (** List of type parameters of this ADT. *)
 
-  dd_ctors : ctor_decl list
-    (** Constructors of an ADT. *)
-}
+      ctors : ctor_decl list
+        (** List of constructors. *)
+    }
+
+  | DD_Label of (** Label *)
+    { tvar      : tvar;
+        (** Type variable that represents effect of this label *)
+
+      var       : var;
+        (** Regular variable that would store the label *)
+
+      delim_tp  : typ;
+        (** Type of the delimiter *)
+
+      delim_eff : effrow
+        (** Effect of the delimiter *)
+    }
 
 (* ========================================================================= *)
 
@@ -164,7 +179,7 @@ and expr_data =
   | ELet of var * scheme * expr * expr
     (** Let-definition *)
 
-  | ELetRec of (var * scheme * expr) list * expr
+  | ELetRec of rec_def list * expr
     (** Mutually recursive let-definitions *)
 
   | ECtor of expr * int * typ list * expr list
@@ -186,11 +201,6 @@ and expr_data =
 
   | EMatch of expr * match_clause list * typ * effrow
     (** Pattern-matching. It stores type and effect of the whole expression. *)
-
-  | ELabel of tvar * var * typ * effrow * expr
-    (** Creating a fresh label. It binds a new effect variable, and variable
-      that stores the new label. Type and effect annotations describes type
-      and effect of the delimiter attached to the label. *)
 
   | EHandle of (** Handler *)
     { label : expr;
@@ -246,6 +256,9 @@ and expr_data =
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the first expression,
       then continue to the second expression. *)
+
+(** Definition of recursive value *)
+and rec_def = var * scheme * expr
 
 (** Clause of a pattern matching *)
 and match_clause = pattern * expr

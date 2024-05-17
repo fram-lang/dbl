@@ -140,3 +140,6 @@ let add_poly_id ~pos env ienv (id : S.ident) sch =
     let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
     let (env, x) = Env.add_poly_method env ~public owner name sch in
     (env, ienv, x)
+
+let add_mono_id ~pos env ienv (id : S.ident) tp =
+  add_poly_id ~pos env ienv id (T.Scheme.of_type tp)
