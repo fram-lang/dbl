@@ -27,11 +27,15 @@ type expr =
   | ELabel of var * expr
     (** Generating fresh runtime label *)
 
-  | EShift of value * var * expr
-    (** Shift-0 operator at given runtime label *)
+  | EShift of value * var list * var * expr
+    (** Shift-0 operator at given runtime label (the first parameter). The
+      second parameter is a list of variables that represents values stored at
+      the delimiter. The third parameter is a continuation variable. *)
 
-  | EReset of value * expr * var * expr
-    (** Shift-0 operator at given runtime label and with a return clause *)
+  | EReset of value * value list * expr * var * expr
+    (** Shift-0 operator at given runtime label (the first parameter) and
+      which stores a list of values (the second parameter). The last two
+      parameters represent a return clause *)
 
   | ERepl of (unit -> expr)
     (** REPL. It is a function that prompts user for another input. It returns
