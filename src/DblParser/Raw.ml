@@ -240,6 +240,9 @@ and def_data =
   | DImplicit of iname * type_expr list * type_expr option
     (** Declaration of implicit parameter *)
 
+  | DRecord of data_vis * type_expr * ty_field list
+    (** Definition of record-like type *)
+
   | DData of data_vis * type_expr * ctor_decl list
     (** Definition of ADT *)
 

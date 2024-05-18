@@ -38,7 +38,7 @@ and repl_seq_main imported () =
     Seq.Cons([def], repl_seq imported)
 
   | Raw.REPL_Defs defs ->
-      let defs = List.map Desugar.tr_def defs in
+      let defs = Desugar.tr_defs defs in
       Seq.Cons(defs, repl_seq imported)
 
   | Raw.REPL_Import import ->

@@ -519,6 +519,8 @@ def
     { make (DImplicit($2, $3, $4)) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
     { make_def $3  (DData($1, $4, $7)) }
+| data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
+    { make_def $3  (DRecord($1, $4, $7)) }
 | pub KW_LABEL rec_opt expr_70 { make_def $3 (DLabel($1, $4)) }
 | pub KW_HANDLE rec_opt expr_70 EQ expr h_clauses
     { make_def $3 (DHandle($1, $4, $6, $7)) }
