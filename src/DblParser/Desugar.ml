@@ -138,18 +138,26 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     Error.fatal (Error.desugar_error tp.pos)
 
 and tr_eff_type (tp : Raw.type_expr) =
+  match try_detach_eff tp with
+  | None -> (None, tr_type_expr tp)
+  | Some(eff, tp) -> (Some (tr_type_expr eff), tr_type_expr tp)
+
+and try_detach_eff (tp : Raw.type_expr) = 
   let make l_pos data = { pos = Position.join l_pos tp.pos; data } in
   match tp.data with
-  | TWildcard | TParen _ | TVar _ | TArrow _ | TEffect _ | TRecord _
-  | TTypeLbl _ | TEffectLbl _ ->
-    (None, tr_type_expr tp)
-
   | TApp({ data = TEffect _; _ } as eff, tp) ->
-    (Some (tr_type_expr eff), tr_type_expr tp)
-
+    Some (eff, tp)
   | TApp(tp1, tp2) ->
-    let (eff, tp1) = tr_eff_type tp1 in
-    (eff, make tp1.pos (TApp(tp1, tr_type_expr tp2)))
+    begin match try_detach_eff tp1 with
+    | None -> None
+    | Some(eff, tp1) -> Some(eff, make tp1.pos (Raw.TApp(tp1, tp2)))
+    end
+  | TArrow(tp1, tp2) ->
+    begin match try_detach_eff tp1 with
+    | None -> None
+    | Some(eff, tp1) -> Some(eff, make tp1.pos (Raw.TArrow(tp1, tp2)))
+    end
+  | _ -> None
 
 and tr_scheme_expr (tp : Raw.type_expr) =
   let pos = tp.pos in
@@ -437,70 +445,14 @@ let rec tr_function args body =
 
 (* ========================================================================= *)
 
-(** Mutually recursive definitions *)
-type rec_defs =
-  | RD_Data of data_def list
-    (** Mutually recursive types *)
-
-  | RD_Fun of rec_fun list
-    (** Mutually recursive functions *)
-
-let determine_rec_defs_kind defs =
-  match defs with
-  | [] -> assert false
-  | def :: _ ->
-    begin match def.data with
-    | DLetId _ | DLetFun _ | DFunRec _ -> RD_Fun []
-    | DData _ | DDataRec _ -> RD_Data []
-    | DLetPat _ | DMethodFn _ | DLabel _ | DHandlePat _
-    | DImplicit _ | DModule _ | DOpen _ | DReplExpr _ ->
-      Error.fatal (Error.desugar_error def.pos)
-    end
-
-let prepend_rec_def rdefs def =
-  match def.data, rdefs with
-  | DLetId(x, body), RD_Fun fds ->
-    let fd = { def with data = RecFun(x, [], [], body) } in
-    RD_Fun(fd :: fds)
-  | DLetFun(x, targs, nargs, body), RD_Fun fds ->
-    let fd = { def with data = RecFun(x, targs, nargs, body) } in
-    RD_Fun(fd :: fds)
-  | DFunRec fds1, RD_Fun fds2 ->
-    RD_Fun (List.rev_append fds1 fds2)
-  | DData dd, RD_Data dds -> RD_Data (dd :: dds)
-  | DDataRec dds1, RD_Data dds2 ->
-    RD_Data (List.rev_append dds1 dds2)
-
-  | (DLetId _ | DLetFun _ | DFunRec _), RD_Data _
-  | (DData _ | DDataRec _), RD_Fun _
-  | DLetPat _, _ | DMethodFn _, _ | DLabel _, _ | DHandlePat _, _
-  | DImplicit _, _ | DModule _, _ | DOpen _, _ | DReplExpr _, _ ->
-    Error.fatal (Error.desugar_error def.pos)
-
-(** add more definitions in reversed order to given recursive definitions *)
-let prepend_rec_defs defs rdefs =
-  List.fold_left prepend_rec_def rdefs defs
-
-(** Reverse recursive definitions *)
-let rev_rec_defs defs =
-  match defs with
-  | RD_Data dds -> RD_Data (List.rev dds)
-  | RD_Fun  fds -> RD_Fun  (List.rev fds)
-
-let collect_rec_defs defs =
-  defs
-  |> determine_rec_defs_kind
-  |> prepend_rec_defs defs
-  |> rev_rec_defs
-
-let tr_vis ?(public=false) (pos : Position.t) (vis : Raw.data_vis) =
-      match vis with
-      | DV_Private  -> (public, public)
-      | DV_Abstract ->
-          if public then
-            Error.warn (Error.abstr_data_in_pub_block pos);
-          (true, public)
-      | DV_Public   -> (true, true)
+let tr_data_vis ?(public=false) (pos : Position.t) (vis : Raw.data_vis) =
+  match vis with
+  | DV_Private  -> (public, public)
+  | DV_Abstract ->
+    if public then
+      Error.warn (Error.abstr_data_in_pub_block pos);
+    (true, public)
+  | DV_Public   -> (true, true)
 
 (* ========================================================================= *)
 
@@ -670,7 +622,7 @@ and tr_def ?(public=false) (def : Raw.def) =
   | DLet(pub, p, e) ->
     let public = public || pub in
     [ match tr_let_pattern ~public p with
-    | LP_Id id -> 
+      | LP_Id id -> 
         make (DLetId(id, tr_expr e))
     | LP_Fun(id, targs, iargs, args) ->
         make (DLetFun(id, targs, iargs, tr_function args (tr_expr e)))
@@ -687,7 +639,8 @@ and tr_def ?(public=false) (def : Raw.def) =
       | LP_Fun(IdVar(public, x), targs, iargs, args) ->
         let (self_arg, iargs) =
           match find_self_arg iargs with
-          | None, iargs -> (ArgPattern (make (PId (IdVar(false, "self")))), iargs)
+          | None, iargs ->
+            (ArgPattern (make (PId (IdVar(false, "self")))), iargs)
           | Some(_, arg), iargs -> (arg, iargs)
         in
         make (DLetFun(IdMethod(public, x), targs, iargs,
@@ -714,7 +667,7 @@ and tr_def ?(public=false) (def : Raw.def) =
     in
     [ make (DImplicit(n, args, sch)) ]
   | DRecord (vis, tp, flds) ->
-    let (pub_type, pub_ctors) = tr_vis ~public def.pos vis in
+    let (pub_type, pub_ctors) = tr_data_vis ~public def.pos vis in
     let (cd_targs, cd_named) = map_inst_like tr_scheme_field flds in
     begin match cd_targs with
     | [] -> ()
@@ -725,23 +678,23 @@ and tr_def ?(public=false) (def : Raw.def) =
     | TD_Id(cd_name, args) ->
       let named_type_args = List.map tr_named_type_arg args in
       let ctor = make
-          { cd_public=pub_ctors; cd_name; cd_targs=[]; cd_named; cd_arg_schemes=[] } in
-      let dd = make (DD_Data(pub_type, cd_name, named_type_args, [ ctor ])) in
+        { cd_public=pub_ctors; cd_name;
+          cd_targs=[]; cd_named; cd_arg_schemes=[] } in
+      let dd = make (DData(pub_type, cd_name, named_type_args, [ ctor ])) in
       let method_named_args, pattern_gen =
         generate_accessor_method_pattern named_type_args cd_name in
-      (make (DData dd)) :: List.filter_map
-        (create_accessor_method ~public:pub_ctors method_named_args pattern_gen)
+      dd :: List.filter_map
+        (create_accessor_method
+          ~public:pub_ctors method_named_args pattern_gen)
         cd_named
     end
   | DData(vis, tp, cs) ->
-    let (pub_type, pub_ctors) = tr_vis ~public def.pos vis in
+    let (pub_type, pub_ctors) = tr_data_vis ~public def.pos vis in
     [ match tr_type_def tp [] with
       | TD_Id(x, args) ->
-        let dd =
-          make (DD_Data(pub_type, x,
-            List.map tr_named_type_arg args,
-            List.map (tr_ctor_decl ~public:pub_ctors) cs)) in
-        make (DData dd)
+        make (DData(pub_type, x,
+          List.map tr_named_type_arg args,
+          List.map (tr_ctor_decl ~public:pub_ctors) cs))
     ]
   | DLabel(pub, pat) ->
     let public = public || pub in
@@ -763,11 +716,9 @@ and tr_def ?(public=false) (def : Raw.def) =
   | DOpen(pub, path) -> 
     let public = public || pub in
     [ make (DOpen(public, path)) ]
-  | DRec(public, defs) ->
-    [ match collect_rec_defs (tr_defs ~public defs) with
-      | RD_Data dds -> make (DDataRec dds)
-      | RD_Fun  fds -> make (DFunRec fds)
-    ]
+  | DRec(pub, defs) ->
+    let public = public || pub in
+    [ make (DRec (tr_defs ~public defs)) ]
 
 and tr_defs ?(public=false) defs = List.concat_map (tr_def ~public) defs
 
@@ -841,11 +792,12 @@ and make_handle ~pos lbl_opt eff_opt pat body hcs =
     })
 
 (** Returns: list of explicit type adnotations with fresh type variable names
-    and a function that given a field name returns piece of code that represents pattern
-    which pulls out this variable, making it easy to use in generated code *)
+    and a function that given a field name returns piece of code that
+    represents pattern which pulls out this variable, making it easy to use in
+    generated code *)
 and generate_accessor_method_pattern named_type_args type_name =
   let make data = { data; pos=Position.nowhere } in
-  (** generate new names impossible to input by user *)
+  (* generate new names impossible to input by user *)
   let create_mapping i arg =
     let old_name, new_name =
       match (snd arg.data).data with
@@ -857,13 +809,15 @@ and generate_accessor_method_pattern named_type_args type_name =
   in
   let (new_named_type_args, new_names : named_type_arg list * ctor_name list) =
     List.split (List.mapi create_mapping named_type_args) in
-  (** function for fold that generates nested series of tapps for type annotation *)
+  (* function for fold that generates nested series of tapps for type
+     annotation *)
   let gen_tapps inner name = make (TApp(inner, make (TVar(NPName name)))) in
   let type_annot : scheme_expr =
     { sch_pos = Position.nowhere
     ; sch_targs = []
     ; sch_named = []
-    ; sch_body = List.fold_left gen_tapps (make (TVar(NPName type_name))) new_names
+    ; sch_body =
+      List.fold_left gen_tapps (make (TVar(NPName type_name))) new_names
     } in
   (* function that generates pattern for accessing field *)
   let pattern_gen field =
@@ -878,7 +832,8 @@ and create_accessor_method ~public named_type_args pattern_gen scheme =
   match scheme.data with
   | NVar field, _ ->
     let make data = { scheme with data } in
-    (* generate accessor body, this piece of code generated accessing variable *)
+    (* generate accessor body, this piece of code generated accessing
+    variable *)
     let e = make (EPoly(make (EVar(NPName field)), [], [])) in
     make (DLetFun(IdMethod(public, field),
       named_type_args,
