@@ -369,13 +369,18 @@ and pp_scheme_named_args buf env sep nargs =
   | [] -> env
   | (name, sch) :: nargs ->
     Buffer.add_string buf sep;
-    begin match name with
-    | NLabel         -> Buffer.add_string buf "label"
-    | NVar x         -> Buffer.add_string buf x
-    | NOptionalVar x -> Buffer.add_string buf x
-    | NImplicit n    -> Buffer.add_string buf n
-    | NMethod n      -> Buffer.add_string buf n
-    end;
+    let sch = 
+      begin match name with
+      | NLabel         -> Buffer.add_string buf "label"; sch
+      | NVar x         -> Buffer.add_string buf x; sch
+      (* Assert that the scheme is monomorphic
+        Extract type from scheme, extract the argument from application
+        and wrap the param it in scheme *)
+      | NOptionalVar x -> Buffer.add_string buf x; sch
+      | NImplicit n    -> Buffer.add_string buf n; sch
+      | NMethod n      -> Buffer.add_string buf n; sch
+      end
+    in
     Buffer.add_string buf ":";
     pp_scheme buf env 0 sch;
     pp_scheme_named_args buf env ", " nargs

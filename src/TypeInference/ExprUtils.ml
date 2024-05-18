@@ -155,6 +155,7 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
   | None, T.NVar x | None, T.NOptionalVar x ->
     (* TODO: we could provide freshly bound parameters here *)
     Error.fatal (Error.unbound_named_param ~pos:e.pos x)
+    (* For unbound optional parameter we pass None *)
 
 let instantiate_named_params env e ims inst =
   instantiate_named_params_loop ~nset:T.Name.Set.empty ~inst env e ims

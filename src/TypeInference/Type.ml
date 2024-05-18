@@ -120,6 +120,8 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     | L_No       -> Error.fatal (Error.label_type_mismatch ~pos:nsch.pos)
     end
   | NVar      x -> (T.NVar x, sch)
+  (* Check that the scheme of named parameter is monomorphic and wrap the type from scheme in Option 
+    *)
   | NOptionalVar x -> (T. NOptionalVar x, sch)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)

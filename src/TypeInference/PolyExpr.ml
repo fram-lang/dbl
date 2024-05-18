@@ -152,6 +152,8 @@ let rec check_explicit_insts ~tcfix
             ~on_error:(Error.named_param_type_mismatch ~env n tp sch.sch_body);
           (e, sch, r_eff1)
         end
+        (* When we have Var and are checking for Optional Var
+           Check whether Optional Var is in named and then wrap expression in Some *)
       | None ->
         Error.warn (Error.redundant_named_parameter ~pos n);
         let (e, tp, r_eff1) = infer_expr_type env e eff in
