@@ -103,6 +103,7 @@ val non_polymorphic_pattern : pos:Position.t -> t
 
 val polymorphic_label : pos:Position.t -> t
 val label_type_mismatch : pos:Position.t -> t
+val polymorphic_optional_parameter : pos:Position.t -> t
 
 val label_pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> t
 

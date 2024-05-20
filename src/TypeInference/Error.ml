@@ -350,6 +350,9 @@ let non_polymorphic_pattern ~pos =
 let polymorphic_label ~pos =
   (pos, "Labels cannot be polymorphic", [])
 
+let polymorphic_optional_parameter ~pos =
+  (pos, "Optional parameters cannot be polymorphic", [])
+
 let label_type_mismatch ~pos =
   (pos, "Labels cannot have non-label type", [])
 

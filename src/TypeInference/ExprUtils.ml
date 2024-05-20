@@ -152,10 +152,13 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
     | None ->
       Error.fatal (Error.unbound_method ~pos:e.pos ~env:env owner mname)
     end
-  | None, T.NVar x | None, T.NOptionalVar x ->
+  | None, T.NVar x  ->
     (* TODO: we could provide freshly bound parameters here *)
     Error.fatal (Error.unbound_named_param ~pos:e.pos x)
     (* For unbound optional parameter we pass None *)
+  | None, T.NOptionalVar x ->
+    assert (T.Scheme.is_monomorphic isch);
+    PreludeTypes.mk_None ~env isch.sch_body
 
 let instantiate_named_params env e ims inst =
   instantiate_named_params_loop ~nset:T.Name.Set.empty ~inst env e ims

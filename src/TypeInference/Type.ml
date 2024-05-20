@@ -112,7 +112,7 @@ and tr_named_scheme env (nsch : S.named_scheme) =
   match name with
   | NLabel      ->
     let { T.sch_targs; sch_named; sch_body } = sch in
-    if not (List.is_empty sch_targs && List.is_empty sch_named) then
+    if not (T.Scheme.is_monomorphic sch) then
       Error.fatal (Error.polymorphic_label ~pos:nsch.pos);
     begin match Unification.as_label env sch_body with
     | L_Label _  -> (T.NLabel, sch)
@@ -122,7 +122,13 @@ and tr_named_scheme env (nsch : S.named_scheme) =
   | NVar      x -> (T.NVar x, sch)
   (* Check that the scheme of named parameter is monomorphic and wrap the type from scheme in Option 
     *)
-  | NOptionalVar x -> (T. NOptionalVar x, sch)
+  | NOptionalVar x -> 
+    let { T.sch_targs; sch_named; sch_body } = sch in
+    if not (T.Scheme.is_monomorphic sch ) then
+      Error.fatal (Error.polymorphic_optional_parameter ~pos:nsch.pos);
+    (* Wrap the type in option *)
+    let tp = PreludeTypes.mk_Option ~env sch_body in
+    (T.NOptionalVar x, T.Scheme.of_type tp)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)
 

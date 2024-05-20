@@ -153,10 +153,35 @@ let rec check_explicit_insts ~tcfix
           (e, sch, r_eff1)
         end
         (* When we have Var and are checking for Optional Var
-           Check whether Optional Var is in named and then wrap expression in Some *)
+           Check whether Optional Var is in named and then wrap expression
+           in Some *)
       | None ->
-        Error.warn (Error.redundant_named_parameter ~pos n);
-        let (e, tp, r_eff1) = infer_expr_type env e eff in
+        let (e, tp, r_eff1) = begin match n with
+        | NVar x -> 
+          begin match T.Name.assoc (NOptionalVar x) named with
+          | Some sch ->
+            assert (T.Scheme.is_monomorphic sch);
+            let { T.sch_targs; sch_named; sch_body } = sch in
+
+            (* We need to extract the type argument from Option type and pass
+             it as a scheme to check_actual arg. Then we need to wrap the 
+             translated T.Expr in option and return it alongside the original
+             scheme. *)
+            begin match T.Type.whnf sch_body with
+            | Whnf_Neutral(NH_Var x, tp :: []) ->
+              let (e, r_eff1) = check_actual_arg ~tcfix env e (T.Scheme.of_type tp) eff in
+            (PreludeTypes.mk_Some ~env tp e, sch_body, r_eff1)
+            | _ -> failwith "Error"
+            end
+          | None     -> 
+            Error.warn (Error.redundant_named_parameter ~pos n);
+            infer_expr_type env e eff
+          end
+        | _      ->
+          Error.warn (Error.redundant_named_parameter ~pos n);
+            infer_expr_type env e eff
+        end
+        in
         (e, T.Scheme.of_type tp, r_eff1)
     in
     let (ctx, insts, r_eff2) =
