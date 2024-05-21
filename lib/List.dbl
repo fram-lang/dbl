@@ -6,45 +6,45 @@ pub let length xs =
     end 
   in length_aux xs 0
 
-pub let hd {`re : {type X} -> Unit ->[|_] X} xs =
-  match xs with 
-  | []      => `re () 
-  | x :: xs => x 
-  end 
-
-pub let tl xs =
-  match xs with 
-  | []      => []
-  | x :: xs => xs 
-  end 
-
-pub let hd_opt  xs =
+pub let hd  xs =
   match xs with 
   | []      => None
   | x :: xs => Some x
   end
 
-pub let tl_opt xs =
+pub let hd_err {`onError : {type X} -> Unit ->[|_] X} xs =
+  match xs with 
+  | []      => `onError () 
+  | x :: xs => x 
+  end 
+
+pub let tl xs =
   match xs with 
   | []      => None
   | x :: xs => Some xs
   end
 
-pub let nth {`re : {type X} -> Unit ->[|_] X} xs (n : Int) = 
+pub let tl_err {`onError : {type X} -> Unit ->[|_] X} xs =
+  match xs with 
+  | []      => `onError ()
+  | x :: xs => xs 
+  end 
+
+pub let nth xs (n : Int) = 
   let rec nth_aux xs (n : Int) =
     match xs with 
-    | []      => `re () 
-    | x :: xs => if n == 0 then x else nth_aux xs (n - 1)
-    end 
-  in if n < 0 then `re () else nth_aux xs 0
-  
-pub let nth_opt xs (n : Int) = 
-  let rec nth_opt_aux xs (n : Int) =
-    match xs with 
     | []      => None 
-    | x :: xs => if n == 0 then Some x else nth_opt_aux xs (n - 1)
+    | x :: xs => if n == 0 then Some x else nth_aux xs (n - 1)
     end 
-  in if n < 0 then None else nth_opt_aux xs n
+  in if n < 0 then None else nth_aux xs n
+
+pub let nth_err {`onError : {type X} -> Unit ->[|_] X} xs (n : Int) = 
+  let rec nth_err_aux xs (n : Int) =
+    match xs with 
+    | []      => `onError () 
+    | x :: xs => if n == 0 then x else nth_err_aux xs (n - 1)
+    end 
+  in if n < 0 then `onError () else nth_err_aux xs 0
 
 pub let rec append xs ys =
   match xs with
@@ -155,12 +155,12 @@ pub let iteri f xs =
     end 
   in iteri_aux 0 xs
 
-pub let iter2 {`re : {type X} -> Unit ->[|_] X} =
+pub let iter2 {`onError : {type X} -> Unit ->[|_] X} =
   let rec iter f xs ys =
     match xs, ys with
     | [],      []      => ()
     | x :: xs, y :: ys => let () = f x y in iter f xs ys
-    | _                => `re ()
+    | _                => `onError ()
   end
   in iter
 
@@ -194,18 +194,18 @@ pub let rec exists p xs =
   | x :: xs => p x || exists p xs 
   end
 
-pub let find {`re : {type X} -> Unit ->[|_] X} p xs = 
-  let rec find_aux p xs =
+pub let find_err {`onError : {type X} -> Unit ->[|_] X} p xs = 
+  let rec find_err_aux p xs =
     match xs with 
-    | []      => `re () 
-    | x :: xs => if p x then x else find_aux p xs 
+    | []      => `onError () 
+    | x :: xs => if p x then x else find_err_aux p xs 
     end  
-  in find_aux p xs
+  in find_err_aux p xs
 
-pub let rec find_opt p xs =
+pub let rec find p xs =
   match xs with 
   | []      => None 
-  | x :: xs => if p x then Some x else find_opt p xs 
+  | x :: xs => if p x then Some x else find p xs 
   end 
 
 pub let rec find_index_opt p xs = 
@@ -216,41 +216,73 @@ pub let rec find_index_opt p xs =
     end
   in find_index_opt_aux p 0 xs
 
-pub let find_map {`re : {type X} -> Unit ->[|_] X} f xs =
-  let rec find_map_aux f xs =
+pub let find_map_err {`onError : {type X} -> Unit ->[|_] X} f xs =
+  let rec find_map_err_aux f xs =
     match xs with
-    | []      => `re () 
+    | []      => `onError () 
     | x :: xs => 
       match f x with
-      | None   => find_map_aux f xs
+      | None   => find_map_err_aux f xs
       | Some x => x
       end 
     end 
-  in find_map_aux f xs
+  in find_map_err_aux f xs
 
-pub let rec find_map_opt f xs =
+pub let rec find_map f xs =
   match xs with 
   | []      => None 
   | x :: xs => 
     match f x with 
     | Some x  => Some x
-    | None    => find_map_opt f xs 
+    | None    => find_map f xs 
     end 
   end
 
-pub let rec find_mapi_opt f xs = 
-  let rec find_mapi_opt_aux f (i : Int) xs = 
+pub let find_mapi f xs = 
+  let rec find_mapi_aux (i : Int) xs = 
     match xs with 
     | []      => None 
     | x :: xs => 
       match f i x with 
       | Some x' => Some x'
-      | None    => find_mapi_opt_aux f (i + 1) xs 
+      | None    => find_mapi_aux (i + 1) xs 
       end 
     end 
-  in find_mapi_opt_aux f 0 xs
+  in find_mapi_aux 0 xs
+
+pub let find_mapi_err {`onError : {type X} -> Unit ->[|_] X} f xs =
+  let rec find_mapi_err_aux (i : Int) xs =
+    match xs with 
+    | []      => `onError ()
+    | x :: xs =>
+      match f i x with 
+      | Some x => x 
+      | None   => find_mapi_err_aux (i + 1) xs 
+      end 
+    end 
+  in find_mapi_err_aux 0 xs
 
 pub let find_all = filter
+
+pub let fold_left_map f acc xs =
+  let rec fold_left_map_aux acc l_acc xs = 
+    match xs with 
+    | [] => acc, rev l_acc
+    | x :: xs =>
+      let (acc, x) = f acc x in 
+      fold_left_map_aux acc (x :: l_acc) xs
+    end
+  in fold_left_map_aux acc [] xs
+
+pub let fold_right_map f xs acc = 
+  let rec fold_right_map_aux xs acc r_acc =
+    match xs with 
+    | [] => acc, r_acc
+    | x :: xs =>
+      let (acc, x) = f x acc in
+      fold_right_map_aux xs acc (x :: r_acc)
+    end
+  in fold_right_map_aux (rev xs) acc []
 
 pub let is_empty xs =
   match xs with 
@@ -258,6 +290,7 @@ pub let is_empty xs =
   | _  => False 
   end
 
-
-handle `re = effect ()/_ -> () in 
-  
+pub method length = length self
+pub method map f = map f self 
+pub method add ys = append self ys 
+pub method filter f = filter f self
