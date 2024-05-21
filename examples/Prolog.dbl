@@ -215,7 +215,7 @@ let rec unify (t1 : Term) (t2 : Term) =
   | t, TVar x =>
     if t.occurs x then fail () else setVar x t
   | TFun f ts1, TFun g ts2 =>
-    if f == g then List.iter2 {`re = fail} unify ts1 ts2
+    if f == g then List.iter2 {`onError = fail} unify ts1 ts2
     else fail ()
   end
 
