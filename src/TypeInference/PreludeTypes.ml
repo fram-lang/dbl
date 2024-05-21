@@ -33,6 +33,7 @@ let mk_Some ~env tp_arg expr_arg : T.expr =
   | Whnf_Neutral(NH_Var x, tp :: []) ->
     begin match Env.lookup_ctor env (S.NPName "Some") with
     | Some (idx, adt_info) -> 
+      (* Feed the ADT proof with argument type *)
       let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
       make (T.ECtor (adt_proof, idx, [], [expr_arg])) Position.nowhere
     | None -> failwith "Error"
@@ -46,6 +47,7 @@ let mk_None ~env tp_arg : T.expr =
   | Whnf_Neutral(NH_Var x, tp :: []) ->
     begin match Env.lookup_ctor env (S.NPName "None") with
     | Some (idx, adt_info) -> 
+      (* Feed the ADT proof with argument type *)
       let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
       make (T.ECtor (adt_proof, idx, [], [])) Position.nowhere
     | None -> failwith "Error"

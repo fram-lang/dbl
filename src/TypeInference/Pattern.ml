@@ -330,6 +330,9 @@ and check_pattern_schemes ~env ~scope pats schs =
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
+(* Create 2nd function for optional parameter. We want to check whether the pattrern
+   has type Option sch_body *)
+
 let infer_arg_scheme env (arg : S.arg) =
   match arg with
   | ArgAnnot(pat, sch) ->
@@ -362,6 +365,7 @@ let check_arg_scheme env (arg : S.arg) sch =
 
 let infer_named_arg_scheme env (na : S.named_arg) =
   let (name, arg) = na.data in
+  (* Pattern match on name, act accordingly if it's Optional Arg *)
   let name = Name.tr_name env name in
   let (env, pat, sch, r_eff) = infer_arg_scheme env arg in
   begin match name with
