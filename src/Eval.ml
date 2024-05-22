@@ -119,8 +119,9 @@ let extern_map =
     "dbl_geChr",   chr_cmpop ( >= );
     "dbl_leChr",   chr_cmpop ( <= );
     "dbl_chrToString",  chr_fun (fun c -> VStr (Char.escaped c));
-    "dbl_strToListChr", str_fun (fun s -> String.to_seq s |> List.of_seq |> List.map (fun c -> VChr c) |> of_list);
     "dbl_chrListToStr", list_chr_fun (fun xs -> VStr (List.to_seq xs |> String.of_seq));
+    "dbl_chrCode",    chr_fun (fun c -> VNum (Char.code c));
+    "dbl_intToChr",   int_fun (fun n -> VChr (Char.chr n));
     "dbl_printStrLn", str_fun (fun s -> print_endline s; v_unit);
     "dbl_printStr",   str_fun (fun s -> print_string s; v_unit);
     "dbl_printInt",   int_fun (fun n -> print_int n; v_unit);

@@ -87,8 +87,25 @@ pub method makeString {`re : {type X} -> Unit ->[|_] X, self : String}
     (extern dbl_strMake : Int -> String) n
   else `re ()
 
-pub method toList     = (extern dbl_strToListChr : String -> List Char) self
+pub method toList {self : String} =
+  let rec getChar = extern dbl_strGet : String -> Int -> Char in
+  let rec iter (n : Int) acc = 
+    if n == 0 
+      then acc
+      else iter (n - 1) 
+        (getChar self (n - 1) :: acc)
+    in iter self.length [] 
+
 pub let charListToStr = (extern dbl_chrListToStr : List Char -> String)
+
+pub method code {self : Char} = 
+  extern dbl_chrCode : Char -> Int
+
+pub let chr {`re : {type X} -> Unit ->[|_] X} (n : Int) = 
+  if n >= 0 && n < 256 then
+    (extern dbl_intToChr : Int -> Char) n
+  else
+    `re ()
 
 pub method equal = (extern dbl_eqChr  : Char -> Char -> Bool) self
 pub method neq   = (extern dbl_neqChr : Char -> Char -> Bool) self
@@ -106,3 +123,5 @@ pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 pub let readLine = extern dbl_readLine : Unit ->[IO] String
 
 pub let exit {type X} = extern dbl_exit : Int ->[IO] X
+
+

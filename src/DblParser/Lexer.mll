@@ -109,6 +109,13 @@ let unescape str =
   | _ ->
     assert (str.[0] = 'x' || str.[0] = 'X');
     Char.chr (int_of_string ("0" ^ str))
+
+  let parse_char chr = 
+    if String.length chr = 1 then
+      YaccParser.CHR (chr.[0])
+    else
+      let escaped = String.sub chr 1 (String.length chr - 1) in
+      YaccParser.CHR (unescape escaped)
 }
 
 let whitespace = ['\011'-'\r' '\t' ' ']
@@ -121,6 +128,9 @@ let hex_digit = digit | ['a'-'f'] | ['A'-'F']
 let escape =
   ['"' ''' '\\' '0' 'n' 'b' 't' 'r' 'v' 'a' 'f']
   | (['x' 'X'] hex_digit hex_digit)
+
+let char = 
+  (('\\' escape) | _)
 
 let op_char = [
   '<' '>' '&' '$' '#' '?' '!' '@' '^' '+' '-' 
@@ -142,8 +152,7 @@ rule token = parse
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
   | '`' lid_start var_char* as x { YaccParser.TLID x }
-  | '\'' (_ as ch) '\''   { YaccParser.CHR ch }
-  | "\'\\" (_ as ch) '\'' { YaccParser.CHR (match ch with 'n' -> '\n' | 't' -> '\t' | '\\' -> '\\' | _ -> failwith "Invalid char escape")  }
+  | '\'' (char as ch) '\'' { parse_char ch }
   | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_start_p x }
   | '"' {
       let buf = Buffer.create 32 in
