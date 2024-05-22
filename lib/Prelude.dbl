@@ -107,12 +107,12 @@ pub let chr {`re : {type X} -> Unit ->[|_] X} (n : Int) =
   else
     `re ()
 
-pub method equal = (extern dbl_eqChr  : Char -> Char -> Bool) self
-pub method neq   = (extern dbl_neqChr : Char -> Char -> Bool) self
-pub method gt    = (extern dbl_gtChr  : Char -> Char -> Bool) self
-pub method lt    = (extern dbl_ltChr  : Char -> Char -> Bool) self
-pub method ge    = (extern dbl_geChr  : Char -> Char -> Bool) self
-pub method le    = (extern dbl_leChr  : Char -> Char -> Bool) self
+pub method equal = (extern dbl_eqInt  : Char -> Char -> Bool) self
+pub method neq   = (extern dbl_neqInt : Char -> Char -> Bool) self
+pub method gt    = (extern dbl_gtInt  : Char -> Char -> Bool) self
+pub method lt    = (extern dbl_ltInt  : Char -> Char -> Bool) self
+pub method ge    = (extern dbl_geInt  : Char -> Char -> Bool) self
+pub method le    = (extern dbl_leInt  : Char -> Char -> Bool) self
 
 pub method toString = (extern dbl_chrToString : Char -> String) self
 
