@@ -122,7 +122,9 @@ let check_actual_arg ~tcfix env (arg : S.expr) sch eff =
       let (body, res_eff) = check_expr_type env arg body_tp T.Effect.pure in
       begin match res_eff with
       | Pure -> ()
-      | Impure -> Error.report (Error.func_not_pure ~pos:arg.pos) 
+      | Impure -> 
+        print_endline "Test1";
+        Error.report (Error.func_not_pure ~pos:arg.pos) 
       end;
       (body, Pure)
   in
@@ -152,37 +154,27 @@ let rec check_explicit_insts ~tcfix
             ~on_error:(Error.named_param_type_mismatch ~env n tp sch.sch_body);
           (e, sch, r_eff1)
         end
-        (* When we have Var and are checking for Optional Var
-           Check whether Optional Var is in named and then wrap expression
-           in Some *)
       | None ->
-        let (e, tp, r_eff1) = begin match n with
-        | NVar x -> 
-          begin match T.Name.assoc (NOptionalVar x) named with
-          | Some sch ->
-            assert (T.Scheme.is_monomorphic sch);
-            let { T.sch_targs; sch_named; sch_body } = sch in
-
-            (* We need to extract the type argument from Option type and pass
-             it as a scheme to check_actual arg. Then we need to wrap the 
-             translated T.Expr in option and return it alongside the original
-             scheme. *)
-            begin match T.Type.whnf sch_body with
-            | Whnf_Neutral(NH_Var x, tp :: []) ->
+        let res = 
+          begin match n with
+          | NVar x -> 
+            begin match T.Name.assoc (NOptionalVar x) named with
+            | Some sch ->
+              assert (T.Scheme.is_monomorphic sch);
+              let tp = PreludeTypes.extr_arg_tp sch.sch_body in
               let (e, r_eff1) = check_actual_arg ~tcfix env e (T.Scheme.of_type tp) eff in
-            (PreludeTypes.mk_Some ~env tp e, sch_body, r_eff1)
-            | _ -> failwith "Error"
+              Some (PreludeTypes.mk_Some ~env tp e, sch.sch_body, r_eff1)
+            | None -> None
             end
-          | None     -> 
-            Error.warn (Error.redundant_named_parameter ~pos n);
-            infer_expr_type env e eff
-          end
-        | _      ->
-          Error.warn (Error.redundant_named_parameter ~pos n);
-            infer_expr_type env e eff
-        end
+          | _ -> None
+          end 
         in
-        (e, T.Scheme.of_type tp, r_eff1)
+        match res with
+        | Some(e, tp, r_eff1) -> (e, T.Scheme.of_type tp, r_eff1)
+        | None -> 
+          Error.warn (Error.redundant_named_parameter ~pos n);
+          let (e, tp, r_eff1) = infer_expr_type env e eff in
+          (e, T.Scheme.of_type tp, r_eff1)
     in
     let (ctx, insts, r_eff2) =
       check_explicit_insts ~tcfix env named insts cache eff in

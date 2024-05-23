@@ -199,6 +199,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
       let (env, pat, r_eff1) = Pattern.check_arg_scheme env arg sch in
       let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
       if ret_effect_join r_eff1 r_eff2 <> Pure then
+        print_endline "Test2";
         Error.report (Error.func_not_pure ~pos);
       let (x, body) = ExprUtils.arg_match pat body tp2 T.Effect.pure in
       (make (T.EPureFn(x, sch, body)), Pure)

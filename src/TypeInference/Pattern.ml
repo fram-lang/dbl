@@ -330,8 +330,22 @@ and check_pattern_schemes ~env ~scope pats schs =
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
-(* Create 2nd function for optional parameter. We want to check whether the pattrern
-   has type Option sch_body *)
+let infer_optional_arg_scheme env (arg : S.arg) =
+match arg with
+| ArgAnnot(pat, sch) ->
+  let sch = Type.tr_scheme env sch in
+  assert (T.Scheme.is_monomorphic sch);
+  let sch = T.Scheme.of_type (PreludeTypes.mk_Option ~env sch.sch_body) in
+  let scope = Env.scope env in
+  let (env, pat, _, r_eff) =
+    check_scheme ~env ~scope pat sch in
+  (env, pat, sch, r_eff)
+| ArgPattern pat ->
+  let tp = Env.fresh_uvar env T.Kind.k_type in
+  let tp = (PreludeTypes.mk_Option ~env tp) in
+  let scope = Env.scope env in
+  let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
+  (env, pat, T.Scheme.of_type tp, r_eff)
 
 let infer_arg_scheme env (arg : S.arg) =
   match arg with
@@ -367,7 +381,12 @@ let infer_named_arg_scheme env (na : S.named_arg) =
   let (name, arg) = na.data in
   (* Pattern match on name, act accordingly if it's Optional Arg *)
   let name = Name.tr_name env name in
-  let (env, pat, sch, r_eff) = infer_arg_scheme env arg in
+  let (env, pat, sch, r_eff) = 
+    begin match name with
+    | NOptionalVar x -> infer_optional_arg_scheme env arg
+    | _ -> infer_arg_scheme env arg
+    end
+  in
   begin match name with
   | NLabel ->
     let { T.sch_targs; sch_named; sch_body } = sch in

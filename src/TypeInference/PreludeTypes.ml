@@ -26,32 +26,30 @@ let mk_Option ~env tp_arg =
     T.Type.t_app tp tp_arg
   end
 
+let extr_arg_tp option_tp =
+  match T.Type.whnf option_tp with
+  | Whnf_Neutral(NH_Var x, tp :: []) -> tp
+  | _ -> failwith "Error"
+
 let mk_Some ~env tp_arg expr_arg : T.expr =
   let make data pos = { T.data; T.pos } in
   let tp' = mk_Option ~env tp_arg in
-  match T.Type.whnf tp' with
-  | Whnf_Neutral(NH_Var x, tp :: []) ->
-    begin match Env.lookup_ctor env (S.NPName "Some") with
-    | Some (idx, adt_info) -> 
-      (* Feed the ADT proof with argument type *)
-      let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
-      make (T.ECtor (adt_proof, idx, [], [expr_arg])) Position.nowhere
-    | None -> failwith "Error"
-    end
-  | _ -> failwith "Error"
+  let _ = extr_arg_tp tp' in
+  begin match Env.lookup_ctor env (S.NPName "Some") with
+  | Some (idx, adt_info) -> 
+    let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
+    make (T.ECtor (make (T.ETApp (adt_proof, tp_arg)) Position.nowhere, idx, [], [expr_arg])) Position.nowhere
+  | None -> failwith "Error"
+  end
 
-let mk_None ~env tp_arg : T.expr =
+let mk_None ~env option_tp : T.expr =
   let make data pos = { T.data; T.pos } in
-  let tp' = mk_Option ~env tp_arg in
-  match T.Type.whnf tp' with
-  | Whnf_Neutral(NH_Var x, tp :: []) ->
-    begin match Env.lookup_ctor env (S.NPName "None") with
-    | Some (idx, adt_info) -> 
-      (* Feed the ADT proof with argument type *)
-      let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
-      make (T.ECtor (adt_proof, idx, [], [])) Position.nowhere
-    | None -> failwith "Error"
-    end
-  | _ -> failwith "Error"
+  let tp_arg = extr_arg_tp option_tp in
+  begin match Env.lookup_ctor env (S.NPName "None") with
+  | Some (idx, adt_info) -> 
+    let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
+    make (T.ECtor (make (T.ETApp (adt_proof, tp_arg)) Position.nowhere, idx, [], [])) Position.nowhere
+  | None -> failwith "Error"
+  end
 
   
