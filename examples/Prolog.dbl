@@ -162,20 +162,18 @@ let getVar x =
   term, accounting for the instantiation of unification variables.
   In a realistic implementation we would keep terms that haven't been viewed
   abstract to prevent accidentally pattern-matching on them. *)
-method view =
-  let rec view t =
-    match t with
-    | TVar x    =>
-      match getVar x with
-      | Some t =>
-        let t = view t in
-        let _ = setVar x t in
-        t
-      | None   => t
-      end
-    | TFun f ts => t
+method rec view {self : Term} =
+  match self with
+  | TVar x    =>
+    match getVar x with
+    | Some t =>
+      let t = t.view in
+      let _ = setVar x t in
+      t
+    | None   => self
     end
-  in view self
+  | TFun f ts => self
+  end
 
 (* As with `st, the capability to generate fresh identifiers `fresh is also
   declared implicit. *)

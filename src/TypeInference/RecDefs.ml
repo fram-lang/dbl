@@ -157,10 +157,34 @@ type def3 =
     }
   | D3_Section of def3 T.node list
 
-(** Guess the type of a recursive value *)
-let guess_rec_value_type body_env (body : S.expr) =
-  (* TODO: this function could be better *)
-  Env.fresh_uvar body_env T.Kind.k_type
+(** Guess the type of a recursive value. Returns the guessed type and the
+  effect (pure/impure) of given expression. In this phase the effect is
+  ignored, but it is used internally by this function to distinguish between
+  pure and impure functions. *)
+let rec guess_rec_value_type env (e : S.expr) =
+  match e.data with
+  | EFn(arg, body) ->
+    let scope = Env.scope env in
+    let (env, _, sch, r_eff1) = Pattern.infer_arg_scheme env arg in
+    let (body_tp, r_eff2) = guess_rec_value_type env body in
+    begin match T.Type.try_shrink_scope ~scope body_tp with
+    | Ok   () -> ()
+    | Error x ->
+      Error.fatal (Error.type_escapes_its_scope ~pos:e.pos ~env x)
+    end;
+    begin match ret_effect_join r_eff1 r_eff2 with
+    | Pure ->
+      (T.Type.t_pure_arrow sch body_tp, Pure)
+    | Impure ->
+      let body_eff = T.Type.fresh_uvar ~scope T.Kind.k_effrow in
+      (T.Type.t_arrow sch body_tp body_eff, Pure)
+    end
+  | EAnnot(_, tp) ->
+    (Type.tr_ttype env tp, Impure)
+
+  | EUnit | ENum _ | EStr _ | EPoly _ | EApp _ | EDefs _ | EMatch _
+  | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
+    (Env.fresh_uvar env T.Kind.k_type, Impure)
 
 (** Information gathered by guessing the scheme of a recursive value *)
 type rec_value_scheme_info =
@@ -188,7 +212,7 @@ let rec_value_scheme env targs nargs body =
   let (env, tvars) = Type.tr_named_type_args env targs in
   let (env, named, r_eff) =
     Pattern.infer_named_arg_schemes env nargs in
-  let body_tp = guess_rec_value_type env body in
+  let (body_tp, _) = guess_rec_value_type env body in
   let sch =
     { T.sch_targs = tvars;
       T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named;
