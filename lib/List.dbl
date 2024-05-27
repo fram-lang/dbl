@@ -1,49 +1,55 @@
-pub let length xs = 
+pub let is_empty xs =
+  match xs with
+  | [] => True
+  | _  => False
+  end
+
+pub let length xs =
   let rec length_aux xs (res : Int) =
-    match xs with 
-    | []      => res 
+    match xs with
+    | []      => res
     | x :: xs => length_aux xs (res + 1)
-    end 
+    end
   in length_aux xs 0
 
-pub let hd  xs =
-  match xs with 
+pub let hd xs =
+  match xs with
   | []      => None
   | x :: xs => Some x
   end
 
-pub let hd_err {`onError : {type X} -> Unit ->[|_] X} xs =
-  match xs with 
-  | []      => `onError () 
-  | x :: xs => x 
-  end 
+pub let hd_err { `onError } xs =
+  match xs with
+  | []      => `onError ()
+  | x :: xs => x
+  end
 
 pub let tl xs =
-  match xs with 
+  match xs with
   | []      => None
   | x :: xs => Some xs
   end
 
-pub let tl_err {`onError : {type X} -> Unit ->[|_] X} xs =
-  match xs with 
+pub let tl_err { `onError } xs =
+  match xs with
   | []      => `onError ()
-  | x :: xs => xs 
-  end 
+  | x :: xs => xs
+  end
 
-pub let nth xs (n : Int) = 
+pub let nth xs (n : Int) =
   let rec nth_aux xs (n : Int) =
-    match xs with 
-    | []      => None 
+    match xs with
+    | []      => None
     | x :: xs => if n == 0 then Some x else nth_aux xs (n - 1)
-    end 
+    end
   in if n < 0 then None else nth_aux xs n
 
-pub let nth_err {`onError : {type X} -> Unit ->[|_] X} xs (n : Int) = 
+pub let nth_err { `onError } xs (n : Int) =
   let rec nth_err_aux xs (n : Int) =
-    match xs with 
-    | []      => `onError () 
+    match xs with
+    | []      => `onError ()
     | x :: xs => if n == 0 then x else nth_err_aux xs (n - 1)
-    end 
+    end
   in if n < 0 then `onError () else nth_err_aux xs 0
 
 pub let rec append xs ys =
@@ -52,11 +58,11 @@ pub let rec append xs ys =
   | x :: xs => x :: append xs ys
   end
 
-pub let rec rev_append xs acc = 
-  match xs with 
-  | []      => acc 
+pub let rec rev_append xs acc =
+  match xs with
+  | []      => acc
   | x :: xs => rev_append xs (x :: acc)
-  end 
+  end
 
 pub let rev xs = rev_append xs []
 
@@ -72,38 +78,38 @@ pub let rec map f xs =
   | x :: xs => f x :: map f xs
   end
 
-pub let mapi f xs = 
+pub let mapi f xs =
   let rec mapi_aux (i : Int) f xs =
-    match xs with 
+    match xs with
     | []      => []
     | x :: xs => (f i x) :: mapi_aux (i+1) f xs
-    end 
+    end
   in mapi_aux 0 f xs
 
-pub let map2 {`onError : {type X} -> Unit ->[|_] X} f xs ys =
+pub let map2 { `onError } f xs ys =
   let rec map2_aux xs ys =
-    match xs, ys with 
+    match xs, ys with
     | [],      []      => []
-    | x :: xs, y :: ys => f x y :: map2_aux xs ys 
-    | _,       _       => `onError () 
+    | x :: xs, y :: ys => f x y :: map2_aux xs ys
+    | _,       _       => `onError ()
     end
   in map2_aux xs ys
 
 pub let rec rev_map_append f xs ys =
-  match xs with 
-  | []      => ys 
+  match xs with
+  | []      => ys
   | x :: xs => rev_map_append f xs (f x :: ys)
-  end 
+  end
 
 pub let rev_map f xs = rev_map_append f xs []
 
-pub let rev_map2 {`onError : {type X} -> Unit ->[|_] X} f xs ys =
+pub let rev_map2 { `onError } f xs ys =
   let rec rev_map2_aux acc xs ys =
-    match xs, ys with 
-    | [],      []      => acc 
-    | x :: xs, y :: ys => rev_map2_aux (f x y :: acc) xs ys 
+    match xs, ys with
+    | [],      []      => acc
+    | x :: xs, y :: ys => rev_map2_aux (f x y :: acc) xs ys
     | _,       _       => `onError ()
-    end 
+    end
   in rev_map2_aux [] xs ys
 
 pub let rec filter p xs =
@@ -112,52 +118,52 @@ pub let rec filter p xs =
   | x :: xs => if p x then x :: filter p xs else filter p xs
   end
 
-pub let filteri p xs = 
+pub let filteri p xs =
   let rec filteri_aux p (i : Int) xs =
-    match xs with 
-    | []      => [] 
-    | x :: xs => 
-      if p i x then x :: filteri_aux p (i + 1) xs 
+    match xs with
+    | []      => []
+    | x :: xs =>
+      if p i x then x :: filteri_aux p (i + 1) xs
       else filteri_aux p (i + 1) xs
-    end 
+    end
   in filteri_aux p 0 xs
 
 pub let rec filter_map f xs =
-  match xs with 
+  match xs with
   | []      => []
-  | x :: xs => 
-    match f x with 
-    | None   => filter_map f xs 
-    | Some x => x :: filter_map f xs 
-    end 
+  | x :: xs =>
+    match f x with
+    | None   => filter_map f xs
+    | Some x => x :: filter_map f xs
+    end
   end
 
 pub let concat_map f xs = concat (map f xs)
 
-pub let rec take (n : Int) xs = 
-  match xs with 
-  | []      => [] 
-  | x :: xs => if n == 0 then [] else x :: take (n - 1) xs 
+pub let rec take (n : Int) xs =
+  match xs with
+  | []      => []
+  | x :: xs => if n == 0 then [] else x :: take (n - 1) xs
   end
 
 pub let rec drop (n : Int) xs =
-  if n <= 0 then xs else 
-    match xs with 
-    | []      => [] 
-    | x :: xs => drop (n - 1) xs 
-    end 
+  if n <= 0 then xs else
+    match xs with
+    | []      => []
+    | x :: xs => drop (n - 1) xs
+    end
 
 pub let rec take_while p xs =
-  match xs with 
+  match xs with
   | []      => []
   | x :: xs => if p x then x :: take_while p xs else []
-  end 
+  end
 
 pub let rec drop_while p xs =
-  match xs with 
-  | []       => [] 
-  | x :: xs' => if p x then drop_while p xs' else xs 
-  end 
+  match xs with
+  | []       => []
+  | x :: xs' => if p x then drop_while p xs' else xs
+  end
 
 pub let rec iter f xs =
   match xs with
@@ -167,13 +173,13 @@ pub let rec iter f xs =
 
 pub let iteri f xs =
   let rec iteri_aux (i : Int) xs =
-    match xs with 
-    | []      => () 
-    | x :: xs => let _ = f i x in iteri_aux (i + 1) xs 
-    end 
+    match xs with
+    | []      => ()
+    | x :: xs => let _ = f i x in iteri_aux (i + 1) xs
+    end
   in iteri_aux 0 xs
 
-pub let iter2 {`onError : {type X} -> Unit ->[|_] X} f xs ys =
+pub let iter2 { `onError } f xs ys =
   let rec iter2_aux xs ys =
     match xs, ys with
     | [],      []      => ()
@@ -182,64 +188,64 @@ pub let iter2 {`onError : {type X} -> Unit ->[|_] X} f xs ys =
     end
   in iter2_aux xs ys
 
-pub let init (len : Int) f = 
-  let rec init_aux (i : Int) f = 
-    if i > len - 1 then [] 
-    else (f i) :: init_aux (i+1) f 
+pub let init (len : Int) f =
+  let rec init_aux (i : Int) f =
+    if i > len - 1 then []
+    else (f i) :: init_aux (i+1) f
   in init_aux 0 f
 
-pub let rec fold_left f acc xs = 
+pub let rec fold_left f acc xs =
   match xs with
-  | []      => acc 
-  | x :: xs => fold_left f (f acc x) xs 
-  end 
+  | []      => acc
+  | x :: xs => fold_left f (f acc x) xs
+  end
 
 pub let rec fold_right f xs acc =
-  match xs with 
-  | []      => acc 
+  match xs with
+  | []      => acc
   | x :: xs => f x (fold_right f xs acc)
   end
 
-pub let fold_left2 {`onError : {type X} -> Unit ->[|_] X} f acc xs ys =
+pub let fold_left2 { `onError } f acc xs ys =
   let rec fold_left2_aux acc xs ys =
-    match xs, ys with 
-    | [],      []      => acc 
-    | x :: xs, y :: ys => fold_left2_aux (f acc x y) xs ys 
+    match xs, ys with
+    | [],      []      => acc
+    | x :: xs, y :: ys => fold_left2_aux (f acc x y) xs ys
     | _,       _       => `onError ()
     end
   in fold_left2_aux acc xs ys
 
-pub let fold_right2 {`onError : {type X} -> Unit ->[|_] X} f xs ys acc =
+pub let fold_right2 { `onError } f xs ys acc =
   let rec fold_right2_aux xs ys acc =
-    match xs, ys with 
+    match xs, ys with
     | [],      []      => acc
-    | x :: xs, y :: ys => f x y (fold_right2_aux xs ys acc) 
+    | x :: xs, y :: ys => f x y (fold_right2_aux xs ys acc)
     | _,       _       => `onError ()
     end
   in fold_right2_aux xs ys acc
 
 pub let rec for_all p xs =
-  match xs with 
-  | []      => True 
+  match xs with
+  | []      => True
   | x :: xs => p x && for_all p xs
-  end 
+  end
 
-pub let for_all2 {`onError : {type X} -> Unit ->[|_] X} p xs ys =
+pub let for_all2 { `onError } p xs ys =
   let rec for_all2_aux xs ys =
-    match xs, ys with 
-    | [],      []      => True 
-    | x :: xs, y :: ys => p x y && for_all2_aux xs ys 
+    match xs, ys with
+    | [],      []      => True
+    | x :: xs, y :: ys => p x y && for_all2_aux xs ys
     | _,       _       => `onError ()
     end
   in for_all2_aux xs ys
 
 pub let rec exists p xs =
-  match xs with 
-  | []      => False 
-  | x :: xs => p x || exists p xs 
+  match xs with
+  | []      => False
+  | x :: xs => p x || exists p xs
   end
 
-pub let exists2 {`onError : {type X} -> Unit ->[|_] X} p xs ys =
+pub let exists2 { `onError } p xs ys =
   let rec exists2_aux xs ys =
     match xs, ys with
     | [],      []      => False
@@ -249,157 +255,174 @@ pub let exists2 {`onError : {type X} -> Unit ->[|_] X} p xs ys =
   in exists2_aux xs ys
 
 pub let rec find p xs =
-  match xs with 
-  | []      => None 
-  | x :: xs => if p x then Some x else find p xs 
-  end 
+  match xs with
+  | []      => None
+  | x :: xs => if p x then Some x else find p xs
+  end
 
-pub let find_err {`onError : {type X} -> Unit ->[|_] X} p xs = 
+pub let find_err { `onError } p xs =
   let rec find_err_aux p xs =
-    match xs with 
-    | []      => `onError () 
-    | x :: xs => if p x then x else find_err_aux p xs 
-    end  
+    match xs with
+    | []      => `onError ()
+    | x :: xs => if p x then x else find_err_aux p xs
+    end
   in find_err_aux p xs
 
-pub let find_index p xs = 
+pub let find_index p xs =
   let rec find_index_aux (i : Int) xs =
-    match xs with 
-    | []      => None 
+    match xs with
+    | []      => None
     | x :: xs => if p x then Some i else find_index_aux (i + 1) xs
     end
   in find_index_aux 0 xs
 
-pub let find_index_err {`onError : {type X} -> Unit ->[|_] X} p xs =
+pub let find_index_err { `onError } p xs =
   let rec find_index_err_aux (i : Int) xs =
-    match xs with 
-    | []      => `onError () 
+    match xs with
+    | []      => `onError ()
     | x :: xs => if p x then i else find_index_err_aux (i + 1) xs
-    end 
+    end
   in find_index_err_aux 0 xs
 
 pub let rec find_map f xs =
-  match xs with 
-  | []      => None 
-  | x :: xs => 
-    match f x with 
+  match xs with
+  | []      => None
+  | x :: xs =>
+    match f x with
     | Some x => Some x
-    | None   => find_map f xs 
-    end 
+    | None   => find_map f xs
+    end
   end
 
-pub let find_map_err {`onError : {type X} -> Unit ->[|_] X} f xs =
+pub let find_map_err { `onError } f xs =
   let rec find_map_err_aux f xs =
     match xs with
-    | []      => `onError () 
-    | x :: xs => 
+    | []      => `onError ()
+    | x :: xs =>
       match f x with
       | None   => find_map_err_aux f xs
       | Some x => x
-      end 
-    end 
+      end
+    end
   in find_map_err_aux f xs
 
-pub let find_mapi f xs = 
-  let rec find_mapi_aux (i : Int) xs = 
-    match xs with 
-    | []      => None 
-    | x :: xs => 
-      match f i x with 
+pub let find_mapi f xs =
+  let rec find_mapi_aux (i : Int) xs =
+    match xs with
+    | []      => None
+    | x :: xs =>
+      match f i x with
       | Some x' => Some x'
-      | None    => find_mapi_aux (i + 1) xs 
-      end 
-    end 
+      | None    => find_mapi_aux (i + 1) xs
+      end
+    end
   in find_mapi_aux 0 xs
 
-pub let find_mapi_err {`onError : {type X} -> Unit ->[|_] X} f xs =
+pub let find_mapi_err { `onError } f xs =
   let rec find_mapi_err_aux (i : Int) xs =
-    match xs with 
+    match xs with
     | []      => `onError ()
     | x :: xs =>
-      match f i x with 
-      | Some x => x 
-      | None   => find_mapi_err_aux (i + 1) xs 
-      end 
-    end 
+      match f i x with
+      | Some x => x
+      | None   => find_mapi_err_aux (i + 1) xs
+      end
+    end
   in find_mapi_err_aux 0 xs
 
 pub let fold_left_map f acc xs =
-  let rec fold_left_map_aux acc l_acc xs = 
-    match xs with 
+  let rec fold_left_map_aux acc l_acc xs =
+    match xs with
     | []      => acc, rev l_acc
     | x :: xs =>
-      let (acc, x) = f acc x in 
+      let (acc, x) = f acc x in
       fold_left_map_aux acc (x :: l_acc) xs
     end
   in fold_left_map_aux acc [] xs
 
 pub let fold_left_filter_map f acc xs =
   let rec fold_left_filter_map_aux acc l_acc xs =
-    match xs with 
-    | []      => acc, rev l_acc 
-    | x :: xs => 
-      match f acc x with 
-      | None          => fold_left_filter_map_aux acc l_acc xs 
+    match xs with
+    | []      => acc, rev l_acc
+    | x :: xs =>
+      match f acc x with
+      | None          => fold_left_filter_map_aux acc l_acc xs
       | Some (acc, x) => fold_left_filter_map_aux acc (x :: l_acc) xs
-      end 
-    end 
-  in fold_left_filter_map_aux acc [] xs 
+      end
+    end
+  in fold_left_filter_map_aux acc [] xs
 
 pub let fold_left_concat_map f acc xs =
   let (acc, xs) = fold_left_map f acc xs
   in (acc, concat xs)
 
-pub let is_empty xs =
-  match xs with 
-  | [] => True 
-  | _  => False 
-  end
+(* Operations on lists containing comparable elements *)
+
+pub let mem
+  { E, method equal : E -> E ->[] Bool }
+  (v : E) (xs : List E) =
+  let rec mem_aux (xs : List E) =
+    match xs with
+    | []      => False
+    | x :: xs => v.equal x || mem_aux xs
+    end
+  in mem_aux xs
+
+pub let equal
+  { E, method equal : E -> E ->[] Bool }
+  (xs : List E) (ys : List E) =
+  let rec equal_aux (xs : List E) (ys : List E) =
+    match xs, ys with 
+    | [],      []      => True
+    | x :: xs, y :: ys => x == y && equal_aux xs ys
+    | _,       _       => False
+    end
+  in equal_aux xs ys
 
 (* method versions of these functions *)
+pub method is_empty = is_empty self
 pub method length = length self
 pub method hd = hd self
-pub method hd_err {`onError : {type X} -> Unit ->[|_] X} = 
-  hd_err self
-pub method tl = tl self 
-pub method tl_err {`onError : {type X} -> Unit ->[|_] X} = 
-  tl_err self 
-pub method nth n = nth self n 
-pub method nth_err {`onError : {type X} -> Unit ->[|_] X} n = 
-  nth_err self n
+pub method hd_err { `onError } = hd_err self
+pub method tl = tl self
+pub method tl_err { `onError } = tl_err self
+pub method nth n = nth self n
+pub method nth_err { `onError } n = nth_err self n
+pub method append ys = append self ys
 pub method add ys = append self ys
 pub method rev_append ys = rev_append self ys
 pub method rev = rev self
-pub method concat = concat self 
-pub method map f = map f self  
-pub method mapi f = mapi f self 
-pub method rev_map_append f ys = rev_map_append f self ys 
-pub method rev_map f = rev_map f self 
-pub method filter p = filter p self 
-pub method filteri p = filteri p self 
-pub method filter_map f = filter_map f self 
-pub method concat_map f = concat_map f self 
-pub method drop n = drop n self 
-pub method take_while p = take_while p self 
-pub method drop_while p = drop_while p self 
-pub method iteri f = iteri f self 
-pub method fold_left f acc = fold_left f acc self 
+pub method concat = concat self
+pub method map f = map f self
+pub method mapi f = mapi f self
+pub method rev_map_append f ys = rev_map_append f self ys
+pub method rev_map f = rev_map f self
+pub method filter p = filter p self
+pub method filteri p = filteri p self
+pub method filter_map f = filter_map f self
+pub method concat_map f = concat_map f self
+pub method drop n = drop n self
+pub method take_while p = take_while p self
+pub method drop_while p = drop_while p self
+pub method iteri f = iteri f self
+pub method fold_left f acc = fold_left f acc self
 pub method fold_right f acc = fold_right f self acc
-pub method for_all p = for_all p self 
-pub method exists p = exists p self 
-pub method find p = find p self 
-pub method find_err {`onError : {type X} -> Unit ->[|_] X} p = 
-  find_err p self 
-pub method find_index p = find_index p self 
-pub method find_index_err {`onError : {type X} -> Unit ->[|_] X} p = 
-  find_index_err p self 
-pub method find_map f = find_map f self 
-pub method find_map_err {`onError : {type X} -> Unit ->[|_] X} f = 
-  find_map_err f self 
-pub method find_mapi f = find_mapi f self 
-pub method find_mapi_err {`onError : {type X} -> Unit ->[|_] X} f = 
-  find_mapi_err f self 
-pub method fold_left_map f acc = fold_left_map f acc self 
-pub method fold_left_filter_map f acc = fold_left_filter_map f acc self 
+pub method for_all p = for_all p self
+pub method exists p = exists p self
+pub method find p = find p self
+pub method find_err { `onError } p = find_err p self
+pub method find_index p = find_index p self
+pub method find_index_err { `onError } p = find_index_err p self
+pub method find_map f = find_map f self
+pub method find_map_err { `onError } f = find_map_err f self
+pub method find_mapi f = find_mapi f self
+pub method find_mapi_err { `onError } f = find_mapi_err f self
+pub method fold_left_map f acc = fold_left_map f acc self
+pub method fold_left_filter_map f acc = fold_left_filter_map f acc self
 pub method fold_left_concat_map f acc = fold_left_concat_map f acc self
-pub method is_empty = is_empty self
+pub method mem { E, method equal : E -> E ->[] Bool } v =
+  mem {E = E} v self
+pub method equal { E, method equal : E -> E ->[] Bool } xs =
+  equal {E = E} self xs
+pub method neq { E, method equal : E -> E ->[] Bool } xs =
+  not (equal {E = E} self xs)
