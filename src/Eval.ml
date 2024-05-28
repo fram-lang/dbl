@@ -237,7 +237,6 @@ and eval_value env (v : Lang.Untyped.value) =
   match v with
   | VNum n -> VNum n
   | VStr s -> VStr s
-  | VChr c -> VNum (Char.code c)
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->
     VFn(fun v -> eval_expr (Env.extend env x v) body)

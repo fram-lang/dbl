@@ -49,9 +49,6 @@ and value =
   | VStr of string
     (** String literal *)
 
-  | VChr of char
-    (** Char literal *)
-
   | VVar of var
     (** Variable *)
 

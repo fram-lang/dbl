@@ -88,7 +88,7 @@ and tr_expr_v env (e : S.expr) cont =
   | EUnitPrf -> cont v_unit_prf
   | ENum n -> cont (VNum n)
   | EStr s -> cont (VStr s)
-  | EChr c -> cont (VChr c)
+  | EChr c -> cont (VNum (Char.code c))
   | EVar x -> cont (VVar x)
 
   | EPureFn(x, sch, body) | EFn(x, sch, body) ->

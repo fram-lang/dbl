@@ -90,11 +90,11 @@ pub method makeString {`re : {type X} -> Unit ->[|_] X, self : String}
 pub method toList {self : String} =
   let rec getChar = extern dbl_strGet : String -> Int -> Char in
   let rec iter (n : Int) acc = 
-    if n == 0 
-      then acc
-      else iter (n - 1) 
-        (getChar self (n - 1) :: acc)
-    in iter self.length [] 
+    if n == 0 then 
+      acc
+    else 
+      iter (n - 1) (getChar self (n - 1) :: acc) 
+  in iter self.length []
 
 pub let charListToStr = (extern dbl_chrListToStr : List Char -> String)
 

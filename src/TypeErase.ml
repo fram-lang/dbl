@@ -47,7 +47,7 @@ let rec tr_expr (e : S.expr) =
 (** Translate value as an expression *)
 and tr_value (v : S.value) =
   match v with
-  | VNum _ | VStr _ | VChr _ | VVar _ | VFn _ | VCtor _ | VExtern _ ->
+  | VNum _ | VStr _ | VVar _ | VFn _ | VCtor _ | VExtern _ ->
     tr_value_v v (fun v -> T.EValue v)
   | VTFun(_, body) ->
     tr_expr body
@@ -55,7 +55,7 @@ and tr_value (v : S.value) =
 (** Translate value as a value, and pass it to given meta-continuation *)
 and tr_value_v (v : S.value) cont =
   match v with
-  | VNum _ | VStr _ | VChr _ | VVar _ | VFn _ | VExtern _ ->
+  | VNum _ | VStr _ | VVar _ | VFn _ | VExtern _ ->
     cont (tr_productive_value v)
   | VTFun(_, body) ->
     let x = Var.fresh () in
@@ -79,7 +79,6 @@ and tr_productive_value (v : S.value) =
   match v with
   | VNum n -> T.VNum n
   | VStr s -> T.VStr s
-  | VChr c -> T.VChr c
   | VVar x -> T.VVar x
   | VFn(x, _, body) -> T.VFn(x, tr_expr body)
   | VTFun(_, EValue v) -> tr_productive_value v
