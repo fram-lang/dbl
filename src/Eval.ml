@@ -49,14 +49,12 @@ let str_fun f = VFn (fun v cont ->
   | VStr s -> cont (f s)
   | _ -> failwith "Runtime error!")
 
-
 let list_chr_fun f = VFn (fun v cont ->
   let rec parse_list = function
   | VCtor(0, []) -> []
   | VCtor(1, [VNum x; xs]) -> Char.chr x :: parse_list xs 
   | _ -> failwith "Runtime error!" in
   cont (f @@ parse_list v))
-
 
 let v_unit = VCtor(0, [])
 
