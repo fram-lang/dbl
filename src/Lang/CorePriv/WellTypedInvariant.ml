@@ -393,7 +393,12 @@ and check_vtype env v tp =
   let tp' = infer_vtype env v in
   if Type.subtype tp' tp then
     ()
-  else failwith "Internal type error"
+  else InterpLib.InternalError.report
+    ~reason:"type mismatch"
+    ~sloc:(SExprPrinter.tr_value v)
+    ~requested:(SExprPrinter.tr_type tp)
+    ~provided:(SExprPrinter.tr_type tp')
+    ();
 
 and check_rec_defs env rds =
   let rec_vars = List.map (fun (x, _, _) -> x) rds in

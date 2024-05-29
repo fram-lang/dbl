@@ -1,0 +1,9 @@
+let _ = 'a'
+let _ = '''
+let _ = '\n'
+let _ = '\t'
+let _ = '\\'
+
+let foo (x : Char) = x
+
+let _ = foo '1'

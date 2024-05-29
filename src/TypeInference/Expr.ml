@@ -62,6 +62,9 @@ let infer_expr_type ~tcfix env (e : S.expr) eff =
   | EStr s ->
     (make (T.EStr s), T.Type.t_var T.BuiltinType.tv_string, Pure)
 
+  | EChr c ->
+    (make (T.EChr c), T.Type.t_var T.BuiltinType.tv_char, Pure)
+
   | EPoly(e, tinst, inst) ->
     let (p_ctx, e, sch, hints1) = PolyExpr.infer_scheme ~tcfix env e eff in
     Uniqueness.check_type_inst_uniqueness tinst;
@@ -181,7 +184,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   let pos = e.pos in
   match e.data with
-  | EUnit | ENum _ | EStr _ | EPoly _ | EApp _ ->
+  | EUnit | ENum _ | EStr _ | EChr _ | EPoly _ | EApp _ ->
     check_expr_type_default ~tcfix env e tp eff
 
   | EFn(arg, body) ->

@@ -198,6 +198,9 @@ and expr_data =
   | EStr of string
     (** String literal *)
 
+  | EChr of char
+    (** Char literal *)
+
   | EPoly of poly_expr * type_inst list * inst list
     (** Polymorphic expression with partial explicit instantiation, possibly
       empty *)

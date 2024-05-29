@@ -25,6 +25,7 @@ let tv_nterm = TVar.fresh KEffect
 let all =
   [ "Int",    TVar.Ex tv_int;
     "String", TVar.Ex tv_string;
+    "Char",   TVar.Ex tv_int;
     "Unit",   TVar.Ex tv_unit;
     "IO",     TVar.Ex tv_io;
     "#NTerm", TVar.Ex tv_nterm ]

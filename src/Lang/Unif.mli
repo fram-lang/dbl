@@ -158,6 +158,9 @@ and expr_data =
   | EStr of string
     (** String literal *)
 
+  | EChr of char
+    (** String literal *)
+
   | EVar of var
     (** Variable *)
 
@@ -737,6 +740,9 @@ module BuiltinType : sig
 
   (** String type *)
   val tv_string : tvar
+
+  (** Char type *)
+  val tv_char : tvar
 
   (** Unit type *)
   val tv_unit : tvar
