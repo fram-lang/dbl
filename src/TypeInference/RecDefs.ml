@@ -182,7 +182,7 @@ let rec guess_rec_value_type env (e : S.expr) =
   | EAnnot(_, tp) ->
     (Type.tr_ttype env tp, Impure)
 
-  | EUnit | ENum _ | EStr _ | EPoly _ | EApp _ | EDefs _ | EMatch _
+  | EUnit | ENum _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
     (Env.fresh_uvar env T.Kind.k_type, Impure)
 
