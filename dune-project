@@ -5,5 +5,5 @@
 
 (package
   (name dbl)
-  (synopsis "Experimental language with algebraic effects and implicit arguments")
+  (synopsis "Interpreter of Fram: a language with algebraic effects and powerful named parameters")
   (description ""))

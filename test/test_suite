@@ -1,5 +1,5 @@
 function simple_run_tests {
-  for file in test/ok/*.dbl
+  for file in test/ok/*.fram
   do
     simple_test $file
   done
@@ -8,18 +8,18 @@ function simple_run_tests {
 run_with_flags simple_run_tests "-no-prelude -no-stdlib"
 
 function simple_examples {
-  simple_test examples/Tick.dbl
-  simple_test examples/LWT_lexical.dbl
-  simple_test examples/LWT.dbl
-  simple_test examples/Prolog.dbl
-  simple_test examples/Pythagorean.dbl
-  simple_test examples/Modules/Main.dbl
+  simple_test examples/Tick.fram
+  simple_test examples/LWT_lexical.fram
+  simple_test examples/LWT.fram
+  simple_test examples/Prolog.fram
+  simple_test examples/Pythagorean.fram
+  simple_test examples/Modules/Main.fram
 }
 
 run_with_flags simple_examples ""
 
 function simple_error_tests {
-  for file in test/err/*.dbl
+  for file in test/err/*.fram
   do
     exit_code_test 1 $file
   done

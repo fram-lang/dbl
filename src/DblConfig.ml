@@ -4,7 +4,7 @@
 
 (** Global configuration of the interpreter *)
 
-let src_extension = ".dbl"
+let src_extension = ".fram"
 
 let stdlib_path =
   match Sys.getenv_opt "DBL_LIB" with
