@@ -33,7 +33,7 @@ type expr =
       the delimiter. The third parameter is a continuation variable. *)
 
   | EReset of value * value list * expr * var * expr
-    (** Shift-0 operator at given runtime label (the first parameter) and
+    (** Reset-0 operator at given runtime label (the first parameter) and
       which stores a list of values (the second parameter). The last two
       parameters represent a return clause *)
 
