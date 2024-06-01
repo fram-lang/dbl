@@ -61,8 +61,26 @@ let rec equal : type k. k typ -> k typ -> bool =
     end
   | TForall _, _ -> false
 
-  | TLabel(eff1', tp1, eff1), TLabel(eff2', tp2, eff2) ->
-    effect_equal eff1' eff2' && equal tp1 tp2 && effect_equal eff1 eff2
+  | TLabel lbl1, TLabel lbl2 ->
+    effect_equal lbl1.effect lbl2.effect &&
+    begin match
+      tvars_binder_equal ~sub1:Subst.empty ~sub2:Subst.empty
+        lbl1.tvars lbl2.tvars
+    with
+    | None -> false
+    | Some(sub1, sub2) ->
+      List.length lbl1.val_types = List.length lbl2.val_types &&
+      List.for_all2
+        (fun tp1 tp2 ->
+          equal (Subst.in_type sub1 tp1) (Subst.in_type sub2 tp2))
+        lbl1.val_types lbl2.val_types &&
+      equal
+        (Subst.in_type sub1 lbl1.delim_tp)
+        (Subst.in_type sub2 lbl2.delim_tp) &&
+      effect_equal
+        (Subst.in_type sub1 lbl1.delim_eff)
+        (Subst.in_type sub2 lbl2.delim_eff)
+    end
   | TLabel _, _ -> false
 
   | TData(tp1, ctors1), TData(tp2, ctors2) ->
@@ -154,7 +172,7 @@ let rec subtype tp1 tp2 =
   | TForall _, (TUVar _ | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _) ->
     false
 
-  | TLabel(_, _, _), TLabel(_, _, _) -> equal tp1 tp2
+  | TLabel _, TLabel _ -> equal tp1 tp2
   | TLabel _, (TUVar _ | TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
     false
 
@@ -174,6 +192,12 @@ let rec forall_map f xs =
     | Some y, Some ys -> Some (y :: ys)
     | _ -> None
     end
+
+let add_tvars_to_scope tvs scope =
+  List.fold_left
+    (fun scope (TVar.Ex a) -> TVar.Set.add a scope)
+    scope
+    tvs
 
 (** Tries to find an equivalent type, such that all free type variables are
   members of given set ([scope]) *)
@@ -203,13 +227,18 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
     | Some body -> Some (TForall(a, body))
     | None      -> None
     end
-  | TLabel(eff, tp0, eff0) ->
+  | TLabel lbl ->
+    let effect = type_in_scope scope lbl.effect in
+    let scope  = add_tvars_to_scope lbl.tvars scope in
     begin match
-      type_in_scope scope eff,
-      type_in_scope scope tp0,
-      type_in_scope scope eff0
+      effect,
+      forall_map (type_in_scope scope) lbl.val_types,
+      type_in_scope scope lbl.delim_tp,
+      type_in_scope scope lbl.delim_eff
     with
-    | Some eff, Some tp0, Some eff0 -> Some (TLabel(eff, tp0, eff0))
+    | Some effect, Some val_types, Some delim_tp, Some delim_eff ->
+      Some (TLabel
+        { effect; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
     | _ -> None
     end
   | TData(tp, ctors) ->
@@ -227,11 +256,7 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
     end
 
 and ctor_type_in_scope scope ctor =
-  let scope =
-    List.fold_left
-      (fun scope (TVar.Ex a) -> TVar.Set.add a scope)
-      scope
-      ctor.ctor_tvars in
+  let scope = add_tvars_to_scope ctor.ctor_tvars scope in
   match forall_map (type_in_scope scope) ctor.ctor_arg_types with
   | Some tps ->
     Some {

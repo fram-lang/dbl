@@ -56,11 +56,11 @@ let rec tr_expr env (e : S.expr) =
     let r_body = tr_expr env ret_body in
     T.ELet(hx, T.ETApp(hv, h_eff),
       T.ELet(cap_var, T.EApp(T.VVar hx, lv),
-        T.EReset(lv, tr_expr env body, ret_var, r_body)))))
+        T.EReset(lv, [], [], tr_expr env body, ret_var, r_body)))))
 
   | EEffect(l, x, body, tp) ->
     tr_expr_v env l (fun lv ->
-    T.EShift(lv, x, tr_expr env body, Type.tr_ttype env tp))
+    T.EShift(lv, [], [], x, tr_expr env body, Type.tr_ttype env tp))
 
   | ERepl(func, tp, eff) ->
     let tp  = Type.tr_ttype  env tp  in
@@ -123,8 +123,14 @@ and tr_expr_v env (e : S.expr) cont =
     | KEffect ->
       let tp  = Type.tr_ttype  env tp in
       let eff = Type.tr_effect env eff in
-      cont (T.VTFun(a, T.EValue(T.VFn(lx, TLabel(TVar a, tp, eff),
-        tr_expr env h))))
+      let lbl_tp = T.TLabel
+        { effect    = TVar a;
+          tvars     = [];
+          val_types = [];
+          delim_tp  = tp;
+          delim_eff = eff
+        } in
+      cont (T.VTFun(a, T.EValue(T.VFn(lx, lbl_tp, tr_expr env h))))
     | _ ->
       failwith "Internal kind error"
     end

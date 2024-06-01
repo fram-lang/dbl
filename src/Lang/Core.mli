@@ -67,9 +67,22 @@ type _ typ =
   | TForall : 'k tvar * ttype -> ktype typ
     (** Polymorphic type *)
 
-  | TLabel   : effect * ttype * effect -> ktype typ
-    (** Type of first class label. It stores effect of a label as well as
-      type and effect of the context of the delimiter ([EReset]) *)
+  | TLabel : (** Type of the first class label *)
+    { effect    : effect;
+        (** The effect of this label *)
+
+      tvars     : TVar.ex list;
+        (** List of types stored at each delimiter of this label *)
+
+      val_types : ttype list;
+        (** List of types of values stored at each delimiter of this label *)
+
+      delim_tp  : ttype;
+        (** Type of the delimiter *)
+
+      delim_eff : effect
+        (** Effect of the delimiter *)
+    } -> ktype typ
 
   | TData    : ttype * ctor_type list -> ktype typ
     (** Proof of the shape of ADT.
@@ -127,6 +140,12 @@ type data_def =
 
       var       : var;
         (** Regular variable that would store the label *)
+
+      tvars     : TVar.ex list;
+        (** List of existential types stored at each delimiter of this label. *)
+
+      val_types : ttype list;
+        (** List of types of values stored at each delimiter of this label. *)
 
       delim_tp  : ttype;
         (** Type of the delimiter *)
@@ -215,13 +234,14 @@ type expr =
     (** Shallow pattern matching. The first parameter is the proof that the
       type of the matched value is an ADT *)
 
-  | EShift of value * var * expr * ttype
-    (** Shift-0 operator parametrized by runtime tag, binder for continuation
+  | EShift of value * TVar.ex list * var list * var * expr * ttype
+    (** Shift-0 operator parametrized by runtime tag, binders of existential
+      types and values stored at the delimiter, binder for continuation
       variable, body, and the type of the whole expression. *)
 
-  | EReset of value * expr * var * expr
-    (** Reset-0 operator parametrized by runtime tag, body, and the return
-      clause *)
+  | EReset of value * Type.ex list * value list * expr * var * expr
+    (** Reset-0 operator parametrized by runtime tag, list of types and values
+      stored at this delimiter, body, and the return clause *)
 
   | ERepl of (unit -> expr) * ttype * effect
     (** REPL. It is a function that prompts user for another input. It returns

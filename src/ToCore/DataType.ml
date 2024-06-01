@@ -73,6 +73,8 @@ let finalize_data_def env (dd : data_def) =
     T.DD_Label {
       tvar      = dd.tvar;
       var       = dd.var;
+      tvars     = [];
+      val_types = [];
       delim_tp  = Type.tr_ttype  env dd.delim_tp;
       delim_eff = Type.tr_effect env dd.delim_eff
     }

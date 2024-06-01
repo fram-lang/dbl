@@ -79,7 +79,13 @@ and tr_type env tp =
       let tp0  = tr_ttype env tp0 in
       let eff0 = tr_effect env eff0 in
       T.Type.Ex (TForall(x,
-        TArrow(TLabel(TVar x, tp0, eff0), tp, TEffPure)))
+        TArrow(TLabel
+          { effect    = TVar x;
+            tvars     = [];
+            val_types = [];
+            delim_tp  = tp0;
+            delim_eff = eff0
+          }, tp, TEffPure)))
     | _ ->
       failwith "Internal kind error"
     end
@@ -87,7 +93,13 @@ and tr_type env tp =
     let eff  = tr_effect env eff in
     let tp0  = tr_ttype  env tp0 in
     let eff0 = tr_effect env eff0 in
-    T.Type.Ex (TLabel(eff, tp0, eff0))
+    T.Type.Ex (TLabel
+      { effect    = eff;
+        tvars     = [];
+        val_types = [];
+        delim_tp  = tp0;
+        delim_eff = eff0
+      })
   | TApp(tp1, tp2) ->
     let (Ex tp1) = tr_type env tp1 in
     let (Ex tp2) = tr_type env tp2 in

@@ -33,12 +33,13 @@ let rec tr_expr (e : S.expr) =
   | EMatch(_, v, cls, _, _) ->
     tr_value_v v (fun v ->
     T.EMatch(v, List.map tr_clause cls))
-  | EShift(v, x, e, _) ->
+  | EShift(v, _, xs, x, e, _) ->
     tr_value_v v (fun v ->
-    T.EShift(v, x, tr_expr e))
-  | EReset(v, body, x, ret) ->
+    T.EShift(v, xs, x, tr_expr e))
+  | EReset(v, _, vs, body, x, ret) ->
     tr_value_v v (fun v ->
-    T.EReset(v, tr_expr body, x, tr_expr ret))
+    tr_value_vs vs (fun vs ->
+    T.EReset(v, vs, tr_expr body, x, tr_expr ret)))
   | ERepl(func, _, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
   | EReplExpr(e1, tp, e2) ->

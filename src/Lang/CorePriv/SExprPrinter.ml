@@ -46,8 +46,14 @@ let rec tr_type : type k. k typ -> SExpr.t =
   | TVar x -> tr_tvar x
   | TArrow  _ -> List (tr_arrow tp)
   | TForall _ -> List (Sym "forall" :: tr_forall tp)
-  | TLabel(eff, tp0, eff0) ->
-    List [Sym "label"; tr_type eff; tr_type tp0; tr_type eff0 ]
+  | TLabel lbl ->
+    List
+      [ Sym "label";
+        tr_type lbl.effect;
+        List (List.map tr_tvar_binder_ex lbl.tvars);
+        List (List.map tr_type lbl.val_types);
+        tr_type lbl.delim_tp;
+        tr_type lbl.delim_eff ]
   | TData(tp, ctors) ->
     List (Sym "data" :: tr_type tp :: List.map tr_ctor_type ctors)
   | TApp _ -> tr_type_app tp []
@@ -95,6 +101,9 @@ and tr_ctor_type { ctor_name; ctor_tvars; ctor_arg_types } =
     List (List.map tr_tvar_binder_ex ctor_tvars) ::
     List.map tr_type ctor_arg_types)
 
+let tr_type_ex (Type.Ex tp) =
+  tr_type tp
+
 let tr_data_def (dd : Syntax.data_def) =
   match dd with
   | DD_Data adt ->
@@ -127,8 +136,15 @@ let rec tr_expr (e : Syntax.expr) =
     List [ Sym "match"; tr_expr proof; tr_value v;
       List (Sym "clauses" :: List.map tr_clause cls);
       tr_type tp; tr_type eff ]
-  | EShift(v, k, body, tp) ->
-    List [ Sym "shift"; tr_var k; tr_type tp; tr_expr body ]
+  | EShift(v, tvs, xs, k, body, tp) ->
+    List
+      [ Sym "shift";
+        tr_value v;
+        List (List.map tr_tvar_binder_ex tvs);
+        List (List.map tr_var xs);
+        tr_var k;
+        tr_type tp;
+        tr_expr body ]
   | ERepl(_, tp, eff) ->
     List [ Sym "repl"; tr_type tp; tr_type eff ]
   | EReplExpr(e1, tp, e2) ->
@@ -162,8 +178,14 @@ and tr_defs (e : Syntax.expr) =
     List (Sym "let-rec" :: List.map tr_rec_def rds) :: tr_defs e2
   | EData(dds, e2) ->
     List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2
-  | EReset(v, body, x, ret) ->
-    List [Sym "reset"; tr_value v; tr_var x; tr_expr ret] :: tr_defs body
+  | EReset(v, tps, vs, body, x, ret) ->
+    List
+      [ Sym "reset";
+        tr_value v;
+        List (List.map tr_type_ex tps);
+        List (List.map tr_value vs);
+        tr_var x; tr_expr ret
+      ] :: tr_defs body
 
   | EValue _ | EApp _ | ETApp _ | EMatch _ | EShift _ | ERepl _
   | EReplExpr _ ->
