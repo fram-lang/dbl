@@ -96,3 +96,96 @@ let to_string pos =
       pos.pos_fname
       pos.pos_start_line (start_column pos)
       pos.pos_end_line   (end_column pos)
+
+module PrettyPrinting =
+struct
+
+type underline_option =
+  | NoUnderline
+  | UnderlineBegining
+  | UnderlineIfOneLine
+  | UnderlineAlways
+
+type pretty_print_options = {
+  context : int;
+  underline : underline_option;
+  add_line_numbers : bool;
+}
+
+let default_options = {
+  context = 0;
+  underline = UnderlineIfOneLine;
+  add_line_numbers = true;
+}
+
+let generate_underline start_cnum len =
+  if len <= 0 then "" else
+  let underline = String.make len '^' in
+  let padding = String.make (start_cnum - 1) ' ' in
+  padding ^ underline
+
+let add_underline pos options (i, line) : (int option * string) Seq.t =
+  match options.underline, i with
+  | NoUnderline, _ -> Seq.return (i, line)
+  | (UnderlineIfOneLine | UnderlineAlways), Some j
+      when pos.pos_start_line = pos.pos_end_line
+      && pos.pos_start_line = j ->
+    let underline =
+      generate_underline (start_column pos) pos.pos_length in
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineIfOneLine, _ -> Seq.return (i, line)
+  | UnderlineBegining, Some j
+      when pos.pos_start_line = j ->
+    let underline =
+      generate_underline (start_column pos) 1 in
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineBegining, _ -> Seq.return (i, line)
+  | UnderlineAlways, Some j
+      when j = pos.pos_start_line ->
+    let underline =
+      generate_underline (start_column pos) (String.length line - start_column pos) in
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineAlways, Some j
+      when j = pos.pos_end_line ->
+    let underline =
+      generate_underline 0 (end_column pos) in
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineAlways, Some j
+      when j > pos.pos_start_line && j < pos.pos_end_line ->
+    let underline =
+      generate_underline 0 (String.length line) in
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineAlways, _ -> Seq.return (i, line)
+
+
+let add_line_number options end_line =
+  let align_to = Float.of_int end_line
+    |> Float.log10
+    |> Float.to_int
+  in
+  fun (i, line) ->
+    if not options.add_line_numbers then line else
+    match i with
+    | None -> String.make (align_to + 3) ' ' ^ "| " ^ line
+    | Some i ->
+     Printf.sprintf " %*d | %s" (align_to + 1) i line
+
+end
+
+(** Get text from file from given position *)
+let get_text_range ?(options = PrettyPrinting.default_options) (pos : t)=
+  let ch = open_in pos.pos_fname in
+  let lines = In_channel.input_lines ch
+    |> List.to_seq
+    |> Seq.zip (Seq.ints 1 |> Seq.map Option.some)
+    |> Seq.drop (pos.pos_start_line - 1 - options.context)
+    |> Seq.take (pos.pos_end_line - pos.pos_start_line + 1 + options.context)
+    |> Seq.flat_map (PrettyPrinting.add_underline pos options)
+    |> Seq.map (PrettyPrinting.add_line_number options pos.pos_end_line)
+  in
+  close_in ch;
+  let pp_file_name = "-> " ^ pos.pos_fname ^ "\n" in
+  pp_file_name ^ String.concat "\n" @@ List.of_seq lines
+
+
+
