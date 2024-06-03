@@ -14,7 +14,7 @@ let rec make_fun' schs body_f =
     let x = Var.fresh () in
     let body = make_fun' schs (fun xs -> body_f (x :: xs)) in
     { T.pos  = body.T.pos;
-      T.data = T.EFn(x, sch, body)
+      T.data = T.EPureFn(x, sch, body)
     }
 
 (** Make polymorphic function with given type parameters *)
@@ -32,7 +32,7 @@ let rec make_nfun named body =
   | [] -> body
   | (_, x, sch) :: named ->
     { T.pos  = body.T.pos;
-      T.data = T.EFn(x, sch, make_nfun named body)
+      T.data = T.EPureFn(x, sch, make_nfun named body)
     }
 
 (** Same as make_ifun, but creates fresh variables, and pass them to

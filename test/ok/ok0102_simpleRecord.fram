@@ -1,0 +1,5 @@
+data A = B | C
+
+data T = { x : A, y : A }
+
+let swap (v : T) = T { x = v.y, y = v.x }

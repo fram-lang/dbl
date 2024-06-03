@@ -18,6 +18,8 @@ type data_def =
   | DD_Label of
     { tvar      : keffect tvar;
       var       : var;
+      tvars     : TVar.ex list;
+      val_types : ttype list;
       delim_tp  : ttype;
       delim_eff : effect
     }
@@ -32,8 +34,8 @@ type expr =
   | ETApp      : value * 'k typ -> expr
   | EData     of data_def list * expr
   | EMatch    of expr * value * match_clause list * ttype * effect
-  | EShift    of value * var * expr * ttype
-  | EReset    of value * expr * var * expr
+  | EShift    of value * TVar.ex list * var list * var * expr * ttype
+  | EReset    of value * Type.ex list * value list * expr * var * expr
   | ERepl     of (unit -> expr) * ttype * effect
   | EReplExpr of expr * string * expr
 

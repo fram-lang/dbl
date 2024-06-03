@@ -27,6 +27,7 @@ and 'v comp = ('v -> ans) -> ans
 (** Stack frame (related to control operators) *)
 and frame =
   { f_label : UID.t
+  ; f_vals  : value list
   ; f_ret   : (value -> value comp)
   ; f_cont  : (value -> ans)
   }
@@ -49,10 +50,21 @@ let str_fun f = VFn (fun v cont ->
   | VStr s -> cont (f s)
   | _ -> failwith "Runtime error!")
 
+let list_chr_fun f = VFn (fun v cont ->
+  let rec parse_list = function
+  | VCtor(0, []) -> []
+  | VCtor(1, [VNum x; xs]) -> Char.chr x :: parse_list xs 
+  | _ -> failwith "Runtime error!" in
+  cont (f @@ parse_list v))
+
 let v_unit = VCtor(0, [])
 
 let of_bool b =
   VCtor((if b then 1 else 0), [])
+
+let rec of_list = function
+  | [] -> VCtor(0, [])
+  | x :: xs -> VCtor(1, [x; of_list xs]) 
 
 let int2_fun f = int_fun (fun x -> int_fun (f x))
 
@@ -88,8 +100,12 @@ let extern_map =
     "dbl_geStr",   str_cmpop ( >= );
     "dbl_leStr",   str_cmpop ( <= );
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
-    "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum(Char.code s.[n])));
+    "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum (Char.code s.[n])));
     "dbl_strMake", int_fun (fun n -> VStr (String.make 1 (Char.chr n)));
+    "dbl_chrToString",  int_fun (fun c -> VStr (Char.escaped (Char.chr c)));
+    "dbl_chrListToStr", list_chr_fun (fun xs -> VStr (List.to_seq xs |> String.of_seq));
+    "dbl_chrCode",    int_fun (fun c -> VNum c);
+    "dbl_intToChr",   int_fun (fun n -> VNum n);
     "dbl_printStrLn", str_fun (fun s -> print_endline s; v_unit);
     "dbl_printStr",   str_fun (fun s -> print_string s; v_unit);
     "dbl_printInt",   int_fun (fun n -> print_int n; v_unit);
@@ -139,25 +155,24 @@ let run_stack v stack =
   | f :: stack -> f.f_ret v f.f_cont stack
 
 (** reset0 operator *)
-let reset0 l comp ret cont stack =
-  comp run_stack ({ f_label = l; f_ret = ret; f_cont = cont } :: stack)
+let reset0 l vs comp ret cont stack =
+  comp run_stack
+    ({ f_label = l; f_vals = vs; f_ret = ret; f_cont = cont } :: stack)
 
 let rec reify_cont gstack v cont stack =
   match gstack with
   | [] -> cont v stack
   | f :: gstack ->
-    reify_cont gstack v f.f_cont
-      ({ f_label = f.f_label; f_ret = f.f_ret; f_cont = cont } :: stack)
+    reify_cont gstack v f.f_cont ({ f with f_cont = cont } :: stack)
 
 let rec grab l comp cont gstack stack =
   match stack with
   | [] -> failwith "Unhandled effect"
   | f :: stack ->
-    let gstack =
-      { f_label = f.f_label; f_ret = f.f_ret; f_cont = cont } :: gstack in
+    let gstack = { f with f_cont = cont } :: gstack in
     let cont = f.f_cont in
     if f.f_label = l then
-      comp (VFn(reify_cont gstack)) cont stack
+      comp f.f_vals (VFn(reify_cont gstack)) cont stack
     else
       grab l comp cont gstack stack
 
@@ -195,16 +210,22 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
   | ELabel(x, e) ->
     let l = UID.fresh () in
     eval_expr (Env.extend env x (VLabel l)) e cont
-  | EShift(v, x, e) ->
+  | EShift(v, xs, x, e) ->
     begin match eval_value env v with
     | VLabel l ->
-      shift0 l (fun k -> eval_expr (Env.extend env x k) e) cont
+      shift0 l
+        (fun vs k ->
+          let env = List.fold_left2 Env.extend env xs vs in
+          let env = Env.extend env x k in
+          eval_expr env e)
+        cont
     | _ -> failwith "Runtime error!"
     end
-  | EReset(v, e1, x, e2) ->
+  | EReset(v, vs, e1, x, e2) ->
     begin match eval_value env v with
     | VLabel l ->
-      reset0 l (eval_expr env e1)
+      let vs = List.map (eval_value env) vs in
+      reset0 l vs (eval_expr env e1)
         (fun v -> eval_expr (Env.extend env x v) e2)
         cont
     | _ -> failwith "Runtime error!"

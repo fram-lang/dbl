@@ -7,7 +7,7 @@
 import List
 
 (* We start by defining the standard State effect representing a single
-  mutable cell. Note that in DBL an effect signature is an ordinary record
+  mutable cell. Note that in Fram an effect signature is an ordinary record
   of functions. A special type parameter `(effect E)` is the effect of these
   effectful function, and this parameter will be automatically instantiated
   by handlers. Moreover, the presented signature of the State effect contains
@@ -15,7 +15,7 @@ import List
   some other languages with algebraic effects might turn out to be
   troublesome, as a handler of `update f` should call function `f` at the call
   site of `update`, where potentially more effects (described by `Row`) are
-  available. In DBL, update function can be implemented on top of more
+  available. In Fram, update function can be implemented on top of more
   primitive `get` and `put`, even if it is a part of the interface. *)
 data State (effect E) X = State of
   { get    : Unit ->[E] X
@@ -84,7 +84,7 @@ data LWT_S Row = LWT of
   }
 
 (* For accessing operations of LWT effect we use an another mechanism
-  available in DBL, i.e., methods. We can associate functions with each
+  available in Fram, i.e., methods. We can associate functions with each
   datatype and use usual dot syntax for accessing them. The main advantage of
   methods is that the same name of the method can be used with many different
   datatypes leading to a more concise and readable code. *)

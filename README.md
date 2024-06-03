@@ -1,12 +1,14 @@
 DBL
 ===
 
-DBL is an experimental programming language designed around the idea of
-combining lexically scoped effect handlers with a powerful mechanism of
-implicit and named parameters in a strongly-typed setting. The language is
-still in the development phase, but core features are already implemented,
-together with other language features like ML-style parametric polymorphism,
-rank-N types, mutually recursive data-types, and pattern-matching.
+DBL is an interpreter of Fram, an experimental programming language designed
+around the idea of combining lexically scoped effect handlers with a powerful
+mechanism of implicit and named parameters in a strongly-typed setting. The
+main goal of DBL interpreter is providing a tool for bootstrapping
+[Fram compiler](https://github.com/fram-lang/fram). DBL implements core and
+some of advanced language features, including ML-style parametric polymorphism,
+rank-N types, mutually recursive data-types and definitions, existential types,
+and pattern-matching.
 
 Requirements
 ------------
@@ -36,7 +38,7 @@ $ dbl
 > 
 ```
 You can also run programs in a batch mode, by providing a file to execute
-as a command-line argument (e.g., `dbl filename.dbl`).
+as a command-line argument (e.g., `dbl filename.fram`).
 
 If you didn't install DBL via `dune install` (or OPAM, generally) then
 it's recommended to set the `DBL_LIB` environmental variable to the `lib`

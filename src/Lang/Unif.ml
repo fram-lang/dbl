@@ -56,12 +56,20 @@ module BuiltinType = UnifPriv.BuiltinType
 
 type var = Var.t
 
-type data_def = {
-  dd_tvar  : tvar;
-  dd_proof : var;
-  dd_args  : named_tvar list;
-  dd_ctors : ctor_decl list
-}
+type data_def =
+  | DD_Data of
+    { tvar  : tvar;
+      proof : var;
+      args  : named_tvar list;
+      ctors : ctor_decl list
+    }
+
+  | DD_Label of
+    { tvar      : tvar;
+      var       : var;
+      delim_tp  : typ;
+      delim_eff : effrow
+    }
 
 type pattern = pattern_data node
 and pattern_data =
@@ -74,6 +82,7 @@ and expr_data =
   | EUnitPrf
   | ENum        of int
   | EStr        of string
+  | EChr        of char
   | EVar        of var
   | EPureFn     of var * scheme * expr
   | EFn         of var * scheme * expr
@@ -81,12 +90,11 @@ and expr_data =
   | EApp        of expr * expr
   | ETApp       of expr * typ
   | ELet        of var * scheme * expr * expr
-  | ELetRec     of (var * scheme * expr) list * expr
+  | ELetRec     of rec_def list * expr
   | ECtor       of expr * int * typ list * expr list
   | EData       of data_def list * expr
   | EMatchEmpty of expr * expr * typ * effrow
   | EMatch      of expr * match_clause list * typ * effrow
-  | ELabel      of tvar * var * typ * effrow * expr
   | EHandle     of
     { label      : expr;
       effect     : effect;
@@ -102,6 +110,8 @@ and expr_data =
   | EExtern     of string * typ
   | ERepl       of (unit -> expr) * typ * effrow
   | EReplExpr   of expr * string * expr
+
+and rec_def = var * scheme * expr
 
 and match_clause = pattern * expr
 

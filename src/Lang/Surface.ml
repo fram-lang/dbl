@@ -140,11 +140,6 @@ and ctor_decl_data = {
   cd_arg_schemes : scheme_expr list
 }
 
-(** Definition of ADT *)
-type data_def = data_def_data node
-and data_def_data =
-  | DD_Data of is_public * tvar * named_type_arg list * ctor_decl list
-
 (** Patterns *)
 type pattern = pattern_data node
 and pattern_data =
@@ -203,6 +198,9 @@ and expr_data =
   | EStr of string
     (** String literal *)
 
+  | EChr of char
+    (** Char literal *)
+
   | EPoly of poly_expr * type_inst list * inst list
     (** Polymorphic expression with partial explicit instantiation, possibly
       empty *)
@@ -255,9 +253,6 @@ and def_data =
   | DMethodFn of is_public * var * method_name
     (** Declaration of function that should be interpreted as a method *)
 
-  | DFunRec of rec_fun list
-    (** Mutually recursive functions *)
-
   | DLabel   of type_arg option * pattern
     (** Creating a new label. Optional type argument binds newly created
       effect. *)
@@ -287,11 +282,11 @@ and def_data =
     (** Declaration of implicit. The second parameter is a list of types
       that may differ between different uses of the implicit *)
 
-  | DData of data_def
+  | DData of is_public * tvar * named_type_arg list * ctor_decl list
     (** Definition of non-recursive ADT *)
 
-  | DDataRec of data_def list
-    (** Definition of mutually recursive ADTs *)
+  | DRec of def list
+    (** Mutually recursive definitions *)
 
   | DModule of is_public * module_name * def list
     (** Definition of a module *)
@@ -302,11 +297,6 @@ and def_data =
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
-
-(** Recursive function *)
-and rec_fun = rec_fun_data node
-and rec_fun_data =
-  | RecFun of ident * named_type_arg list * named_arg list * expr
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

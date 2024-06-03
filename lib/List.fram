@@ -82,7 +82,7 @@ pub let mapi f xs =
   let rec mapiAux (i : Int) f xs =
     match xs with
     | []      => []
-    | x :: xs => (f i x) :: mapiAux (i+1) f xs
+    | x :: xs => f i x :: mapiAux (i + 1) f xs
     end
   in mapiAux 0 f xs
 
@@ -168,14 +168,14 @@ pub let rec dropWhile p xs =
 pub let rec iter f xs =
   match xs with
   | []      => ()
-  | x :: xs => let () = f x in iter f xs
+  | x :: xs => f x; iter f xs
   end
 
 pub let iteri f xs =
   let rec iteriAux (i : Int) xs =
     match xs with
     | []      => ()
-    | x :: xs => let _ = f i x in iteriAux (i + 1) xs
+    | x :: xs => f i x; iteriAux (i + 1) xs
     end
   in iteriAux 0 xs
 
@@ -183,15 +183,15 @@ pub let iter2 { `onError } f xs ys =
   let rec iter2Aux xs ys =
     match xs, ys with
     | [],      []      => ()
-    | x :: xs, y :: ys => let _ = f x y in iter2Aux xs ys
+    | x :: xs, y :: ys => f x y; iter2Aux xs ys
     | _                => `onError ()
     end
   in iter2Aux xs ys
 
 pub let init (len : Int) f =
   let rec initAux (i : Int) f =
-    if i > len - 1 then []
-    else (f i) :: initAux (i+1) f
+    if i >= len then []
+    else f i :: initAux (i + 1) f
   in initAux 0 f
 
 pub let rec foldLeft f acc xs =
@@ -364,7 +364,7 @@ pub let mem
   let rec memAux (xs : List E) =
     match xs with
     | []      => False
-    | x :: xs => v.equal x || memAux xs
+    | x :: xs => v == x || memAux xs
     end
   in memAux xs
 
@@ -380,14 +380,16 @@ pub let equal
   in equalAux xs ys
 
 (* method versions of these functions *)
+implicit `onError
+
 pub method isEmpty = isEmpty self
 pub method length = length self
 pub method hd = hd self
-pub method hdErr { `onError } = hdErr self
+pub method hdErr = hdErr self
 pub method tl = tl self
-pub method tlErr { `onError } = tlErr self
+pub method tlErr = tlErr self
 pub method nth n = nth self n
-pub method nthErr { `onError } n = nthErr self n
+pub method nthErr n = nthErr self n
 pub method append ys = append self ys
 pub method add ys = append self ys
 pub method revAppend ys = revAppend self ys
@@ -410,19 +412,19 @@ pub method foldRight f acc = foldRight f self acc
 pub method forAll p = forAll p self
 pub method exists p = exists p self
 pub method find p = find p self
-pub method findErr { `onError } p = findErr p self
+pub method findErr p = findErr p self
 pub method findIndex p = findIndex p self
-pub method findIndexErr { `onError } p = findIndexErr p self
+pub method findIndexErr p = findIndexErr p self
 pub method findMap f = findMap f self
-pub method findMapErr { `onError } f = findMapErr f self
+pub method findMapErr f = findMapErr f self
 pub method findMapi f = findMapi f self
-pub method findMapiErr { `onError } f = findMapiErr f self
+pub method findMapiErr f = findMapiErr f self
 pub method foldLeftMap f acc = foldLeftMap f acc self
 pub method foldLeftFilterMap f acc = foldLeftFilterMap f acc self
 pub method foldLeftConcatMap f acc = foldLeftConcatMap f acc self
 pub method mem { E, method equal : E -> E ->[] Bool } v =
-  mem {E = E} v self
+  mem {E} v self
 pub method equal { E, method equal : E -> E ->[] Bool } xs =
-  equal {E = E} self xs
+  equal {E} self xs
 pub method neq { E, method equal : E -> E ->[] Bool } xs =
-  not (equal {E = E} self xs)
+  not (equal {E} self xs)

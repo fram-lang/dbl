@@ -46,8 +46,15 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (sub, x) = add_tvar sub x in
     TForall(x, in_type_rec sub tp)
-  | TLabel(eff, tp0, eff0) ->
-    TLabel(in_type_rec sub eff, in_type_rec sub tp0, in_type_rec sub eff0)
+  | TLabel lbl ->
+    let effect = in_type_rec sub lbl.effect in
+    let (sub, tvars) = add_tvars sub lbl.tvars in
+    TLabel
+      { effect; tvars;
+        val_types = List.map (in_type_rec sub) lbl.val_types;
+        delim_tp  = in_type_rec sub lbl.delim_tp;
+        delim_eff = in_type_rec sub lbl.delim_eff
+      }
   | TData(tp, ctors) ->
     TData(in_type_rec sub tp, List.map (in_ctor_type_rec sub) ctors)
   | TApp(tp1, tp2) ->

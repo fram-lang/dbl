@@ -78,3 +78,9 @@ let multiple_self_parameters pos =
 let abstr_data_in_pub_block pos = 
   (Some pos, "This 'abstr' data modifier has no effect. \
   It is overridden by 'public' of entire group of definitions.")
+
+let existential_type_arg_in_record pos =
+  (Some pos, "Existential type arguments are not allowed in record types")
+
+let ignored_field_in_record pos =
+  (Some pos, "This construct is ignored in records")

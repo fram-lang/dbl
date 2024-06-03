@@ -126,8 +126,15 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, tr_type env tp)
-  | TLabel(eff, tp0, eff0) ->
-    TLabel(tr_type env eff, tr_type env tp0, tr_type env eff0)
+  | TLabel lbl ->
+    let effect = tr_type env lbl.effect in
+    let (env, tvars) = Env.add_tvars env lbl.tvars in
+    TLabel
+      { effect; tvars;
+        val_types = List.map (tr_type env) lbl.val_types;
+        delim_tp  = tr_type env lbl.delim_tp;
+        delim_eff = tr_type env lbl.delim_eff
+      }
   | TData(tp, ctors) ->
     TData(tr_type env tp, List.map (tr_ctor_type env) ctors)
   | TApp(tp1, tp2) ->
@@ -206,9 +213,13 @@ let finalize_data_def (env, dd_eff) dd =
     (env, dd_eff)
 
   | DD_Label lbl ->
-    let tp  = tr_type env lbl.delim_tp in
-    let eff = tr_type env lbl.delim_eff in
-    let env = Env.add_var env lbl.var (TLabel(TVar lbl.tvar, tp, eff)) in
+    let effect = TVar lbl.tvar in
+    let (eff_env, tvars) = Env.add_tvars env lbl.tvars in
+    let val_types = List.map (tr_type eff_env) lbl.val_types in
+    let delim_tp  = tr_type eff_env lbl.delim_tp in
+    let delim_eff = tr_type eff_env lbl.delim_eff in
+    let lbl_tp = TLabel { effect; tvars; val_types; delim_tp; delim_eff } in
+    let env = Env.add_var env lbl.var lbl_tp in
     (* We add nterm effect, since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
 
@@ -290,13 +301,19 @@ let rec infer_type_eff env e =
       failwith "Internal type error"
     end
 
-  | EShift(v, k, body, tp) ->
+  | EShift(v, tvs, xs, k, body, tp) ->
     begin match infer_vtype env v with
-    | TLabel(eff, tp0, eff0) ->
+    | TLabel lbl ->
       let tp = tr_type env tp in
+      let (env, sub) = tr_tvars_sub env Subst.empty tvs lbl.tvars in
+      let tps  = List.map (Subst.in_type sub) lbl.val_types in
+      let tp0  = Subst.in_type sub lbl.delim_tp in
+      let eff0 = Subst.in_type sub lbl.delim_eff in
+      assert (List.length xs = List.length tps);
+      let env = List.fold_left2 Env.add_var env xs tps in
       let env = Env.add_var env k (TArrow(tp, tp0, eff0)) in
       check_type_eff env body tp0 eff0;
-      (tp, eff)
+      (tp, lbl.effect)
 
     | TUVar _ ->
       InterpLib.InternalError.report
@@ -305,13 +322,21 @@ let rec infer_type_eff env e =
       failwith "Internal type error"
     end
 
-  | EReset(v, body, x, ret) ->
+  | EReset(v, tps, vs, body, x, ret) ->
     begin match infer_vtype env v with
-    | TLabel(eff, tp0, eff0) ->
-      let x_tp = infer_type_check_eff env body (TEffJoin(eff, eff0)) in
+    | TLabel lbl ->
+      let sub = tr_types_sub env Subst.empty lbl.tvars tps in
+      if List.length lbl.val_types <> List.length vs then
+        failwith "Internal type error (constructor arity)";
+      List.iter2 (check_vtype env) vs
+        (List.map (Subst.in_type sub) lbl.val_types);
+      let delim_tp = Subst.in_type sub lbl.delim_tp in
+      let delim_eff = Subst.in_type sub lbl.delim_eff in
+      let x_tp =
+        infer_type_check_eff env body (TEffJoin(lbl.effect, delim_eff)) in
       let env = Env.add_var env x x_tp in
-      check_type_eff env ret tp0 eff0;
-      (tp0, eff0)
+      check_type_eff env ret delim_tp delim_eff;
+      (delim_tp, delim_eff)
 
     | TUVar _ ->
       InterpLib.InternalError.report
@@ -393,7 +418,12 @@ and check_vtype env v tp =
   let tp' = infer_vtype env v in
   if Type.subtype tp' tp then
     ()
-  else failwith "Internal type error"
+  else InterpLib.InternalError.report
+    ~reason:"type mismatch"
+    ~sloc:(SExprPrinter.tr_value v)
+    ~requested:(SExprPrinter.tr_type tp)
+    ~provided:(SExprPrinter.tr_type tp')
+    ();
 
 and check_rec_defs env rds =
   let rec_vars = List.map (fun (x, _, _) -> x) rds in
