@@ -179,13 +179,17 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
       | Some i ->
        Printf.sprintf " %*d | %s" (align_to + 1) i line
   in
-if Fun.negate Sys.file_exists pos.pos_fname then None else
+  if Fun.negate Sys.file_exists pos.pos_fname then None else
   let ch = match channel with
     | None -> open_in pos.pos_fname
     | Some ch -> ch
   in
-  let lines = In_channel.input_lines ch
-    |> List.to_seq
+  let rec lines_seq () =
+    match In_channel.input_line ch with
+    | None -> Seq.Nil
+    | Some line -> Seq.Cons (line, lines_seq)
+  in
+  let lines = lines_seq
     |> Seq.zip (Seq.ints 1 |> Seq.map Option.some)
     |> Seq.drop (pos.pos_start_line - 1 - options.context |> Int.max 0)
     |> Seq.take (pos.pos_end_line - pos.pos_start_line + 1 + 2*options.context)
