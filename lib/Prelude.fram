@@ -46,6 +46,7 @@ pub method le    = (extern dbl_leInt  : Int -> Int -> Bool) self
 
 pub method toString = (extern dbl_intToString : Int -> String) self
 
+pub method neg = (extern dbl_negInt : Int -> Int) self
 pub method add = (extern dbl_addInt : Int -> Int -> Int) self
 pub method sub = (extern dbl_subInt : Int -> Int -> Int) self
 pub method mul = (extern dbl_mulInt : Int -> Int -> Int) self

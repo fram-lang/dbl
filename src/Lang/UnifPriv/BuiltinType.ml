@@ -7,6 +7,8 @@
 (** Int type *)
 let tv_int = TVar.fresh KindBase.k_type
 
+(** Int64 type *)
+let tv_int64 = TVar.fresh KindBase.k_type
 (** String type *)
 let tv_string = TVar.fresh KindBase.k_type
 
@@ -22,6 +24,7 @@ let tv_io = TVar.fresh KindBase.k_effect
 (** List of all built-in types together with their names *)
 let all =
   [ "Int",    tv_int;
+    "Int64",  tv_int64;
     "String", tv_string;
     "Char",   tv_char;
     "Unit",   tv_unit;

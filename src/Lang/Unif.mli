@@ -155,6 +155,9 @@ and expr_data =
   | ENum of int
     (** Integer literal *)
 
+  | ENum64 of int64
+    (** 64 bit integer literal *)
+
   | EStr of string
     (** String literal *)
 
@@ -737,6 +740,9 @@ end
 module BuiltinType : sig
   (** Int type *)
   val tv_int : tvar
+
+  (** Int type *)
+  val tv_int64 : tvar
 
   (** String type *)
   val tv_string : tvar

@@ -9,6 +9,9 @@ type value =
   | VNum of int
     (** Number *)
 
+  | VNum64 of int64
+    (** 64 bit number *)
+
   | VStr of string
     (** String *)
 
@@ -68,13 +71,27 @@ let rec of_list = function
 
 let int2_fun f = int_fun (fun x -> int_fun (f x))
 
+let int_unop  op = int_fun  (fun x -> VNum (op x))
 let int_binop op = int2_fun (fun x y -> VNum (op x y))
 let int_cmpop op = int2_fun (fun x y -> of_bool (op x y))
+
+let int64_fun f = VFn (fun v cont ->
+  match v with
+  | VNum64 n -> cont (f n)
+  | _ -> failwith "Runtime error!")
+
+let int64'2_fun f = int64_fun (fun x -> int64_fun (f x))
+
+let int64_unop  op = int64_fun  (fun x -> VNum64 (op x))
+let int64_binop op = int64'2_fun (fun x y -> VNum64 (op x y))
+let int64_int_op op = int64'2_fun (fun x y -> VNum64 (op x (Int64.to_int y)))
+let int64_cmpop op = int64'2_fun (fun x y -> of_bool (op x y))
 
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
 
 let extern_map =
-  [ "dbl_addInt",      int_binop ( + );
+  [ "dbl_negInt",      int_unop ( ~- );
+    "dbl_addInt",      int_binop ( + );
     "dbl_subInt",      int_binop ( - );
     "dbl_mulInt",      int_binop ( * );
     "dbl_divInt",      int_binop ( / );
@@ -111,6 +128,27 @@ let extern_map =
     "dbl_printInt",   int_fun (fun n -> print_int n; v_unit);
     "dbl_readLine",   unit_fun (fun () -> VStr (read_line ()));
     "dbl_exit",       int_fun exit;
+    "dbl_negInt64",      int64_unop Int64.neg;
+    "dbl_addInt64",      int64_binop Int64.add;
+    "dbl_subInt64",      int64_binop Int64.sub;
+    "dbl_mulInt64",      int64_binop Int64.mul;
+    "dbl_divInt64",      int64_binop Int64.div;
+    "dbl_modInt64",      int64_binop Int64.rem;
+    "dbl_andInt64",      int64_binop Int64.logand;
+    "dbl_orInt64",       int64_binop Int64.logor;
+    "dbl_xorInt64",      int64_binop Int64.logxor;
+    "dbl_lslInt64",      int64_int_op Int64.shift_left;
+    "dbl_lsrInt64",      int64_int_op Int64.shift_right_logical;
+    "dbl_asrInt64",      int64_int_op Int64.shift_right;
+    "dbl_eqInt64",       int64_cmpop ( = );
+    "dbl_neqInt64",      int64_cmpop ( <> );
+    "dbl_gtInt64",       int64_cmpop ( > );
+    "dbl_ltInt64",       int64_cmpop ( < );
+    "dbl_geInt64",       int64_cmpop ( >= );
+    "dbl_leInt64",       int64_cmpop ( <= );
+    "dbl_intToInt64",    int_fun (fun n -> VNum64 (Int64.of_int n));
+    "dbl_int64ToInt",    int64_fun (fun n -> VNum (Int64.to_int n));
+    "dbl_int64ToString", int64_fun (fun n -> VStr (Int64.to_string n));
   ] |> List.to_seq |> Hashtbl.of_seq
 
 (* ========================================================================= *)
@@ -118,6 +156,7 @@ let extern_map =
 let to_string (v : value) =
   match v with
   | VNum n   -> string_of_int n
+  | VNum64 n   -> Int64.to_string n
   | VStr s   -> Printf.sprintf "\"%s\"" (String.escaped s)
   | VFn    _ -> "<fun>"
   | VCtor  _ -> "<ctor>"
@@ -240,6 +279,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
 and eval_value env (v : Lang.Untyped.value) =
   match v with
   | VNum n -> VNum n
+  | VNum64 n -> VNum64 n
   | VStr s -> VStr s
   | VVar x -> Env.lookup env x
   | VFn(x, body) ->

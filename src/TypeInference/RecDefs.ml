@@ -182,7 +182,7 @@ let rec guess_rec_value_type env (e : S.expr) =
   | EAnnot(_, tp) ->
     (Type.tr_ttype env tp, Impure)
 
-  | EUnit | ENum _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _ | EMatch _
+  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
     (Env.fresh_uvar env T.Kind.k_type, Impure)
 
@@ -419,7 +419,7 @@ let update_rec_body (fds : def6 list) (fd : def6) =
   let rec update (body : T.expr) =
     let make data = { body with data = data } in
     match body.T.data with
-    | EUnitPrf | ENum _ | EStr _ | EChr _ | EExtern _ -> body
+    | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EExtern _ -> body
     | EVar x ->
       if List.exists (fun fd -> Var.equal x fd.d6_mono_var) fds then
         Error.fatal (Error.non_productive_rec_def ~pos:body.pos);
