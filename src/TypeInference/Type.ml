@@ -112,7 +112,7 @@ and tr_named_scheme env (nsch : S.named_scheme) =
   match name with
   | NLabel      ->
     let { T.sch_targs; sch_named; sch_body } = sch in
-    if not (T.Scheme.is_monomorphic sch) then
+    if not (List.is_empty sch_targs && List.is_empty sch_named) then
       Error.fatal (Error.polymorphic_label ~pos:nsch.pos);
     begin match Unification.as_label env sch_body with
     | L_Label _  -> (T.NLabel, sch)
