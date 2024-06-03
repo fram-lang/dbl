@@ -291,7 +291,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EVar _ | EImplicit _
   | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
   | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _)
-  | EPub _ ->
+  | EPub _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -333,7 +333,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EPub p -> make (tr_pattern ~public:true p).data
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ ->
+  | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
 and tr_named_pattern ~public (fld : Raw.field) =
@@ -370,7 +370,7 @@ let rec tr_function_arg (arg : Raw.expr) =
     ArgPattern (tr_pattern ~public:false arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ | EPub _ ->
+  | EMethod _ | EExtern _ | EIf _ | EPub _ | EMethodCall _ ->
     Error.fatal (Error.desugar_error arg.pos)
 
 let tr_named_arg (fld : Raw.field) =
@@ -423,7 +423,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
     | EMatch _ | EHandler _| EEffect _ | ERecord _ | EMethod _ 
-    | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EPub _ ->
+    | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EPub _ | EMethodCall _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
 
@@ -432,7 +432,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
     LP_Pat (tr_pattern ~public p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ ->
+  | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a function, given a list of formal parameters *)
@@ -484,13 +484,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
     | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
     | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
-    | EList (_ :: _) | EPub _ ->
+    | EList (_ :: _) | EPub _ | EMethodCall _ ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
   | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-  | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _ ->
+  | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
+  | EMethodCall _ ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_expr (e : Raw.expr) =
@@ -515,6 +516,9 @@ and tr_expr (e : Raw.expr) =
         } in
       tr_expr_app e1 es
     end
+  | EMethodCall(e1, name, es) ->
+      let e1 = make (Raw.EMethod(e1, name)) in
+      tr_expr_app (tr_expr e1) es
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
   | EHandler h     -> make (EHandler (tr_expr h))
