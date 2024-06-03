@@ -149,12 +149,17 @@ and pattern_data =
   | PId of ident
     (** Pattern that binds an identifier*)
 
-  | PCtor of ctor_name path node * named_type_arg list *
-             named_pattern list * pattern list
+  | PCtor of ctor_name path node * ctor_pattern_named * pattern list
     (** ADT constructor pattern *)
 
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
+
+and ctor_pattern_named =
+  | CNParams of named_type_arg list * named_pattern list
+    (** Named type parameters and named patterns of a constructor *)
+  | CNModule of module_name
+    (** Bind all named parameters under the specified module name *)
 
 (** Pattern for named parameter *)
 and named_pattern = (name * pattern) node

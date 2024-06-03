@@ -490,6 +490,7 @@ field
 | name                  { make (FldName $1)           }
 | name EQ expr_no_comma { make (FldNameVal($1, $3))   }
 | name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
+| KW_MODULE UID         { make (FldModule $2)         }
 ;
 
 field_list

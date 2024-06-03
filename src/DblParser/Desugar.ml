@@ -211,7 +211,7 @@ and tr_scheme_field (fld : Raw.ty_field) =
     Either.Right (make (n, sch))
   | FldNameVal(n, tp) ->
     Either.Right (make (n, tr_scheme_expr tp))
-  | FldNameAnnot _ ->
+  | FldNameAnnot _ | FldModule _ ->
     assert false
 
 (** Translate a type expression as a type parameter *)
@@ -300,7 +300,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   match p.data with
   | EWildcard   -> make PWildcard
   | EUnit | ECtor _ | ESelect _ ->
-    make (PCtor(make (tr_ctor_pattern p), [], [], []))
+    make (PCtor(make (tr_ctor_pattern p), CNParams([], []), []))
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
@@ -312,23 +312,31 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EApp(p1, ps) ->
     let cpath = { p1 with data = tr_ctor_pattern p1 } in
     let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
-    let (targs, iargs) = map_inst_like (tr_named_pattern ~public) flds in
-    make (PCtor(cpath, targs, iargs, List.map (tr_pattern ~public) ps))
+    let ps = List.map (tr_pattern ~public) ps in
+    begin match flds with
+    | [ { data = FldModule name; _ } ] ->
+      make (PCtor(cpath, CNModule name, ps))
+    | _ ->
+      let (targs, iargs) = map_inst_like (tr_named_pattern ~public) flds in
+      make (PCtor(cpath, CNParams(targs, iargs), ps))
+    end
   | EAnnot(p, sch) -> make (PAnnot(tr_pattern ~public p, tr_scheme_expr sch))
   | EBOp(p1, op, p2) ->
     let c_name = {op with data = NPName (tr_bop_id op)} in
-    make (PCtor(c_name, [], [], [tr_pattern ~public p1; tr_pattern ~public p2]))
+    let ps = [tr_pattern ~public p1; tr_pattern ~public p2] in
+    make (PCtor(c_name, CNParams([], []), ps))
   | EUOp(op, p1) ->
     let c_name = {op with data = NPName (make_uop_id op.data)} in
-    make (PCtor(c_name, [], [], [tr_pattern ~public p1]))
+    make (PCtor(c_name, CNParams([], []), [tr_pattern ~public p1]))
   | EList ps ->
     let cons pe xs =
       let pe  = tr_pattern ~public pe in
       let pos = Position.join pe.pos p.pos in
       let cpath = make (NPName (tr_ctor_name' (CNBOp "::"))) in
-      { pos; data = PCtor(cpath, [], [], [pe; xs]) }
+      { pos; data = PCtor(cpath, CNParams([], []), [pe; xs]) }
     in
-    let pnil = make (PCtor(make (NPName (tr_ctor_name' CNNil)), [], [], [])) in
+    let nil_path = make (NPName (tr_ctor_name' CNNil)) in
+    let pnil = make (PCtor(nil_path, CNParams([], []), [])) in
     make (List.fold_right cons ps pnil).data
   | EPub p -> make (tr_pattern ~public:true p).data
 
@@ -358,6 +366,8 @@ and tr_named_pattern ~public (fld : Raw.field) =
     Either.Right
       (make (n, make (PAnnot(make (PId (ident_of_name n)),
                              tr_scheme_expr sch))))
+  | FldModule _ ->
+    Error.fatal (Error.desugar_error fld.pos)
 
 (** Translate a formal parameter of a function *)
 let rec tr_function_arg (arg : Raw.expr) =
@@ -394,6 +404,9 @@ let tr_named_arg (fld : Raw.field) =
   | FldNameAnnot(n, sch) ->
     Either.Right
       (make (n, ArgAnnot(make (PId (ident_of_name n)), tr_scheme_expr sch)))
+  | FldModule _ ->
+    (* TODO: This might eventually be supported. *)
+    Error.fatal (Error.desugar_error fld.pos)
 
 (** Translate an expression as a let-pattern. *)
 let rec tr_let_pattern ~public (p : Raw.expr) =
@@ -533,10 +546,10 @@ and tr_expr (e : Raw.expr) =
       | Some e2 -> (e1, e2)
       | None -> (annot_tp e1 RawTypes.unit, with_nowhere Raw.EUnit)
     in
-    let cl1 =
-      Clause(make (PCtor(make (NPName "True"), [], [], [])), tr_expr e1) in
-    let cl2 =
-      Clause(make (PCtor(make (NPName "False"), [], [], [])), tr_expr e2) in
+    let ctrue  = make (PCtor(make (NPName "True"), CNParams([], []), [])) in
+    let cfalse = make (PCtor(make (NPName "False"), CNParams([], []), [])) in
+    let cl1 = Clause(ctrue, tr_expr e1) in
+    let cl2 = Clause(cfalse, tr_expr e2) in
     make (EMatch(tr_expr e, [make cl1; make cl2]))
   | ESelect(path, e) ->
     make (EDefs([ make (DOpen(false, path)) ], tr_expr e))
@@ -615,6 +628,9 @@ and tr_explicit_inst (fld : Raw.field) =
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
     Either.Right (make (n, tr_expr e))
+  | FldModule _ ->
+    (* TODO: This should eventually be supported. *)
+    Error.fatal (Error.desugar_error fld.pos)
   | FldEffect | FldNameAnnot _ | FldType(_, Some _) ->
     Error.fatal (Error.desugar_error fld.pos)
 
@@ -825,8 +841,7 @@ and generate_accessor_method_pattern named_type_args type_name =
   let pattern_gen field =
     ArgAnnot(make (PCtor(
       make (NPName type_name),
-      [],
-      [make (NVar field, make (PId(IdVar(false, field))))],
+      CNParams([], [make (NVar field, make (PId(IdVar(false, field))))]),
       [])), type_annot) in
   new_named_type_args, pattern_gen
 

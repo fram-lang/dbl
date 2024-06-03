@@ -140,7 +140,68 @@ let get_ctor_info ~pos ~env (cpath : S.ctor_name S.path S.node) tp =
   | Whnf_Effect _ | Whnf_Effrow _ ->
     failwith "Internal kind error"
 
-let rec check_ctor_named_args ~pos ~env ~scope nps named =
+(** Introduce all named types and named arguments into the environment.
+  The type variables are refreshed, so the function returns a renaming. *)
+let open_named ~pos ~public env targs named =
+  let ((env, sub), targs) =
+    List.fold_left_map
+      (fun (env, sub) (name, x) ->
+        let (env, y) =
+          let kind = T.TVar.kind x in
+          match name with
+          | T.TNAnon   -> Env.add_anon_tvar env kind
+          | T.TNEffect ->
+            assert (T.Kind.is_effect kind);
+            Env.add_the_effect env
+          | T.TNVar x  -> Env.add_tvar ~public env x kind
+        in
+        ((env, T.Subst.rename_to_fresh sub x y), y))
+      (env, T.Subst.empty)
+      targs
+  in
+  let named = List.map (T.NamedScheme.subst sub) named in
+  let (env, named) =
+    List.fold_left_map
+      (fun env (name, sch) ->
+        let (env, x) =
+          match name with
+          | T.NLabel -> Env.add_the_label_sch env sch
+          | T.NVar x -> Env.add_poly_var ~public env x sch
+          | T.NImplicit n -> Env.add_poly_implicit ~public env n sch ignore
+          | T.NMethod   n ->
+            let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+            Env.add_poly_method ~public env owner n sch
+        in
+        (env, T.{ pos; data = PVar(x, sch) }))
+      env
+      named in
+  (env, targs, named, sub)
+
+let rec check_ctor_named ~pos ~env ~scope
+    (cpath : S.ctor_name S.path S.node) (ctor : T.ctor_decl) named =
+  match named with
+  | S.CNParams(targs, nps) ->
+    Uniqueness.check_named_type_arg_uniqueness targs;
+    let targs = List.map tr_named_type targs in
+    let (env, scope, sub2, tvars) =
+      check_ctor_type_args ~pos:cpath.pos ~env ~scope ~sub:T.Subst.empty
+        targs ctor.ctor_targs in
+    let ctor_named = List.map (T.NamedScheme.subst sub2) ctor.ctor_named in
+    Uniqueness.check_named_pattern_uniqueness nps;
+    let nps = List.map (tr_named_pattern env) nps in
+    let (env, bn1, ps1) =
+      check_ctor_named_args ~pos ~env ~scope nps ctor_named in
+    (env, scope, sub2, tvars, ps1, bn1)
+  | S.CNModule modname ->
+    (* TODO: This may seem inconsistent with the other case as implicits aren't
+       introduced to the current namespace, just the provided module name. *)
+    let env = Env.enter_module env in
+    let (env, tvars, ps1, sub2) =
+      open_named ~pos ~public:true env ctor.ctor_targs ctor.ctor_named in
+    let env = Env.leave_module env ~public:false modname in
+    (env, Env.scope env, sub2, tvars, ps1, T.Name.Map.empty)
+
+and check_ctor_named_args ~pos ~env ~scope nps named =
   match named with
   | [] ->
     List.iter
@@ -222,24 +283,15 @@ and check_type ~env ~scope (pat : S.pattern) tp =
         (Error.label_pattern_type_mismatch ~pos:pat.pos ~env tp)
     end
 
-  | PCtor(cpath, targs, nps, args) ->
+  | PCtor(cpath, named, args) ->
     let (info, idx, proof, sub) = get_ctor_info ~pos ~env cpath tp in
     let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
     let ctor   = List.nth ctors idx in
     let res_tp = T.Type.subst sub info.adt_type in
-    Uniqueness.check_named_type_arg_uniqueness targs;
-    let targs = List.map tr_named_type targs in
-    let (env, scope, sub2, tvars) =
-      check_ctor_type_args ~pos:cpath.pos ~env ~scope ~sub:T.Subst.empty
-        targs ctor.ctor_targs in
-    let ctor_named =
-      List.map (T.NamedScheme.subst sub2) ctor.ctor_named in
+    let (env, scope, sub2, tvars, ps1, bn1) =
+      check_ctor_named ~pos ~env ~scope cpath ctor named in
     let ctor_arg_schemes =
       List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
-    Uniqueness.check_named_pattern_uniqueness nps;
-    let nps = List.map (tr_named_pattern env) nps in
-    let (env, bn1, ps1) =
-      check_ctor_named_args ~pos:pat.pos ~env ~scope nps ctor_named in
     if List.length ctor_arg_schemes <> List.length args then
       Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
         cpath.data (List.length ctor_arg_schemes) (List.length args))

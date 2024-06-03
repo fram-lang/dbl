@@ -96,6 +96,9 @@ type ('tp, 'e) field_data =
   | FldNameAnnot of name * 'tp
     (** type-annotated implicit parameter *)
 
+  | FldModule of module_name
+    (** Module grouping named parameters *)
+
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =
