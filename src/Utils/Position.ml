@@ -120,12 +120,17 @@ struct
 end
 
 (** Get text from file from given position *)
-let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t)=
-  let generate_underline start_cnum len =
+let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t) =
+  let find_tabs line =
+    String.fold_left (fun (i, acc) c ->
+        if c = '\t' then (i+1, i::acc) else (i+1, acc)) (0, []) line
+    |> snd
+  in
+  let generate_underline start_cnum len tabs =
     if len <= 0 then "" else
     let underline = String.make len '^' in
     let padding = String.make (start_cnum - 1) ' ' in
-    padding ^ underline
+    String.mapi (fun i _ -> if List.mem i tabs then '\t' else ' ') padding ^ underline
   in
   let add_underline (i, line) : (int option * string) Seq.t =
     match options.underline pos, i with
@@ -134,29 +139,31 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
         when pos.pos_start_line = pos.pos_end_line
         && pos.pos_start_line = j ->
       let underline =
-        generate_underline (start_column pos) pos.pos_length in
+        generate_underline (start_column pos) pos.pos_length (find_tabs line) in
       Seq.cons (i, line) (Seq.return (None, underline))
     | UnderlineIfOneLine, _ -> Seq.return (i, line)
     | UnderlineBegining, Some j
         when pos.pos_start_line = j ->
       let underline =
-        generate_underline (start_column pos) 1 in
+        generate_underline (start_column pos) 1 (find_tabs line) in
       Seq.cons (i, line) (Seq.return (None, underline))
     | UnderlineBegining, _ -> Seq.return (i, line)
     | UnderlineAlways, Some j
         when j = pos.pos_start_line ->
-      let underline =
-        generate_underline (start_column pos) (String.length line - start_column pos) in
+      let underline = generate_underline
+        (start_column pos)
+        (String.length line - start_column pos)
+        (find_tabs line) in
       Seq.cons (i, line) (Seq.return (None, underline))
     | UnderlineAlways, Some j
         when j = pos.pos_end_line ->
       let underline =
-        generate_underline 0 (end_column pos) in
+        generate_underline 0 (end_column pos) (find_tabs line) in
       Seq.cons (i, line) (Seq.return (None, underline))
     | UnderlineAlways, Some j
         when j > pos.pos_start_line && j < pos.pos_end_line ->
       let underline =
-        generate_underline 0 (String.length line) in
+        generate_underline 0 (String.length line) (find_tabs line) in
       Seq.cons (i, line) (Seq.return (None, underline))
     | UnderlineAlways, _ -> Seq.return (i, line)
   in
@@ -172,6 +179,7 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
       | Some i ->
        Printf.sprintf " %*d | %s" (align_to + 1) i line
   in
+if Fun.negate Sys.file_exists pos.pos_fname then None else
   let ch = match channel with
     | None -> open_in pos.pos_fname
     | Some ch -> ch
@@ -185,8 +193,8 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
     |> Seq.map (add_line_number pos.pos_end_line)
   in
   if Option.is_none channel then close_in ch;
-  let pp_file_name = "-> " ^ pos.pos_fname ^ "\n" in
-  pp_file_name ^ String.concat "\n" @@ List.of_seq lines
+  let pp_file_name = " -> " ^ pos.pos_fname ^ "\n" in
+  Some (pp_file_name ^ String.concat "\n" @@ List.of_seq lines)
 
 
 
