@@ -179,26 +179,32 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
       | Some i ->
        Printf.sprintf " %*d | %s" (align_to + 1) i line
   in
+  let process_file fd =
+    (* Printf.printf "Opened file: %s\n%!" pos.pos_fname; *)
+    (* let rec lines_seq channel () = *)
+    (*   match In_channel.input_line channel with *)
+    (*   | None -> None *)
+    (*   | Some line -> *)
+    (*   Printf.printf "Read line:\n%s\n%!" line; *)
+    (*   Some line *)
+    (* in *)
+    (* let lines = Seq.of_dispenser (lines_seq fd) *)
+    let lines = Seq.of_dispenser (fun () -> In_channel.input_line fd)
+      |> Seq.zip (Seq.ints 1 |> Seq.map Option.some)
+      |> Seq.drop (pos.pos_start_line - 1 - options.context |> Int.max 0)
+      |> Seq.take (pos.pos_end_line - pos.pos_start_line + 1 + 2*options.context)
+      |> Seq.flat_map add_underline
+      |> Seq.map (add_line_number pos.pos_end_line)
+    in
+    String.concat "\n" @@ List.of_seq lines
+  in
   if Fun.negate Sys.file_exists pos.pos_fname then None else
-  let ch = match channel with
-    | None -> open_in pos.pos_fname
-    | Some ch -> ch
+  let file_chunk = match channel with
+    | None -> In_channel.with_open_text pos.pos_fname process_file
+    | Some ch -> process_file ch
   in
-  let rec lines_seq () =
-    match In_channel.input_line ch with
-    | None -> Seq.Nil
-    | Some line -> Seq.Cons (line, lines_seq)
-  in
-  let lines = lines_seq
-    |> Seq.zip (Seq.ints 1 |> Seq.map Option.some)
-    |> Seq.drop (pos.pos_start_line - 1 - options.context |> Int.max 0)
-    |> Seq.take (pos.pos_end_line - pos.pos_start_line + 1 + 2*options.context)
-    |> Seq.flat_map add_underline
-    |> Seq.map (add_line_number pos.pos_end_line)
-  in
-  if Option.is_none channel then close_in ch;
   let pp_file_name = " -> " ^ pos.pos_fname ^ "\n" in
-  Some (pp_file_name ^ String.concat "\n" @@ List.of_seq lines)
+  Some (pp_file_name ^ file_chunk)
 
 
 
