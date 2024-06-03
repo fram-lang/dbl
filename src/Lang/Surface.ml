@@ -200,6 +200,9 @@ and expr_data =
   | ENum of int
     (** Integer literal *)
 
+  | ENum64 of int64
+    (** 64 bit integer literal *)
+
   | EStr of string
     (** String literal *)
 

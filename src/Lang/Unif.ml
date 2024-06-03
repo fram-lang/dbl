@@ -73,6 +73,7 @@ and expr = expr_data node
 and expr_data =
   | EUnitPrf
   | ENum        of int
+  | ENum64      of int64
   | EStr        of string
   | EVar        of var
   | EPureFn     of var * scheme * expr

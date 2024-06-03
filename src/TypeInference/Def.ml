@@ -167,7 +167,7 @@ let finalize_rec_fun fds (pos, y, y_sch, _, _, _, tvs, ims, body) =
   let rec update_body (body : T.expr) =
     let make data = { body with data = data } in
     match body.T.data with
-    | EUnitPrf | ENum _ | EStr _ | EExtern _ -> body
+    | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EExtern _ -> body
     | EVar x ->
       if List.exists (fun (_, _, _, x', _, _, _, _, _) -> Var.equal x x') fds
       then

@@ -9,6 +9,9 @@ open TypeBase
 (** Int type *)
 let tv_int = TVar.fresh KType
 
+(** Int64 type *)
+let tv_int64 = TVar.fresh KType
+
 (** String type *)
 let tv_string = TVar.fresh KType
 
@@ -24,6 +27,7 @@ let tv_nterm = TVar.fresh KEffect
 (** List of all built-in types together with their names *)
 let all =
   [ "Int",    TVar.Ex tv_int;
+    "Int64",  TVar.Ex tv_int64;
     "String", TVar.Ex tv_string;
     "Unit",   TVar.Ex tv_unit;
     "IO",     TVar.Ex tv_io;

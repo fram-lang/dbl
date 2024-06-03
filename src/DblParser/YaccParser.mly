@@ -8,6 +8,7 @@
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
 %token<string> OP_230 
 %token<int> NUM
+%token<int64> NUM64
 %token<string> STR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
@@ -448,6 +449,7 @@ expr_simple
 | TLID               { make (EImplicit $1)}
 | UNDERSCORE         { make EWildcard     }
 | NUM                { make (ENum $1)     }
+| NUM64              { make (ENum64 $1)   }
 | STR                { make (EStr $1)     }
 | BR_OPN BR_CLS      { make EUnit         }
 | BR_OPN expr BR_CLS { make (EParen $2)   }
