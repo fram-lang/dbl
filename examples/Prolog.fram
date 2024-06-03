@@ -81,14 +81,6 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
   in f bt
 
 (* ========================================================================= *)
-(* Some basic functionality on lists. *)
-
-let rec exists f xs =
-  match xs with
-  | []      => False
-  | x :: xs => f x && exists f xs
-  end
-
 (* The following few functions on lists require a notion of equality, which is
   passed as the implicit parameter `eq. *)
 
@@ -207,7 +199,7 @@ method occurs (x : Int) =
   let rec occurs (t : Term) =
     match t.view with
     | TVar y    => x == y
-    | TFun _ ts => exists occurs ts
+    | TFun _ ts => List.exists occurs ts
     end
   in occurs self
 
@@ -221,7 +213,7 @@ let rec unify (t1 : Term) (t2 : Term) =
   | t, TVar x =>
     if t.occurs x then fail () else setVar x t
   | TFun f ts1, TFun g ts2 =>
-    if f == g then List.iter2 {`re = fail} unify ts1 ts2
+    if f == g then List.iter2 {`onError = fail} unify ts1 ts2
     else fail ()
   end
 

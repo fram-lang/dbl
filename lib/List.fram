@@ -1,14 +1,56 @@
-pub let rec map f xs =
+pub let isEmpty xs =
   match xs with
-  | []      => []
-  | x :: xs => f x :: map f xs
+  | [] => True
+  | _  => False
   end
 
-pub let rec filter f xs =
+pub let length xs =
+  let rec lengthAux xs (res : Int) =
+    match xs with
+    | []      => res
+    | x :: xs => lengthAux xs (res + 1)
+    end
+  in lengthAux xs 0
+
+pub let hd xs =
   match xs with
-  | []      => []
-  | x :: xs => if f x then x :: filter f xs else filter f xs
+  | []      => None
+  | x :: xs => Some x
   end
+
+pub let hdErr { `onError } xs =
+  match xs with
+  | []      => `onError ()
+  | x :: xs => x
+  end
+
+pub let tl xs =
+  match xs with
+  | []      => None
+  | x :: xs => Some xs
+  end
+
+pub let tlErr { `onError } xs =
+  match xs with
+  | []      => `onError ()
+  | x :: xs => xs
+  end
+
+pub let nth xs (n : Int) =
+  let rec nthAux xs (n : Int) =
+    match xs with
+    | []      => None
+    | x :: xs => if n == 0 then Some x else nthAux xs (n - 1)
+    end
+  in if n < 0 then None else nthAux xs n
+
+pub let nthErr { `onError } xs (n : Int) =
+  let rec nthErrAux xs (n : Int) =
+    match xs with
+    | []      => `onError ()
+    | x :: xs => if n == 0 then x else nthErrAux xs (n - 1)
+    end
+  in if n < 0 then `onError () else nthErrAux xs n
 
 pub let rec append xs ys =
   match xs with
@@ -16,23 +58,373 @@ pub let rec append xs ys =
   | x :: xs => x :: append xs ys
   end
 
+pub let rec revAppend xs acc =
+  match xs with
+  | []      => acc
+  | x :: xs => revAppend xs (x :: acc)
+  end
+
+pub let rev xs = revAppend xs []
+
 pub let rec concat xss =
   match xss with
   | []        => []
   | xs :: xss => append xs (concat xss)
   end
 
+pub let rec map f xs =
+  match xs with
+  | []      => []
+  | x :: xs => f x :: map f xs
+  end
+
+pub let mapi f xs =
+  let rec mapiAux (i : Int) f xs =
+    match xs with
+    | []      => []
+    | x :: xs => f i x :: mapiAux (i + 1) f xs
+    end
+  in mapiAux 0 f xs
+
+pub let map2 { `onError } f xs ys =
+  let rec map2Aux xs ys =
+    match xs, ys with
+    | [],      []      => []
+    | x :: xs, y :: ys => f x y :: map2Aux xs ys
+    | _,       _       => `onError ()
+    end
+  in map2Aux xs ys
+
+pub let rec revMapAppend f xs ys =
+  match xs with
+  | []      => ys
+  | x :: xs => revMapAppend f xs (f x :: ys)
+  end
+
+pub let revMap f xs = revMapAppend f xs []
+
+pub let revMap2 { `onError } f xs ys =
+  let rec revMap2Aux acc xs ys =
+    match xs, ys with
+    | [],      []      => acc
+    | x :: xs, y :: ys => revMap2Aux (f x y :: acc) xs ys
+    | _,       _       => `onError ()
+    end
+  in revMap2Aux [] xs ys
+
+pub let rec filter p xs =
+  match xs with
+  | []      => []
+  | x :: xs => if p x then x :: filter p xs else filter p xs
+  end
+
+pub let filteri p xs =
+  let rec filteriAux p (i : Int) xs =
+    match xs with
+    | []      => []
+    | x :: xs =>
+      if p i x then x :: filteriAux p (i + 1) xs
+      else filteriAux p (i + 1) xs
+    end
+  in filteriAux p 0 xs
+
+pub let rec filterMap f xs =
+  match xs with
+  | []      => []
+  | x :: xs =>
+    match f x with
+    | None   => filterMap f xs
+    | Some x => x :: filterMap f xs
+    end
+  end
+
+pub let concatMap f xs = concat (map f xs)
+
+pub let rec take (n : Int) xs =
+  match xs with
+  | []      => []
+  | x :: xs => if n == 0 then [] else x :: take (n - 1) xs
+  end
+
+pub let rec drop (n : Int) xs =
+  if n <= 0 then xs else
+    match xs with
+    | []      => []
+    | x :: xs => drop (n - 1) xs
+    end
+
+pub let rec takeWhile p xs =
+  match xs with
+  | []      => []
+  | x :: xs => if p x then x :: takeWhile p xs else []
+  end
+
+pub let rec dropWhile p xs =
+  match xs with
+  | []       => []
+  | x :: xs' => if p x then dropWhile p xs' else xs
+  end
+
 pub let rec iter f xs =
   match xs with
   | []      => ()
-  | x :: xs => let () = f x in iter f xs
+  | x :: xs => f x; iter f xs
   end
 
-pub let iter2 {`re : {type X} -> Unit ->[|_] X} =
-  let rec iter f xs ys =
+pub let iteri f xs =
+  let rec iteriAux (i : Int) xs =
+    match xs with
+    | []      => ()
+    | x :: xs => f i x; iteriAux (i + 1) xs
+    end
+  in iteriAux 0 xs
+
+pub let iter2 { `onError } f xs ys =
+  let rec iter2Aux xs ys =
     match xs, ys with
     | [],      []      => ()
-    | x :: xs, y :: ys => let () = f x y in iter f xs ys
-    | _                => `re ()
+    | x :: xs, y :: ys => f x y; iter2Aux xs ys
+    | _                => `onError ()
+    end
+  in iter2Aux xs ys
+
+pub let init (len : Int) f =
+  let rec initAux (i : Int) f =
+    if i >= len then []
+    else f i :: initAux (i + 1) f
+  in initAux 0 f
+
+pub let rec foldLeft f acc xs =
+  match xs with
+  | []      => acc
+  | x :: xs => foldLeft f (f acc x) xs
   end
-  in iter
+
+pub let rec foldRight f xs acc =
+  match xs with
+  | []      => acc
+  | x :: xs => f x (foldRight f xs acc)
+  end
+
+pub let foldLeft2 { `onError } f acc xs ys =
+  let rec foldLeft2Aux acc xs ys =
+    match xs, ys with
+    | [],      []      => acc
+    | x :: xs, y :: ys => foldLeft2Aux (f acc x y) xs ys
+    | _,       _       => `onError ()
+    end
+  in foldLeft2Aux acc xs ys
+
+pub let foldRight2 { `onError } f xs ys acc =
+  let rec foldRight2Aux xs ys acc =
+    match xs, ys with
+    | [],      []      => acc
+    | x :: xs, y :: ys => f x y (foldRight2Aux xs ys acc)
+    | _,       _       => `onError ()
+    end
+  in foldRight2Aux xs ys acc
+
+pub let rec forAll p xs =
+  match xs with
+  | []      => True
+  | x :: xs => p x && forAll p xs
+  end
+
+pub let forAll2 { `onError } p xs ys =
+  let rec forAll2Aux xs ys =
+    match xs, ys with
+    | [],      []      => True
+    | x :: xs, y :: ys => p x y && forAll2Aux xs ys
+    | _,       _       => `onError ()
+    end
+  in forAll2Aux xs ys
+
+pub let rec exists p xs =
+  match xs with
+  | []      => False
+  | x :: xs => p x || exists p xs
+  end
+
+pub let exists2 { `onError } p xs ys =
+  let rec exists2Aux xs ys =
+    match xs, ys with
+    | [],      []      => False
+    | x :: xs, y :: ys => p x y || exists2Aux xs ys
+    | _,       _       => `onError ()
+    end
+  in exists2Aux xs ys
+
+pub let rec find p xs =
+  match xs with
+  | []      => None
+  | x :: xs => if p x then Some x else find p xs
+  end
+
+pub let findErr { `onError } p xs =
+  let rec findErrAux p xs =
+    match xs with
+    | []      => `onError ()
+    | x :: xs => if p x then x else findErrAux p xs
+    end
+  in findErrAux p xs
+
+pub let findIndex p xs =
+  let rec findIndexAux (i : Int) xs =
+    match xs with
+    | []      => None
+    | x :: xs => if p x then Some i else findIndexAux (i + 1) xs
+    end
+  in findIndexAux 0 xs
+
+pub let findIndexErr { `onError } p xs =
+  let rec findIndexErrAux (i : Int) xs =
+    match xs with
+    | []      => `onError ()
+    | x :: xs => if p x then i else findIndexErrAux (i + 1) xs
+    end
+  in findIndexErrAux 0 xs
+
+pub let rec findMap f xs =
+  match xs with
+  | []      => None
+  | x :: xs =>
+    match f x with
+    | Some x => Some x
+    | None   => findMap f xs
+    end
+  end
+
+pub let findMapErr { `onError } f xs =
+  let rec findMapErrAux f xs =
+    match xs with
+    | []      => `onError ()
+    | x :: xs =>
+      match f x with
+      | None   => findMapErrAux f xs
+      | Some x => x
+      end
+    end
+  in findMapErrAux f xs
+
+pub let findMapi f xs =
+  let rec findMapiAux (i : Int) xs =
+    match xs with
+    | []      => None
+    | x :: xs =>
+      match f i x with
+      | Some x' => Some x'
+      | None    => findMapiAux (i + 1) xs
+      end
+    end
+  in findMapiAux 0 xs
+
+pub let findMapiErr { `onError } f xs =
+  let rec findMapiErrAux (i : Int) xs =
+    match xs with
+    | []      => `onError ()
+    | x :: xs =>
+      match f i x with
+      | Some x => x
+      | None   => findMapiErrAux (i + 1) xs
+      end
+    end
+  in findMapiErrAux 0 xs
+
+pub let foldLeftMap f acc xs =
+  let rec foldLeftMapAux acc l_acc xs =
+    match xs with
+    | []      => acc, rev l_acc
+    | x :: xs =>
+      let (acc, x) = f acc x in
+      foldLeftMapAux acc (x :: l_acc) xs
+    end
+  in foldLeftMapAux acc [] xs
+
+pub let foldLeftFilterMap f acc xs =
+  let rec foldLeftFilterMapAux acc l_acc xs =
+    match xs with
+    | []      => acc, rev l_acc
+    | x :: xs =>
+      match f acc x with
+      | None          => foldLeftFilterMapAux acc l_acc xs
+      | Some (acc, x) => foldLeftFilterMapAux acc (x :: l_acc) xs
+      end
+    end
+  in foldLeftFilterMapAux acc [] xs
+
+pub let foldLeftConcatMap f acc xs =
+  let (acc, xs) = foldLeftMap f acc xs
+  in (acc, concat xs)
+
+(* Operations on lists containing comparable elements *)
+
+pub let mem
+  { E, method equal : E -> E ->[] Bool }
+  (v : E) (xs : List E) =
+  let rec memAux (xs : List E) =
+    match xs with
+    | []      => False
+    | x :: xs => v == x || memAux xs
+    end
+  in memAux xs
+
+pub let equal
+  { E, method equal : E -> E ->[] Bool }
+  (xs : List E) (ys : List E) =
+  let rec equalAux (xs : List E) (ys : List E) =
+    match xs, ys with 
+    | [],      []      => True
+    | x :: xs, y :: ys => x == y && equalAux xs ys
+    | _,       _       => False
+    end
+  in equalAux xs ys
+
+(* method versions of these functions *)
+implicit `onError
+
+pub method isEmpty = isEmpty self
+pub method length = length self
+pub method hd = hd self
+pub method hdErr = hdErr self
+pub method tl = tl self
+pub method tlErr = tlErr self
+pub method nth n = nth self n
+pub method nthErr n = nthErr self n
+pub method append ys = append self ys
+pub method add ys = append self ys
+pub method revAppend ys = revAppend self ys
+pub method rev = rev self
+pub method concat = concat self
+pub method map f = map f self
+pub method mapi f = mapi f self
+pub method revMapAppend f ys = revMapAppend f self ys
+pub method revMap f = revMap f self
+pub method filter p = filter p self
+pub method filteri p = filteri p self
+pub method filterMap f = filterMap f self
+pub method concatMap f = concatMap f self
+pub method drop n = drop n self
+pub method takeWhile p = takeWhile p self
+pub method dropWhile p = dropWhile p self
+pub method iteri f = iteri f self
+pub method foldLeft f acc = foldLeft f acc self
+pub method foldRight f acc = foldRight f self acc
+pub method forAll p = forAll p self
+pub method exists p = exists p self
+pub method find p = find p self
+pub method findErr p = findErr p self
+pub method findIndex p = findIndex p self
+pub method findIndexErr p = findIndexErr p self
+pub method findMap f = findMap f self
+pub method findMapErr f = findMapErr f self
+pub method findMapi f = findMapi f self
+pub method findMapiErr f = findMapiErr f self
+pub method foldLeftMap f acc = foldLeftMap f acc self
+pub method foldLeftFilterMap f acc = foldLeftFilterMap f acc self
+pub method foldLeftConcatMap f acc = foldLeftConcatMap f acc self
+pub method mem { E, method equal : E -> E ->[] Bool } v =
+  mem {E} v self
+pub method equal { E, method equal : E -> E ->[] Bool } xs =
+  equal {E} self xs
+pub method neq { E, method equal : E -> E ->[] Bool } xs =
+  not (equal {E} self xs)

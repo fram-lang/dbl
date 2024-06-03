@@ -33,8 +33,8 @@ pub method fn (<=) = le
 pub method fn (&&&) = land
 pub method fn (^^^) = lxor
 pub method fn (|||) = lor
-pub method fn (>>)  = shiftl
-pub method fn (<<)  = shiftr
+pub method fn (<<)  = shiftl
+pub method fn (>>)  = shiftr
 pub method fn (>>>) = ashiftr
 
 pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
