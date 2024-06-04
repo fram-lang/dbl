@@ -205,6 +205,9 @@ and expr_data =
   | EMethod of expr * method_name
     (** Call of a method *)
 
+  | EMethodCall of expr * method_name node * expr list
+    (** Call of a method via the >. operator *)
+
   | EExtern of string
     (** Externally defined value *)
 
