@@ -1,0 +1,35 @@
+data Bool = False | True
+
+data Ord = Lt | Eq | Gt
+
+data rec List A = [] | (::) of A, List A
+
+data Set Elem = Set of
+  { T
+  , empty : T
+  , method add : T -> Elem ->[] T
+  , method mem : T -> Elem ->[] Bool
+  }
+
+let add xs x = x :: xs
+
+let rec mem compare xs x =
+  match xs with
+  | []      => False
+  | y :: xs =>
+    match compare x y with
+    | Eq => True
+    | _  => mem compare xs x
+    end
+  end
+
+let make {Elem} (compare : Elem -> Elem ->[] Ord) =
+  Set { T = List Elem, empty = [], method add = add, method mem = mem compare }
+
+let compare (_ : Unit) (_ : Unit) = Eq
+
+let Set { module UnitSet } = make compare
+
+let m = UnitSet.empty.add ()
+
+let f () = m.mem ()
