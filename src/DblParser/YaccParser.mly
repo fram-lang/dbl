@@ -56,6 +56,10 @@ bar_opt
 
 /* ========================================================================= */
 
+lid
+: LID { make $1 }
+;
+
 var_id
 : LID                  { VIdVar $1 }
 | BR_OPN op BR_CLS     { VIdBOp ($2).data }
@@ -406,7 +410,7 @@ expr_150
 expr_200
 : expr_230 { $1 }
 | expr_250 expr_250_list1 { make (EApp($1, $2)) }
-| expr_200 GT_DOT LID expr_250_list { make (EMethodCall($1, $3, $4)) }
+| expr_200 GT_DOT lid expr_250_list { make (EMethodCall($1, $3, $4)) }
 | KW_EXTERN LID { make (EExtern $2) }
 | KW_PUB expr_230 { make (EPub $2) }
 ;

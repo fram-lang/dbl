@@ -517,8 +517,9 @@ and tr_expr (e : Raw.expr) =
       tr_expr_app e1 es
     end
   | EMethodCall(e1, name, es) ->
-      let e1 = make (Raw.EMethod(e1, name)) in
-      tr_expr_app (tr_expr e1) es
+    let pos = Position.join e1.pos name.pos in
+    let e1 = { pos; data = Raw.EMethod(e1, name.data) } in
+    tr_expr_app (tr_expr e1) es
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
   | EHandler h     -> make (EHandler (tr_expr h))
