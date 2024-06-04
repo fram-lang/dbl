@@ -6,6 +6,8 @@ pub data rec List A = [] | (::) of A, List A
 
 pub data Pair X Y = (,) of X, Y
 
+pub data Either X Y = Left of X | Right of Y
+
 pub let id x = x
 
 pub let flip f x y = f y x
