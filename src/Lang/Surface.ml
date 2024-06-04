@@ -155,6 +155,7 @@ and pattern_data =
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
 
+(** Set of named subpatterns of constructor *)
 and ctor_pattern_named =
   | CNParams of named_type_arg list * named_pattern list
     (** Named type parameters and named patterns of a constructor *)

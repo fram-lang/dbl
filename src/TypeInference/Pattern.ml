@@ -140,41 +140,50 @@ let get_ctor_info ~pos ~env (cpath : S.ctor_name S.path S.node) tp =
   | Whnf_Effect _ | Whnf_Effrow _ ->
     failwith "Internal kind error"
 
+(** Introduce all named types (from the constructor scheme) into the
+  environment. Returns extended environment, refreshed type parameters, and a
+  renaming used for refreshing. *)
+let open_named_types ~public env targs =
+  let open_named_type (env, sub) (name, x) =
+    let (env, y) =
+      let kind = T.TVar.kind x in
+      match name with
+      | T.TNAnon   -> Env.add_anon_tvar env kind
+      | T.TNEffect ->
+        assert (T.Kind.is_effect kind);
+        Env.add_the_effect env
+      | T.TNVar x  -> Env.add_tvar ~public env x kind
+    in
+    ((env, T.Subst.rename_to_fresh sub x y), y)
+  in
+  let ((env, sub), targs) =
+    List.fold_left_map open_named_type (env, T.Subst.empty) targs in
+  (env, targs, sub)
+
+(** Introduce single named argument into the environment. Its scheme is
+  refreshed using given substitution. *)
+let open_named_arg ~pos ~public ~sub env (name, sch) =
+  let sch = T.Scheme.subst sub sch in
+  let (env, x) =
+    match name with
+    | T.NLabel -> Env.add_the_label_sch env sch
+    | T.NVar x -> Env.add_poly_var ~public env x sch
+    | T.NImplicit n -> Env.add_poly_implicit ~public env n sch ignore
+    | T.NMethod   n ->
+      let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+      Env.add_poly_method ~public env owner n sch
+  in
+  (env, T.{ pos; data = PVar(x, sch) })
+
+(** Same as [open_named_arg], but works on list of named parameters. *)
+let open_named_args ~pos ~public ~sub env named =
+  List.fold_left_map (open_named_arg ~pos ~public ~sub) env named
+
 (** Introduce all named types and named arguments into the environment.
   The type variables are refreshed, so the function returns a renaming. *)
 let open_named ~pos ~public env targs named =
-  let ((env, sub), targs) =
-    List.fold_left_map
-      (fun (env, sub) (name, x) ->
-        let (env, y) =
-          let kind = T.TVar.kind x in
-          match name with
-          | T.TNAnon   -> Env.add_anon_tvar env kind
-          | T.TNEffect ->
-            assert (T.Kind.is_effect kind);
-            Env.add_the_effect env
-          | T.TNVar x  -> Env.add_tvar ~public env x kind
-        in
-        ((env, T.Subst.rename_to_fresh sub x y), y))
-      (env, T.Subst.empty)
-      targs
-  in
-  let named = List.map (T.NamedScheme.subst sub) named in
-  let (env, named) =
-    List.fold_left_map
-      (fun env (name, sch) ->
-        let (env, x) =
-          match name with
-          | T.NLabel -> Env.add_the_label_sch env sch
-          | T.NVar x -> Env.add_poly_var ~public env x sch
-          | T.NImplicit n -> Env.add_poly_implicit ~public env n sch ignore
-          | T.NMethod   n ->
-            let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
-            Env.add_poly_method ~public env owner n sch
-        in
-        (env, T.{ pos; data = PVar(x, sch) }))
-      env
-      named in
+  let (env, targs, sub) = open_named_types ~public env targs in
+  let (env, named) = open_named_args ~pos ~public ~sub env named in
   (env, targs, named, sub)
 
 let rec check_ctor_named ~pos ~env ~scope
