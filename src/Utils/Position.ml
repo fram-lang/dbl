@@ -180,15 +180,6 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
        Printf.sprintf " %*d | %s" (align_to + 1) i line
   in
   let process_file fd =
-    (* Printf.printf "Opened file: %s\n%!" pos.pos_fname; *)
-    (* let rec lines_seq channel () = *)
-    (*   match In_channel.input_line channel with *)
-    (*   | None -> None *)
-    (*   | Some line -> *)
-    (*   Printf.printf "Read line:\n%s\n%!" line; *)
-    (*   Some line *)
-    (* in *)
-    (* let lines = Seq.of_dispenser (lines_seq fd) *)
     let lines = Seq.of_dispenser (fun () -> In_channel.input_line fd)
       |> Seq.zip (Seq.ints 1 |> Seq.map Option.some)
       |> Seq.drop (pos.pos_start_line - 1 - options.context |> Int.max 0)
