@@ -288,7 +288,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EList []         -> NPName (tr_ctor_name (make Raw.CNNil))
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
 
-  | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EVar _ | EImplicit _
+  | EWildcard | ENum _ | EStr _ | ECStr _ | EChr _ | EParen _ | EVar _ | EImplicit _
   | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
   | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _)
   | EPub _ | EMethodCall _  ->
@@ -304,6 +304,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
+  | ECStr _     -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern ~public p).data
   | EVar      x -> make (PId (IdVar(public, x)))
   | EBOpID    n -> make (PId (IdVar(public, tr_bop_id (make n))))
@@ -375,7 +376,7 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EParen arg -> tr_function_arg arg
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern ~public:false p, tr_scheme_expr sch)
-  | EWildcard | EUnit | ENum _ | EStr _ | EChr _ | EVar _ | EImplicit _ | ECtor _
+  | EWildcard | EUnit | ENum _ | EStr _ | ECStr _ | EChr _ | EVar _ | EImplicit _ | ECtor _
   | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _  | ESelect _ | EList _ ->
     ArgPattern (tr_pattern ~public:false arg)
 
@@ -431,7 +432,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       let (targs, iargs) = map_inst_like tr_named_arg flds in
       LP_Fun(id, targs, iargs, ps)
 
-    | EUnit | ENum _ | EStr _ | EChr _ | ECtor _ | ESelect _ | EList _ ->
+    | EUnit | ENum _ | EStr _ | ECStr _ |  EChr _ | ECtor _ | ESelect _ | EList _ ->
       LP_Pat(tr_pattern ~public p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
@@ -440,7 +441,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       Error.fatal (Error.desugar_error p1.pos)
     end
 
-  | EWildcard | EUnit | ENum _ | EStr _ | EChr _ | EParen _ | ECtor _ | EAnnot _
+  | EWildcard | EUnit | ENum _ | EStr _  | ECStr _ | EChr _ | EParen _ | ECtor _ | EAnnot _
   | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
     LP_Pat (tr_pattern ~public p)
 
@@ -494,14 +495,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EUOpID    x -> make (EVar      (prepend_path (make_uop_id x)))
     | EList    [] -> make (EVar      (prepend_path (tr_ctor_name' CNNil)))
     
-    | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
+    | EWildcard | ENum _ | EStr _ | ECStr _ |  EChr _ | EParen _ | EFn _ | EApp _
     | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
     | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
     | EList (_ :: _) | EPub _ | EMethodCall _ ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
-  | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
+  | EWildcard | ENum _ | EStr _ | ECStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
   | EMethodCall _ ->
@@ -516,8 +517,19 @@ and tr_expr (e : Raw.expr) =
   | ENum n -> make (ENum n)
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
+  | ECStr (s, xs) -> 
+    (* TODO improve *)
+    let makeConcat e1 e2 = 
+      {pos = e1.pos; data = Raw.EBOp(e1, {pos = e1.pos; data = "+"}, e2)} in
+    let makeToString e = 
+      {pos = e.pos; data = Raw.EMethod(e, "toString") } in
+    let rec reduce = function
+      | [e, s] -> makeConcat (makeToString e) {pos = Position.nowhere; data = EStr s}
+      | (e, s) :: tl -> makeConcat (makeToString e) (makeConcat {pos = Position.nowhere; data = EStr s} (reduce tl))
+      | _ -> assert false in
+    tr_expr (makeConcat {pos = Position.nowhere; data = EStr s} (reduce xs))
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
-  | EApp(e1, es)    ->
+  | EApp(e1, es)   ->
     begin match collect_fields ~ppos:e1.pos es with
     | [], _, es -> tr_expr_app (tr_expr e1) es
     | flds, fpos, es ->

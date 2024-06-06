@@ -17,6 +17,8 @@ pub let not b = if b then False else True
 
 pub method toString = if self then "True" else "False"
 
+pub method toString {self : String} = self
+
 pub method fn (+) = add
 pub method fn (-) = sub
 pub method fn (%) = mod
@@ -123,3 +125,8 @@ pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 pub let readLine = extern dbl_readLine : Unit ->[IO] String
 
 pub let exit {type X} = extern dbl_exit : Int ->[IO] X
+
+pub method toString {self : Option Int} = match self with
+  | Some x => "Some " + x.toString
+  | None => "None"
+  end

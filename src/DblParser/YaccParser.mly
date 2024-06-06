@@ -8,8 +8,8 @@
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
 %token<string> OP_230 
 %token<int> NUM
-%token<string> STR
-%token<char> CHR
+%token<string> STR CSTR BSTR ESTR
+%token<char> CHR 
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
@@ -454,7 +454,8 @@ expr_simple
 | TLID               { make (EImplicit $1)}
 | UNDERSCORE         { make EWildcard     }
 | NUM                { make (ENum $1)     }
-| STR                { make (EStr $1)     }
+| BSTR str_interp    { make (ECStr ($1, $2)) }    
+| STR                { make (EStr $1)     }    
 | CHR                { make (EChr $1)     }
 | BR_OPN BR_CLS      { make EUnit         }
 | BR_OPN expr BR_CLS { make (EParen $2)   }
@@ -471,6 +472,13 @@ expr_simple
 expr_comma_sep
 : expr_40                      { [ $1 ]   }
 | expr_40 COMMA expr_comma_sep { $1 :: $3 }
+;
+
+/* ====================== String interpolation ============================= */
+
+str_interp
+: expr_40 CSTR str_interp { ($1, $2) :: $3 } 
+| expr_40 ESTR     { [ ($1, $2) ] }
 ;
 
 /* ========================================================================= */

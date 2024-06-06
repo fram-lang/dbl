@@ -177,6 +177,8 @@ and expr_data =
   | EStr of string
     (** String literal *)
 
+  | ECStr of string * (expr * string) list
+
   | EChr of char
     (** Char literal *)
 
