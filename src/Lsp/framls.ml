@@ -18,7 +18,7 @@ let initialize_params =
           }
         },
         "serverInfo": {
-          "name": "dblls"
+          "name": "framls"
         }
       }
     |}

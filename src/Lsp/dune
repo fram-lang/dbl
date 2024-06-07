@@ -1,5 +1,5 @@
 (executable
-  (name dblls)
+  (name framls)
   (modes byte exe)
-  (public_name dblls)
+  (public_name framls)
   (libraries yojson dblParser interpLib typeInference toCore))
