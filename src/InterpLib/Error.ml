@@ -17,7 +17,7 @@ let err_counter = ref 0
 let incr_error_counter () =
   err_counter := !err_counter + 1
 
-let report ?pos ~cls msg =
+let report_to_stderr ?pos ~cls msg =
   let name =
     match cls with
     | FatalError ->
@@ -35,6 +35,12 @@ let report ?pos ~cls msg =
   | Some pos ->
     Printf.eprintf "%s: %s: %s\n"
       (Position.to_string pos) name msg
+
+let report_impl = ref report_to_stderr
+
+let set_report_function f = report_impl := f
+
+let report ?pos ~cls msg = !report_impl ?pos ~cls msg
 
 let assert_no_error () =
   if !err_counter <> 0 then

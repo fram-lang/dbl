@@ -24,6 +24,10 @@ type error_class =
 (** Report the error *)
 val report : ?pos:Position.t -> cls:error_class -> string -> unit
 
+(* Used by the language server to intercept reports *)
+val set_report_function :
+  (?pos:Position.t -> cls:error_class -> string -> unit) -> unit
+
 (** Abort compilation if any error was reported. Should be called at the end
   of each phase. *)
 val assert_no_error : unit -> unit

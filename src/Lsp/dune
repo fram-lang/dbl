@@ -1,0 +1,5 @@
+(executable
+  (name dblls)
+  (modes byte exe)
+  (public_name dblls)
+  (libraries yojson dblParser interpLib typeInference toCore))
