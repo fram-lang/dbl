@@ -3,7 +3,7 @@
  *)
 
 (** Server state *)
- 
+
 type t
 type uri = string
 

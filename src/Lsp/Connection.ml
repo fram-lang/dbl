@@ -10,7 +10,7 @@ open Out_channel
 exception Connection_error of string
 
 type headers =
-  { content_length: int option 
+  { content_length: int option
   ; content_type: string option
   }
 
@@ -39,7 +39,7 @@ let receive_headers (ic: in_channel) =
 let receive_body (ic: in_channel) len =
   match really_input_string ic len with
   | None -> raise (Connection_error "Unexpected end of file")
-  | Some body -> body  
+  | Some body -> body
 
 let receive_string (ic: in_channel) =
   let headers = receive_headers ic in

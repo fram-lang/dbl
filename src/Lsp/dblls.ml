@@ -3,7 +3,7 @@
  *)
 
 (** Main module of the server. Handle messages from the client. *)
- 
+
 open Message
 open JsonRpc
 
@@ -27,7 +27,7 @@ let set_module_dirs ~fname () =
   DblConfig.lib_search_dirs := [DblConfig.stdlib_path];
   let cur_dir = Filename.dirname fname in
   DblConfig.local_search_dirs := [cur_dir]
-  
+
 let report file_path diags ?(pos : Position.t option) ~cls msg =
   let open InterpLib.Error in
   match pos with
@@ -50,7 +50,7 @@ let process_program state uri =
     |> ignore;
   with InterpLib.Error.Fatal_error -> ());
   let params =
-    make_publish_diagnostics_params 
+    make_publish_diagnostics_params
       ~uri ~diagnostics:(List.rev !diagnostics) () in
   JsonRpc.send_notification state (PublishDiagnostics params)
 
@@ -71,7 +71,7 @@ let handle_notification state notification =
   | DidClose params -> State.close_document state params.text_document.uri
   | Unknown _ -> state
 
-let handle_request state (request : client_request) 
+let handle_request state (request : client_request)
   : State.t * (server_result, response_error) Either.t =
   match request with
   | Initialize -> state, Left (Initialize initialize_params)
@@ -79,7 +79,7 @@ let handle_request state (request : client_request)
   | Hover params ->
     let error_message = "Method not supported: textDocument/hover" in
     state, make_response_error ~code:MethodNotFound ~message:error_message ()
-  | Unknown method_name -> 
+  | Unknown method_name ->
     let error_message = "Method not supported: " ^ method_name in
     state, make_response_error ~code:MethodNotFound ~message:error_message ()
 

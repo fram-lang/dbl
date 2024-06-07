@@ -29,7 +29,7 @@ let rec run (state : State.t) handle_request handle_notification =
 
     let message_raw = receive_string ic in
     match parse_message_option message_raw with
-    | None -> 
+    | None ->
       let response = make_response
         (make_response_error ~code:ParseError ~message:"Parse error" ()) in
       send_response state response;
@@ -49,8 +49,8 @@ let rec run (state : State.t) handle_request handle_notification =
       with
       (* Only send error response if the message was a Request *)
       | Type_error _ when Option.is_some id ->
-        let error = make_response_error 
-            ~code:InvalidParams 
+        let error = make_response_error
+            ~code:InvalidParams
             ~message:"Invalid params" () in
         let response = make_response ?id error in
         send_response state response;

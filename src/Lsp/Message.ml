@@ -48,7 +48,7 @@ let json_of_range range =
     ("end", json_of_position range.end_);
   ]
 let range_of_pos (pos : Position.t) =
-  { 
+  {
     start = {
       line = pos.pos_start_line - 1;
       character = Position.start_column pos - 1
@@ -83,8 +83,8 @@ let to_hover_params json =
   let text_document =
     json |> member "textDocument" |> to_text_document_identifier in
   let position = json |> member "position" |> to_position in
-  let work_done_token = 
-    json |> member "workDoneToken" |> to_progress_token_option in 
+  let work_done_token =
+    json |> member "workDoneToken" |> to_progress_token_option in
   { text_document; position; work_done_token }
 
 type text_document_item = {
@@ -314,7 +314,7 @@ let json_of_markup_content content =
     ("kind", json_of_markup_kind content.kind);
     ("value", `String content.value);
   ]
-  
+
 type hover_result = {
   contents: markup_content;
   range: range option;
@@ -341,7 +341,7 @@ let json_of_id (id : _ Either.t) =
   match id with
   | Left id -> `Int id
   | Right id -> `String id
-  
+
 (* notification or request *)
 type message = {
   jsonrpc: string;
@@ -394,7 +394,7 @@ let json_of_error_code code =
   | InvalidParams -> `Int (-32602)
   | InternalError -> `Int (-32603)
   | ServerNotInitialized -> `Int (-32002)
-  
+
 type response_error = {
   code: error_code;
   message: string;

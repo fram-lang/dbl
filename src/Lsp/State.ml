@@ -3,7 +3,7 @@
  *)
 
 (** Server state *)
- 
+
 module UriMap = Map.Make(String)
 
 type uri = string
@@ -23,7 +23,7 @@ type t = {
   documents: document UriMap.t
 }
 
-let create ~in_channel ~out_channel = 
+let create ~in_channel ~out_channel =
   {
     connection = { in_channel; out_channel };
     documents = UriMap.empty;
@@ -34,7 +34,7 @@ let in_channel { connection = { in_channel; _}; _ } = in_channel
 
 let open_document state uri =
   let real_path = Uri.to_path uri in
-  let content = 
+  let content =
     if Sys.file_exists real_path
     then
       let real_file = In_channel.open_text real_path in
