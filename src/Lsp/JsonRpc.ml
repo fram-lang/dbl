@@ -35,17 +35,18 @@ let rec run (state : State.t) handle_request handle_notification =
       send_response state response;
       loop state
     | Some { id; method_name; params; _ } ->
-      try match id with
-      | None ->
-        let notification = parse_notification method_name params in
-        let state = handle_notification state notification in
-        loop state
-      | Some id ->
-        let request = parse_request method_name params in
-        let state, result_or_error = handle_request state request in
-        let response = make_response ~id result_or_error in
-        send_response state response;
-        loop state
+      try
+        match id with
+        | None ->
+          let notification = parse_notification method_name params in
+          let state = handle_notification state notification in
+          loop state
+        | Some id ->
+          let request = parse_request method_name params in
+          let state, result_or_error = handle_request state request in
+          let response = make_response ~id result_or_error in
+          send_response state response;
+          loop state
       with
       (* Only send error response if the message was a Request *)
       | Type_error _ when Option.is_some id ->

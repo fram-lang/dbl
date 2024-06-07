@@ -45,10 +45,11 @@ let process_program state uri =
   InterpLib.Error.set_report_function (report path diagnostics);
   set_module_dirs ~fname:(Uri.to_path uri) ();
 
-  (try DblParser.Main.parse_file ~use_prelude:true path
+  begin try
+    DblParser.Main.parse_file ~use_prelude:true path
     |> TypeInference.Main.tr_program
     |> ignore;
-  with InterpLib.Error.Fatal_error -> ());
+  with InterpLib.Error.Fatal_error -> () end;
   let params =
     make_publish_diagnostics_params
       ~uri ~diagnostics:(List.rev !diagnostics) () in
@@ -65,7 +66,8 @@ let handle_notification state notification =
   | DidChange params ->
     let apply_content_change state change =
       State.update_document state params.text_document.uri change.text in
-    let new_state = List.fold_left apply_content_change state params.content_changes in
+    let new_state =
+      List.fold_left apply_content_change state params.content_changes in
     process_program new_state params.text_document.uri;
     new_state
   | DidClose params -> State.close_document state params.text_document.uri
