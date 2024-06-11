@@ -23,9 +23,9 @@ val check_type :
 val infer_arg_scheme :
   Env.t -> S.arg -> Env.t * T.pattern * T.scheme * ret_effect
 
-(** Infer type-scheme of given formal optional argument. Returns extended environment,
-  a pattern that represents an argument, its scheme, and the effect of
-  pattern-matching *)
+(** Infer type-scheme of given formal optional argument. Returns extended
+  environment, a pattern that represents an argument, its scheme, and the
+  effect of pattern-matching *)
 val infer_optional_arg_scheme :
   Env.t -> S.arg -> Env.t * T.pattern * T.scheme * ret_effect
 
