@@ -1,4 +1,6 @@
 pub data Option A = None | Some of A
+pub method add = (extern dbl_addInt : Int -> Int -> Int) self
+pub method fn (+) = add
 
 let f {?x} = x
 let a = f
