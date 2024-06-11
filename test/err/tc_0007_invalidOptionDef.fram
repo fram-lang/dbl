@@ -1,0 +1,6 @@
+data Option A = None | Some of A
+data Option A = Non | Som of A
+
+let f {?x} = x
+let a = f
+

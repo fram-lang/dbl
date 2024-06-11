@@ -13,3 +13,11 @@ match x with
 end
 let c = g ()
 let d = g {x=2} ()
+let e = g {?x = Some 2} ()
+
+let h {?x} () = match x with
+| Some n => n
+| None => None
+end
+
+let a = h {x=Some 2}
