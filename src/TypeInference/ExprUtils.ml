@@ -155,7 +155,6 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
   | None, T.NVar x  ->
     (* TODO: we could provide freshly bound parameters here *)
     Error.fatal (Error.unbound_named_param ~pos:e.pos x)
-    (* For unbound optional parameter we pass None *)
   | None, T.NOptionalVar x ->
     assert (T.Scheme.is_monomorphic isch);
     let arg = PreludeTypes.mk_None ~env ~pos:e.pos isch.sch_body in

@@ -373,14 +373,10 @@ and pp_scheme_named_args buf env sep nargs =
       begin match name with
       | NLabel         -> Buffer.add_string buf "label"; sch
       | NVar x         -> Buffer.add_string buf x; sch
-      (* Assert that the scheme is monomorphic
-        Extract type from scheme, extract the argument from application
-        and wrap the param it in scheme *)
       | NOptionalVar x -> 
-        let { T.sch_targs; sch_named; sch_body } = sch in
         assert (T.Scheme.is_monomorphic sch);
         Buffer.add_string buf x;
-        begin match T.Type.view sch_body with
+        begin match T.Type.view sch.sch_body with
         | TApp(_, tp) -> T.Scheme.of_type tp;
         (* Error here? *)
         | _           -> sch 

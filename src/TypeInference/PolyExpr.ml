@@ -122,9 +122,7 @@ let check_actual_arg ~tcfix env (arg : S.expr) sch eff =
       let (body, res_eff) = check_expr_type env arg body_tp T.Effect.pure in
       begin match res_eff with
       | Pure -> ()
-      | Impure -> 
-        print_endline "Test1";
-        Error.report (Error.func_not_pure ~pos:arg.pos) 
+      | Impure -> Error.report (Error.func_not_pure ~pos:arg.pos) 
       end;
       (body, Pure)
   in

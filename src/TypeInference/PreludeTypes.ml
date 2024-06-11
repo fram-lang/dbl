@@ -52,5 +52,4 @@ let mk_None ~env ~pos option_tp : T.expr =
          (make (T.ETApp (adt_proof, tp_arg)) Position.nowhere, idx, [], []))
       Position.nowhere
   | None ->
-    Error.fatal
-      (Error.ctor_not_in_type ~pos:Position.nowhere ~env "None" option_tp)
+    Error.fatal (Error.ctor_not_in_type ~pos ~env "None" option_tp)

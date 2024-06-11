@@ -383,7 +383,6 @@ let check_arg_scheme env (arg : S.arg) sch =
 
 let infer_named_arg_scheme env (na : S.named_arg) =
   let (name, arg) = na.data in
-  (* Pattern match on name, act accordingly if it's Optional Arg *)
   let name = Name.tr_name env name in
   let (env, pat, sch, r_eff) = 
     begin match name with
