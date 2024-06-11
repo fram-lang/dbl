@@ -168,6 +168,7 @@ let open_named_arg ~pos ~public ~sub env (name, sch) =
     match name with
     | T.NLabel -> Env.add_the_label_sch env sch
     | T.NVar x -> Env.add_poly_var ~public env x sch
+    | T.NOptionalVar x -> Env.add_mono_var ~public env x sch.sch_body
     | T.NImplicit n -> Env.add_poly_implicit ~public env n sch ignore
     | T.NMethod   n ->
       let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in

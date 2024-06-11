@@ -872,7 +872,7 @@ and create_accessor_method ~public named_type_args pattern_gen scheme =
       [],
       make (EFn(pattern_gen field, e))))
     |> Option.some
-  | (NLabel | NImplicit _ | NMethod _), _ ->
+  | (NLabel | NImplicit _ | NMethod _ | NOptionalVar _), _ ->
     Error.warn (Error.ignored_field_in_record scheme.pos);
     None
 
