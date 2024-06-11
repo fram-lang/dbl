@@ -120,13 +120,10 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     | L_No       -> Error.fatal (Error.label_type_mismatch ~pos:nsch.pos)
     end
   | NVar      x -> (T.NVar x, sch)
-  (* Check that the scheme of named parameter is monomorphic and wrap the type from scheme in Option 
-    *)
   | NOptionalVar x -> 
     let { T.sch_targs; sch_named; sch_body } = sch in
     if not (T.Scheme.is_monomorphic sch ) then
       Error.fatal (Error.polymorphic_optional_parameter ~pos:nsch.pos);
-    (* Wrap the type in option *)
     let tp = PreludeTypes.mk_Option ~env ~pos: nsch.pos sch_body in
     (T.NOptionalVar x, T.Scheme.of_type tp)
   | NImplicit n -> (T.NImplicit n, sch)

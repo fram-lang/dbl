@@ -6,10 +6,7 @@
 
 open Common
 
-val mk_Option : env:Env.t -> pos: Position.t -> T.typ -> T.typ
-
-val extr_arg_tp : env:Env.t -> pos: Position.t -> T.typ -> T.typ
-
-val mk_Some : env:Env.t -> pos: Position.t -> T.typ -> T.expr -> T.expr
-
-val mk_None : env:Env.t -> pos: Position.t -> T.typ -> T.expr
+val mk_Option : env:Env.t -> pos:Position.t -> T.typ -> T.typ
+val extr_arg_tp : env:Env.t -> pos:Position.t -> T.typ -> T.typ
+val mk_Some : env:Env.t -> pos:Position.t -> T.typ -> T.expr -> T.expr
+val mk_None : env:Env.t -> pos:Position.t -> T.typ -> T.expr

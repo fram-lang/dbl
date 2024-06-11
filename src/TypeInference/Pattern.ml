@@ -336,7 +336,9 @@ match arg with
   let sch_pos = sch.sch_pos in
   let sch = Type.tr_scheme env sch in
   assert (T.Scheme.is_monomorphic sch);
-  let sch = T.Scheme.of_type (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body) in
+  let sch = T.Scheme.of_type 
+    (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body)
+  in
   let scope = Env.scope env in
   let (env, pat, _, r_eff) =
     check_scheme ~env ~scope pat sch in
