@@ -80,16 +80,14 @@ let tokenize_ident str =
   | None     -> YaccParser.LID str
 
 let num_regex = Str.regexp
-  {|^\(0[bB][01]*\|0[oO][0-7]*\|[0-9]*\|0[xX][0-9a-fA-F]*\)[lL]?$|}
+  {|^\(0[bB][01]*\|0[oO][0-7]*\|[0-9]*\|0[xX][0-9a-fA-F]*\)L?$|}
 
 let tokenize_number pos str =
   if not (Str.string_match num_regex str 0) then
     Error.fatal (Error.invalid_number
       (Position.of_lexing (String.length str) pos)
       str)
-  else if String.length str > 0 &&
-    (str.[String.length str - 1] = 'l' ||
-     str.[String.length str - 1] = 'L') then
+  else if String.length str > 0 && str.[String.length str - 1] = 'L' then
     let str = String.sub str 0 (String.length str - 1) in
     match Int64.of_string_opt str with
     | Some n -> YaccParser.NUM64 n

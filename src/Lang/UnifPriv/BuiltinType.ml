@@ -9,6 +9,7 @@ let tv_int = TVar.fresh KindBase.k_type
 
 (** Int64 type *)
 let tv_int64 = TVar.fresh KindBase.k_type
+
 (** String type *)
 let tv_string = TVar.fresh KindBase.k_type
 

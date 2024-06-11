@@ -67,6 +67,8 @@ pub method shiftl  = (extern dbl_lslInt : Int -> Int -> Int) self
 pub method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int) self
 pub method ashiftr = (extern dbl_asrInt : Int -> Int -> Int) self
 
+pub method toInt64 {self : Int} = (extern dbl_int64ToInt : Int -> Int64)
+
 pub method add = (extern dbl_strCat : String -> String -> String) self
 
 pub method equal = (extern dbl_eqStr  : String -> String -> Bool) self
@@ -124,3 +126,66 @@ pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 pub let readLine = extern dbl_readLine : Unit ->[IO] String
 
 pub let exit {type X} = extern dbl_exit : Int ->[IO] X
+
+pub module Int64
+
+	pub method equal {self : Int64} =
+		(extern dbl_eqInt64  : Int64 -> Int64 -> Bool) self
+	pub method neq   {self : Int64} =
+		(extern dbl_neqInt64 : Int64 -> Int64 -> Bool) self
+	pub method gt    {self : Int64} =
+		(extern dbl_gtInt64  : Int64 -> Int64 -> Bool) self
+	pub method lt    {self : Int64} =
+		(extern dbl_ltInt64  : Int64 -> Int64 -> Bool) self
+	pub method ge    {self : Int64} =
+		(extern dbl_geInt64  : Int64 -> Int64 -> Bool) self
+	pub method le    {self : Int64} =
+		(extern dbl_leInt64  : Int64 -> Int64 -> Bool) self
+
+	pub method neg {self : Int64} =
+		(extern dbl_negInt64 : Int64 -> Int64) self
+	pub method add {self : Int64} =
+		(extern dbl_addInt64 : Int64 -> Int64 -> Int64) self
+	pub method sub {self : Int64} =
+		(extern dbl_subInt64 : Int64 -> Int64 -> Int64) self
+	pub method mul {self : Int64} =
+		(extern dbl_mulInt64 : Int64 -> Int64 -> Int64) self
+	pub method div {`re : {type X} -> Unit ->[|_] X} (n : Int64) =
+		if n.equal 0L then `re ()
+		else (extern dbl_divInt64 : Int64 -> Int64 -> Int64) self n
+	pub method mod {`re : {type X} -> Unit ->[|_] X} (n : Int64) =
+		if n.equal 0L then `re ()
+		else (extern dbl_modInt64 : Int64 -> Int64 -> Int64) self n
+
+	pub method land = (extern dbl_andInt64 : Int64 -> Int64 -> Int64) self
+	pub method lor  = (extern dbl_orInt64  : Int64 -> Int64 -> Int64) self
+	pub method lxor = (extern dbl_xorInt64 : Int64 -> Int64 -> Int64) self
+	pub method shiftl  = (extern dbl_lslInt64 : Int64 -> Int64 -> Int64) self
+	pub method shiftr  = (extern dbl_lsrInt64 : Int64 -> Int64 -> Int64) self
+	pub method ashiftr = (extern dbl_asrInt64 : Int64 -> Int64 -> Int64) self
+
+	pub let zero = 0L
+	pub let one  = 1L
+	pub method succ {self : Int64} = self + one
+	pub method pred {self : Int64} = self - one
+
+	pub let ofInt (n : Int) = n.toInt64
+	pub method toString {self : Int64} =
+		(extern dbl_int64ToString : Int64 -> String) self
+	pub method toInt {`re : {type X} -> Unit ->[|_] X, self : Int64} =
+		if self <= 0x3fffffffffffffffL && self >= 0x7fffffffffffffffL then
+			(extern dbl_intToInt64 : Int64 -> Int) self
+		else `re ()
+	pub method toIntOpt {self : Int64} =
+		if self <= 0x3fffffffffffffffL && self >= 0x7fffffffffffffffL then
+			Some ((extern dbl_intToInt64 : Int64 -> Int) self)
+		else None
+
+	pub method abs {self : Int64} =
+		if self < 0L then self.neg else self
+	pub method min {self : Int64} oth =
+		if self <= oth then self else oth
+	pub method max {self : Int64} oth =
+		if self >= oth then self else oth
+
+end

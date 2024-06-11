@@ -19,7 +19,7 @@ function simple_examples {
 run_with_flags simple_examples ""
 
 function simple_stdlib_tests {
-	for file in test/stdlib/*.dbl
+	for file in test/stdlib/*.fram
 	do
 		simple_test $file
 	done

@@ -182,8 +182,8 @@ let rec guess_rec_value_type env (e : S.expr) =
   | EAnnot(_, tp) ->
     (Type.tr_ttype env tp, Impure)
 
-  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _ | EMatch _
-  | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
+  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _
+  | EMatch _ | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
     (Env.fresh_uvar env T.Kind.k_type, Impure)
 
 (** Information gathered by guessing the scheme of a recursive value *)

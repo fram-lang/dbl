@@ -1,7 +1,0 @@
-import Int64
-
-let zero = Int64.one + Int64.minus_one
-
-let _ = (zero == 0L)
-
-
