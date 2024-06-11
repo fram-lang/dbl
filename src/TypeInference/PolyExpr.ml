@@ -161,9 +161,9 @@ let rec check_explicit_insts ~tcfix
             begin match T.Name.assoc (T.NOptionalVar x) named with
             | Some sch ->
               assert (T.Scheme.is_monomorphic sch);
-              let tp = PreludeTypes.extr_arg_tp sch.sch_body in
+              let tp = PreludeTypes.extr_arg_tp ~env ~pos:e.pos sch.sch_body in
               let (e, r_eff1) = check_actual_arg ~tcfix env e (T.Scheme.of_type tp) eff in
-              Some (T.NOptionalVar x, PreludeTypes.mk_Some ~env tp e, sch.sch_body, r_eff1)
+              Some (T.NOptionalVar x, PreludeTypes.mk_Some ~env ~pos:e.pos tp e, sch.sch_body, r_eff1)
             | None -> None
             end
           | _ -> None

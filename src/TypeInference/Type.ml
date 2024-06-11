@@ -127,7 +127,7 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     if not (T.Scheme.is_monomorphic sch ) then
       Error.fatal (Error.polymorphic_optional_parameter ~pos:nsch.pos);
     (* Wrap the type in option *)
-    let tp = PreludeTypes.mk_Option ~env sch_body in
+    let tp = PreludeTypes.mk_Option ~env ~pos: nsch.pos sch_body in
     (T.NOptionalVar x, T.Scheme.of_type tp)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)
