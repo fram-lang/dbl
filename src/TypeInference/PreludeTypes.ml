@@ -8,12 +8,12 @@ open Common
 
 let mk_Option ~env tp_arg =
   begin match Env.lookup_tvar env (S.NPName "Option") with
-  | None    -> failwith "Error"
+  | None    -> failwith "Couldn't find Option type"
   | Some tp -> 
     if not (Unification.unify_kind 
       (T.Type.kind tp)
       (T.Kind.k_arrow T.Kind.k_type T.Kind.k_type))
-      then failwith "Error";
+      then failwith "Option is not of Kind k_arrow k_tp => k_tp";
     (* We can do more checks on the ADT to make sure it's correct Option type (eg. it contains 2 constructors etc.) *)
     (* begin match T.Type.view tp with
     | T.Type.TVar x -> 
@@ -29,7 +29,7 @@ let mk_Option ~env tp_arg =
 let extr_arg_tp option_tp =
   match T.Type.whnf option_tp with
   | Whnf_Neutral(NH_Var x, tp :: []) -> tp
-  | _ -> failwith "Error"
+  | _ -> failwith "Option's whnf form is incorrect"
 
 let mk_Some ~env tp_arg expr_arg : T.expr =
   let make data pos = { T.data; T.pos } in
@@ -39,7 +39,7 @@ let mk_Some ~env tp_arg expr_arg : T.expr =
   | Some (idx, adt_info) -> 
     let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
     make (T.ECtor (make (T.ETApp (adt_proof, tp_arg)) Position.nowhere, idx, [], [expr_arg])) Position.nowhere
-  | None -> failwith "Error"
+  | None -> failwith "Couldn't find constructor Some of Option type"
   end
 
 let mk_None ~env option_tp : T.expr =
@@ -49,7 +49,7 @@ let mk_None ~env option_tp : T.expr =
   | Some (idx, adt_info) -> 
     let {Module.adt_proof; adt_args; adt_ctors; adt_type} = adt_info in
     make (T.ECtor (make (T.ETApp (adt_proof, tp_arg)) Position.nowhere, idx, [], [])) Position.nowhere
-  | None -> failwith "Error"
+  | None -> failwith "Couldn't find constructor None of Option type"
   end
 
   
