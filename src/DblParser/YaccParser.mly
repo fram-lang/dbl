@@ -477,8 +477,10 @@ expr_comma_sep
 /* ====================== String interpolation ============================= */
 
 str_interp
-: expr_40 CSTR str_interp { ($1, $2) :: $3 } 
-| expr_40 ESTR     { [ ($1, $2) ] }
+: expr_40 BAR expr_40 CSTR str_interp { ($1, Some $3, $4) :: $5 } 
+| expr_40             CSTR str_interp { ($1, None,    $2) :: $3 } 
+| expr_40 BAR expr_40 ESTR            {[($1, Some $3, $4)]      }
+| expr_40             ESTR            {[($1, None,    $2)]      }
 ;
 
 /* ========================================================================= */

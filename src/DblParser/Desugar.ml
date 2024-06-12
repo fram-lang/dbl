@@ -517,17 +517,20 @@ and tr_expr (e : Raw.expr) =
   | ENum n -> make (ENum n)
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
-  | ECStr (s, xs) -> 
-    (* TODO improve *)
-    let makeConcat e1 e2 = 
-      {pos = e1.pos; data = Raw.EBOp(e1, {pos = e1.pos; data = "+"}, e2)} in
-    let makeToString e = 
-      {pos = e.pos; data = Raw.EMethod(e, "toString") } in
-    let rec reduce = function
-      | [e, s] -> makeConcat (makeToString e) {pos = Position.nowhere; data = EStr s}
-      | (e, s) :: tl -> makeConcat (makeToString e) (makeConcat {pos = Position.nowhere; data = EStr s} (reduce tl))
-      | _ -> assert false in
-    tr_expr (makeConcat {pos = Position.nowhere; data = EStr s} (reduce xs))
+  | ECStr (s, xs) ->
+    let makeToFormatted e fmt =
+      let fmt' = match fmt with
+        | Some x -> with_nowhere (Raw.EApp (with_nowhere (Raw.ECtor "Some"), [x]))
+        | None   -> with_nowhere (Raw.ECtor "None") 
+      in with_nowhere (Raw.EApp (with_nowhere (Raw.EMethod (e, "toFormatted")), [fmt']))
+    in 
+    let rec reduceToList = function
+      | (e, f, s) :: tl -> 
+        (makeToFormatted e f) :: (with_nowhere (Raw.EStr s)) :: reduceToList tl
+      | [] -> []
+    in
+    let strs = (with_nowhere @@ Raw.EList ((with_nowhere (Raw.EStr s)) :: reduceToList xs)) in
+    tr_expr (with_nowhere @@ Raw.EApp (with_nowhere (Raw.EExtern "dbl_strListCat"), [strs]))
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
   | EApp(e1, es)   ->
     begin match collect_fields ~ppos:e1.pos es with

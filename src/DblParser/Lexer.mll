@@ -5,12 +5,12 @@
 (** Lexer *)
 
 {
-let open_sq_brackets = ref 0
-let sq_brackets_stack = Stack.create ()
+let open_cbrackets = ref 0
+let cbrackets_stack = Stack.create ()
 
 let reset () =
-  open_sq_brackets := 0;
-  Stack.clear sq_brackets_stack
+  open_cbrackets := 0;
+  Stack.clear cbrackets_stack
 
 let kw_map =
   let open YaccParser in
@@ -155,15 +155,15 @@ rule token = parse
   | '['  { YaccParser.SBR_OPN    }
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { 
-    open_sq_brackets := !open_sq_brackets + 1;
+    open_cbrackets := !open_cbrackets + 1;
     YaccParser.CBR_OPN    
   }
   | '}'  {
-      if !open_sq_brackets = 0 then
+      if !open_cbrackets = 0 then
         let buf = Buffer.create 32 in
         string_token false lexbuf.Lexing.lex_start_p buf lexbuf
       else
-        let () = open_sq_brackets := !open_sq_brackets - 1 in
+        let () = open_cbrackets := !open_cbrackets - 1 in
         YaccParser.CBR_CLS  
     }
   | op_char+ as x { tokenize_oper x }
@@ -190,9 +190,9 @@ and string_token beg pos buf = parse
       string_token beg pos buf lexbuf
     }
   | '"' {
-      let _ = match Stack.pop_opt sq_brackets_stack with
-        | Some x -> open_sq_brackets := x
-        | _ -> open_sq_brackets := 0 in
+      let _ = match Stack.pop_opt cbrackets_stack with
+        | Some x -> open_cbrackets := x
+        | _ -> open_cbrackets := 0 in
       lexbuf.Lexing.lex_start_p <- pos;
       if beg then
         YaccParser.STR  (Buffer.contents buf)
@@ -200,8 +200,8 @@ and string_token beg pos buf = parse
         YaccParser.ESTR (Buffer.contents buf)
     }
   | "\\{" {
-      Stack.push (!open_sq_brackets) sq_brackets_stack;
-      open_sq_brackets := 0;
+      Stack.push (!open_cbrackets) cbrackets_stack;
+      open_cbrackets := 0;
       lexbuf.Lexing.lex_start_p <- pos;
       if beg then
         YaccParser.BSTR (Buffer.contents buf)
