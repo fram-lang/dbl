@@ -1,0 +1,33 @@
+pub data Bool = False | True
+pub data Option A = None | Some of A
+pub data rec List A = [] | (::) of A, List A
+
+method equal = (extern dbl_eqStr  : String -> String -> Bool) self
+method fn (==) = equal
+
+let printStrLn = (extern dbl_printStrLn : String -> Unit)
+
+method toFormatted {self : String} (fmt: Option String) =
+  match fmt with
+  | None     => self
+  | Some fmt =>
+    if fmt == "dummyFormat" then
+      "DummyFormat"
+    else
+      "UnknownFormat"
+  end
+
+let _ = printStrLn "Normal String"
+let _ = printStrLn "String with interpolation : \{"Interpolated"}"
+let _ = printStrLn "String with 2 interpolations : \{
+  "Interpolated1"} : \{"Interpolated2"}"
+let _ = printStrLn "Interpolated with formats : \{
+    "Interpolated1" | "dummyFormat"
+  } : \{
+    "Interpolated2" | "UnknownFormat"
+  }"
+
+// @stdout:Normal String
+// @stdout:String with interpolation : Interpolated
+// @stdout:String with 2 interpolations : Interpolated1 : Interpolated2
+// @stdout:Interpolated with formats : DummyFormat : UnknownFormat

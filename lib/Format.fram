@@ -1,0 +1,51 @@
+import List
+
+let toOptString (str : String) = 
+  if str == "" then None else Some str
+
+let extractFormat (delim : Char) (str : String) = 
+  let xs = str.toList in
+  let rec iter xs =
+    match xs with
+    | [] => ([], [])
+    | x :: xs =>
+      if delim == x then
+        ([], xs)
+      else
+        (let (fr, tl) = iter xs in
+        (x :: fr, tl))
+    end in
+  let (fr, tl) = iter xs in
+  (fr, toOptString (charListToStr tl)) 
+
+let coalesceOption {type A} (dfl : A) (val : Option A) =
+  match val with
+  | Some x => x
+  | None => dfl
+  end
+
+pub method toFormatted {self : Int} (fmt : Option String) = 
+  match fmt with
+  | None => self.toString
+  | Some x => if x == "x" then
+      (extern dbl_intToStringX  : Int -> String) self
+    else
+      self.toString
+  end
+
+pub method toFormatted {self : String} (fmt : Option String) = self
+
+pub method toFormatted 
+  {type A, method toFormatted : A -> Option String ->[] String, self : Option A} (fmt' : Option String) = 
+  let fmt = coalesceOption "" fmt' in
+  let (fmt1, fmts) = extractFormat ':' fmt in
+  if "h" == charListToStr fmt1 then
+    match self with
+    | Some x => "Just " + x.toFormatted fmts
+    | None   => "Nothing"
+    end
+  else
+    match self with
+    | Some x => "Some " + x.toFormatted fmts
+    | None   => "None"
+    end

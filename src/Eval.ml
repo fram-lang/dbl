@@ -57,6 +57,13 @@ let list_chr_fun f = VFn (fun v cont ->
   | _ -> failwith "Runtime error!" in
   cont (f @@ parse_list v))
 
+let list_str_fun f = VFn (fun v cont ->
+  let rec parse_list = function
+  | VCtor(0, []) -> []
+  | VCtor(1, [VStr x; xs]) -> x :: parse_list xs 
+  | _ -> failwith "Runtime error!" in
+  cont (f @@ parse_list v))
+
 let v_unit = VCtor(0, [])
 
 let of_bool b =
@@ -92,7 +99,9 @@ let extern_map =
     "dbl_geInt",       int_cmpop ( >= );
     "dbl_leInt",       int_cmpop ( <= );
     "dbl_intToString", int_fun (fun n -> VStr (string_of_int n));
-    "dbl_strCat",  str_fun (fun s1 -> str_fun (fun s2 -> VStr(s1 ^ s2)));
+    "dbl_intToStringX", int_fun (fun n -> VStr (Printf.sprintf "0x%X" n));
+    "dbl_strCat",      str_fun (fun s1 -> str_fun (fun s2 -> VStr(s1 ^ s2)));
+    "dbl_strListCat",  list_str_fun (fun xs -> VStr (String.concat "" xs));
     "dbl_eqStr",   str_cmpop ( = );
     "dbl_neqStr",  str_cmpop ( <> );
     "dbl_gtStr",   str_cmpop ( > );
