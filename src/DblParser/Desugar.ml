@@ -106,12 +106,12 @@ let rec find_self_arg args =
     let (self, args) = find_self_arg args in
     (self, arg :: args)
 
-let ident_of_name (name : Raw.name) =
+let ident_of_name ~public (name : Raw.name) =
   match name with
   | NLabel      -> IdLabel
-  | NVar x      -> IdVar(false, x)
-  | NImplicit n -> IdImplicit(false, n)
-  | NMethod   n -> IdMethod(false, n)
+  | NVar x      -> IdVar(public, x)
+  | NImplicit n -> IdImplicit(public, n)
+  | NMethod   n -> IdMethod(public, n)
 
 let rec path_append path rest =
   match path with
@@ -190,16 +190,16 @@ and tr_scheme_field (fld : Raw.ty_field) =
   let make data = { fld with data = data } in
   match fld.data with
   | FldAnonType tp ->
-    Either.Left (make (TNAnon, tr_type_arg tp))
+    Either.Left (make (TNAnon, tr_type_arg ~public:false tp))
   | FldEffect ->
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
-    Either.Left (make (TNEffect, tr_type_arg arg))
+    Either.Left (make (TNEffect, tr_type_arg ~public:false arg))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
-    Either.Left (make (TNVar x, make (TA_Var(x, k))))
+    Either.Left (make (TNVar x, make (TA_Var(false, x, k))))
   | FldTypeVal(x, arg) ->
-    Either.Left (make (TNVar x, tr_type_arg arg))
+    Either.Left (make (TNVar x, tr_type_arg ~public:false arg))
   | FldName n ->
     let sch =
       { sch_pos   = fld.pos;
@@ -215,13 +215,13 @@ and tr_scheme_field (fld : Raw.ty_field) =
     assert false
 
 (** Translate a type expression as a type parameter *)
-and tr_type_arg (tp : Raw.type_expr) =
+and tr_type_arg ~public (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
-  | TParen tp -> make (tr_type_arg tp).data
+  | TParen tp -> make (tr_type_arg ~public tp).data
   | TVar (NPName x, ka) -> 
     let k = Option.value ka ~default:(make KWildcard) in
-    make (TA_Var(x, k))
+    make (TA_Var(public, x, k))
   | TVar (NPSel _, _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
@@ -233,9 +233,9 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   | TParen tp -> make (tr_named_type_arg tp).data
   | TVar (NPName x, ka) -> 
     let k = Option.value ka ~default:(make KWildcard) in
-    make (TNVar x, make (TA_Var(x, k)))
-  | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
-  | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
+    make (TNVar x, make (TA_Var(false, x, k)))
+  | TTypeLbl tp -> make (TNAnon, tr_type_arg ~public:false tp)
+  | TEffectLbl tp -> make (TNEffect, tr_type_arg ~public:false tp)
   | TWildcard -> make (TNAnon, make (TA_Wildcard))
   | TVar (NPSel _, _) | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
@@ -352,19 +352,19 @@ and tr_named_pattern ~public (fld : Raw.field) =
   | FldEffect ->
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
-    Either.Left (make (TNEffect, tr_type_arg arg))
+    Either.Left (make (TNEffect, tr_type_arg ~public arg))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
-    Either.Left (make (TNVar x, make (TA_Var(x, k))))
+    Either.Left (make (TNVar x, make (TA_Var(public, x, k))))
   | FldTypeVal(x, arg) ->
-    Either.Left (make (TNVar x, tr_type_arg arg))
+    Either.Left (make (TNVar x, tr_type_arg ~public arg))
   | FldName n ->
-    Either.Right (make (n, make (PId (ident_of_name n))))
+    Either.Right (make (n, make (PId (ident_of_name ~public n))))
   | FldNameVal(n, p) ->
     Either.Right (make (n, tr_pattern ~public p))
   | FldNameAnnot(n, sch) ->
     Either.Right
-      (make (n, make (PAnnot(make (PId (ident_of_name n)),
+      (make (n, make (PAnnot(make (PId (ident_of_name ~public n)),
                              tr_scheme_expr sch))))
   | FldModule _ ->
     Error.fatal (Error.desugar_error fld.pos)
@@ -387,23 +387,26 @@ let tr_named_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
   | FldAnonType arg ->
-    Either.Left (make (TNAnon, tr_type_arg arg))
+    Either.Left (make (TNAnon, tr_type_arg ~public:false arg))
   | FldEffect ->
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
-    Either.Left (make (TNEffect, tr_type_arg arg))
+    Either.Left (make (TNEffect, tr_type_arg ~public:false arg))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
-    Either.Left (make (TNVar x, make (TA_Var(x, k))))
+    Either.Left (make (TNVar x, make (TA_Var(false, x, k))))
   | FldTypeVal(x, arg) ->
-    Either.Left (make (TNVar x, tr_type_arg arg))
+    Either.Left (make (TNVar x, tr_type_arg ~public:false arg))
   | FldName n ->
-    Either.Right (make (n, ArgPattern(make (PId (ident_of_name n)))))
+    let arg = ArgPattern(make (PId (ident_of_name ~public:false n))) in
+    Either.Right (make (n, arg))
   | FldNameVal(n, e) ->
     Either.Right (make (n, tr_function_arg e))
   | FldNameAnnot(n, sch) ->
-    Either.Right
-      (make (n, ArgAnnot(make (PId (ident_of_name n)), tr_scheme_expr sch)))
+    let arg =
+      ArgAnnot(make (PId (ident_of_name ~public:false n)), tr_scheme_expr sch)
+    in
+    Either.Right (make (n, arg))
   | FldModule _ ->
     (* TODO: This might eventually be supported. *)
     Error.fatal (Error.desugar_error fld.pos)
@@ -760,33 +763,33 @@ and tr_pattern_with_fields ~public (pat : Raw.expr) =
 
 and tr_label_pattern ~public (pat : Raw.expr) =
   let (flds_opt, pat) = tr_pattern_with_fields ~public pat in
-  (Option.map tr_label_fields flds_opt, pat)
+  (Option.map (tr_label_fields ~public) flds_opt, pat)
 
 and tr_handle_pattern ~public (pat : Raw.expr) =
   let (flds_opt, pat) = tr_pattern_with_fields ~public pat in
   match flds_opt with
   | Some flds ->
-    let (lbl_opt, eff_opt) = tr_handle_fields flds in
+    let (lbl_opt, eff_opt) = tr_handle_fields ~public flds in
     (lbl_opt, eff_opt, pat)
   | None -> (None, None, pat)
 
-and tr_label_fields flds =
+and tr_label_fields ~public flds =
   match flds with
   | [] -> assert false
-  | [{ data = FldEffectVal tp; _ }] -> tr_type_arg tp
+  | [{ data = FldEffectVal tp; _ }] -> tr_type_arg ~public tp
   | { data = FldEffectVal _; _} :: fld :: _ | fld :: _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
-and tr_handle_fields flds =
+and tr_handle_fields ~public flds =
   match flds with
   | [] -> assert false
   | [{ data = FldNameVal(NLabel, e); _ }] ->
     (Some (tr_expr e), None)
   | [{ data = FldEffectVal eff; _ }] ->
-    (None, Some (tr_type_arg eff))
+    (None, Some (tr_type_arg ~public eff))
   | [{ data = FldNameVal(NLabel, e); _ }; { data = FldEffectVal eff; _ }]
   | [{ data = FldEffectVal eff; _ }; { data = FldNameVal(NLabel, e); _ }] ->
-    (Some (tr_expr e), Some (tr_type_arg eff))
+    (Some (tr_expr e), Some (tr_type_arg ~public eff))
   | { data=FldNameVal(NLabel, _); _} :: { data=FldEffectVal _; _ } :: fld :: _
   | { data=FldEffectVal _; _ } :: { data=FldNameVal(NLabel, _); _} :: fld :: _
   | { data=FldNameVal(NLabel, _); _} :: fld :: _
@@ -824,11 +827,13 @@ and generate_accessor_method_pattern named_type_args type_name =
   let create_mapping i arg =
     let old_name, new_name =
       match (snd arg.data).data with
-      | TA_Var(name, _) -> name, name ^ "#TA_Var#" ^ string_of_int i
+      | TA_Var(_, name, _) -> name, name ^ "#TA_Var#" ^ string_of_int i
       | TA_Effect -> "TNEffect", "TNEffect#TA_Effect#" ^ string_of_int i
       | TA_Wildcard -> "TNAnon", "TNAnon#TA_Wildcard#" ^ string_of_int i
     in
-    make (TNVar old_name, make (TA_Var(new_name, make (KWildcard)))), new_name
+    let named_arg =
+      make (TNVar old_name, make (TA_Var (false, new_name, make KWildcard))) in
+    named_arg, new_name
   in
   let (new_named_type_args, new_names : named_type_arg list * ctor_name list) =
     List.split (List.mapi create_mapping named_type_args) in
