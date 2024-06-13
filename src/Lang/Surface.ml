@@ -122,7 +122,7 @@ and type_arg_data =
   | TA_Effect
     (** Effect variable *)
 
-  | TA_Var of tvar * kind_expr
+  | TA_Var of is_public * tvar * kind_expr
     (** Type variable *)
   
   | TA_Wildcard
