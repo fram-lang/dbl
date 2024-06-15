@@ -21,6 +21,12 @@ type value =
   | VLabel of UID.t
     (** Runtime label of control operator *)
 
+  | VRef of value ref
+    (** Mutable reference *)
+
+  | VArray of value array
+    (** Mutable arrays *)
+
 (** CPS Computations *)
 and 'v comp = ('v -> ans) -> ans
 
@@ -37,6 +43,8 @@ and ans = frame list -> unit
 
 (* ========================================================================= *)
 (* External functions (should be moved to other file *)
+
+let pure_fun f = VFn (fun v cont -> cont (f v))
 
 let unit_fun f = VFn (fun v cont -> cont (f ()))
 
@@ -57,6 +65,16 @@ let list_chr_fun f = VFn (fun v cont ->
   | _ -> failwith "Runtime error!" in
   cont (f @@ parse_list v))
 
+let ref_fun f = VFn (fun v cont ->
+  match v with
+  | VRef r -> cont (f r)
+  | _ -> failwith "Runtime error!")
+
+let array_fun f = VFn (fun v cont ->
+  match v with
+  | VArray a -> cont (f a)
+  | _ -> failwith "Runtime error!")
+
 let v_unit = VCtor(0, [])
 
 let of_bool b =
@@ -74,7 +92,8 @@ let int_cmpop op = int2_fun (fun x y -> of_bool (op x y))
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
 
 let extern_map =
-  [ "dbl_addInt",      int_binop ( + );
+  [ "dbl_magic",       pure_fun Fun.id;
+    "dbl_addInt",      int_binop ( + );
     "dbl_subInt",      int_binop ( - );
     "dbl_mulInt",      int_binop ( * );
     "dbl_divInt",      int_binop ( / );
@@ -111,6 +130,15 @@ let extern_map =
     "dbl_printInt",   int_fun (fun n -> print_int n; v_unit);
     "dbl_readLine",   unit_fun (fun () -> VStr (read_line ()));
     "dbl_exit",       int_fun exit;
+    "dbl_abstrType",  VFn (fun _ cont -> cont (VCtor(0, [])));
+    "dbl_ref",        VFn (fun x cont -> cont (VRef (ref x)));
+    "dbl_refGet",     ref_fun (!);
+    "dbl_refSet",     ref_fun (fun r -> pure_fun (fun v -> r := v; v_unit));
+    "dbl_mkArray",    int_fun (fun n -> VArray(Array.make n v_unit));
+    "dbl_arrayGet",   array_fun (fun a -> int_fun (fun n -> a.(n)));
+    "dbl_arraySet",   array_fun (fun a -> int_fun (fun n -> pure_fun (fun v ->
+                        a.(n) <- v; v_unit)));
+    "dbl_arrayLength", array_fun (fun a -> VNum (Array.length a));
   ] |> List.to_seq |> Hashtbl.of_seq
 
 (* ========================================================================= *)
@@ -122,6 +150,8 @@ let to_string (v : value) =
   | VFn    _ -> "<fun>"
   | VCtor  _ -> "<ctor>"
   | VLabel _ -> "<label>"
+  | VRef   _ -> "<ref>"
+  | VArray _ -> "<array>"
 
 module Env : sig
   type t

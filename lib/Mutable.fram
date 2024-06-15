@@ -1,0 +1,156 @@
+import List
+
+data RefEx = RefEx of
+  { Ref        : effect -> type -> type
+  , Array      : effect -> type -> type
+  , ConstArray : type -> type
+  }
+
+pub data ArrayElem E T = { set : T ->[E] Unit }
+
+pub let RefEx { Ref, Array, ConstArray } =
+  (extern dbl_abstrType : Unit ->[IO] RefEx) ()
+
+let unsafeGetArray {E, type T} =
+  extern dbl_arrayGet : Array E T -> Int ->[E] T
+
+let unsafeGetConstArray {type T} =
+  extern dbl_arrayGet : ConstArray T -> Int ->[] T
+
+let unsafeSetArray {E, type T} =
+  extern dbl_arraySet : Array E T -> Int -> T ->[E] Unit
+
+let unsafeMakeArray {E, type T} =
+  extern dbl_mkArray : Int ->[E] Array E T
+
+pub method length {E, self : Array E _} =
+  (extern dbl_arrayLength : Array E _ -> Int) self
+
+pub method length {self : ConstArray _} =
+  (extern dbl_arrayLength : ConstArray _ -> Int) self
+
+pub method get {E, type T, self : Ref E T} =
+  (extern dbl_refGet : Ref E T ->[E] T) self
+
+pub method get {E, type T, `onError, self : Array E T} (n : Int) =
+  if n >= 0 && n < self.length then
+    unsafeGetArray {E} self n
+  else
+    `onError ()
+
+pub method get {type T, `onError, self : ConstArray T} (n : Int) =
+  if n >= 0 && n < self.length then
+    unsafeGetConstArray self n
+  else
+    `onError ()
+
+pub method set {E, type T, self : Ref E T} =
+  (extern dbl_refSet : Ref E T -> T ->[E] Unit) self
+
+pub method set {E, type T, self : Array E T} (n : Int) v =
+  if n >= 0 && n < self.length then unsafeSetArray {E} self n v
+
+pub method at {E, self : Array E _} n =
+  ArrayElem { E, set = self.set n }
+
+pub method fn (:=) = set
+
+pub method iteri {E, self : Array E _} f =
+  let rec loop (i : Int) =
+    if i >= self.length then ()
+    else (
+      f i (unsafeGetArray {E} self i);
+      loop (i + 1))
+  in
+  loop 0
+
+pub method iteri {self : ConstArray _} f =
+  let rec loop (i : Int) =
+    if i >= self.length then ()
+    else (
+      f i (unsafeGetConstArray self i);
+      loop (i + 1))
+  in
+  loop 0
+
+pub method iter {E, self : Array E _} f =
+  self.iteri (fn _ => f)
+
+pub method iter {self : ConstArray _} f =
+  self.iteri (fn _ => f)
+
+pub method clone {E, type T, self : Array E T} =
+  let arr = unsafeMakeArray {E} self.length in
+  self.iteri (unsafeSetArray {E} arr);
+  arr
+
+let unsafeFreeze {E, type T} (arr : Array E T) =
+  (extern dbl_magic : Array E T -> ConstArray T) arr
+
+pub method freeze {E, self : Array E _} =
+  unsafeFreeze {E} self.clone
+
+pub method toList {E, self : Array E _} =
+  let rec loop (n : Int) acc =
+    if n == 0 then acc
+    else (
+      let n = n - 1 in
+      let acc = unsafeGetArray {E} self n :: acc in
+      loop n acc)
+  in loop self.length []
+
+pub method toList {self : ConstArray _} =
+  let rec loop (n : Int) acc =
+    if n == 0 then acc
+    else (
+      let n = n - 1 in
+      let acc = unsafeGetConstArray self n :: acc in
+      loop n acc)
+  in loop self.length []
+
+abstr data Mut (effect E) = Mut
+
+pub method ref {E, type T, self : Mut E} =
+  extern dbl_ref : T ->[E] Ref E T
+
+pub method pureInitArray {E, self : Mut E} (n : Int) (f : _ ->[E] _) =
+  if n <= 0 then unsafeMakeArray {E} 0
+  else (
+    let arr = unsafeMakeArray {E} n
+    let rec loop (i : Int) =
+      if i < n then (
+        unsafeSetArray {E} arr i (f i);
+        loop (i + 1))
+    in
+    loop 0;
+    arr)
+
+pub let pureInitConstArray n (f : _ ->[] _) =
+  unsafeFreeze {E=[]} (Mut {effect=[]} >.pureInitArray n f)
+
+pub method toArray {E, `mut : Mut E, self : List _} =
+  let arr = unsafeMakeArray {E} self.length in
+  self.iteri (unsafeSetArray {E} arr);
+  arr
+
+pub method toConstArray {self : List _} =
+  unsafeFreeze {E=[]} (self.toArray {`mut = Mut {effect=[]}})
+
+pub method initArray {E, self : Mut E} n f =
+  (List.init n f).toArray {`mut=self}
+
+pub let initConstArray n f =
+  (List.init n f).toConstArray
+
+pub method makeArray {E, self : Mut E} n v =
+  self.pureInitArray n (fn _ => v)
+
+pub let ioMut = Mut {effect=IO}
+
+pub let hMut (f : {E : effect} -> Mut E ->[E] _) =
+  handle {effect=E} _ = () in
+  f {E} Mut
+
+pub let hMutArray (f : {E : effect} -> Mut E ->[E] Array E _) =
+  handle {effect=E} _ = () in
+  unsafeFreeze {E} (f {E} Mut)
