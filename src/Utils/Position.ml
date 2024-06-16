@@ -99,16 +99,29 @@ let to_string pos =
 
 module PrettyPrinting =
 struct
+  (** Options for underlining specified region *)
   type underline_options =
     | NoUnderline
+    (** Disable underlining *)
+
     | UnderlineBegining
+    (** Point to only beginning of region *)
+
     | UnderlineIfOneLine
+    (** Underline whole region, but only if specifies only one line *)
+
     | UnderlineAlways
+    (** Underline whole region *)
 
   type options = {
     context : int;
+    (** how many lines before and after region is to be printed *)
+
     underline : t -> underline_options;
+    (** function that depending on region will select underlining option *)
+
     add_line_numbers : bool;
+    (** should line numbers be added *)
   }
 
   let default_options = {
@@ -196,6 +209,3 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
   in
   let pp_file_name = " -> " ^ pos.pos_fname ^ "\n" in
   Some (pp_file_name ^ file_chunk)
-
-
-
