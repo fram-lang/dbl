@@ -23,7 +23,15 @@ let rec repl_seq imported () =
 and repl_seq_main imported () =
   flush stderr;
   Printf.printf "> %!";
-  let lexbuf = Lexing.from_channel stdin in
+  let buffer = Buffer.create 512 in
+  let bytes = Bytes.create 512 in
+  let fn buf n =
+    let res = input stdin bytes 0 n in
+    Buffer.add_subbytes buffer bytes 0 res;
+    Bytes.blit bytes 0 buf 0 res;
+    res
+  in
+  let lexbuf = Lexing.from_function fn in
   lexbuf.Lexing.lex_curr_p <-
     { lexbuf.Lexing.lex_curr_p with
       Lexing.pos_fname = "<stdin>"
@@ -35,14 +43,20 @@ and repl_seq_main imported () =
 
   | Raw.REPL_Expr e ->
     let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
+    let str = Bytes.to_string @@ Buffer.to_bytes buffer in
+    InterpLib.Error.repl_input := str;
     Seq.Cons([def], repl_seq imported)
 
   | Raw.REPL_Defs defs ->
-      let defs = Desugar.tr_defs defs in
-      Seq.Cons(defs, repl_seq imported)
+    let defs = Desugar.tr_defs defs in
+    let str = Bytes.to_string @@ Buffer.to_bytes buffer in
+    InterpLib.Error.repl_input := str;
+    Seq.Cons(defs, repl_seq imported)
 
-  | Raw.REPL_Import import ->
+| Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
+    let str = Bytes.to_string @@ Buffer.to_bytes buffer in
+    InterpLib.Error.repl_input := str;
     Seq.Cons(defs, repl_seq imported)
 
   | exception Parsing.Parse_error ->

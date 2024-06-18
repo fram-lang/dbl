@@ -125,7 +125,7 @@ struct
   }
 
   let default_options = {
-    context = 1;
+    context = 2;
     underline = (fun _ -> UnderlineIfOneLine);
     add_line_numbers = true;
   }
@@ -133,7 +133,8 @@ struct
 end
 
 (** Get text from file from given position *)
-let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t) =
+let get_text_range ?(options = PrettyPrinting.default_options)
+      ~repl_input ~color_printer (pos : t) =
   let find_tabs line =
     String.fold_left (fun (i, acc) c ->
         if c = '\t' then (i+1, i::acc) else (i+1, acc)) (0, []) line
@@ -141,9 +142,13 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
   in
   let generate_underline start_cnum len tabs =
     if len <= 0 then "" else
-    let underline = String.make len '^' in
+    let underline = String.make len '^' |> color_printer in
     let padding = String.make (start_cnum - 1) ' ' in
-    String.mapi (fun i _ -> if List.mem i tabs then '\t' else ' ') padding ^ underline
+    let f i _ =
+      if List.mem i tabs
+      then '\t'
+      else ' '
+    in String.mapi f padding ^ underline
   in
   let add_underline (i, line) : (int option * string) Seq.t =
     match options.underline pos, i with
@@ -151,8 +156,8 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
     | (UnderlineIfOneLine | UnderlineAlways), Some j
         when pos.pos_start_line = pos.pos_end_line
         && pos.pos_start_line = j ->
-      let underline =
-        generate_underline (start_column pos) pos.pos_length (find_tabs line) in
+      let underline = generate_underline
+          (start_column pos) pos.pos_length (find_tabs line) in
       Seq.cons (i, line) (Seq.return (None, underline))
     | UnderlineIfOneLine, _ -> Seq.return (i, line)
     | UnderlineBegining, Some j
@@ -192,20 +197,30 @@ let get_text_range ?(options = PrettyPrinting.default_options) ?channel (pos : t
       | Some i ->
        Printf.sprintf " %*d | %s" (align_to + 1) i line
   in
-  let process_file fd =
-    let lines = Seq.of_dispenser (fun () -> In_channel.input_line fd)
+  let process seq =
+    let to_drop = pos.pos_start_line - 1 - options.context in
+    let to_take =
+        pos.pos_end_line - pos.pos_start_line + 1 +
+        2*options.context - (Int.min 0 to_drop) in
+    let lines = seq
       |> Seq.zip (Seq.ints 1 |> Seq.map Option.some)
-      |> Seq.drop (pos.pos_start_line - 1 - options.context |> Int.max 0)
-      |> Seq.take (pos.pos_end_line - pos.pos_start_line + 1 + 2*options.context)
+      |> Seq.drop (Int.max to_drop 0)
+      |> Seq.take to_take
       |> Seq.flat_map add_underline
       |> Seq.map (add_line_number pos.pos_end_line)
     in
     String.concat "\n" @@ List.of_seq lines
   in
-  if Fun.negate Sys.file_exists pos.pos_fname then None else
-  let file_chunk = match channel with
-    | None -> In_channel.with_open_text pos.pos_fname process_file
-    | Some ch -> process_file ch
-  in
-  let pp_file_name = " -> " ^ pos.pos_fname ^ "\n" in
-  Some (pp_file_name ^ file_chunk)
+  if pos.pos_fname = "<stdin>" && repl_input <> "" then
+    let lines = String.split_on_char '\n' repl_input in
+    let file_chunk = process (List.to_seq lines) in
+    let pp_pos = to_string pos in
+    let pp_file_name = " -> " ^ pp_pos ^ "\n" in
+    Some (pp_file_name ^ file_chunk)
+  else
+    if Fun.negate Sys.file_exists pos.pos_fname then None else
+    let get_line fd () = In_channel.input_line fd in
+    let process_file fd = process (Seq.of_dispenser (get_line fd)) in
+    let file_chunk = In_channel.with_open_text pos.pos_fname process_file in
+    let pp_file_name = " -> " ^ pos.pos_fname ^ "\n" in
+    Some (pp_file_name ^ file_chunk)

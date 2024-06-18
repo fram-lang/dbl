@@ -46,6 +46,10 @@ let cmd_args_options = Arg.align
     "-I",
     Arg.String (fun p -> cli_local_search_dirs := p :: !cli_local_search_dirs),
     " Add a path to local search directories";
+
+    "-color",
+    Arg.String (fun s -> DblConfig.print_colors_of_string s),
+    " Use colors when printing Errors.";
   ]
 
 let fname = ref None
@@ -63,6 +67,7 @@ let proc_arg arg =
 let _ =
   Arg.parse cmd_args_options proc_arg usage_string;
   include_cli_search_dirs ();
+  Printf.printf "print colors: %b\n%!" !DblConfig.display_colors;
   try
     match !fname with
     | None       -> Pipeline.run_repl ()

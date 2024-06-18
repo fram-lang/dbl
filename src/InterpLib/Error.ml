@@ -14,22 +14,42 @@ type error_class =
 
 let err_counter = ref 0
 
+let repl_input = ref ""
+
 let incr_error_counter () =
   err_counter := !err_counter + 1
 
+let color_printer_generator color s =
+  if not !DblConfig.display_colors
+  then s
+  else if color = "red" then
+    Spectrum.Simple.sprintf ("@{<red>@{<bold>%s@}@}") s
+  else if color = "yellow" then
+    Spectrum.Simple.sprintf ("@{<yellow>@{<bold>%s@}@}") s
+  else if color = "teal" then
+    Spectrum.Simple.sprintf ("@{<teal>@{<bold>%s@}@}") s
+  else raise (Invalid_argument "ARG")
+
+
 let report ?pos ~cls msg =
-  let name =
+  let name, color =
     match cls with
     | FatalError ->
       incr_error_counter ();
-      "fatal error"
+      "fatal error", "red"
     | Error ->
       incr_error_counter ();
-      "error"
-    | Warning -> "warning"
-    | Note    -> "note"
+      "error", "red"
+    | Warning -> "warning", "yellow"
+    | Note    -> "note", "teal"
   in
-  match pos, Option.bind pos Position.get_text_range with
+  let color_printer s = color_printer_generator color s in
+  let name = color_printer name in
+  let text_range = Option.bind pos
+    (Position.get_text_range
+      ~repl_input:!repl_input
+      ~color_printer) in
+  match pos, text_range with
   | Some pos, None ->
     Printf.eprintf "%s: %s: %s\n"
       (Position.to_string pos) name msg

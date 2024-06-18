@@ -108,7 +108,8 @@ let unbound_method ~pos ~env x name =
 
 let method_fn_without_arg ~pos x name =
   (pos, Printf.sprintf
-    "Variable %s is registered as method %s and cannot be used without argument"
+    ("Variable %s is registered as method %s"
+    ^^ " and cannot be used without argument")
     (string_of_path x) name, [])
 
 let expr_type_mismatch ~pos ~env tp1 tp2 =
@@ -122,7 +123,8 @@ let expr_type_mismatch ~pos ~env tp1 tp2 =
 let expr_effect_mismatch ~pos ~env eff1 eff2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "This expression has effect %s, but an expression was expected of effect %s"
+    ("This expression has effect %s, but"
+    ^^ " an expression was expected of effect %s")
     (Pretty.type_to_string pp_ctx env eff1)
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
@@ -150,7 +152,8 @@ let delim_effect_mismatch ~pos ~env eff1 eff2 =
 let pattern_type_mismatch ~pos ~env tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "This pattern matches values of type %s, but it was expected to match values of type %s"
+    ("This pattern matches values of type %s,"
+    ^^ " but it was expected to match values of type %s")
     (Pretty.type_to_string pp_ctx env tp1)
     (Pretty.type_to_string pp_ctx env tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
@@ -158,7 +161,8 @@ let pattern_type_mismatch ~pos ~env tp1 tp2 =
 let pattern_annot_mismatch ~pos ~env sch1 sch2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "Annotating pattern with type %s, but it was expected to match values of type %s"
+    ("Annotating pattern with type %s, but"
+    ^^ " it was expected to match values of type %s")
     (Pretty.scheme_to_string pp_ctx env sch2)
     (Pretty.scheme_to_string pp_ctx env sch1)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
@@ -166,7 +170,8 @@ let pattern_annot_mismatch ~pos ~env sch1 sch2 =
 let func_effect_mismatch ~pos ~env eff1 eff2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "This function has effect %s, but it is applied in a context that accepts effect %s"
+    ("This function has effect %s, but"
+    ^^ " it is applied in a context that accepts effect %s")
     (Pretty.type_to_string pp_ctx env eff1)
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
@@ -174,7 +179,8 @@ let func_effect_mismatch ~pos ~env eff1 eff2 =
 let method_effect_mismatch ~pos ~env eff1 eff2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "This method has effect %s, but it is applied in a context that accepts effect %s"
+    ("This method has effect %s, but it is applied"
+    ^^ " in a context that accepts effect %s")
     (Pretty.type_to_string pp_ctx env eff1)
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
@@ -291,7 +297,8 @@ let empty_match_on_non_adt ~pos ~env tp =
 let empty_match_on_nonempty_adt ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "This pattern matching matches values of type %s, which is not an empty ADT"
+    ("This pattern matching matches values of type %s,"
+    ^^ " which is not an empty ADT")
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
@@ -368,7 +375,8 @@ let looping_named_param ~pos name =
 let named_param_type_mismatch ~pos ~env name tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "Type error during resolving of implicit parameters: %s has type %s, but the expected type is %s"
+    ("Type error during resolving of implicit "
+    ^^ "parameters: %s has type %s, but the expected type is %s")
     (string_of_name name)
     (Pretty.type_to_string pp_ctx env tp1)
     (Pretty.type_to_string pp_ctx env tp2)
@@ -431,7 +439,8 @@ let type_generalized_twice ~pos name =
 
 let ctor_arity_mismatch ~pos cpath req_n prov_n =
   (pos,
-    Printf.sprintf "Constructor %s expects %d parameter(s), but is applied to %d"
+    Printf.sprintf
+      "Constructor %s expects %d parameter(s), but is applied to %d"
       (string_of_path cpath) req_n prov_n,
     [])
 
@@ -442,7 +451,8 @@ let redundant_named_type ~pos (name : Lang.Unif.tname) =
     | TNAnon   -> assert false
     | TNVar x  -> Printf.sprintf "type %s" x
   in
-  (pos, Printf.sprintf "Providing %s to a function that do not expect it" nn, [])
+  (pos, Printf.sprintf
+      "Providing %s to a function that do not expect it" nn, [])
 
 let redundant_named_parameter ~pos name =
   (pos,
@@ -455,3 +465,5 @@ let redundant_named_pattern ~pos name =
     "Providing %s to a constructor that do not expect it"
     (string_of_name name),
     [])
+
+let invalid_method_type ~pos = (pos, "invalid method type", [])

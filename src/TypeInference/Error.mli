@@ -139,3 +139,5 @@ val ctor_arity_mismatch :
 val redundant_named_type : pos:Position.t -> T.tname -> t
 val redundant_named_parameter : pos:Position.t -> T.name -> t
 val redundant_named_pattern : pos:Position.t -> T.name -> t
+
+val invalid_method_type : pos:Position.t -> t
