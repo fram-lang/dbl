@@ -107,6 +107,13 @@ let unbound_method ~pos ~env x name =
     name
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let unbound_adt ~pos ~env x =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "There is no ADT assigned to this type var %s"
+    (Pretty.tvar_to_string pp_ctx env x)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let method_fn_without_arg ~pos x name =
   (pos, Printf.sprintf
     "Variable %s is registered as method %s and cannot be used without argument"
@@ -461,3 +468,10 @@ let redundant_named_pattern ~pos name =
     "Providing %s to a constructor that do not expect it"
     (string_of_name name),
     [])
+
+let invalid_whnf_form ~pos ~env tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Got invalid whnf form when converting type %s"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
