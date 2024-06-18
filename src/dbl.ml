@@ -67,7 +67,6 @@ let proc_arg arg =
 let _ =
   Arg.parse cmd_args_options proc_arg usage_string;
   include_cli_search_dirs ();
-  Printf.printf "print colors: %b\n%!" !DblConfig.display_colors;
   try
     match !fname with
     | None       -> Pipeline.run_repl ()
