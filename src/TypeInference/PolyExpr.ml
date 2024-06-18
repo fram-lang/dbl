@@ -39,7 +39,7 @@ let method_call_ctx ~pos ~env ~self ~self_tp ~self_r_eff ~eff =
     (result_expr, res_tp, ret_effect_join self_r_eff r_eff)
   | _ ->
     (* Method must be an arrow with monomorphic argument *)
-    InterpLib.InternalError.report ~reason:"invalid method type" ()
+    Error.fatal (Error.invalid_method_type ~pos)
 
 (* ------------------------------------------------------------------------- *)
 (** Default instantiation context. *)

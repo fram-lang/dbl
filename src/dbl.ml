@@ -46,6 +46,10 @@ let cmd_args_options = Arg.align
     "-I",
     Arg.String (fun p -> cli_local_search_dirs := p :: !cli_local_search_dirs),
     " Add a path to local search directories";
+
+    "-color",
+    Arg.String (fun s -> DblConfig.print_colors_of_string s),
+    " Use colors when printing Errors.";
   ]
 
 let fname = ref None
