@@ -4,8 +4,7 @@
 
 import open /Base/Types
 
-pub method code {self : Char} = 
-  extern dbl_chrCode : Char -> Int
+pub method code = (extern dbl_chrCode : Char -> Int) self
 
 pub method equal = (extern dbl_eqInt  : Char -> Char -> Bool) self
 pub method neq   = (extern dbl_neqInt : Char -> Char -> Bool) self

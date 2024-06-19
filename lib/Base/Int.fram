@@ -26,6 +26,8 @@ pub method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
   if n.equal 0 then `re ()
   else (extern dbl_modInt : Int -> Int -> Int) self n
 
+pub method neg {self : Int} = 0 - self
+
 pub method land = (extern dbl_andInt : Int -> Int -> Int) self
 pub method lor  = (extern dbl_orInt  : Int -> Int -> Int) self
 pub method lxor = (extern dbl_xorInt : Int -> Int -> Int) self
