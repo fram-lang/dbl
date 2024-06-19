@@ -1,0 +1,315 @@
+let false = False
+let true = True
+
+rec 
+  data Color = Red | Black
+  data Tree Value = Leaf | Node of Color, Tree Value , Value , Tree Value
+end
+
+method empty {X,self : Tree X} = Leaf
+
+let isEmpty tree = 
+  match tree with
+  | Leaf => true
+  | _ => false
+  end
+
+method isEmpty {X, self : Tree X} = isEmpty self
+
+let id x = x
+
+let balance tree =
+  match tree with
+  | Node Black (Node Red (Node Red a x b) y c) z d =>
+    Node Red (Node Black a x b) y (Node Black c z d)
+  | Node Black (Node Red a x (Node Red b y c)) z d =>
+    Node Red (Node Black a x b) y (Node Black c z d)
+  | Node Black a x (Node Red (Node Red b y c) z d) =>
+    Node Red (Node Black a x b) y (Node Black c z d)
+  | Node Black a x (Node Red b y (Node Red c z d)) =>
+    Node Red (Node Black a x b) y (Node Black c z d)
+  | x => x
+end 
+
+let paintItBlack tree = 
+  match tree with
+  | Node Red a x b =>  Node Black a x b
+  | _ => tree
+  end
+
+let repaint tree = 
+  match tree with
+  | Node Red _ _ _ => (False,paintItBlack tree)
+  | _ => (True, tree)
+  end
+
+let chkDelL color tree = 
+  match color,tree with
+  | (Red,Leaf) => (False,Leaf)
+  | (Black,Leaf) => (True,Leaf)
+  | (Black, Node Red Leaf x Leaf) => (False, Node Black Leaf x Leaf)
+  | _ => (False,tree) (*Impossible*)
+  end
+
+let balL krotka = 
+  match krotka with
+  | (Black,Node Red (Node Red a x b) y c, z ,d) 
+    => Node Red (Node Black a x b) y (Node Black c z d)
+  | (Black,Node Red a x (Node Black b y c), z,d) 
+    => Node Red (Node Black a x b) y (Node Black c z d)
+  | (color,a,x,b) => Node color a x b 
+  end
+
+let balR krotka =
+  match krotka with
+  | (Black,a,x,Node Red b y (Node Red c z d))
+    => Node Red (Node Black a x b) y (Node Black c z d)
+  | (Black,a,x,Node Red (Node Red b y c) z d) 
+    => Node Red (Node Black a x b) y (Node Black c z d)
+  | (color,a,x,b) => Node color a x b
+  end
+
+let balDelL krotka =
+  match krotka with
+  | (False,color,left,value,right) 
+    => (False,Node color left value right)
+  | (True,Red,left,value,Node Red b y c) 
+    => (False,balR (Black,left,value,Node Red b y c))
+  | (True,Black,_,x,Leaf) 
+    => (false,Node Black Leaf x Leaf)
+  | (True,Black,left,x,Node Black b y c) 
+    => repaint (balR (Black,left,x,Node Red b y c))
+  | (True,Black,_,x,Node Red Leaf y Leaf) 
+    => (False, Node Black Leaf x (Node Red Leaf y Leaf))
+  | (true,Black,a,x,Node Red (Node Black b y c) z d) 
+    => (false, Node Black (balL (Black,Node Red a x b,y,c)) z d)
+  | (bf,color,a,x,b)
+    => (bf,Node color a x b) (*Impossible*)
+  end
+
+let rec delMin tree = 
+  match tree with
+  | Node color Leaf value right => (Some value, chkDelL color right)
+  | Node color left value right => 
+    let (min,(bf,newleft)) = delMin left 
+    in (min,balDelL (bf,color,newleft,value,right))
+  | Leaf => (None,(False,Leaf))
+  end
+
+let deletMin tree = let (value,(_,newtree)) = delMin tree in (value,newtree)
+
+method deletMin {X,self : Tree X} = deletMin self
+
+let chkDelR color tree =
+  match color,tree with
+  | (Black,Leaf) => (true,Leaf)
+  | (Red,Leaf) => (false,Leaf)
+  | (Black,Node Red Leaf value Leaf) =>
+    (false,Node Black Leaf value Leaf)
+  | _ => (False,tree) (*Impossible*)
+  end
+
+let balDelR krotka =
+  match krotka with
+  | (false,color,left,value,right) => (false, Node color left value right)
+  | (true,Red,Node Black a x b, value,right)
+    => (false, balL (Black,Node Red a x b,value,right))
+  | (true,Black,Leaf,value,_) => (false,Node Black Leaf value Leaf)
+  | (true,Black,Node Black a x b,value,right) 
+    => repaint (balL (Black,Node Red a x b,value,right))
+  | (true, Black, Node Red Leaf x Leaf, value, right)
+    => (false,Node Black (Node Red Leaf x Leaf) value right)
+  | (true,Black, Node Red a x (Node Black b y c),value,right)
+    => (false, Node Black a x (balR (Black,b,y,Node Red c value right)))
+  | (bf,color,left,value,right) => (bf,Node color left value right) (*Impossible*)
+  end
+
+let rec delMax tree = 
+  match tree with
+  | Node color left value Leaf => (Some value, chkDelR color left)
+  | Node color left value right 
+    => let (min,(bf,newright)) = delMax right 
+    in (min,balDelR(bf,color,left,value,newright))
+  | Leaf => (None,(false,Leaf))
+  end
+
+let deletMax tree = 
+  let (min,(_,newtree)) = delMax tree
+  in (min,newtree) 
+
+method deletMax {X, self : Tree X} = deletMax self
+
+let rec del elem tree lt = 
+  match tree with
+  | Leaf => (false,Leaf)
+  | Node color left value right
+    => if lt elem value 
+    then (let (done,newleft) = del elem left lt 
+    in balDelL (done,color,newleft,value,right))
+    else if lt value elem 
+    then (let (done,newright) = del elem right lt 
+    in balDelR (done,color,left,value,right))
+    else if isEmpty left then chkDelL color right
+    else if isEmpty right then chkDelR color left
+    else (let (maks, (bf,newtree)) = delMax left in
+    match maks with
+    | Some v => balDelL (bf,color,newtree,v,right)
+    | None => balDelL(bf,color,newtree,elem,right) (*Impossible*)
+    end)
+  end
+
+let delete elem tree lt = let (_,solution) = del elem tree lt in solution
+
+method remove {X, self : Tree X} elem lt = delete elem self lt
+
+let insert tree elem lt = 
+  let rec ins tree =  
+    match tree with 
+    | Leaf => Node Red Leaf elem Leaf
+    | Node color a y b => 
+      if lt elem y then balance (Node color (ins a) y b)
+      else if lt y elem then balance (Node color a y (ins b))
+      else Node color a y b 
+    end
+  let y = ins tree 
+  in match y with
+  | Node _ y a b => Node Black y a b
+  | Leaf => Leaf
+  end
+
+method add {X, self : Tree X} elem lt = insert self elem lt
+
+let toList tree = 
+  let rec _toList tree acc =
+    match tree with 
+    | Leaf => acc
+    | Node _ a y b => _toList a (y :: _toList b acc)
+    end
+  in _toList tree []
+
+method toList {X , self : Tree X} = toList self
+
+let fromList {X} (lista : List X) lt = 
+  let rec _fromList lista (acc : Tree X) =
+    match lista with 
+    | x :: xs => _fromList xs (acc.add x lt)
+    | [] => acc
+    end 
+  in _fromList lista Leaf
+
+let rec foldlRB fun acc from = 
+  match from with
+  | Leaf => acc
+  | Node _ a y b => 
+  let left = foldlRB fun acc a in 
+  let middle = (fun y left) in
+  foldlRB fun middle b
+end
+
+let rec foldrRB fun acc from = 
+match from with
+  | Leaf => acc
+  | Node _ a y b => 
+  let right = foldlRB fun acc b in 
+  let middle = (fun y right) in
+  foldlRB fun middle a
+end
+
+method traversL {X, self : Tree X} fun acc = foldlRB fun acc self
+method traversR {X, self : Tree X} fun acc = foldrRB fun acc self
+
+//TODO: better merge
+let merge {X} (from : Tree X) (to : Tree X) lt = 
+  foldlRB (fn x (y : Tree X) => y.add x lt) to from
+
+let rec member elem tree lt =
+  match tree with 
+  | Leaf => False
+  | Node _ l v r =>
+    if lt elem v then member elem l lt
+    else if lt v elem then member elem r lt
+    else True
+  end
+
+
+method member {X, self : Tree X} elem lt  = member elem self lt
+
+
+let add lt tree key value = insert tree (key,value) lt
+let join lt tree1 tree2 = merge tree1 tree2 lt
+let rmVal lt key tree = match tree with 
+  | Leaf => Leaf
+  | Node _ _ (_,v) _ => delete (key,v) tree lt
+end
+
+let rec _find lt elem tree = 
+  match tree with 
+  | Leaf => None
+  | Node _ l v r => if lt elem v then _find lt elem l 
+  else if lt v elem then _find lt elem r else Some v
+end
+
+let find lt key tree = 
+  match tree with 
+  | Leaf => None
+  | Node _ l v r => let (_,a) = v in _find lt (key,a) tree
+end 
+
+let update lt tree key val = let x = rmVal lt key tree in
+add lt x key val
+
+let fst (a,b) = a
+let snd (a,b) = b
+
+data OrderedMap Key Val = Map of 
+{
+  T
+  , empty : T
+  , method add : T  -> Key -> Val -> [] T
+  , method join : T -> T -> [] T
+  , method isEmpty : T -> [] Bool
+  , method deleteElem : Key -> T -> [] T
+  , method toList : T -> [] List (Pair Key Val)
+  , method update : T -> Key -> Val -> [] T
+  , method deleteMax : T -> [] T
+  , method deleteMin : T -> [] T
+}
+
+pub let make {Key} {Val} (lt : Key -> [] Key -> [] Bool)= 
+Map {
+  T = Tree (Pair Key Val)
+  , empty = Leaf
+  , method add = add (fn (a,b) (c,d) => lt a c)
+  , method join = join (fn (a,b) (c,d) => lt a c)
+  , method isEmpty = isEmpty
+  , method deleteElem = rmVal (fn (a,b) (c,d) => lt a c)
+  , method toList = toList
+  , method update = update (fn (a,_) (key,_) => lt a key)
+  , method deleteMax = fn mapa => snd (deletMax mapa)
+  , method deleteMin = fn mapa => snd (deletMin mapa)
+}
+
+data OrderedSet Value = Set of {
+  T
+  , empty : T
+  , method insert : T -> Value -> [] T
+  , method singleton : Value -> [] T
+  , method remove : Value -> T -> [] T
+  , method union : T -> T -> [] T
+  , method find : Value -> T -> [] Option Value
+  , method deleteMax : T -> [] T
+  , method deleteMin : T -> [] T
+}
+
+pub let make {Value} (lt : Value -> [] Value -> [] Bool) = 
+Set {
+  T = Tree Value
+  , empty = Leaf
+  , method insert = fn tree elem => insert tree elem lt
+  , method singleton = fn elem => insert Leaf elem lt
+  , method remove =  fn elem tree => delete elem tree lt
+  , method union = join lt 
+  , method find =  _find lt
+  , method deleteMax = fn mapa => snd (deletMax mapa)
+  , method deleteMin = fn mapa => snd (deletMin mapa)
+}
