@@ -1,0 +1,16 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+ *)
+
+import open /Base/Types
+
+pub method code = (extern dbl_chrCode : Char -> Int) self
+
+pub method equal = (extern dbl_eqInt  : Char -> Char -> Bool) self
+pub method neq   = (extern dbl_neqInt : Char -> Char -> Bool) self
+pub method gt    = (extern dbl_gtInt  : Char -> Char -> Bool) self
+pub method lt    = (extern dbl_ltInt  : Char -> Char -> Bool) self
+pub method ge    = (extern dbl_geInt  : Char -> Char -> Bool) self
+pub method le    = (extern dbl_leInt  : Char -> Char -> Bool) self
+
+pub method toString = (extern dbl_chrToString : Char -> String) self

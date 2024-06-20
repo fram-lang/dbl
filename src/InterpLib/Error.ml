@@ -29,12 +29,15 @@ let report ?pos ~cls msg =
     | Warning -> "warning"
     | Note    -> "note"
   in
-  match pos with
-  | None ->
-    Printf.eprintf "%s: %s\n" name msg
-  | Some pos ->
+  match pos, Option.bind pos Position.get_text_range with
+  | Some pos, None ->
     Printf.eprintf "%s: %s: %s\n"
       (Position.to_string pos) name msg
+  | _, Some pos ->
+    Printf.eprintf "%s: %s\n%s\n"
+      name msg pos
+  | None, _ ->
+    Printf.eprintf "%s: %s\n" name msg
 
 let assert_no_error () =
   if !err_counter <> 0 then

@@ -153,6 +153,7 @@ let rec tr_expr (e : Syntax.expr) =
 and tr_value (v : Syntax.value) =
   match v with
   | VNum n -> List [ Sym (string_of_int n) ]
+  | VNum64 n -> List [ Sym (Int64.to_string n ^ "L") ]
   | VStr s -> List [ Sym (Printf.sprintf "\"%s\"" (String.escaped s)) ]
   | VVar x -> tr_var x
   | VFn(x, tp, body) ->
