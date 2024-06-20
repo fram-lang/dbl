@@ -6,6 +6,7 @@ import /Base/Types
 import /Base/Operators
 import /Base/Bool
 import /Base/Int
+import /Base/Int64
 import /Base/Char
 import /Base/String
 
@@ -36,3 +37,9 @@ pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 pub let readLine = extern dbl_readLine : Unit ->[IO] String
 
 pub let exit {type X} = extern dbl_exit : Int ->[IO] X
+
+pub module Int64
+  pub let zero = 0L
+  pub let one  = 1L
+  pub let ofInt (n : Int) = n.toInt64
+end
