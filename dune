@@ -4,4 +4,4 @@
 
 (install
  (section lib)
- (files (glob_files (lib/*.fram with_prefix stdlib))))
+ (files (glob_files_rec (lib/*.fram with_prefix stdlib))))
