@@ -66,12 +66,12 @@ let tokenize_oper str =
     | ','                                           -> YaccParser.OP_30 str
     | '|' when (long && str.[1] = '|')              -> YaccParser.OP_40 str
     | '&' when (long && str.[1] = '&')              -> YaccParser.OP_50 str
-    | '=' | '<' | '>' | '|' | '&' | '$' | '#' | '?' -> YaccParser.OP_60 str
+    | '!' | '=' | '<' | '>' | '|' | '&' | '$' | '#' | '?' ->
+      YaccParser.OP_60 str
     | '@' | ':' | '^'                               -> YaccParser.OP_70 str
     | '+' | '-' | '~'                               -> YaccParser.OP_80 str
     | '*' when (long && str.[1] = '*')              -> YaccParser.OP_100 str
     | '*' | '/' | '%' | '.'                         -> YaccParser.OP_90 str
-    | '!'                                           -> YaccParser.OP_230 str
     | _ -> assert false
     end
 
