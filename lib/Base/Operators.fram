@@ -1,0 +1,27 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+ *)
+
+pub method fn (- .) = neg
+
+pub method fn (+) = add
+pub method fn (-) = sub
+pub method fn (%) = mod
+pub method fn (/) = div
+pub method fn ( * ) = mul
+
+pub method fn (==) = equal
+pub method fn (!=) = neq
+pub method fn (>)  = gt
+pub method fn (>=) = ge
+pub method fn (<)  = lt
+pub method fn (<=) = le
+
+pub method fn (&&&) = land
+pub method fn (^^^) = lxor
+pub method fn (|||) = lor
+pub method fn (<<)  = shiftl
+pub method fn (>>)  = shiftr
+pub method fn (>>>) = ashiftr
+
+pub method fn (:=) = set

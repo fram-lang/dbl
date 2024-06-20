@@ -12,7 +12,7 @@
 %token<string> STR
 %token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH
+%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB
@@ -56,6 +56,10 @@ bar_opt
 ;
 
 /* ========================================================================= */
+
+lid
+: LID { make $1 }
+;
 
 var_id
 : LID                  { VIdVar $1 }
@@ -407,6 +411,7 @@ expr_150
 expr_200
 : expr_230 { $1 }
 | expr_250 expr_250_list1 { make (EApp($1, $2)) }
+| expr_200 GT_DOT lid expr_250_list { make (EMethodCall($1, $3, $4)) }
 | KW_EXTERN LID { make (EExtern $2) }
 | KW_PUB expr_230 { make (EPub $2) }
 ;
@@ -492,6 +497,7 @@ field
 | name                  { make (FldName $1)           }
 | name EQ expr_no_comma { make (FldNameVal($1, $3))   }
 | name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
+| KW_MODULE UID         { make (FldModule $2)         }
 ;
 
 field_list

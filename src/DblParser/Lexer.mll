@@ -52,6 +52,7 @@ let op_map =
   ; "=",  EQ
   ; ";;", SEMICOLON2
   ; "/",  SLASH
+  ; ">.", GT_DOT
   ] |> List.to_seq |> Hashtbl.of_seq
 
 let tokenize_oper str = 
