@@ -93,9 +93,9 @@ let rec delMin tree =
   | Leaf => (None,(False,Leaf))
   end
 
-let deletMin tree = let (value,(_,newtree)) = delMin tree in (value,newtree)
+let deleteMin tree = let (value,(_,newtree)) = delMin tree in (value,newtree)
 
-method deletMin {X,self : Tree X} = deletMin self
+method deleteMin {X,self : Tree X} = deleteMin self
 
 let checkDeleteRight color tree =
   match color,tree with
@@ -130,11 +130,11 @@ let rec delMax tree =
   | Leaf => (None,(False,Leaf))
   end
 
-let deletMax tree = 
+let deleteMax tree = 
   let (min,(_,newtree)) = delMax tree
   in (min,newtree) 
 
-method deletMax {X, self : Tree X} = deletMax self
+method deleteMax {X, self : Tree X} = deleteMax self
 
 let rec del elem tree lt = 
   match tree with
@@ -234,7 +234,7 @@ method member {X, self : Tree X} elem lt  = member elem self lt
 
 let add lt tree key value = insert tree (key,value) lt
 let join lt tree1 tree2 = merge tree1 tree2 lt
-let rmVal lt key tree = match tree with 
+let rmVal lt tree key = match tree with 
   | Leaf => Leaf
   | Node _ _ (_,v) _ => delete (key,v) tree lt
 end
@@ -246,31 +246,48 @@ let rec _find lt elem tree =
   else if lt v elem then _find lt elem r else Some v
 end
 
-let find lt key tree = 
+//method find {X,self : Tree X} elem lt = _find lt elem self
+
+let find lt tree key = 
   match tree with 
   | Leaf => None
   | Node _ l v r => let (_,a) = v in _find lt (key,a) tree
 end 
 
-let update lt tree key val = let x = rmVal lt key tree in
+let update lt tree key val = let x = rmVal lt tree key in
 add lt x key val
 
 let fst (a,b) = a
 let snd (a,b) = b
 
-data OrderedMap Key Val = Map of 
+pub data OrderedMap Key Val = Map of 
 {
   T
   , empty : T
   , method add : T  -> Key -> Val -> [] T
   , method join : T -> T -> [] T
   , method isEmpty : T -> [] Bool
-  , method deleteElem : Key -> T -> [] T
+  , method deleteElem : T -> Key ->  [] T
   , method toList : T -> [] List (Pair Key Val)
   , method update : T -> Key -> Val -> [] T
   , method deleteMax : T -> [] T
   , method deleteMin : T -> [] T
+  , method find : T ->  Key -> [] Option (Pair Key Val)
 }
+
+pub data OrderedSet Value = Set of {
+  T
+  , empty : T
+  , method isEmpty : T -> [] Bool
+  , method insert : T -> Value -> [] T
+  , method singleton : Value -> [] T
+  , method remove :  T ->  Value ->[] T
+  , method union : T -> T -> [] T
+  , method find : T -> Value -> [] Bool
+  , method deleteMax : T -> [] T
+  , method deleteMin : T -> [] T
+}
+
 
 pub let makeMap {Key, Val} (lt : Key -> [] Key -> [] Bool)= 
 Map {
@@ -282,31 +299,22 @@ Map {
   , method deleteElem = rmVal (fn (a,b) (c,d) => lt a c)
   , method toList = toList
   , method update = update (fn (a,_) (key,_) => lt a key)
-  , method deleteMax = fn mapa => snd (deletMax mapa)
-  , method deleteMin = fn mapa => snd (deletMin mapa)
+  , method deleteMax = fn mapa => snd (deleteMax mapa)
+  , method deleteMin = fn mapa => snd (deleteMin mapa)
+  , method find = find (fn (a,b) (c,d) => lt a c)
 }
 
-data OrderedSet Value = Set of {
-  T
-  , empty : T
-  , method insert : T -> Value -> [] T
-  , method singleton : Value -> [] T
-  , method remove : Value -> T -> [] T
-  , method union : T -> T -> [] T
-  , method find : Value -> T -> [] Option Value
-  , method deleteMax : T -> [] T
-  , method deleteMin : T -> [] T
-}
 
 pub let makeSet {Value} (lt : Value -> [] Value -> [] Bool) = 
 Set {
   T = Tree Value
   , empty = Leaf
+  , method isEmpty = isEmpty
   , method insert = fn tree elem => insert tree elem lt
   , method singleton = fn elem => insert Leaf elem lt
-  , method remove =  fn elem tree => delete elem tree lt
+  , method remove =  fn tree elem => delete elem tree lt
   , method union = join lt 
-  , method find =  _find lt
-  , method deleteMax = fn mapa => snd (deletMax mapa)
-  , method deleteMin = fn mapa => snd (deletMin mapa)
+  , method find = fn tree elem => member elem tree lt
+  , method deleteMax = fn mapa => snd (deleteMax mapa)
+  , method deleteMin = fn mapa => snd (deleteMin mapa)
 }
