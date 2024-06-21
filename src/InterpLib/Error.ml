@@ -46,7 +46,7 @@ let report ?pos ~cls msg =
   let color_printer s = color_printer_generator color s in
   let name = color_printer name in
   let text_range = Option.bind pos
-    (Position.get_text_range
+    (TextRangePrinting.get_text_range
       ~repl_input:!repl_input
       ~color_printer) in
   match pos, text_range with

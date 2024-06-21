@@ -1,0 +1,31 @@
+(** Options for underlining specified region *)
+type underline_options =
+  | NoUnderline
+  (** Disable underlining *)
+
+  | UnderlineBegining
+  (** Point to only beginning of region *)
+
+  | UnderlineIfOneLine
+  (** Underline whole region, but only if specifies only one line *)
+
+  | UnderlineAlways
+  (** Underline whole region *)
+
+type options = {
+  context : int;
+  (** how many lines before and after region is to be printed *)
+
+  underline : Position.t -> underline_options;
+  (** function that depending on region will select underlining option *)
+
+  add_line_numbers : bool;
+  (** should line numbers be added *)
+}
+
+val default_options : options 
+
+val get_text_range : ?options:options -> repl_input:string
+      -> color_printer:(string -> string) -> Position.t -> string option
+
+

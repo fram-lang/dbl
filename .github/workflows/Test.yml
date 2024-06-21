@@ -12,7 +12,7 @@ jobs:
       - uses: ocaml/setup-ocaml@v2
         with:
           ocaml-compiler: 5.1.1
-      - run: opam install dune
+      - run: opam install dune spectrum
       - run: opam exec -- dune build
       - run: opam exec -- dune install
       - run: eval $(opam env) && ./test.sh dbl ./test/test_suite
