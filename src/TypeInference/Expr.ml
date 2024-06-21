@@ -59,6 +59,9 @@ let infer_expr_type ~tcfix env (e : S.expr) eff =
   | ENum n ->
     (make (T.ENum n), T.Type.t_var T.BuiltinType.tv_int, Pure)
 
+  | ENum64 n ->
+    (make (T.ENum64 n), T.Type.t_var T.BuiltinType.tv_int64, Pure)
+
   | EStr s ->
     (make (T.EStr s), T.Type.t_var T.BuiltinType.tv_string, Pure)
 
@@ -184,7 +187,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
   let make data = { e with data = data } in
   let pos = e.pos in
   match e.data with
-  | EUnit | ENum _ | EStr _ | EChr _ | EPoly _ | EApp _ ->
+  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ ->
     check_expr_type_default ~tcfix env e tp eff
 
   | EFn(arg, body) ->
