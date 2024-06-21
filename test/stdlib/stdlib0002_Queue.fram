@@ -1,0 +1,11 @@
+import Queue
+
+let Queue.Queue {module IntQ} = Queue.makeQueue
+
+let x = IntQ.empty
+let _ = if x.isEmpty then 1 else 0
+let y = x.push 1
+let w = y.head
+let _ = if y.isEmpty then 1 else 0
+let z = y.pop 
+let _ = if z.isEmpty then 1 else 0

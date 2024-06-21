@@ -1,0 +1,19 @@
+import OrderedMap
+
+let lt (v1 : Int) (v2 : Int) = v1 < v2
+
+let OrderedMap.Map {module StringMap} = OrderedMap.makeMap lt
+
+let x = StringMap.empty
+let y = x.add 1 "Test 1"
+let z = (y.isEmpty == False) && (x.isEmpty == True)
+let g = y.deleteElem 1
+
+let OrderedMap.Set {module IntSet} = OrderedMap.makeSet lt
+
+let x = IntSet.empty
+let y = x.insert 1
+let z = y.insert 2
+let w = y.deleteMax
+let g = w.isEmpty
+let f = 5.singleton
