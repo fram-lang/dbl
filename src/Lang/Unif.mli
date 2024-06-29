@@ -46,6 +46,9 @@ type name =
   | NVar      of string
     (** Regular named parameter *)
 
+  | NOptionalVar of string
+    (** Optional named parameter *)
+
   | NImplicit of string
     (** Implicit parameter *)
 

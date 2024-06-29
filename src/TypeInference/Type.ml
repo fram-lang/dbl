@@ -120,6 +120,11 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     | L_No       -> Error.fatal (Error.label_type_mismatch ~pos:nsch.pos)
     end
   | NVar      x -> (T.NVar x, sch)
+  | NOptionalVar x -> 
+    if not (T.Scheme.is_monomorphic sch ) then
+      Error.fatal (Error.polymorphic_optional_parameter ~pos:nsch.pos);
+    let tp = PreludeTypes.mk_Option ~env ~pos: nsch.pos sch.sch_body in
+    (T.NOptionalVar x, T.Scheme.of_type tp)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)
 
