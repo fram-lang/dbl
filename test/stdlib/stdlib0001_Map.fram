@@ -1,0 +1,58 @@
+import OrderedMap
+
+let assert condition = 
+if condition then () else exit 1
+
+let rec eq_list lista_1 lista_2 compare = 
+match (lista_1,lista_2) with
+| ([],[]) => True
+| (x::xs, y::ys) => if compare x y then eq_list xs ys compare else False
+| _ => False
+end
+
+let rec foldl func lista acc = 
+match lista with
+| [] => acc 
+| x :: xs => func x (foldl func xs acc)
+end
+
+let only_val lista = foldl (fn x acc => (snd x) :: acc) lista []
+
+let lt (v1 : Int) (v2 : Int) = v1 < v2
+
+let OrderedMap.Map {module IntMap} = OrderedMap.makeMap lt
+
+let x = IntMap.empty
+let _ = assert (x.isEmpty) 
+
+
+let x = x.add 1 1
+let _ = assert (x.isEmpty == False) 
+
+let x = x.add 2 1 >. add 3 2 >. add 4 3
+let _ = assert (eq_list (only_val x.toList) [1,1,2,3] (fn (x : Int) (y : Int) => x == y))
+
+let x = x.update 2 5
+let _ = assert (eq_list (only_val x.toList) [1,5,2,3] (fn (x : Int) (y : Int) => x == y))
+
+let x = x.deleteElem 1
+let _ = assert (eq_list (only_val x.toList) [5,2,3] (fn (x : Int) (y : Int) => x == y))
+
+let y = IntMap.empty >. add 5 2 >. add 6 1 >. add 1 1 >. add 0 8
+let x = x.join y
+let _ = assert (eq_list (only_val x.toList) [8,1,5,2,3,2,1] (fn (x : Int) (y : Int) => x == y))
+
+let x = x.deleteMin
+let _ = assert (eq_list (only_val x.toList) [1,5,2,3,2,1] (fn (x : Int) (y : Int) => x == y))
+
+let x = x.deleteMax 
+let _ = assert (eq_list (only_val x.toList) [1,5,2,3,2] (fn (x : Int) (y : Int) => x == y))
+
+let get_value val = 
+match val with
+| Some (x,y) => y
+| _ => -1
+end
+
+let y = x.find 3
+let _ = assert ((fn (x : Int) (y : Int) => x == y) (get_value y) 2)
