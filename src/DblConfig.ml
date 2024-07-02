@@ -6,6 +6,8 @@
 
 let src_extension = ".fram"
 
+let prog_args : string list ref = ref []
+
 let stdlib_path =
   match Sys.getenv_opt "DBL_LIB" with
   | Some path -> path
