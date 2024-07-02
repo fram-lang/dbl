@@ -1,0 +1,108 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+## # Os interaction
+
+import open Mutable
+import List
+
+{## Get the command line arguments. ##}
+pub let argv = (extern dbl_argv : Unit -> ConstArray String) ()
+
+{## Get the value of an environment variable. ##}
+pub let getEnv = (extern dbl_getEnv : String -> Option String)
+
+{## Check if a file exists. ##}
+pub let fileExists = (extern dbl_fileExists : String ->[IO] Bool)
+
+{## Check if a file is a directory. ##}
+pub let isDirectory { ~onError } name =
+  if fileExists name
+  then (extern dbl_isDirectory : String ->[IO] Bool) name
+  else ~onError ()
+
+{## Check if a file is a regular file. ##}
+pub let isRegularFile { ~onError } name =
+  if fileExists name
+  then (extern dbl_isRegularFile : String ->[IO] Bool) name
+  else ~onError ()
+
+{## Remove a file. ##}
+pub let removeFile = (extern dbl_removeFile : String ->[IO] Unit)
+
+{## Rename a file. ##}
+pub let renameFile = (extern dbl_renameFile : String -> String ->[IO] Unit)
+
+{## Change the current directory. ##}
+pub let changeDirectory = (extern dbl_changeDirectory : String ->[IO] Unit)
+
+{## Create a directory. ##}
+pub let makeDirectory = (extern dbl_makeDirectory : String -> Int ->[IO] Unit)
+
+{## Remove a directory. ##}
+pub let removeDirectory = (extern dbl_removeDirectory : String ->[IO] Unit)
+
+{## Get the current directory. ##}
+pub let getCurrentDirectory =
+  (extern dbl_getCurrentDirectory : Unit ->[IO] String)
+
+{## Read a directory. ##}
+pub let readDirectory =
+  (extern dbl_readDirectory : String ->[IO] ConstArray String)
+
+{## @type Time
+  A date and time. ##}
+pub data Time =
+  { year : Int
+  , month : Int
+  , day : Int
+  , hour : Int
+  , minute : Int
+  , second : Int
+  }
+
+{## Get the current time in Unix format. ##}
+pub let getUnixTime = (extern dbl_getUnixTime : Unit ->[IO] Int)
+
+{## Get the current time in Time type. ##}
+pub let getTime { ~onError } () =
+  let is_leap (year : Int) = (year % 4 == 0 && year % 100 > 0) || (year % 400 == 0)
+  let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  let days_in_month_sum =
+    [31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
+  let rec calculate_year_and_days (days_since_epoch : Int) year =
+    let days_in_current_year = if is_leap year then 366 else 365 in
+    if days_since_epoch >= days_in_current_year then
+      calculate_year_and_days (days_since_epoch - days_in_current_year) (year + 1)
+    else
+      (year, days_since_epoch)
+  let calculate_month_and_days (days : Int) is_leap =
+    let f (i : Int) (x : Int) =
+      let x = x + (if i >= 2 && is_leap then 1 else 0) in
+      if days < x then Some (i - 1) else None
+    in
+    let `onError () = 0 in
+    let month = List.findMapiErr f days_in_month_sum in
+    (month, days - (days_in_month_sum.nthErr month))
+  in
+  let seconds_in_minute = 60 in
+  let seconds_in_hour = 60 * seconds_in_minute in
+  let seconds_in_day = 24 * seconds_in_hour in
+  let epoch_year = 1970 in
+
+  let unix_time = getUnixTime () in
+
+  let total_days = unix_time / seconds_in_day in
+  let remaining_seconds = unix_time % seconds_in_day in
+
+  let hour = remaining_seconds / seconds_in_hour in
+  let remaining_seconds = remaining_seconds % seconds_in_hour in
+  let minute = remaining_seconds / seconds_in_minute in
+  let second = remaining_seconds % seconds_in_minute in
+
+  let (year, days) = calculate_year_and_days total_days epoch_year in
+
+  let is_leap = is_leap year in
+  let (month, day) = calculate_month_and_days days is_leap in
+  Time{ year, month, day, hour, minute, second }
