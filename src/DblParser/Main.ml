@@ -53,7 +53,7 @@ and repl_seq_main imported () =
     InterpLib.Error.repl_input := str;
     Seq.Cons(defs, repl_seq imported)
 
-| Raw.REPL_Import import ->
+  | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
     let str = Bytes.to_string @@ Buffer.to_bytes buffer in
     InterpLib.Error.repl_input := str;
