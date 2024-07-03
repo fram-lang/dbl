@@ -1,6 +1,7 @@
 (library
  (name dblConfig)
- (modules dblConfig))
+ (modules dblConfig)
+ (libraries unix))
 
 (executable
   (name dbl)
