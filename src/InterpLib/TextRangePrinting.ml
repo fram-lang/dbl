@@ -163,7 +163,7 @@ let add_underline ~options ~pos ~color_printer (i, line) =
 (* ========================================================================= *)
 (**  Printing code   *)
 
-let add_line_number ~options end_line =
+let add_line_number ~options ~pos ~color_printer end_line =
   let align_to = Float.of_int end_line
     |> Float.log10
     |> Float.to_int
@@ -175,7 +175,9 @@ let add_line_number ~options end_line =
     match i with
     | None -> String.make (align_to + 3) ' ' ^ "| " ^ line
     | Some i ->
-     Printf.sprintf " %*d | %s" (align_to + 1) i line
+      let separator = if i >= pos.pos_start_line && i <= pos.pos_end_line
+        then color_printer "|>" else "| " in
+      Printf.sprintf " %*d %s%s" (align_to + 1) i separator line
 
 let process ~pos ~options ~color_printer seq =
   let to_drop = pos.pos_start_line - 1 - options.context in
@@ -187,7 +189,7 @@ let process ~pos ~options ~color_printer seq =
     |> Seq.drop (Int.max to_drop 0)
     |> Seq.take to_take
     |> Seq.flat_map (add_underline ~options ~pos ~color_printer)
-    |> Seq.map (add_line_number pos.pos_end_line ~options)
+    |> Seq.map (add_line_number pos.pos_end_line ~options ~pos ~color_printer)
   in
   String.concat "\n" @@ List.of_seq lines
 
