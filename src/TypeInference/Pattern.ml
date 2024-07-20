@@ -201,13 +201,13 @@ let rec check_ctor_named ~pos ~env ~scope
     let (env, bn1, ps1) =
       check_ctor_named_args ~pos ~env ~scope nps ctor_named in
     (env, scope, sub2, tvars, ps1, bn1)
-  | S.CNModule modname ->
+  | S.CNModule(public, modname) ->
     (* TODO: This may seem inconsistent with the other case as implicits aren't
        introduced to the current namespace, just the provided module name. *)
     let env = Env.enter_module env in
     let (env, tvars, ps1, sub2) =
       open_named ~pos ~public:true env ctor.ctor_targs ctor.ctor_named in
-    let env = Env.leave_module env ~public:false modname in
+    let env = Env.leave_module env ~public modname in
     (env, Env.scope env, sub2, tvars, ps1, T.Name.Map.empty)
 
 and check_ctor_named_args ~pos ~env ~scope nps named =
