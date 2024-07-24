@@ -35,6 +35,7 @@ val unbound_module : pos:Position.t -> S.module_name S.path -> t
 val unbound_the_effect : pos:Position.t -> t
 val unbound_named_param : pos:Position.t -> S.var -> t
 val unbound_the_label : pos:Position.t -> t
+val unbound_adt : pos:Position.t -> env:Env.t -> T.tvar -> t
 
 val unbound_method :
   pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
@@ -103,6 +104,7 @@ val non_polymorphic_pattern : pos:Position.t -> t
 
 val polymorphic_label : pos:Position.t -> t
 val label_type_mismatch : pos:Position.t -> t
+val polymorphic_optional_parameter : pos:Position.t -> t
 
 val label_pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> t
 
@@ -139,3 +141,4 @@ val ctor_arity_mismatch :
 val redundant_named_type : pos:Position.t -> T.tname -> t
 val redundant_named_parameter : pos:Position.t -> T.name -> t
 val redundant_named_pattern : pos:Position.t -> T.name -> t
+val invalid_whnf_form : pos:Position.t -> env:Env.t -> T.typ -> t

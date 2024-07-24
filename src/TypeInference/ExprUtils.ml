@@ -155,6 +155,11 @@ and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
   | None, T.NVar x ->
     (* TODO: we could provide freshly bound parameters here *)
     Error.fatal (Error.unbound_named_param ~pos:e.pos x)
+  | None, T.NOptionalVar x ->
+    assert (T.Scheme.is_monomorphic isch);
+    let arg = PreludeTypes.mk_None ~env ~pos:e.pos isch.sch_body in
+    { T.pos = e.pos; T.data = T.EApp(e, arg) }
+    
 
 let instantiate_named_params env e ims inst =
   instantiate_named_params_loop ~nset:T.Name.Set.empty ~inst env e ims

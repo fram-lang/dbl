@@ -53,7 +53,7 @@ let in_uvar sub p u =
 
 let in_name sub n =
   match n with
-  | NLabel | NVar _ | NImplicit _ | NMethod _ -> n
+  | NLabel | NVar _ | NOptionalVar _ | NImplicit _ | NMethod _ -> n
 
 (* Substitute in variable of kind [effect]. Since kind [effect] can contain
   only ground effects, substituted type is always (in some sense) a set of

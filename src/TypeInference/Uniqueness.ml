@@ -48,7 +48,7 @@ let check_inst_uniqueness insts =
   let name_of (inst : S.inst) =
     match inst.data with
     | (NLabel, _) -> "label"
-    | ((NVar n | NImplicit n | NMethod n), _) -> n
+    | ((NVar n | NOptionalVar n | NImplicit n | NMethod n), _) -> n
   in
   let pos_of (inst : S.inst) = inst.pos in
   let on_error ~pos ~ppos (inst : S.inst) =
@@ -73,7 +73,7 @@ let check_named_pattern_uniqueness nps =
   let name_of (np : S.named_pattern) =
     match np.data with
     | (NLabel, _) -> "label"
-    | ((NVar n | NImplicit n | NMethod n), _) -> n
+    | ((NVar n | NOptionalVar n | NImplicit n | NMethod n), _) -> n
   in
   let pos_of (np : S.named_pattern) = np.pos in
   let on_error ~pos ~ppos (np : S.named_pattern) =

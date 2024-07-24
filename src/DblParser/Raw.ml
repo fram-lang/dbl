@@ -31,9 +31,10 @@ type var_id =
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
   | NLabel
-  | NVar      of var
-  | NImplicit of iname
-  | NMethod   of method_name
+  | NVar         of var
+  | NOptionalVar of var
+  | NImplicit    of iname
+  | NMethod      of method_name
 
 (** Names of constructors of ADTs *)
 type ctor_name =
