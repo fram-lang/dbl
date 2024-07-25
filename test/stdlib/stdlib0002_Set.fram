@@ -1,0 +1,36 @@
+import OrderedMap
+
+let assert condition = 
+if condition then () else exit 1
+
+let rec eq_list lista_1 lista_2 compare = 
+match (lista_1,lista_2) with
+| ([],[]) => True
+| (x::xs, y::ys) => if compare x y then eq_list xs ys compare else False
+| _ => False
+end
+
+let rec foldl func lista acc = 
+match lista with
+| [] => acc 
+| x :: xs => func x (foldl func xs acc)
+end
+
+let lt (v1 : Int) (v2 : Int) = v1 < v2
+
+let OrderedMap.Set {module IntSet} = OrderedMap.makeSet lt
+
+let x = IntSet.empty
+let _ = assert x.isEmpty
+
+let x = x.insert 1
+let _ = assert (x.isEmpty == False)
+
+let x = x.insert 2 >. insert 3 >. insert 2
+let _ = assert (x.find 2 && x.find 1 && x.find 3 && x.find 4 == False)
+
+let x = 4.singleton 
+let _ = assert ((x.find 2 && x.find 1 && x.find 3 && x.find 4 == False) == False)
+
+let x = x.deleteMax
+let _ = assert (x.isEmpty)
