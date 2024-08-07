@@ -56,8 +56,15 @@ let rec open_down ~scope tp =
     t_pure_arrow (open_scheme_up ~scope sch) (open_down ~scope tp2)
   | TArrow(sch, tp2, eff) ->
     t_arrow (open_scheme_up ~scope sch) (open_down ~scope tp2) eff
-  | THandler(a, tp, tp0, eff0) ->
-    t_handler a (open_down ~scope:(Scope.add scope a) tp) tp0 eff0
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    let otp  = open_down ~scope otp in
+    let scope = Scope.add scope a in
+    t_handler a
+      (open_down ~scope tp)
+      (open_up   ~scope itp)
+      (open_effrow_up ~scope ieff)
+      otp
+      oeff
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
@@ -82,8 +89,11 @@ and open_up ~scope tp =
       (open_scheme_down ~scope sch)
       (open_up          ~scope tp2)
       (open_effrow_up   ~scope eff)
-  | THandler(a, tp, tp0, eff0) ->
-    t_handler a (open_up ~scope:(Scope.add scope a) tp) tp0 eff0
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    let otp  = open_up ~scope otp in
+    let oeff = open_effrow_up ~scope oeff in
+    let scope = Scope.add scope a in
+    t_handler a (open_up ~scope tp) (open_down ~scope itp) ieff otp oeff
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
@@ -106,8 +116,10 @@ let rec contains_uvar u tp =
     scheme_contains_uvar u sch || contains_uvar u tp2
   | TArrow(sch, tp2, eff) ->
     scheme_contains_uvar u sch || contains_uvar u tp2 || contains_uvar u eff
-  | THandler(_, tp, tp0, eff0) ->
-    contains_uvar u tp || contains_uvar u tp0 || contains_uvar u eff0
+  | THandler(_, tp, itp, ieff, otp, oeff) ->
+    contains_uvar u tp ||
+    contains_uvar u itp || contains_uvar u ieff ||
+    contains_uvar u otp || contains_uvar u oeff
   | TLabel(eff, tp0, eff0) ->
     contains_uvar u eff || contains_uvar u tp0 || contains_uvar u eff0
   | TEffrow(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
@@ -127,8 +139,13 @@ let rec collect_uvars tp uvs =
     collect_scheme_uvars sch (collect_uvars tp2 uvs)
   | TArrow(sch, tp2, eff) ->
     collect_scheme_uvars sch (collect_uvars tp2 (collect_uvars eff uvs))
-  | THandler(_, tp, tp0, eff0) ->
-    collect_uvars tp (collect_uvars tp0 (collect_uvars eff0 uvs))
+  | THandler(_, tp, itp, ieff, otp, oeff) ->
+    uvs
+    |> collect_uvars tp
+    |> collect_uvars itp
+    |> collect_uvars ieff
+    |> collect_uvars otp
+    |> collect_uvars oeff
   | TLabel(eff, tp0, eff0) ->
     collect_uvars eff (collect_uvars tp0 (collect_uvars eff0 uvs))
 
@@ -188,11 +205,13 @@ and shrink_scope ~scope tp =
     shrink_scheme_scope ~scope sch;
     shrink_scope ~scope tp2;
     shrink_scope ~scope eff
-  | THandler(a, tp, tp0, eff0) ->
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    shrink_scope ~scope otp;
+    shrink_scope ~scope oeff;
     let scope = Scope.add scope a in
     shrink_scope ~scope tp;
-    shrink_scope ~scope tp0;
-    shrink_scope ~scope eff0
+    shrink_scope ~scope itp;
+    shrink_scope ~scope ieff
   | TLabel(eff, tp0, eff0) ->
     shrink_scope ~scope eff;
     shrink_scope ~scope tp0;

@@ -14,7 +14,7 @@ type arrow =
 
 type handler =
   | H_No
-  | H_Handler of T.tvar * T.typ * T.typ * T.effrow
+  | H_Handler of T.tvar * T.typ * T.typ * T.effrow * T.typ * T.effrow
 
 type label =
   | L_No
@@ -197,14 +197,18 @@ and unify env tp1 tp2 =
     unify_at_kind env eff1 eff2 T.Kind.k_effrow
   | TArrow _, _ -> raise Error
 
-  | THandler(a1, tp1, rtp1, reff1), THandler(a2, tp2, rtp2, reff2) ->
+  | THandler(a1, tp1, itp1, ieff1, otp1, oeff1),
+    THandler(a2, tp2, itp2, ieff2, otp2, oeff2) ->
+    unify env otp1 otp2;
+    unify_at_kind env oeff1 oeff2 T.Kind.k_effrow;
     let (env, a) = Env.add_anon_tvar env T.Kind.k_effect in
     let sub1 = T.Subst.rename_to_fresh T.Subst.empty a1 a in
     let sub2 = T.Subst.rename_to_fresh T.Subst.empty a2 a in
     unify env (T.Type.subst sub1 tp1) (T.Type.subst sub2 tp2);
-    unify env (T.Type.subst sub1 rtp1) (T.Type.subst sub2 rtp2);
-    unify_at_kind env
-      (T.Type.subst sub1 reff1) (T.Type.subst sub2 reff2) T.Kind.k_effrow
+    unify env (T.Type.subst sub1 itp1) (T.Type.subst sub2 itp2);
+    unify_at_kind env (T.Effect.cons a (T.Type.subst sub1 ieff1))
+                      (T.Effect.cons a (T.Type.subst sub2 ieff2))
+                      T.Kind.k_effrow
   | THandler _, _ -> raise Error
 
   | TLabel(eff1, rtp1, reff1), TLabel(eff2, rtp2, reff2) ->
@@ -276,14 +280,20 @@ let rec check_subtype env tp1 tp2 =
     check_subeffect env eff1 eff2
   | TArrow _, _ -> raise Error
 
-  | THandler(a1, tp1, rtp1, reff1), THandler(a2, tp2, rtp2, reff2) ->
+  | THandler(a1, tp1, itp1, ieff1, otp1, oeff1),
+    THandler(a2, tp2, itp2, ieff2, otp2, oeff2) ->
+    check_subtype env otp1 otp2;
+    check_subeffect env oeff1 oeff2;
     let (env, a) = Env.add_anon_tvar env T.Kind.k_effect in
     let sub1 = T.Subst.rename_to_fresh T.Subst.empty a1 a in
     let sub2 = T.Subst.rename_to_fresh T.Subst.empty a2 a in
     check_subtype env (T.Type.subst sub1 tp1) (T.Type.subst sub2 tp2);
-    unify env (T.Type.subst sub1 rtp1) (T.Type.subst sub2 rtp2);
-    unify_at_kind env
-      (T.Type.subst sub1 reff1) (T.Type.subst sub2 reff2) T.Kind.k_effrow
+    (* contravariant *)
+    check_subtype env (T.Type.subst sub2 itp2) (T.Type.subst sub1 otp1);
+    (* contravariant *)
+    check_subeffect env
+      (T.Effect.cons a (T.Type.subst sub2 ieff2))
+      (T.Effect.cons a (T.Type.subst sub1 ieff1))
   | THandler _, _ -> raise Error
 
   | TLabel(eff1, rtp1, reff1), TLabel(eff2, rtp2, reff2) ->
@@ -370,13 +380,15 @@ let to_handler env tp =
   | TUVar(p, u) ->
     let (env1, a) = Env.add_anon_tvar env T.Kind.k_effect in
     let tp   = Env.fresh_uvar env1 T.Kind.k_type in
-    let tp0  = Env.fresh_uvar env1 T.Kind.k_type in
-    let eff0 = Env.fresh_uvar env1 T.Kind.k_effrow in
-    set_uvar env p u (T.Type.t_handler a tp tp0 eff0);
-    H_Handler(a, tp, tp0, eff0)
+    let itp  = Env.fresh_uvar env1 T.Kind.k_type in
+    let ieff = Env.fresh_uvar env1 T.Kind.k_effrow in
+    let otp  = Env.fresh_uvar env  T.Kind.k_type in
+    let oeff = Env.fresh_uvar env  T.Kind.k_effrow in
+    set_uvar env p u (T.Type.t_handler a tp itp ieff otp oeff);
+    H_Handler(a, tp, itp, ieff, otp, oeff)
 
-  | THandler(a, tp, tp0, eff0) ->
-    H_Handler(a, tp, tp0, eff0)
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    H_Handler(a, tp, itp, ieff, otp, oeff)
 
   | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
@@ -388,13 +400,15 @@ let from_handler env tp =
   | TUVar(p, u) ->
     let (env1, a) = Env.add_anon_tvar env T.Kind.k_effect in
     let tp   = Env.fresh_uvar env1 T.Kind.k_type in
-    let tp0  = Env.fresh_uvar env1 T.Kind.k_type in
-    let eff0 = Env.fresh_uvar env1 T.Kind.k_effrow in
-    set_uvar env p u (T.Type.t_handler a tp tp0 eff0);
-    H_Handler(a, tp, tp0, eff0)
+    let itp  = Env.fresh_uvar env1 T.Kind.k_type in
+    let ieff = Env.fresh_uvar env1 T.Kind.k_effrow in
+    let otp  = Env.fresh_uvar env T.Kind.k_type in
+    let oeff = Env.fresh_uvar env T.Kind.k_effrow in
+    set_uvar env p u (T.Type.t_handler a tp itp ieff otp oeff);
+    H_Handler(a, tp, itp, ieff, otp, oeff)
 
-  | THandler(a, tp, tp0, eff0) ->
-    H_Handler(a, tp, tp0, eff0)
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    H_Handler(a, tp, itp, ieff, otp, oeff)
 
   | TVar _ | TPureArrow _ | TArrow _ | TLabel _ | TApp _ -> H_No
 

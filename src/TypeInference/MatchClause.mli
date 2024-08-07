@@ -20,36 +20,25 @@ val check_match_clauses : tcfix:tcfix ->
     T.match_clause list * ret_effect
 
 (* ------------------------------------------------------------------------- *)
-(** Check return clauses of handler.
-  In [check_return_clauses env rcs res_tp res_eff] the meaning of the
-  parameters is the following.
-  - [env]     -- the environment.
-  - [rcs]     -- list of clauses. If this list is empty, then the default
-      identity clause is created.
-  - [res_tp]  -- the expected of the return clause
-  - [ref_eff] -- the expected effect of the return clause
+(** Check pattern-matching clauses, taking default identity clause if given
+  clause list is empty. This function is used for checking return and finally
+  clauses of a handler.
+  In [tr_opt_clauses ~tcfix ~pos env mtp_req cls rtp_req eff] the parameters
+  have the following meaning
+  - [env]     -- an environment
+  - [mtp_req] -- request for bidirectional type-checking of matched expression
+  - [cls]     -- list of clauses: empty list means single identity clause
+  - [rtp_req] -- request for bidirectional type-checking of returned type
+  - [eff]     -- returned effect
 
-  This function returns triple: a variable bound by the return clause,
-  its type, and the body of the clause (including pattern-matching). *)
-val check_return_clauses : tcfix:tcfix ->
-  Env.t -> S.match_clause list -> T.typ -> T.effrow ->
-    T.var * T.typ * T.expr
+  The [on_error] parameter is called, when requested types (both in
+  check-mode) do not match in case of empty clause list.
 
-(** Check finally clauses of handler.
-  In [check_finally_clauses env fcs hexpr htp req eff] the meaning of the
-  parameters is the following.
-  - [env]   -- the environment.
-  - [fcs]   -- list of clauses. If this list is empty, then the equivalent of
-      the default identity clause is created.
-  - [hexpr] -- the handler expression, to be wrapped around the finally
-      clauses.
-  - [htp]   -- the type of the handler expression
-  - [req]   -- type request of the bidirectional type-checking.
-  - [eff]   -- the expected effect of the clauses.
-
-  This function returns a triple with the same meaning as the triple returned
-  by [tr_expr] function. Handlers are always impure. *)
-val check_finally_clauses : tcfix:tcfix ->
-  Env.t -> S.match_clause list -> T.expr -> T.typ ->
-    (T.typ, 'dir) request -> T.effrow ->
-      T.expr * (T.typ, 'dir) response * ret_effect
+  Returns the tuple: a variable bound by this return/finally clause,
+  bidirectional response of its type, the body of the clause, and response
+  with the type of the body. *)
+val tr_opt_clauses : tcfix:tcfix -> pos:Position.t ->
+  Env.t -> (T.typ, 'md) request ->
+  S.match_clause list -> (T.typ, 'rd) request -> T.effrow ->
+  on_error:(pos:Position.t -> Error.t) ->
+    T.var * (T.typ, 'md) response * T.expr * (T.typ, 'rd) response
