@@ -60,6 +60,13 @@ val func_effect_mismatch :
 val method_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
+val return_type_mismatch :
+  pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+val finally_type_mismatch :
+  pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
+val finally_effect_mismatch :
+  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
+
 val func_not_pure : pos:Position.t -> t
 val impure_handler : pos:Position.t -> t
 

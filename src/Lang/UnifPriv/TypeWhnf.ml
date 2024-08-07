@@ -17,7 +17,7 @@ type whnf =
   | Whnf_Effrow    of effrow
   | Whnf_PureArrow of scheme * typ
   | Whnf_Arrow     of scheme * typ * effrow
-  | Whnf_Handler   of tvar * typ * typ * effrow
+  | Whnf_Handler   of tvar * typ * typ * effrow * typ * effrow
   | Whnf_Label     of effect * typ * effrow
 
 let rec whnf tp =
@@ -28,7 +28,8 @@ let rec whnf tp =
   | TEffrow _   -> Whnf_Effrow tp
   | TPureArrow(sch, tp) -> Whnf_PureArrow(sch, tp)
   | TArrow(sch, tp, eff) -> Whnf_Arrow(sch, tp, eff)
-  | THandler(a, tp, tp0, eff0) -> Whnf_Handler(a, tp, tp0, eff0)
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    Whnf_Handler(a, tp, itp, ieff, otp, oeff)
   | TLabel(eff, tp0, eff0)     -> Whnf_Label(eff, tp0, eff0)
   | TApp(tp1, tp2) ->
     begin match whnf tp1 with

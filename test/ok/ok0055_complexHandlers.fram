@@ -5,8 +5,12 @@ data State E X = State of
   , put : X ->[|E] Unit
   }
 
-let hState = handler
-  State
-    { get = effect I / r => fn s => r s s
-	, put = effect s / r => fn _ => r I s
-	}
+let hState s =
+  handler
+    State
+      { get = effect I / r => fn s => r s s
+      , put = effect s / r => fn _ => r I s
+      }
+  return  x => fn _ => x
+  finally f => f s
+  end

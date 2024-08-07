@@ -223,10 +223,12 @@ let rec fresh_for_type env name tp =
     fresh_for_scheme env name sch &&
     fresh_for_type env name tp &&
     fresh_for_type env name eff
-  | THandler(_, tp, tp0, eff0) ->
+  | THandler(_, tp, itp, ieff, otp, oeff) ->
     fresh_for_type env name tp &&
-    fresh_for_type env name tp0 &&
-    fresh_for_type env name eff0
+    fresh_for_type env name itp &&
+    fresh_for_type env name ieff &&
+    fresh_for_type env name otp &&
+    fresh_for_type env name oeff
   | TLabel(eff, tp0, eff0) ->
     fresh_for_type env name eff &&
     fresh_for_type env name tp0 &&
@@ -274,22 +276,27 @@ let rec pp_type buf env prec tp =
       pp_effrow_end buf env ee;
       Buffer.add_string buf "] ";
       pp_type buf env 0 tp)
-  | THandler(x, tp, tp0, eff0) ->
+  | THandler(x, tp, itp, ieff, otp, oeff) ->
     paren buf prec 0 (fun () ->
       let name = gen_tvar_name
         (fun n -> 
           fresh_for_type env n tp &&
-          fresh_for_type env n tp0 && fresh_for_type env n eff0)
+          fresh_for_type env n itp && fresh_for_type env n ieff &&
+          fresh_for_type env n otp && fresh_for_type env n oeff)
         "E" in
-      let env = PPEnv.add_tvar env name x in
+      let env1 = PPEnv.add_tvar env name x in
       Buffer.add_string buf "handler ";
       Buffer.add_string buf name;
-      Buffer.add_string buf " => ";
-      pp_type buf env 1 tp;
+      Buffer.add_string buf ", ";
+      pp_type buf env1 1 tp;
       Buffer.add_string buf " @ ";
-      pp_type buf env 1 tp0;
+      pp_type buf env1 1 itp;
       Buffer.add_string buf " / ";
-      pp_type buf env 1 eff0)
+      pp_type buf env1 1 ieff;
+      Buffer.add_string buf " => ";
+      pp_type buf env 1 otp;
+      Buffer.add_string buf " / ";
+      pp_type buf env 1 oeff)
   | TLabel(eff, tp0, eff0) ->
     paren buf prec 0 (fun () ->
       Buffer.add_string buf "label ";

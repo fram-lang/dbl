@@ -41,7 +41,7 @@ type type_view =
   | TEffrow    of TVar.Set.t * effrow_end
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effrow
-  | THandler   of tvar * typ * typ * effrow
+  | THandler   of tvar * typ * typ * effrow * typ * effrow
   | TLabel     of effect * typ * effrow
   | TApp       of typ * typ
 
@@ -73,7 +73,7 @@ val t_pure_arrow : scheme -> typ -> typ
 val t_arrow : scheme -> typ -> effrow -> typ
 
 (** Type of first-class handlers *)
-val t_handler : tvar -> typ -> typ -> effrow -> typ
+val t_handler : tvar -> typ -> typ -> effrow -> typ -> effrow -> typ
 
 (** Type of first-class label *)
 val t_label : effect -> typ -> effrow -> typ

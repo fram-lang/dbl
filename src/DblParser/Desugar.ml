@@ -542,7 +542,10 @@ and tr_expr (e : Raw.expr) =
     tr_expr_app (tr_expr e1) es
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
-  | EHandler h     -> make (EHandler (tr_expr h))
+  | EHandler(h, hcs) ->
+    let e = tr_expr h in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    make (EHandler(e, rcs, fcs))
   | EEffect(es, rp_opt, e) ->
     let (pos, rp) =
       match rp_opt with
@@ -728,18 +731,20 @@ and tr_def ?(public=false) (def : Raw.def) =
     ]
   | DLabel(pub, pat) ->
     let public = public || pub in
-    let (eff_opt, pat) = tr_label_pattern ~public pat in
+    let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
     [ make (DLabel (eff_opt, pat)) ]
-  | DHandle(pub, pat, h, hcs) ->
+  | DHandle(pub, pat, body, hcs) ->
     let public = public || pub in
-    let (lbl_opt, eff_opt, pat)  = tr_handle_pattern ~public pat in
-    let body = { h with data = EHandler(tr_expr h) } in
-    [ make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs ]
-  | DHandleWith(pub, pat, e, hcs) ->
+    let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
+    let body = tr_expr body in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    let body = { body with data = EHandler(body, rcs, fcs) } in
+    [ make (DHandlePat(eff_opt, pat, body)) ]
+  | DHandleWith(pub, pat, body) ->
     let public = public || pub in
-    let (lbl_opt, eff_opt, pat)  = tr_handle_pattern ~public pat in
-    let body = tr_expr e in
-    [ make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs ]
+    let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
+    let body = tr_expr body in
+    [ make (DHandlePat(eff_opt, pat, body)) ]
   | DModule(pub, x, defs) ->
     let public = public || pub in
     [ make (DModule(public, x, tr_defs defs)) ]
@@ -765,40 +770,15 @@ and tr_pattern_with_fields ~public (pat : Raw.expr) =
   | _ ->
     (None, tr_pattern ~public pat)
 
-and tr_label_pattern ~public (pat : Raw.expr) =
+and tr_pattern_with_eff_opt ~public (pat : Raw.expr) =
   let (flds_opt, pat) = tr_pattern_with_fields ~public pat in
-  (Option.map (tr_label_fields ~public) flds_opt, pat)
+  (Option.map (tr_eff_opt_fields ~public) flds_opt, pat)
 
-and tr_handle_pattern ~public (pat : Raw.expr) =
-  let (flds_opt, pat) = tr_pattern_with_fields ~public pat in
-  match flds_opt with
-  | Some flds ->
-    let (lbl_opt, eff_opt) = tr_handle_fields ~public flds in
-    (lbl_opt, eff_opt, pat)
-  | None -> (None, None, pat)
-
-and tr_label_fields ~public flds =
+and tr_eff_opt_fields ~public flds =
   match flds with
   | [] -> assert false
   | [{ data = FldEffectVal tp; _ }] -> tr_type_arg ~public tp
   | { data = FldEffectVal _; _} :: fld :: _ | fld :: _ ->
-    Error.fatal (Error.desugar_error fld.pos)
-
-and tr_handle_fields ~public flds =
-  match flds with
-  | [] -> assert false
-  | [{ data = FldNameVal(NLabel, e); _ }] ->
-    (Some (tr_expr e), None)
-  | [{ data = FldEffectVal eff; _ }] ->
-    (None, Some (tr_type_arg ~public eff))
-  | [{ data = FldNameVal(NLabel, e); _ }; { data = FldEffectVal eff; _ }]
-  | [{ data = FldEffectVal eff; _ }; { data = FldNameVal(NLabel, e); _ }] ->
-    (Some (tr_expr e), Some (tr_type_arg ~public eff))
-  | { data=FldNameVal(NLabel, _); _} :: { data=FldEffectVal _; _ } :: fld :: _
-  | { data=FldEffectVal _; _ } :: { data=FldNameVal(NLabel, _); _} :: fld :: _
-  | { data=FldNameVal(NLabel, _); _} :: fld :: _
-  | { data=FldEffectVal _; _ } :: fld :: _
-  | fld :: _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_h_clause (hc : Raw.h_clause) =
@@ -809,19 +789,7 @@ and tr_h_clause (hc : Raw.h_clause) =
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern ~public:false pat, tr_expr body)))
 
-and make_handle ~pos lbl_opt eff_opt pat body hcs =
-  let make data = { pos; data } in
-  let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
-  make (DHandlePat
-    { label       = lbl_opt;
-      effect      = eff_opt;
-      cap_pat     = pat;
-      capability  = body;
-      ret_clauses = rcs;
-      fin_clauses = fcs
-    })
-
-(** Returns: list of explicit type adnotations with fresh type variable names
+(** Returns: list of explicit type annotations with fresh type variable names
     and a function that given a field name returns piece of code that
     represents pattern which pulls out this variable, making it easy to use in
     generated code *)

@@ -6,9 +6,13 @@ data State E X = State of
   , update : (X ->[|E] X) ->[|E] Unit
   }
 
-let hState = handler
-  let get I = effect / r => fn s => r s s
-  let put s = effect / r => fn s => r I s
-  let update f = put (f (get I))
-  in
-  State { get, put, update }
+let hState s =
+  handler
+    let get I = effect / r => fn s => r s s
+    let put s = effect / r => fn s => r I s
+    let update f = put (f (get I))
+    in
+    State { get, put, update }
+  return  x => fn _ => x
+  finally f => f s
+  end

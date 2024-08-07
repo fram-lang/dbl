@@ -121,19 +121,45 @@ let infer_expr_type ~tcfix env (e : S.expr) eff =
     in
     (e, tp, r_eff)
 
-  | EHandler h ->
+  | EHandler(h, rcs, fcs) ->
+    (* TODO: effect and label could be named here *)
     let (env, a) = Env.add_the_effect ~pos:e.pos env in
-    let res_tp  = Env.fresh_uvar env T.Kind.k_type in
-    let res_eff = Env.fresh_uvar env T.Kind.k_effrow in
+    let delim_tp  = Env.fresh_uvar env T.Kind.k_type in
+    let delim_eff = Env.fresh_uvar env T.Kind.k_effrow in
     let (env, lx) =
-      Env.add_the_label env (T.Type.t_var a) res_tp res_eff in
+      Env.add_the_label env (T.Type.t_var a) delim_tp delim_eff in
     let (h, tp, r_eff) = infer_expr_type env h T.Effect.pure in
     begin match r_eff with
     | Pure -> ()
     | Impure -> Error.report (Error.impure_handler ~pos:e.pos)
     end;
-    let e = make (T.EHandler(a, lx, res_tp, res_eff, h)) in
-    (e, T.Type.t_handler a tp res_tp res_eff, Pure)
+    let (ret_x, Infered body_tp, ret_body, Checked) =
+      MatchClause.tr_opt_clauses ~tcfix ~pos:e.pos env Infer rcs
+        (Check delim_tp) delim_eff
+        ~on_error:(fun ~pos -> assert false) in
+    let fin_eff = Env.fresh_uvar env T.Kind.k_effrow in
+    let (fin_x, Checked, fin_body, Infered fin_tp) =
+      MatchClause.tr_opt_clauses ~tcfix ~pos:e.pos env (Check delim_tp) fcs
+        Infer fin_eff
+        ~on_error:(fun ~pos -> assert false) in
+    Error.check_unify_result ~pos
+      (Unification.subeffect env delim_eff fin_eff)
+      ~on_error:(Error.finally_effect_mismatch ~env delim_eff fin_eff);
+    let e =
+      make (T.EHandler {
+        label     = lx;
+        effect    = a;
+        delim_tp  = delim_tp;
+        delim_eff = delim_eff;
+        cap_type  = tp;
+        cap_body  = h;
+        ret_var   = ret_x;
+        body_tp   = body_tp;
+        ret_body  = ret_body;
+        fin_var   = fin_x;
+        fin_body  = fin_body;
+      }) in
+    (e, T.Type.t_handler a tp body_tp delim_eff fin_tp fin_eff, Pure)
 
   | EAnnot(e, tp) ->
     let tp = Type.tr_ttype env tp in
@@ -252,21 +278,51 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
       MatchClause.check_match_clauses ~tcfix env e_tp cls tp eff in
     (make (T.EMatch(e, cls, tp, eff)), r_eff)
 
-  | EHandler h ->
+  | EHandler(body, rcs, fcs) ->
     begin match Unification.from_handler env tp with
-    | H_Handler(b, tp, tp0, eff0) ->
+    | H_Handler(b, cap_tp, tp_in, eff_in, tp_out, eff_out) ->
       let (env, a) = Env.add_the_effect ~pos env in
-      let sub  = T.Subst.rename_to_fresh T.Subst.empty b a in
-      let tp   = T.Type.subst sub tp in
-      let tp0  = T.Type.subst sub tp0 in
-      let eff0 = T.Type.subst sub eff0 in
-      let (env, l) = Env.add_the_label env (T.Type.t_var a) tp0 eff0 in
-      let (h, r_eff) = check_expr_type env h tp T.Effect.pure in
+      let sub    = T.Subst.rename_to_fresh T.Subst.empty b a in
+      let cap_tp = T.Type.subst sub cap_tp in
+      let tp_in  = T.Type.subst sub tp_in in
+      let eff_in = T.Type.subst sub eff_in in
+      let delim_tp  = Env.fresh_uvar env T.Kind.k_type in
+      let delim_eff = Env.fresh_uvar env T.Kind.k_effrow in
+      Error.check_unify_result ~pos
+        (Unification.subeffect env eff_in (T.Effect.cons a delim_eff))
+        ~on_error:(fun ~pos -> assert false);
+      let (env, lx) =
+        Env.add_the_label env (T.Type.t_var a) delim_tp delim_eff in
+      let (body, r_eff) = check_expr_type env body cap_tp T.Effect.pure in
       begin match r_eff with
       | Pure -> ()
       | Impure -> Error.report (Error.impure_handler ~pos)
       end;
-      let e = make (T.EHandler(a, l, tp0, eff0, h)) in
+      let (ret_var, Checked, ret_body, Checked) =
+        MatchClause.tr_opt_clauses ~tcfix ~pos env
+          (Check tp_in) rcs (Check delim_tp) delim_eff
+          ~on_error:(Error.return_type_mismatch ~env tp_in delim_tp) in
+      Error.check_unify_result ~pos
+        (Unification.subeffect env delim_eff eff_out)
+        ~on_error:(Error.finally_effect_mismatch ~env delim_eff eff_out);
+      let (fin_var, Checked, fin_body, Checked) =
+        MatchClause.tr_opt_clauses ~tcfix ~pos env
+          (Check delim_tp) fcs (Check tp_out) eff_out
+          ~on_error:(Error.finally_type_mismatch ~env delim_tp tp_out) in
+      let e =
+        make (T.EHandler {
+          label     = lx;
+          effect    = a;
+          delim_tp  = delim_tp;
+          delim_eff = delim_eff;
+          cap_type  = cap_tp;
+          cap_body  = body;
+          ret_var   = ret_var;
+          body_tp   = tp_in;
+          ret_body  = ret_body;
+          fin_var   = fin_var;
+          fin_body  = fin_body;
+        }) in
       (e, Pure)
 
     | H_No ->
