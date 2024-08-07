@@ -26,9 +26,9 @@ let print_colors_auto () =
 
 let display_colors = ref (print_colors_auto ())
 
-let print_colors_of_string s =
-  if s = "always" then display_colors := true else
-  if s = "auto" then display_colors := print_colors_auto () else
-  if s = "never" then display_colors := false else
-  ()
+let print_colors_of_string = function
+  | "always" -> display_colors := true
+  | "never"  -> display_colors := false
+  | "auto"   -> display_colors := print_colors_auto ()
+  | _ -> assert false
 

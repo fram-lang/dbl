@@ -465,5 +465,3 @@ let redundant_named_pattern ~pos name =
     "Providing %s to a constructor that do not expect it"
     (string_of_name name),
     [])
-
-let invalid_method_type ~pos = (pos, "invalid method type", [])

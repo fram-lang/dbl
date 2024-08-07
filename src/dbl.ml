@@ -48,7 +48,9 @@ let cmd_args_options = Arg.align
     " Add a path to local search directories";
 
     "-color",
-    Arg.String (fun s -> DblConfig.print_colors_of_string s),
+    Arg.Symbol (
+      [ "always"; "never"; "auto"; ],
+      (fun s -> DblConfig.print_colors_of_string s)),
     " Use colors when printing Errors.";
   ]
 
