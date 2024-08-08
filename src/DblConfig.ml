@@ -20,3 +20,15 @@ let local_mod_prefix = "Main"
 
 let lib_search_dirs   : string list ref = ref [ ]
 let local_search_dirs : string list ref = ref [ ]
+
+let print_colors_auto () =
+  Unix.isatty Unix.stdout
+
+let display_colors = ref (print_colors_auto ())
+
+let print_colors_of_string = function
+  | "always" -> display_colors := true
+  | "never"  -> display_colors := false
+  | "auto"   -> display_colors := print_colors_auto ()
+  | _ -> assert false
+

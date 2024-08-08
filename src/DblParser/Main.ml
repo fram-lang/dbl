@@ -22,8 +22,14 @@ let rec repl_seq imported () =
 
 and repl_seq_main imported () =
   flush stderr;
+  Buffer.clear InterpLib.Error.repl_input;
+  let fn buf n =
+    let res = input stdin buf 0 n in
+    Buffer.add_subbytes InterpLib.Error.repl_input buf 0 res;
+    res
+  in
   Printf.printf "> %!";
-  let lexbuf = Lexing.from_channel stdin in
+  let lexbuf = Lexing.from_function fn in
   lexbuf.Lexing.lex_curr_p <-
     { lexbuf.Lexing.lex_curr_p with
       Lexing.pos_fname = "<stdin>"
@@ -38,8 +44,8 @@ and repl_seq_main imported () =
     Seq.Cons([def], repl_seq imported)
 
   | Raw.REPL_Defs defs ->
-      let defs = Desugar.tr_defs defs in
-      Seq.Cons(defs, repl_seq imported)
+    let defs = Desugar.tr_defs defs in
+    Seq.Cons(defs, repl_seq imported)
 
   | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
