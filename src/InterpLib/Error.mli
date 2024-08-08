@@ -36,4 +36,5 @@ val wrap_repl_cont : (unit -> 'a) -> unit -> 'a
 (** Reset state of reported errors. Used in REPL in case of an error. *)
 val reset : unit -> unit
 
-val repl_input : string ref
+(** A buffer that contains last REPL input. *)
+val repl_input : Buffer.t

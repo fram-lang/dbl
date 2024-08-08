@@ -22,10 +22,10 @@ let rec repl_seq imported () =
 
 and repl_seq_main imported () =
   flush stderr;
-  let repl_buffer = Buffer.create 512 in
+  Buffer.clear InterpLib.Error.repl_input;
   let fn buf n =
     let res = input stdin buf 0 n in
-    Buffer.add_subbytes repl_buffer buf 0 res;
+    Buffer.add_subbytes InterpLib.Error.repl_input buf 0 res;
     res
   in
   Printf.printf "> %!";
@@ -41,17 +41,14 @@ and repl_seq_main imported () =
 
   | Raw.REPL_Expr e ->
     let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
-    InterpLib.Error.repl_input := Buffer.contents repl_buffer;
     Seq.Cons([def], repl_seq imported)
 
   | Raw.REPL_Defs defs ->
     let defs = Desugar.tr_defs defs in
-    InterpLib.Error.repl_input := Buffer.contents repl_buffer;
     Seq.Cons(defs, repl_seq imported)
 
   | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
-    InterpLib.Error.repl_input := Buffer.contents repl_buffer;
     Seq.Cons(defs, repl_seq imported)
 
   | exception Parsing.Parse_error ->

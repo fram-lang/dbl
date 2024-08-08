@@ -14,7 +14,7 @@ type error_class =
 
 let err_counter = ref 0
 
-let repl_input = ref ""
+let repl_input = Buffer.create 512
 
 let incr_error_counter () =
   err_counter := !err_counter + 1
@@ -40,7 +40,7 @@ let report ?pos ~cls msg =
   let name = Color.color_string color name in
   let text_range = Option.bind pos
     (TextRangePrinting.get_text_range
-      ~repl_input:!repl_input
+      ~repl_input:(Buffer.contents repl_input)
       ~color) in
   match pos, text_range with
   | Some pos, None ->
