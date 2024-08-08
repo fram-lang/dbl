@@ -288,10 +288,10 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EList []         -> NPName (tr_ctor_name (make Raw.CNNil))
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
 
-  | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EVar _ | EImplicit _
-  | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _)
-  | EPub _ | EMethodCall _  ->
+  | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EVar _
+  | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _
+  | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _
+  | EList (_ :: _) | EPub _ | EMethodCall _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -302,6 +302,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EUnit | ECtor _ | ESelect _ ->
     make (PCtor(make (tr_ctor_pattern p), CNParams([], []), []))
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
+  | ENum64 _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern ~public p).data
@@ -315,7 +316,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
     let ps = List.map (tr_pattern ~public) ps in
     begin match flds with
     | [ { data = FldModule name; _ } ] ->
-      make (PCtor(cpath, CNModule name, ps))
+      make (PCtor(cpath, CNModule(public, name), ps))
     | _ ->
       let (targs, iargs) = map_inst_like (tr_named_pattern ~public) flds in
       make (PCtor(cpath, CNParams(targs, iargs), ps))
@@ -375,8 +376,9 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EParen arg -> tr_function_arg arg
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern ~public:false p, tr_scheme_expr sch)
-  | EWildcard | EUnit | ENum _ | EStr _ | EChr _ | EVar _ | EImplicit _ | ECtor _
-  | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _  | ESelect _ | EList _ ->
+  | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
+  | EImplicit _ | ECtor _ | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _
+  | ESelect _ | EList _ ->
     ArgPattern (tr_pattern ~public:false arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
@@ -434,7 +436,8 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       let (targs, iargs) = map_inst_like tr_named_arg flds in
       LP_Fun(id, targs, iargs, ps)
 
-    | EUnit | ENum _ | EStr _ | EChr _ | ECtor _ | ESelect _ | EList _ ->
+    | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | ECtor _ | ESelect _
+    | EList _ ->
       LP_Pat(tr_pattern ~public p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
@@ -443,8 +446,8 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       Error.fatal (Error.desugar_error p1.pos)
     end
 
-  | EWildcard | EUnit | ENum _ | EStr _ | EChr _ | EParen _ | ECtor _ | EAnnot _
-  | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
+  | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _
+  | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
     LP_Pat (tr_pattern ~public p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -497,14 +500,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EUOpID    x -> make (EVar      (prepend_path (make_uop_id x)))
     | EList    [] -> make (EVar      (prepend_path (tr_ctor_name' CNNil)))
     
-    | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
-    | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-    | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
+    | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _
+    | EApp _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _
+    | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
     | EList (_ :: _) | EPub _ | EMethodCall _ ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
-  | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
+  | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
   | EMethodCall _ ->
@@ -517,6 +520,7 @@ and tr_expr (e : Raw.expr) =
   | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (EPoly(tr_poly_expr e, [], []))
   | ENum n -> make (ENum n)
+  | ENum64 n -> make (ENum64 n)
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data

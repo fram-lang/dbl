@@ -7,5 +7,5 @@
   (name dbl)
   (modes byte exe)
   (public_name dbl)
-  (libraries interpLib dblParser typeInference toCore unix)
-  (modules dbl eval pipeline typeErase))
+  (libraries interpLib dblParser typeInference toCore eval unix)
+  (modules dbl pipeline typeErase))

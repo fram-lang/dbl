@@ -41,6 +41,7 @@ type expr =
 
 and value =
   | VNum    of int
+  | VNum64  of int64
   | VStr    of string
   | VVar    of var
   | VFn     of var * ttype * expr

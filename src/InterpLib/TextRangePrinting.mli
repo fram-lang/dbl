@@ -50,4 +50,3 @@ val default_options : options
 
 val get_text_range : ?options:options -> repl_input:string
       -> color:printing_color -> Position.t -> string option
-

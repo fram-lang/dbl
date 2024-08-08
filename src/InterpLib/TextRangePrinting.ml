@@ -1,3 +1,7 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+ *)
+
 (** Pretty printing of text range from Position.t *)
 open Position
 
@@ -88,24 +92,6 @@ let underline_string s =
   then s
   else underline_code_string ^ s ^ reset_string
 
-let color_keywords line =
-  if not !DblConfig.display_colors then line else
-  let keywords =
-    [ "abstr"; "as"; "data"; "effect"
-    ; "effrow"; "else"; "end"; "extern"
-    ; "finally"; "fn"; "handle"; "handler"
-    ; "if"; "implicit"; "import"; "in"
-    ; "label"; "let"; "match"; "method"
-    ; "module"; "of"; "open"; "pub"
-    ; "rec"; "return"; "then"; "type"
-    ; "with"; "_"; "}"; "{"
-    ; "->"; "::"; "&&"; "||"; ";;"
-    ; "\\["; "\\]"; "=>"; "="; "|"
-    ] |> String.concat "\\|" in
-  let regex = Str.regexp ("\\(" ^ keywords ^ "\\)") in
-  let templ = keyword_color ^ "\\1" ^ reset_string in
-  Str.global_replace regex templ line
-
 (* ========================================================================= *)
 (**  Underlining   *)
 
@@ -125,40 +111,39 @@ let generate_underline ~color_printer start_cnum len tabs =
   in String.mapi f padding ^ underline
 
 let add_underline ~options ~pos ~color_printer (i, line) =
-  let line' = color_keywords line in
   match options.underline pos, i with
-  | NoUnderline, _ -> Seq.return (i, line')
+  | NoUnderline, _ -> Seq.return (i, line)
   | (UnderlineIfOneLine | UnderlineAlways), Some j
       when pos.pos_start_line = pos.pos_end_line
       && pos.pos_start_line = j ->
     let underline = generate_underline ~color_printer
         (start_column pos) pos.pos_length (find_tabs line) in
-    Seq.cons (i, line') (Seq.return (None, underline))
-  | UnderlineIfOneLine, _ -> Seq.return (i, line')
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineIfOneLine, _ -> Seq.return (i, line)
   | UnderlineBegining, Some j
       when pos.pos_start_line = j ->
     let underline = generate_underline ~color_printer
         (start_column pos) 1 (find_tabs line) in
-    Seq.cons (i, line') (Seq.return (None, underline))
-  | UnderlineBegining, _ -> Seq.return (i, line')
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineBegining, _ -> Seq.return (i, line)
   | UnderlineAlways, Some j
       when j = pos.pos_start_line ->
     let underline = generate_underline ~color_printer
       (start_column pos)
-      (String.length line' - start_column pos)
+      (String.length line - start_column pos)
       (find_tabs line) in
-    Seq.cons (i, line') (Seq.return (None, underline))
+    Seq.cons (i, line) (Seq.return (None, underline))
   | UnderlineAlways, Some j
       when j = pos.pos_end_line ->
     let underline = generate_underline ~color_printer
         0 (end_column pos) (find_tabs line) in
-    Seq.cons (i, line') (Seq.return (None, underline))
+    Seq.cons (i, line) (Seq.return (None, underline))
   | UnderlineAlways, Some j
       when j > pos.pos_start_line && j < pos.pos_end_line ->
     let underline = generate_underline ~color_printer
-        0 (String.length line') (find_tabs line) in
-    Seq.cons (i, line') (Seq.return (None, underline))
-  | UnderlineAlways, _ -> Seq.return (i, line')
+        0 (String.length line) (find_tabs line) in
+    Seq.cons (i, line) (Seq.return (None, underline))
+  | UnderlineAlways, _ -> Seq.return (i, line)
 
 (* ========================================================================= *)
 (**  Printing code   *)
@@ -215,5 +200,3 @@ let get_text_range ?(options=default_options) ~repl_input ~color (pos : t) =
     get_text_from_repl ~options ~repl_input ~color_printer pos
   else
     get_text_from_file ~options ~color_printer pos
-
-

@@ -17,13 +17,12 @@ let make_nowhere data =
   ; Lang.Surface.data = data
   }
 
-let repl_buffer = Buffer.create 512
 let rec repl_seq imported () =
   InterpLib.Error.wrap_repl_cont (repl_seq_main imported) ()
 
 and repl_seq_main imported () =
   flush stderr;
-  Buffer.clear repl_buffer;
+  let repl_buffer = Buffer.create 512 in
   let fn buf n =
     let res = input stdin buf 0 n in
     Buffer.add_subbytes repl_buffer buf 0 res;
