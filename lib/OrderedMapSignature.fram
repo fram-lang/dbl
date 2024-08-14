@@ -1,0 +1,63 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+*)
+import open RedBlackTree
+
+pub data OrderedMap Key = Map of {
+    T
+    , empty : {type Val} -> Tree (T Val)
+    , singleton : {type Val} -> Key -> Val -> [] Tree (T Val)
+    , method isEmpty : {type Val} -> Tree (T Val) -> [] Bool
+    , method insert : {type Val} -> Tree (T Val) -> 
+        Key -> Val -> [] Tree (T Val)
+    , method insert' : {type Val} -> Tree (T Val) -> 
+        Key -> Val -> [] (Pair (Tree (T Val)) Bool)
+    , method remove : {type Val} -> Tree (T Val) -> 
+        Key -> [] Tree (T Val)
+    , method remove' : {type Val} -> Tree (T Val) ->
+        Key -> [] (Pair (Tree (T Val)) Bool)
+    , method member : {type Val} -> Tree (T Val) -> Key -> [] Bool
+    , method find : {type Val} -> Tree (T Val) -> Key -> [] Option Val
+    , method operate : {type Val} -> Tree (T Val) -> Key ->
+        (Unit -> [] Option Val) -> (Val -> [] Option Val) -> 
+        [] (Pair (Pair (Option Val) (Option Val)) (Tree (T Val)))
+    , method foldl : {type Val, type A} -> Tree (T Val) -> 
+        (Key -> Val -> A -> [] A) -> A -> [] A
+    , method foldr : {type Val, type A} -> Tree (T Val) -> 
+        (Key -> Val -> A -> [] A) -> A -> [] A
+    , method toList : {type Val} -> Tree (T Val) -> [] List (Pair Key Val)
+    , method toValueList : {type Val} -> Tree (T Val) -> [] List Val
+    , method domain : {type Val} -> Tree (T Val) -> [] List Key
+    , method map : {type Val, type A} -> Tree (T Val) -> 
+        (Val -> [] A) -> [] Tree (T A)
+    , method map2 : {type Val, type A} -> Tree (T Val) -> 
+        (Key -> [] A) -> [] Tree (T A)
+(*  , method map3 : {type Val, type A} -> (Val -> [] A) -> 
+        Tree (T Val) -> [] Tree (T A) *)
+    , method app : {type Val} -> Tree (T Val) -> 
+        (Key -> Val -> [] Unit) -> [] Unit
+    , method union : {type Val} -> Tree (T Val) -> Tree (T Val) ->
+        (Key -> Val -> Val -> [] Val) -> [] Tree (T Val)
+    , method partion : {type Val} -> Tree (T Val) -> Key ->
+        [] (Pair (Pair (Tree (T Val)) (Option Val)) (Tree (T Val)))
+    , method partionLt : {type Val} -> Tree (T Val) -> Key ->
+        [] Pair (Tree (T Val)) (Tree (T Val))
+    , method partionGt : {type Val} -> Tree (T Val) -> Key ->
+        [] Pair (Tree (T Val)) (Tree (T Val))
+    , method rangeii : {type Val} -> Tree (T Val) -> Key -> Key ->
+        [] Tree (T Val)
+    , method rangeie : {type Val} -> Tree (T Val) -> Key -> Key ->
+        [] Tree (T Val)
+    , method rangeei : {type Val} -> Tree (T Val) -> Key -> Key ->
+        [] Tree (T Val)
+    , method rangeee : {type Val} -> Tree (T Val) -> Key -> Key ->
+        [] Tree (T Val)
+    , method least : {type Val} -> Tree (T Val) -> [] Option (T Val)
+    , method greatest : {type Val} -> Tree (T Val) -> [] Option (T Val)
+    , method leastGt : {type Val} -> Tree (T Val) -> Key -> [] Option (T Val)
+    , method leastGeq : {type Val} -> Tree (T Val) -> Key -> [] Option (T Val)
+    , method greatestLt : {type Val} -> Tree (T Val) -> 
+        Key -> [] Option (T Val)
+    , method greatestLeq : {type Val} -> Tree (T Val) ->
+        Key -> [] Option (T Val) 
+}
