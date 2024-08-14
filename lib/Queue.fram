@@ -1,5 +1,8 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+*)
 
-data MyInt = Zero | Positive of Int
+data NotNegativeInt = Zero | Positive of Int
 
 let addOne value = 
 match value with
@@ -15,17 +18,18 @@ end
 
 data RotationState Val = 
   | Idle
-  | Reversing of MyInt, List Val, List Val, List Val, List Val
-  | Appending of MyInt, List Val, List Val
+  | Reversing of NotNegativeInt, List Val, List Val, List Val, List Val
+  | Appending of NotNegativeInt, List Val, List Val
   | Done of List Val
 
 data HoodMelvilleQueue Val = 
-  | HMQueue of MyInt, List Val, RotationState Val, MyInt, List Val
+  | HMQueue of NotNegativeInt, List Val, RotationState Val,
+   NotNegativeInt, List Val
 
 let exec state = 
 match state with 
-  | Reversing ok (x::f) f' (y::r) r' 
-    => Reversing (addOne ok) f (x::f') r (y::r')
+  | Reversing ok (x::f) f' (y::r) r' => 
+    Reversing (addOne ok) f (x::f') r (y::r')
   | Reversing ok [] f' [y] r' => Appending ok f' (y::r')
   | Appending Zero f' r' => Done r'
   | Appending ok (x::f') r' => Appending (subOne ok) f' (x::r')
@@ -42,8 +46,8 @@ end
 
 let exec_twice hmqueue =
 match hmqueue with
-| HMQueue lenf f state lenr r
-=> match exec (exec state) with
+| HMQueue lenf f state lenr r => 
+  match exec (exec state) with
   | Done newf => HMQueue lenf newf Idle lenr r
   | newstate => HMQueue lenf f newstate lenr r
   end
@@ -66,16 +70,16 @@ end
 
 let check queue =
 match queue with
-| HMQueue lenf f state lenr r 
-=> if leq lenr lenf then exec_twice queue
+| HMQueue lenf f state lenr r => 
+if leq lenr lenf then exec_twice queue
 else (
   let newstate = Reversing Zero f [] r [] in
   exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
 )
 end
 
-let empty = HMQueue Zero [] Idle Zero []
-let isEmpty queue = 
+pub let emptyQueue = HMQueue Zero [] Idle Zero []
+pub let isEmpty queue = 
 match queue with 
 | HMQueue Zero _ _ _ _ => True
 | _ => False
@@ -96,30 +100,16 @@ end
 
 let tail queue =
 match queue with
-| HMQueue Zero _ _ _ _ => empty
-| HMQueue _ [] _ _ _ => empty
+| HMQueue Zero _ _ _ _ => emptyQueue
+| HMQueue _ [] _ _ _ => emptyQueue
 | HMQueue lenf (x::xs) state lenr r => 
 check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
 end
 
-pub data Queue Val = Queue of {
-  T
-  , empty : T
-  , method isEmpty : T -> [] Bool
-  , method snoc : T -> Val -> [] T
-  , method tail : T -> [] T
-  , method push : T -> Val -> [] T
-  , method pop : T -> [] T
-  , method head : T -> [] Option Val
-} 
 
-pub let makeQueue {Val} = Queue {
-  T = HoodMelvilleQueue Val
-  , empty = empty
-  , method isEmpty  = isEmpty
-  , method snoc = snoc
-  , method tail = tail
-  , method push = snoc
-  , method pop = tail
-  , method head = head
-}
+pub method isEmpty = isEmpty self
+pub method snoc = snoc self
+pub method tail = tail self
+pub method push = snoc self
+pub method pop = tail self
+pub method head = head self
