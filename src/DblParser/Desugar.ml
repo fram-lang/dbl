@@ -316,7 +316,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
     let ps = List.map (tr_pattern ~public) ps in
     begin match flds with
     | [ { data = FldModule name; _ } ] ->
-      make (PCtor(cpath, CNModule name, ps))
+      make (PCtor(cpath, CNModule(public, name), ps))
     | _ ->
       let (targs, iargs) = map_inst_like (tr_named_pattern ~public) flds in
       make (PCtor(cpath, CNParams(targs, iargs), ps))
