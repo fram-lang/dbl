@@ -3,7 +3,12 @@
 
 (generate_opam_files true)
 
+(source (github fram-lang/dbl))
+(license MIT)
+
 (package
   (name dbl)
   (synopsis "Interpreter of Fram: a language with algebraic effects and powerful named parameters")
-  (description ""))
+  (description "")
+  (depends
+    (dune (>= 3.11))))

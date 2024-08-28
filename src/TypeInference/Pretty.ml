@@ -376,12 +376,22 @@ and pp_scheme_named_args buf env sep nargs =
   | [] -> env
   | (name, sch) :: nargs ->
     Buffer.add_string buf sep;
-    begin match name with
-    | NLabel      -> Buffer.add_string buf "label"
-    | NVar x      -> Buffer.add_string buf x
-    | NImplicit n -> Buffer.add_string buf n
-    | NMethod n   -> Buffer.add_string buf n
-    end;
+    let sch = 
+      begin match name with
+      | NLabel         -> Buffer.add_string buf "label"; sch
+      | NVar x         -> Buffer.add_string buf x; sch
+      | NOptionalVar x -> 
+        assert (T.Scheme.is_monomorphic sch);
+        Buffer.add_string buf x;
+        begin match T.Type.view sch.sch_body with
+        | TApp(_, tp) -> T.Scheme.of_type tp;
+        (* Error here? *)
+        | _           -> sch 
+        end
+      | NImplicit n    -> Buffer.add_string buf n; sch
+      | NMethod n      -> Buffer.add_string buf n; sch
+      end
+    in
     Buffer.add_string buf ":";
     pp_scheme buf env 0 sch;
     pp_scheme_named_args buf env ", " nargs
