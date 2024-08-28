@@ -153,6 +153,8 @@ let rec check_explicit_insts ~tcfix
           (n, e, sch, r_eff1)
         end
       | None ->
+        (* If there is no such a name in the scheme, we should also look for
+          its optional variant in case of a regular name *)
         let res = 
           begin match n with
           | NVar x -> 

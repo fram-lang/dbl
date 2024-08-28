@@ -339,7 +339,8 @@ let infer_optional_arg_scheme env (arg : S.arg) =
   | ArgAnnot(pat, sch) ->
     let sch_pos = sch.sch_pos in
     let sch = Type.tr_scheme env sch in
-    assert (T.Scheme.is_monomorphic sch);
+    if not (T.Scheme.is_monomorphic sch) then
+      Error.fatal (Error.polymorphic_optional_parameter ~pos:sch_pos);
     let sch = T.Scheme.of_type 
       (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body)
     in
