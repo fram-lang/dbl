@@ -16,4 +16,4 @@ jobs:
       - run: opam exec -- dune build
       - run: opam exec -- dune install
       - run: eval $(opam env) && ./test.sh dbl ./test/test_suite
-      
+

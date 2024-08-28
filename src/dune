@@ -1,10 +1,11 @@
 (library
  (name dblConfig)
- (modules dblConfig))
+ (modules dblConfig)
+ (libraries unix))
 
 (executable
   (name dbl)
   (modes byte exe)
   (public_name dbl)
-  (libraries interpLib dblParser typeInference toCore eval)
+  (libraries interpLib dblParser typeInference toCore eval unix)
   (modules dbl pipeline typeErase))

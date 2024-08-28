@@ -160,7 +160,7 @@ and pattern_data =
 and ctor_pattern_named =
   | CNParams of named_type_arg list * named_pattern list
     (** Named type parameters and named patterns of a constructor *)
-  | CNModule of module_name
+  | CNModule of is_public * module_name
     (** Bind all named parameters under the specified module name *)
 
 (** Pattern for named parameter *)
