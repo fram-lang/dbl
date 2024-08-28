@@ -1,0 +1,24 @@
+pub data Option A = None | Some of A
+pub method add = (extern dbl_addInt : Int -> Int -> Int) self
+pub method fn (+) = add
+
+let f {?x} = x
+let a = f
+let b = f {x=2}
+
+let g {?x : Int} () = 
+  match x with
+  | Some n => n + 2
+  | None => 42
+  end
+let c = g ()
+let d = g {x=2} ()
+let e = g {?x = Some 2} ()
+
+let h {?x} () =
+  match x with
+  | Some n => n
+  | None => None
+  end
+
+let a = h {x=Some 2}

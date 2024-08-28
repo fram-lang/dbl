@@ -84,7 +84,7 @@ let introduce_implicit_name ~pos env (name : T.name) sch =
     (* Do not introduce anything. Just create a fresh variable *)
     (env, T.Name.Map.empty, Var.fresh ~name:"label" ())
 
-  | NVar x ->
+  | NVar x | NOptionalVar x ->
     (* Do not introduce anything. Just create a fresh variable *)
     (env, T.Name.Map.empty, Var.fresh ~name:x ())
 
@@ -168,6 +168,7 @@ let open_named_arg ~pos ~public ~sub env (name, sch) =
     match name with
     | T.NLabel -> Env.add_the_label_sch env sch
     | T.NVar x -> Env.add_poly_var ~public env x sch
+    | T.NOptionalVar x -> Env.add_mono_var ~public env x sch.sch_body
     | T.NImplicit n -> Env.add_poly_implicit ~public env n sch ignore
     | T.NMethod   n ->
       let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
@@ -330,6 +331,30 @@ and check_pattern_schemes ~env ~scope pats schs =
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
+(** Infer type-scheme of given formal optional argument. Returns extended
+  environment, a pattern that represents an argument, its scheme, and the
+  effect of pattern-matching *)
+let infer_optional_arg_scheme env (arg : S.arg) =
+  match arg with
+  | ArgAnnot(pat, sch) ->
+    let sch_pos = sch.sch_pos in
+    let sch = Type.tr_scheme env sch in
+    if not (T.Scheme.is_monomorphic sch) then
+      Error.fatal (Error.polymorphic_optional_parameter ~pos:sch_pos);
+    let sch = T.Scheme.of_type 
+      (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body)
+    in
+    let scope = Env.scope env in
+    let (env, pat, _, r_eff) =
+      check_scheme ~env ~scope pat sch in
+    (env, pat, sch, r_eff)
+  | ArgPattern pat ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = (PreludeTypes.mk_Option ~env ~pos:pat.pos tp) in
+    let scope = Env.scope env in
+    let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
+    (env, pat, T.Scheme.of_type tp, r_eff)
+
 let infer_arg_scheme env (arg : S.arg) =
   match arg with
   | ArgAnnot(pat, sch) ->
@@ -363,7 +388,12 @@ let check_arg_scheme env (arg : S.arg) sch =
 let infer_named_arg_scheme env (na : S.named_arg) =
   let (name, arg) = na.data in
   let name = Name.tr_name env name in
-  let (env, pat, sch, r_eff) = infer_arg_scheme env arg in
+  let (env, pat, sch, r_eff) = 
+    begin match name with
+    | NOptionalVar x -> infer_optional_arg_scheme env arg
+    | _ -> infer_arg_scheme env arg
+    end
+  in
   begin match name with
   | NLabel ->
     let { T.sch_targs; sch_named; sch_body } = sch in
@@ -376,7 +406,7 @@ let infer_named_arg_scheme env (na : S.named_arg) =
     | L_No ->
       Error.fatal (Error.label_type_mismatch ~pos:na.pos)
     end
-  | NVar _ | NImplicit _ | NMethod _ -> ()
+  | NVar _ | NOptionalVar _ | NImplicit _ | NMethod _ -> ()
   end;
   (env, (name, pat, sch), r_eff)
 
