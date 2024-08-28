@@ -48,8 +48,7 @@ let open_scheme ~pos (env : Env.t) (sch : T.scheme) =
         let (env, x) =
           match name with
           | T.NLabel -> Env.add_the_label_sch env sch
-          | T.NVar x  -> Env.add_poly_var env x sch
-          | T.NOptionalVar x -> Env.add_mono_var env x sch.sch_body
+          | T.NVar x | T.NOptionalVar x -> Env.add_poly_var env x sch
           | T.NImplicit n -> Env.add_poly_implicit env n sch ignore
           | T.NMethod   n ->
             let owner = method_owner_of_scheme ~pos ~env sch in

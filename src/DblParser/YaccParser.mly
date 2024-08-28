@@ -69,7 +69,7 @@ var_id
 name
 : KW_LABEL  { NLabel       }
 | LID       { NVar $1      }
-| QLID       { NOptionalVar $1 }
+| QLID      { NOptionalVar $1 }
 | TLID      { NImplicit $1 }
 | KW_METHOD LID { NMethod $2   }
 ;

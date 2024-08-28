@@ -331,25 +331,28 @@ and check_pattern_schemes ~env ~scope pats schs =
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
+(** Infer type-scheme of given formal optional argument. Returns extended
+  environment, a pattern that represents an argument, its scheme, and the
+  effect of pattern-matching *)
 let infer_optional_arg_scheme env (arg : S.arg) =
-match arg with
-| ArgAnnot(pat, sch) ->
-  let sch_pos = sch.sch_pos in
-  let sch = Type.tr_scheme env sch in
-  assert (T.Scheme.is_monomorphic sch);
-  let sch = T.Scheme.of_type 
-    (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body)
-  in
-  let scope = Env.scope env in
-  let (env, pat, _, r_eff) =
-    check_scheme ~env ~scope pat sch in
-  (env, pat, sch, r_eff)
-| ArgPattern pat ->
-  let tp = Env.fresh_uvar env T.Kind.k_type in
-  let tp = (PreludeTypes.mk_Option ~env ~pos:pat.pos tp) in
-  let scope = Env.scope env in
-  let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
-  (env, pat, T.Scheme.of_type tp, r_eff)
+  match arg with
+  | ArgAnnot(pat, sch) ->
+    let sch_pos = sch.sch_pos in
+    let sch = Type.tr_scheme env sch in
+    assert (T.Scheme.is_monomorphic sch);
+    let sch = T.Scheme.of_type 
+      (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body)
+    in
+    let scope = Env.scope env in
+    let (env, pat, _, r_eff) =
+      check_scheme ~env ~scope pat sch in
+    (env, pat, sch, r_eff)
+  | ArgPattern pat ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = (PreludeTypes.mk_Option ~env ~pos:pat.pos tp) in
+    let scope = Env.scope env in
+    let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
+    (env, pat, T.Scheme.of_type tp, r_eff)
 
 let infer_arg_scheme env (arg : S.arg) =
   match arg with

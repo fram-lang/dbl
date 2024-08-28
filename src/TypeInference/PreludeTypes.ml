@@ -38,7 +38,7 @@ let mk_Some ~env ~pos tp_arg expr_arg : T.expr =
       let { Module.adt_proof; adt_args; adt_ctors; adt_type } = adt_info in
       match
         List.find_index
-          (fun (ctor_decl : T.ctor_decl) -> String.compare ctor_decl.ctor_name "Some" == 0)
+          (fun (ctor_decl : T.ctor_decl) -> ctor_decl.ctor_name = "Some")
           adt_ctors
       with
       | Some idx ->
@@ -60,7 +60,7 @@ let mk_None ~env ~pos option_tp : T.expr =
       let { Module.adt_proof; adt_args; adt_ctors; adt_type } = adt_info in
       match
         List.find_index
-          (fun (ctor_decl : T.ctor_decl) -> String.compare ctor_decl.ctor_name "None" == 0)
+          (fun (ctor_decl : T.ctor_decl) -> ctor_decl.ctor_name = "None")
           adt_ctors
       with
       | Some idx ->
