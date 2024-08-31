@@ -38,10 +38,14 @@ let report ?pos ~cls msg =
     | Note    -> "note", Color.Teal
   in
   let name = Color.color_string color name in
-  let text_range = Option.bind pos
-    (TextRangePrinting.get_text_range
-      ~repl_input:(Buffer.contents repl_input)
-      ~color) in
+  let text_range =
+    if !DblConfig.display_error_context
+    then Option.bind pos
+      (TextRangePrinting.get_text_range
+        ~repl_input:(Buffer.contents repl_input)
+        ~color)
+    else None
+  in
   match pos, text_range with
   | Some pos, None ->
     Printf.eprintf "%s: %s: %s\n"
