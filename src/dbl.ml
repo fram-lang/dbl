@@ -47,6 +47,10 @@ let cmd_args_options = Arg.align
     Arg.String (fun p -> cli_local_search_dirs := p :: !cli_local_search_dirs),
     " Add a path to local search directories";
 
+    "-no-error-context",
+    Arg.Clear DblConfig.display_error_context,
+    " Do not print piece of code with error, just filename:line:character";
+
     "-color",
     Arg.Symbol (
       [ "always"; "never"; "auto"; ],

@@ -34,4 +34,4 @@ function simple_error_tests {
   done
 }
 
-run_with_flags simple_error_tests "-no-prelude -no-stdlib"
+run_with_flags simple_error_tests "-no-prelude -no-stdlib -no-error-context"

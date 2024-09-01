@@ -21,6 +21,8 @@ let local_mod_prefix = "Main"
 let lib_search_dirs   : string list ref = ref [ ]
 let local_search_dirs : string list ref = ref [ ]
 
+let display_error_context = ref true
+
 let print_colors_auto () =
   Unix.isatty Unix.stdout
 

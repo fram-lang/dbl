@@ -196,7 +196,9 @@ let get_text_from_file ~options ~color_printer pos =
 
 let get_text_range ?(options=default_options) ~repl_input ~color (pos : t) =
   let color_printer = color_string color in
-  if pos.pos_fname = "<stdin>" && repl_input <> "" then
-    get_text_from_repl ~options ~repl_input ~color_printer pos
-  else
-    get_text_from_file ~options ~color_printer pos
+  try
+    if pos.pos_fname = "<stdin>" && repl_input <> "" then
+      get_text_from_repl ~options ~repl_input ~color_printer pos
+    else
+      get_text_from_file ~options ~color_printer pos
+  with _ -> None
