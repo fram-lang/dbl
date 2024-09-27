@@ -193,6 +193,30 @@ let method_effect_mismatch ~pos ~env eff1 eff2 =
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let return_type_mismatch ~pos ~env tp1 tp2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Return clause has type %s, but was expected to have type %s"
+    (Pretty.type_to_string pp_ctx env tp1)
+    (Pretty.type_to_string pp_ctx env tp2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let finally_type_mismatch ~pos ~env tp1 tp2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Finally clause has type %s, but was expected to have type %s"
+    (Pretty.type_to_string pp_ctx env tp1)
+    (Pretty.type_to_string pp_ctx env tp2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let finally_effect_mismatch ~pos ~env eff1 eff2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Finally clause has effect %s, which is not a supereffect of the delimiter's effect %s"
+    (Pretty.type_to_string pp_ctx env eff2)
+    (Pretty.type_to_string pp_ctx env eff1)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let func_not_pure ~pos =
   (pos, "Cannot ensure that this function is pure and always terminates", [])
 

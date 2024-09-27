@@ -196,7 +196,7 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
-  | EHandler of expr
+  | EHandler of expr * h_clause list
     (** First-class handler *)
 
   | EEffect of expr list * expr option * expr
@@ -265,7 +265,7 @@ and def_data =
   | DHandle of is_public * expr * expr * h_clause list
     (** Effect handler *)
 
-  | DHandleWith of is_public * expr * expr * h_clause list
+  | DHandleWith of is_public * expr * expr
     (** Effect handler, with first-class handler *)
 
   | DMethod of is_public * expr * expr

@@ -227,8 +227,9 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
-  | EHandler of expr
-    (** First-class handler *)
+  | EHandler of expr * match_clause list * match_clause list
+    (** First-class handler, with return and finally clauses. For each of these
+      clause lists, empty list means the default identity clause *)
 
   | EEffect of arg * expr
     (** Effectful operation. The only argument is a continuation. Other
@@ -267,26 +268,13 @@ and def_data =
     (** Creating a new label. Optional type argument binds newly created
       effect. *)
 
-  | DHandlePat of (* Effect handler combined with pattern matching *)
-    { label   : expr option;
-      (** Effect label of the handled effect. [None] means that handler is
-        lexical and generates its own label. *)
-
-      effect : type_arg option;
-      (** Optional name for the handled effect *)
-
-      cap_pat : pattern;
-      (** Pattern matched against the effect capability *)
-
-      capability : expr;
-      (** An expression providing capability to this handler *)
-
-      ret_clauses : match_clause list;
-      (** List of return clauses. Empty list means the default clause. *)
-
-      fin_clauses : match_clause list
-      (** List of finally clauses. Empty list means the default clause. *)
-    }
+  | DHandlePat of type_arg option * pattern * expr
+    (** Effect handler combined with pattern matching. In
+      [DHandlePat(eff, pat, body)] the meaning of parameters is the following.
+      - [eff]  -- Optional name for the handled effect.
+      - [pat]  -- Pattern matched against the effect capability.
+      - [body] -- An expression that should evaluate to a first-class handler,
+          providing the capability of the handled effect. *)
 
   | DImplicit of iname * named_type_arg list * scheme_expr
     (** Declaration of implicit. The second parameter is a list of types
