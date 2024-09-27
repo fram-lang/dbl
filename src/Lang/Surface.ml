@@ -229,7 +229,7 @@ and expr_data =
 
   | EHandler of expr * match_clause list * match_clause list
     (** First-class handler, with return and finally clauses. For each of these
-      clause list, empty list means the default identity clause *)
+      clause lists, empty list means the default identity clause *)
 
   | EEffect of arg * expr
     (** Effectful operation. The only argument is a continuation. Other
@@ -273,7 +273,7 @@ and def_data =
       [DHandlePat(eff, pat, body)] the meaning of parameters is the following.
       - [eff]  -- Optional name for the handled effect.
       - [pat]  -- Pattern matched against the effect capability.
-      - [body] -- An expression that should evaluate to fist class handler,
+      - [body] -- An expression that should evaluate to a first-class handler,
           providing the capability of the handled effect. *)
 
   | DImplicit of iname * named_type_arg list * scheme_expr

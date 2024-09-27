@@ -289,7 +289,7 @@ let rec check_subtype env tp1 tp2 =
     let sub2 = T.Subst.rename_to_fresh T.Subst.empty a2 a in
     check_subtype env (T.Type.subst sub1 tp1) (T.Type.subst sub2 tp2);
     (* contravariant *)
-    check_subtype env (T.Type.subst sub2 itp2) (T.Type.subst sub1 otp1);
+    check_subtype env (T.Type.subst sub2 itp2) (T.Type.subst sub1 itp1);
     (* contravariant *)
     check_subeffect env
       (T.Effect.cons a (T.Type.subst sub2 ieff2))
