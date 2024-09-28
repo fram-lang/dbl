@@ -1,0 +1,34 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+*)
+
+pub data OrderedSet Val = Set of {
+    T
+    , empty : T
+    , method isEmpty : T -> [] Bool
+    , singleton : Val -> [] T
+    , method insert : T -> Val -> [] T
+    , method remove : T -> Val -> [] T
+    , method singletonSet : Val -> [] T 
+    , method member : T -> Val -> [] Bool
+    , method foldl : {type A} -> T -> (Val -> A -> [] A) -> A -> [] A
+    , method foldr : {type A} -> T -> (Val -> A -> [] A) -> A -> [] A
+    , method toList : T -> [] List Val
+    , method union : T -> T -> [] T
+    , method intersection : T -> T -> [] T
+    , method diffrence : T -> T -> [] T
+    , method eq : T -> T -> [] Bool
+    , method subset : T -> T -> [] Bool
+    , method partionLt : T -> Val -> [] (Pair T T)
+    , method partionGt : T -> Val -> [] (Pair T T)
+    , method rangeii : T -> Val -> Val -> [] T
+    , method rangeei : T -> Val -> Val -> [] T
+    , method rangeie : T -> Val -> Val -> [] T
+    , method rangeee : T -> Val -> Val -> [] T
+    , method least : T -> [] Option Val
+    , method greatest : T -> [] Option Val
+    , method leastGt : T -> Val -> [] Option Val
+    , method leastGeq : T -> Val -> [] Option Val
+    , method greatestLt : T -> Val -> [] Option Val
+    , method greatestLeq : T -> Val -> [] Option Val 
+}

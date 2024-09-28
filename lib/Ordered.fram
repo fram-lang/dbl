@@ -1,0 +1,14 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+*)
+
+import open Comparable
+
+pub data Ordered = 
+| Less
+| Equal
+| Greater
+
+pub let ordToComp elem = match elem with | Equal => Eq | _ => Noteq end
+
+pub method toComparable {self : Ordered} = ordToComp self
