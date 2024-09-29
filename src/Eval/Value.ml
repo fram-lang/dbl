@@ -22,6 +22,12 @@ type value =
   | VLabel of UID.t
     (** Runtime label of control operator *)
 
+  | VRef of value ref
+    (** Mutable reference *)
+
+  | VArray of value array
+    (** Mutable arrays *)
+
 (** CPS Computations *)
 and 'v comp = ('v -> ans) -> ans
 
@@ -44,4 +50,5 @@ let to_string (v : value) =
   | VFn    _ -> "<fun>"
   | VCtor  _ -> "<ctor>"
   | VLabel _ -> "<label>"
-
+  | VRef   _ -> "<ref>"
+  | VArray _ -> "<array>"
