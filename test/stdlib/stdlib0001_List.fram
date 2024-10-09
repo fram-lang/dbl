@@ -1,0 +1,123 @@
+import List
+
+let assert condition = if condition then () else exit 1
+
+let unopt v =
+  match v with
+  | Some v => v
+  | None   => exit 2
+  end
+
+implicit ~onError
+let ~onError _ = exit 2
+let return_empty _ = []
+
+let xs = [1,2,3,4]
+let ys = [5,6,7,8]
+let zs = ["a", "b", "c" ,":)", "d", "e"]
+let vs = ["a", "b", "c", ":(", "d", "e"]
+(* Without specifying List type:
+   fatal error: Unsolved unification variables left.
+ *)
+let (emptyList : List Int) = []
+
+implicit ~re
+let ~re _ = exit 3
+
+let _ = assert (not (List.isEmpty xs))
+let _ = assert (List.isEmpty emptyList)
+let _ = assert ((List.length xs) == 4)
+let _ = assert (unopt (List.hd xs) == 1)
+let _ = assert (List.hdErr xs == 1)
+let _ = assert (unopt (List.tl xs) == [2,3,4])
+let _ = assert (List.tlErr xs == [2,3,4])
+let _ = assert (unopt (List.nth xs 2) == 3)
+let _ = assert (List.nthErr xs 2 == 3)
+let _ = assert (xs + ys == [1,2,3,4,5,6,7,8])
+let _ = assert (List.rev xs == [4,3,2,1])
+let _ = assert (List.concat [xs, ys] == [1,2,3,4,5,6,7,8])
+let _ = assert (List.map (fn (x : Int) => x * 2) xs == [2,4,6,8])
+let _ = assert (List.mapi (fn x i => x + i) xs == [1,3,5,7])
+let _ = assert (List.mapi {i = 5} (fn x i => x + i) xs == [6,8,10,12])
+let _ = assert (List.map2 (fn (x : Int) y => x + y) xs ys == [6,8,10,12])
+let _ = assert (List.map2 {~onError = return_empty } (fn (x : Int) y => x + y) xs [5, 6] == [6,8])
+let _ = assert (List.revMap (fn (x: Int) => x * 2) xs == [8,6,4,2])
+let _ = assert (List.revMap2 (fn (x : Int) y => x + y) xs ys == [12,10,8,6])
+let _ = assert (List.isEmpty (List.revMap2 {~onError = return_empty } (fn (x : Int) y => x + y) xs [5, 6]))
+let _ = assert (List.filter (fn (x : Int) => (x % 2) == 0) xs == [2,4])
+let _ = assert (List.filteri (fn (i : Int) x => i % 2 == 0) xs == [1,3])
+let _ =
+  assert
+    (List.filterMap
+      (fn (x : Int) => if x % 2 == 0 then Some x else None) xs == [2,4])
+let _ =
+  assert
+    (List.filterMapi
+      (fn x (i : Int) => if i % 2 == 0 then Some x else None) xs == [1,3])
+let _ = assert (List.concatMap (fn x => [x,x]) xs == [1,1,2,2,3,3,4,4])
+let _ = assert (List.take 4 (xs + ys) == xs)
+let _ = assert (List.drop 4 (xs + ys) == ys)
+let _ = assert (List.takeWhile (fn (x : Int) => x <= 2) xs == [1,2])
+let _ = assert (List.dropWhile (fn (x : Int) => x <= 2) xs == [3,4])
+(* let _ = assert (List.iter) *)
+(* let _ = assert (List.iteri) *)
+(* let _ = assert (List.iteri2) *)
+let _ = assert (List.init 5 id == [0,1,2,3,4])
+let _ = assert (List.foldLeft (fn (a : Int) b => a + b) 0 xs == 10)
+let _ = assert (List.foldRight (fn (a : Int) b => a + b) xs 0 == 10)
+let _ = assert (List.foldLeft2 (fn (a : Int) b c => a + b + c) 0 xs ys == 36)
+let _ = assert (List.foldRight2 (fn (a : Int) b c => a + b + c) xs ys 0 == 36)
+let _ = assert (List.forAll (fn (x : Int) => x % 2 == 1) [1,3,5,7,9])
+let _ = assert (not  (List.forAll (fn (x : Int) => x % 2 == 1) [2,4,6,8,10]))
+let _ = assert (List.exists (fn (x : Int) => x == 42) [1,2,3,42,5,6,7])
+let _ = assert (not (List.exists (fn (x : Int) => x == 42) [1,2,3,5,6,7]))
+let _ =
+  assert
+  (match List.find (fn (x : String) => x == ":)") zs
+    with
+    | Some s => s == ":)"
+    | _      => False
+    end)
+let _ =
+  assert
+  (match List.find (fn (x : String) => x == ":(") zs
+    with
+    | None   => True
+    | Some _ => False
+    end)
+let _ =
+  assert
+  (match List.findIndex (fn (x : String) => x == ":)") zs
+    with
+    | Some s => s == 2
+    | _      => False
+    end)
+let _ =
+  assert
+  (match List.findIndex (fn (x : String) => x == ":(") zs
+    with
+    | None => True
+    | _    => False
+    end)
+let _ =
+  assert
+  (match List.findMap
+    (fn (x : String) => if x == ":)" then Some x else None) zs
+    with
+    | Some x => x == ":)"
+    | _      => False
+    end)
+let _ =
+  assert
+  (match List.findMap
+    (fn (x : String) => if x == ":(" then Some x else None) zs
+    with
+    | None => True
+    | _    => False
+    end)
+// let _ = assert List.findMapi
+// let _ = assert List.foldLeftMap
+// let _ = foldLeftFilterMap
+// let _ = foldLeftConcatMap
+let _ = assert (List.mem {E=String} ":)" ["a", "b", "c", ":)", "d"])
+let _ = assert (not (List.mem {E=String} ":(" ["a", "b", "c", ":)", "d"]))
