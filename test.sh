@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 if ! [ -n "$1" ] || ! [ -n "$2" ]; then
 	echo "USAGE: ./test.sh PROGRAM TEST_SUITE"
 	exit 1
