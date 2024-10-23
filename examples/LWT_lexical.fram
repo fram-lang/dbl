@@ -23,32 +23,32 @@ data State (effect E) X = State of
   , update : {Row} -> (X ->[E|Row] X) ->[E|Row] Unit
   }
 
-(* We declare implicit parameter named `st. Now, the following function may
-  use `st as a regular variable. In such a case, `st together with the
+(* We declare implicit parameter named `~st`. Now, the following function may
+  use `~st` as a regular variable. In such a case, `~st` together with the
   associated effect E_st will be implicitly generalized. *)
-implicit `st {E_st} : State E_st _
+implicit ~st {E_st} : State E_st _
 
-(* We define get operation that works on implicit capability `st. It can be
-  used in any context, where a variable named `st is available (or can be
+(* We define get operation that works on implicit capability `~st`. It can be
+  used in any context, where a variable named ~st is available (or can be
   implicitly generalized). We also define similar put and update functions. *)
 let get x =
-  let (State { get }) = `st in
+  let (State { get }) = ~st in
   get x
 
 let put x =
-  let (State { put }) = `st in
+  let (State { put }) = ~st in
   put x
 
 let update f =
-  let (State { update }) = `st in
+  let (State { update }) = ~st in
   update f
 
 (* Now, we put the standard handler for state, that will become the state of the
-  scheduler. Note that an expression that provides capability `st is not just
+  scheduler. Note that an expression that provides capability `~st` is not just
   a value, but more complex series of let-expressions. First, we define
   standard get and put operations, and then on top of them we define the update
   function. All three functions becomes part of the interface. *)
-handle {effect=Sched} `st =
+handle {effect=Sched} ~st =
   let get = effect x / r => fn s => r s  s
   let put = effect s / r => fn _ => r () s
   let update f = put (f (get ())) in
@@ -57,7 +57,7 @@ handle {effect=Sched} `st =
   finally c => c []
 
 (* Enqueue a ready thread to the scheduler queue. Note that thanks to the
-  mechanism of implicit parameters, this function uses `st capability, without
+  mechanism of implicit parameters, this function uses `~st` capability, without
   mentioning it explicitly. *)
 let enqueue thr =
   update (fn queue => List.append queue [thr])

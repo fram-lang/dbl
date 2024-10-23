@@ -23,13 +23,13 @@ let iff b1 b2 =
 let form p q r =
   iff (band p (bor q r)) (bor (band p q) (band p r))
 
-implicit `flip
+implicit ~flip
 
 let test f =
-  f (`flip ()) (`flip ()) (`flip ())
+  f (~flip ()) (~flip ()) (~flip ())
 
 let tauto _ =
-  handle `flip = effect x / r => band (r True) (r False)
+  handle ~flip = effect x / r => band (r True) (r False)
   in test form
 
 let _ = tauto ()

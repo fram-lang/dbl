@@ -6,10 +6,10 @@ data StateSig (effect E) X = State of
 method get {State, self = State { get } : StateSig State _ } = get
 method put {State, self = State { put } : StateSig State _ } = put
 
-implicit `st {State} : StateSig State _
+implicit ~st {State} : StateSig State _
 
 let update f =
-  `st.put (f (`st.get ()))
+  ~st.put (f (~st.get ()))
 
 let updateTwice f =
   let _ = update f in

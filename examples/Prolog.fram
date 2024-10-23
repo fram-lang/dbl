@@ -82,14 +82,14 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
 
 (* ========================================================================= *)
 (* The following few functions on lists require a notion of equality, which is
-  passed as the implicit parameter `eq. *)
+  passed as the implicit parameter `~eq`. *)
 
-implicit `eq
+implicit ~eq
 
 let rec nub xs =
   match xs with
   | []      => []
-  | x :: xs => x :: nub (List.filter (fn y => not (`eq x y)) xs)
+  | x :: xs => x :: nub (List.filter (fn y => not (~eq x y)) xs)
   end
 
 let union xs ys = nub (List.append xs ys)
@@ -98,7 +98,7 @@ let unions xss = nub (List.concat xss)
 let rec assoc x xs =
   match xs with
   | []           => None
-  | (y, v) :: xs => if `eq x y then Some v else assoc x xs
+  | (y, v) :: xs => if ~eq x y then Some v else assoc x xs
   end
 
 (* ========================================================================= *)
@@ -106,7 +106,7 @@ let rec assoc x xs =
   refreshing. *)
 
 method vars =
-  let `eq (x : Int) = x.equal in
+  let ~eq (x : Int) = x.equal in
   let rec vars t =
     match t with
     | TVar x    => [x]
@@ -115,11 +115,11 @@ method vars =
   in vars self
 
 method vars { self = Cl t ts } =
-  let `eq (x : Int) = x.equal in
+  let ~eq (x : Int) = x.equal in
   union t.vars (unions (List.map (fn (t : Term) => t.vars) ts))
 
 method rename sub =
-  let `eq (x : Int) = x.equal in
+  let ~eq (x : Int) = x.equal in
   let rec rename t =
     match t with
     | TVar x    =>
@@ -140,15 +140,15 @@ method rename { self = Cl t ts } sub =
   containing an association list of instantiations. As this effect is pervasive
   throughout our implementation, we declare it as an implicit, so that it and
   the associated effect variable E_st are generalized automatically. *)
-implicit `st {E_st} : State E_st (List (Pair Int Term))
+implicit ~st {E_st} : State E_st (List (Pair Int Term))
 
-(* We also define a pair of functions that let us modify and read `st. *)
+(* We also define a pair of functions that let us modify and read `~st`. *)
 
-let setVar (x : Int) t = `st.update (fn xs => (x, t) :: xs)
+let setVar (x : Int) t = ~st.update (fn xs => (x, t) :: xs)
 
 let getVar x =
-  let `eq (x : Int) = x.equal in
-  assoc x (`st.get ())
+  let ~eq (x : Int) = x.equal in
+  assoc x (~st.get ())
 
 (* The `view` method on terms can be used to view the outer-most shape of a
   term, accounting for the instantiation of unification variables.
@@ -167,13 +167,13 @@ method rec view {self : Term} =
   | TFun f ts => self
   end
 
-(* As with `st, the capability to generate fresh identifiers `fresh is also
+(* As with `~st`, the capability to generate fresh identifiers ~fresh is also
   declared implicit. *)
-implicit `fresh {E_fresh} : Fresh E_fresh Int
+implicit ~fresh {E_fresh} : Fresh E_fresh Int
 
 (* To further reduce verbosity, we define a function `fresh` to call the
   `fresh` method of the implicit capability. *)
-let fresh () = `fresh.fresh ()
+let fresh () = ~fresh.fresh ()
 
 (* We attach additional `refresh` methods to terms and clauses, which replace
   all the variables in terms with fresh unification variables. *)
@@ -189,10 +189,10 @@ method refresh {self : Clause} =
 (* Finally, we make the interpreter's knowledge base and the backtracking
   capability implicit as well. The knowledge base is represented as a reader
   effect providing a simple list of clauses. *)
-implicit `kb {E_kb} : Reader E_kb (List Clause)
-implicit `bt {E_bt} : BT E_bt
+implicit ~kb {E_kb} : Reader E_kb (List Clause)
+implicit ~bt {E_bt} : BT E_bt
 
-let fail () = `bt.fail ()
+let fail () = ~bt.fail ()
 
 (* Check whether a variable occurs in a term. *)
 method occurs (x : Int) =
@@ -213,12 +213,12 @@ let rec unify (t1 : Term) (t2 : Term) =
   | t, TVar x =>
     if t.occurs x then fail () else setVar x t
   | TFun f ts1, TFun g ts2 =>
-    if f == g then List.iter2 {`onError = fail} unify ts1 ts2
+    if f == g then List.iter2 {~onError = fail} unify ts1 ts2
     else fail ()
   end
 
 (* Retrieve some clause from the knowledge base non-deterministically. *)
-let kbChoose () = `bt.choose (`kb.ask ())
+let kbChoose () = ~bt.choose (~kb.ask ())
 
 (* Try to derive a term using the knowledge base. *)
 let rec eval (t : Term) =
@@ -237,16 +237,16 @@ let query (t : Term) = eval t.refresh
 (* Example database. *)
 let kb = [Cl (TFun "f" [TVar 0, TVar 0]) []]
 
-handle `kb = Reader (fn () => kb)
+handle ~kb = Reader (fn () => kb)
 
-handle `fresh = Fresh (effect _ / r => fn v => r v (1 + v))
+handle ~fresh = Fresh (effect _ / r => fn v => r v (1 + v))
   return x  => fn _ => x
   finally f => f 0
 
 let _ =
   match
-    hBT (fn `bt =>
-    hState [] (fn `st =>
+    hBT (fn ~bt =>
+    hState [] (fn ~st =>
 	(* Example query. *)
     query (TFun "f" [TFun "a" [], TFun "a" []])))
   with

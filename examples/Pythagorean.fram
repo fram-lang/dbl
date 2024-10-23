@@ -32,7 +32,7 @@ method triples {E, self : BT E} (n : Int) =
   else self.fail ()
 
 
-implicit `bt {E_bt} : BT E_bt
+implicit ~bt {E_bt} : BT E_bt
 
 (* The function `takeFirst` returns the first triple found. *)
 let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
@@ -73,11 +73,11 @@ let rec printList xs =
 let maxValue = 25
 
 let _ = printStrLn "First triple only:"
-let _ =  match takeFirst (fn `bt => `bt.triples) maxValue with
+let _ =  match takeFirst (fn ~bt => ~bt.triples) maxValue with
   | None => printStrLn "None"
   | Some t => printTriple t
   end
 
 let _ = printStrLn "All triples:"
-let _ =  let res = takeAll (fn `bt => `bt.triples) maxValue
+let _ =  let res = takeAll (fn ~bt => ~bt.triples) maxValue
   in printList res

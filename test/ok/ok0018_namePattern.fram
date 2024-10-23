@@ -1,8 +1,8 @@
-implicit `n
+implicit ~n
 
-let foo = fn x => `n
+let foo = fn x => ~n
 
 let _ =
   match () with
-  | `n => foo ()
+  | ~n => foo ()
   end
