@@ -82,7 +82,7 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
 
 (* ========================================================================= *)
 (* The following few functions on lists require a notion of equality, which is
-  passed as the implicit parameter ~eq. *)
+  passed as the implicit parameter `~eq`. *)
 
 implicit ~eq
 
@@ -142,7 +142,7 @@ method rename { self = Cl t ts } sub =
   the associated effect variable E_st are generalized automatically. *)
 implicit ~st {E_st} : State E_st (List (Pair Int Term))
 
-(* We also define a pair of functions that let us modify and read ~st. *)
+(* We also define a pair of functions that let us modify and read `~st`. *)
 
 let setVar (x : Int) t = ~st.update (fn xs => (x, t) :: xs)
 
@@ -167,7 +167,7 @@ method rec view {self : Term} =
   | TFun f ts => self
   end
 
-(* As with ~st, the capability to generate fresh identifiers ~fresh is also
+(* As with `~st`, the capability to generate fresh identifiers ~fresh is also
   declared implicit. *)
 implicit ~fresh {E_fresh} : Fresh E_fresh Int
 
