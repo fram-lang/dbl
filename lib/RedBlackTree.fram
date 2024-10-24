@@ -1,0 +1,278 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+*)
+
+import open Ordered
+import List
+
+pub rec
+    data Color =
+    | Red 
+    | Black
+    data Tree Value = 
+    | Leaf
+    | Node of Color, Int, Tree Value, Value, Tree Value
+    data ZipElem Value =
+    | Left of Color, Value, Tree Value
+    | Right of Color, Value, Tree Value
+end
+
+pub let empty = Leaf
+
+pub let size tree = 
+ match tree with
+ | Leaf => 0
+ | Node _ bulk _ _ _ => bulk
+ end
+
+pub let makeNode color left value right = 
+ Node color (size left + size right + 1) left value right
+
+pub let rec zip tree zipper =
+ match zipper with
+ | [] => tree
+
+ | Left color value right :: rest => zip (makeNode color tree value right) rest
+
+ | Right color value left :: rest => zip (makeNode color left value tree) rest
+
+ end
+
+pub let rec zipRed value left right zipper =
+ match zipper with
+ | [] => makeNode Black left value right
+
+ | Left Black value1 right1 :: rest => 
+   zip (makeNode Black (makeNode Red left value right) value1 right1) rest
+
+ | Right Black value1 left1 :: rest => 
+   zip (makeNode Black left1 value1 (makeNode Red left value right)) rest
+
+ | Left Red value1 right1 :: 
+   Left _ value2 (Node Red bulk3 left3 value3 right3) :: 
+   rest => zipRed value2 
+   (makeNode Black (makeNode Red left value right) value1 right1) 
+   (Node Black bulk3 left3 value3 right3) rest
+
+ | Left Red value1 right1 ::
+   Right _ value2 (Node Red bulk3 left3 value3 right3) ::
+   rest => zipRed value2 
+   (Node Black bulk3 left3 value3 right3)
+   (makeNode Black (makeNode Red left value right) value1 right1) rest 
+
+ | Right Red value1 left1 :: 
+   Left _ value2 (Node Red bulk3 left3 value3 right3) :: 
+   rest => zipRed value2 
+   (makeNode Black left1 value1 (makeNode Red left value right))
+   (Node Black bulk3 left3 value3 right3) rest
+
+ | Right Red value1 left1 :: 
+   Right _ value2 (Node Red bulk3 left3 value3 right3) ::
+   rest => zipRed value2 (Node Black bulk3 left3 value3 right3) 
+   (makeNode Black left1 value1 (makeNode Red left value right)) rest
+
+ | Left Red value1 right1 ::
+   Left _ value2 node3 :: 
+   rest => zip (makeNode Black (makeNode Red left value right) value1 
+   (makeNode Red right1 value2 node3)) rest 
+
+ | Left Red value1 right1 ::
+   Right _ value2 node3 ::
+   rest => zip (makeNode Black (makeNode Red node3 value2 left)
+   value (makeNode Red right value1 right1)) rest
+
+ | Right Red value1 left1 ::
+   Left _ value2 node3 :: 
+   rest => zip (makeNode Black (makeNode Red left1 value1 left)
+   value (makeNode Red right value2 node3)) rest
+
+ | Right Red value1 left1 ::
+   Right _ value2 node3 ::
+   rest => zip (makeNode Black (makeNode Red node3 value2 left1)
+   value1 (makeNode Red left value right)) rest 
+
+ | Left Red value1 right1 :: 
+   [] => makeNode Black (makeNode Red left value right) value1 right1
+
+ | Right Red value1 left1 :: 
+   [] => makeNode Black left1 value1 (makeNode Red left value right)
+
+ end
+
+pub let rec zipBlack tree zipper =
+ match zipper with
+ | [] => tree
+
+ | Left color1 value1 (Node _ _ left2 value2 
+   (Node Red bulk3 left3 value3 right3)) 
+   :: rest => zip (makeNode color1 (makeNode Black tree value1 left2 ) value2
+   (Node Black bulk3 left3 value3 right3)) rest
+
+ | Right color1 value1 (Node _ _ (Node Red bulk3 left3 value3 right3) 
+   value2 right2) :: rest => zip (makeNode color1 
+   (Node Black bulk3 left3 value3 right3) value2
+   (makeNode Black right2 value1 tree)) rest
+
+ | Left color1 value1  (Node _ _ (Node Red _ left3 value3 right3)
+    value2 right2) :: rest => zip (makeNode color1
+    (makeNode Black tree value1 left3) value3
+    (makeNode Black right3 value2 right2)) rest
+
+ | Right color1 value1 (Node _ _ left2 value2 (Node Red _ left3 value3 
+   right3)) :: rest => zip (makeNode color1 (makeNode Black left2 value2 left3)
+   value3 (makeNode Black right3 value1 tree)) rest 
+
+ | Left Red value1 (Node _ bulk2 left2 value2 right2) 
+   :: rest => zip (makeNode Black tree value1 
+   (Node Red bulk2 left2 value2 right2)) rest
+
+ | Right Red value1 (Node _ bulk2 left2 value2 right2) 
+   :: rest => zip (makeNode Black (Node Red bulk2 left2 value2 right2)
+   value1 tree) rest
+
+ | Left Black value1 (Node Black bulk2 left2 value2 right2) 
+   :: rest => zipBlack (makeNode Black tree value1 
+   (Node Red bulk2 left2 value2 right2)) rest
+
+ | Right Black value1 (Node Black bulk2 left2 value2 right2)
+   :: rest => zipBlack (makeNode Black (Node Red bulk2 left2 value2
+   right2) value1 tree) rest
+
+ | Left Black value1 (Node Red _ left2 value2 right2) :: rest
+   =>  zipBlack tree (Left Red value1 left2 :: Left Black 
+   value2 right2 :: rest)
+
+ | Right Black value1 (Node Red _ left2 value2 right2) :: rest
+   => zipBlack tree (Right Red value1 right2 :: Right Black 
+   value2 left2 :: rest)
+
+ | Left _ _ Leaf :: _ => tree
+
+ | Right _ _ Leaf :: _ => tree
+
+ end
+
+pub let rec search func tree zipper = 
+  match tree with
+  | Leaf => (Leaf, zipper)
+  | Node color _ left value right => 
+    match func value with 
+    | Less => search func left (Left color value right :: zipper)
+    | Greater => search func right (Right color value left :: zipper)
+    | Equal => (tree, zipper)
+    end
+  end
+
+pub let rec searchMin tree zipper =
+  match tree with
+  | Leaf => zipper
+  | Node color _ left value right => 
+    searchMin left (Left color value right :: zipper)
+  end
+
+pub let rec searchMax tree zipper =
+  match tree with
+  | Leaf => zipper 
+  | Node color _ left value right =>
+    searchMax right (Right color value left :: zipper)
+  end
+
+pub let deleteNearLeaf color child zipper =
+  match color with
+  | Red => zip Leaf zipper
+  | Black => match child with
+    | Node _ _ _ value _ => zip (makeNode Black Leaf value Leaf) zipper
+    | Leaf => zipBlack Leaf zipper
+    end
+  end
+
+pub let delete color left right zipper =
+  match right with
+  | Leaf => match left with
+    | Leaf => match color with
+      | Red => zip Leaf zipper
+      | Black => zipBlack Leaf zipper
+      end
+    | _ => match searchMax left [] with
+      | Right colorLeftMin valueLeftMin leftLeftMin :: zipperr
+        => deleteNearLeaf colorLeftMin leftLeftMin 
+        (List.append zipperr (Left color valueLeftMin right :: zipper))
+      | _ => Leaf
+      end
+    end
+  | _ => match searchMin right [] with
+    | Left colorRightMin valueRightMin rightRightMin :: zipperr
+      => deleteNearLeaf colorRightMin rightRightMin
+      (List.append zipperr (Right color valueRightMin left :: zipper))
+    | _ => Leaf
+    end
+  end
+
+pub let blacken tree =
+  match tree with
+  | Node Red bulk left value right => Node Black bulk left value right
+  | _ => tree
+  end
+
+pub let rec blackHeight tree acc =
+  match tree with
+  | Leaf => acc
+  | Node Red _ left _ _ => blackHeight left acc
+  | Node Black _ left _ _ => blackHeight left (1 + acc)
+  end
+
+pub let rec searchHeight leftward target tree zipper =
+  match tree with
+  | Leaf => (Leaf, zipper)
+  | Node Red _ left value right => 
+    if leftward then 
+    searchHeight leftward target left (Left Red value right :: zipper)
+    else 
+    searchHeight leftward target right (Right Red value left :: zipper)
+  | Node Black _ left value right => 
+    if 0 == target then 
+    (tree,zipper)
+    else if leftward then
+    searchHeight leftward (target - 1) left (Left Black value right :: zipper)
+    else 
+    searchHeight leftward (target - 1) right (Right Black value left :: zipper)
+  end
+
+pub let join_val value left right =
+  let left = blacken left in
+  let right = blacken right in
+  let lbh = blackHeight left 0 in
+  let rbh = blackHeight right 0 in
+  if lbh == rbh then 
+  makeNode Black left value right
+  else if lbh > rbh then
+  (let (_left, zipper) = searchHeight False (lbh-rbh) left [] in
+  zipRed value _left right zipper)
+  else 
+  (let (_right, zipper) = searchHeight True (rbh-lbh) right [] in
+  zipRed value left _right zipper)
+
+pub let join left right =
+  match left with
+  | Leaf => right
+  | _ => match right with
+    | Leaf => left
+    | _ => match searchMax left [] with
+      | Right color value leftSmall :: zipper
+        => join_val value (deleteNearLeaf color leftSmall zipper) right
+      |_  => left
+      end
+    end
+  end
+
+pub let rec split func tree =
+  match tree with
+  | Leaf => (None,Leaf,Leaf)
+  | Node _ _ left value right => match func value with
+    | Equal => (Some value, left, right)
+    | Less => let (_v, _l, _r) = split func left in
+      (_v, _l, join_val value _r right)
+    | Greater => let (_v, _l, _r) = split func right in
+      (_v, join_val value left _l, _r)
+    end
+  end

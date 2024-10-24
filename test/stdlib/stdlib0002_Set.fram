@@ -1,0 +1,75 @@
+import OrderedSet
+import open List
+import open Ordered
+import open Prelude
+
+let assert condition = 
+if condition then () else exit 1
+
+let lt (v1 : Int) (v2 : Int) = 
+    if v1 < v2 then Less
+    else if v2 < v1 then Greater
+    else Equal
+
+let OrderedSet.Set {module IntSet} = OrderedSet.makeOrderedSet lt
+
+(* empty check *)
+let x = IntSet.empty
+let _ = assert (x.isEmpty)
+
+(* singletonSet check *)
+let x = 0.singletonSet
+let _ = assert (not x.isEmpty)
+
+(* toList check *)
+let _ = assert (x.toList == [0])
+
+(* insert check *)
+let y = x.insert 1
+let _ = assert (y.toList == [0,1])
+let _ = assert (y.insert 2 >. toList == [0,1,2])
+
+(* remove check *)
+let y = y.insert 2 >. insert 3
+let _ = assert (y.remove 1 >. toList == [0,2,3])
+
+(* member check *)
+let _ = assert (y.member 1)
+let _ = assert (not (y.member 10))
+
+(* foldl/r check *)
+let _ = assert (y.foldl (fn x acc => x + acc) 0 == 6)
+let _ = assert (y.foldr (fn x acc => x + acc) 0 == 6)
+
+(* union check *)
+let x = x.insert 4 >. insert 5 >. insert 6
+let _ = (y.union x >. toList == [0,1,2,3,4,5,6])
+
+(* intersection check *)
+let _ = assert (x.intersection y >. toList == [0])
+
+(* diffrence check *)
+let _ = assert (y.diffrence x >. toList == [1,2,3])
+let _ = assert (x.diffrence y >. toList == [4,5,6]) 
+
+(* eq check *)
+let _ = assert (x.eq x)
+let _ = assert (not (x.eq y))
+
+(* subset check *)
+let _ = assert (IntSet.empty.subset x)
+let _ = assert (IntSet.empty.insert 0 >. insert 1 >. subset y)
+let _ = assert (not (x.subset y))
+
+(* partionLt check *)
+let _ = assert (fst (y.partionLt 2) >. toList == [0,1])
+let _ = assert (snd (y.partionLt 2) >. toList == [2,3])
+
+(* rangeii check *)
+let _ = assert (y.rangeii 1 2 >. toList == [1,2])
+
+(* least check *)
+let _ = assert (match y.least with | Some x => x == 0 | _ => False end)
+
+(* greatest check *)
+let _ = assert (match y.greatest with | Some x => x == 3 | _ => False end)
