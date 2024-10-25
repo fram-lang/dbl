@@ -2,14 +2,14 @@ data P = P of Int, Int
 data R = R of { x : Int }
 
 module M
-  pub let P x `n      = P 42 0
+  pub let P x ~n      = P 42 0
   pub let R { x = y } = R { x = 42 }
 end
 
 let x = M.x
 let y = M.y
 
-let foo {`n} () = `n
+let foo {~n} () = ~n
 
 open M
 

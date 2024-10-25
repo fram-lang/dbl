@@ -1,3 +1,3 @@
-data Vec X Y = Vec of { `x : X, `y : Y }
+data Vec X Y = Vec of { ~x : X, ~y : Y }
 
-let foo f Vec = f `x `y
+let foo f Vec = f ~x ~y

@@ -101,7 +101,7 @@ let guess_types ~pos env ?(tinst=[]) ?(hints=T.TVar.Map.empty) tvars =
 
 (** The main instantiation function. [nset] parameter is a set of names
   currently instantiated, used to avoid infinite loops, e.g., in
-  [`n : {`n : _} -> _]. *)
+  [~n : {~n : _} -> _]. *)
 let rec instantiate_loop ~nset env (e : T.expr) (sch : T.scheme) =
   let (sub, tps) = guess_types ~pos:e.pos env sch.sch_targs in
   let e = make_tapp e tps in

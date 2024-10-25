@@ -24,11 +24,11 @@ pub let not b = if b then False else True
 
 pub let charListToStr = (extern dbl_chrListToStr : List Char -> String)
 
-pub let chr {`re : {type X} -> Unit ->[|_] X} (n : Int) = 
+pub let chr {~re : {type X} -> Unit ->[|_] X} (n : Int) = 
   if n >= 0 && n < 256 then
     (extern dbl_intToChr : Int -> Char) n
   else
-    `re ()
+    ~re ()
 
 pub let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
 pub let printStr   = extern dbl_printStr   : String ->[IO] Unit
