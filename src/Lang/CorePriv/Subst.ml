@@ -55,8 +55,9 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
         delim_tp  = in_type_rec sub lbl.delim_tp;
         delim_eff = in_type_rec sub lbl.delim_eff
       }
-  | TData(tp, ctors) ->
-    TData(in_type_rec sub tp, List.map (in_ctor_type_rec sub) ctors)
+  | TData(tp, eff, ctors) ->
+    TData(in_type_rec sub tp, in_type_rec sub eff,
+      List.map (in_ctor_type_rec sub) ctors)
   | TApp(tp1, tp2) ->
     TApp(in_type_rec sub tp1, in_type_rec sub tp2)
 

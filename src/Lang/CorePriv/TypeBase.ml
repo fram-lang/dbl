@@ -92,7 +92,7 @@ type _ typ =
       delim_tp  : ttype;
       delim_eff : effect
     } -> ktype typ
-  | TData    : ttype * ctor_type list -> ktype typ
+  | TData    : ttype * effect * ctor_type list -> ktype typ
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
 
 and ttype  = ktype typ

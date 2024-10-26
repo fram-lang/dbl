@@ -135,8 +135,8 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
         delim_tp  = tr_type env lbl.delim_tp;
         delim_eff = tr_type env lbl.delim_eff
       }
-  | TData(tp, ctors) ->
-    TData(tr_type env tp, List.map (tr_ctor_type env) ctors)
+  | TData(tp, eff, ctors) ->
+    TData(tr_type env tp, tr_type env eff, List.map (tr_ctor_type env) ctors)
   | TApp(tp1, tp2) ->
     TApp(tr_type env tp1, tr_type env tp2)
 
@@ -207,9 +207,11 @@ let finalize_data_def (env, dd_eff) dd =
   | DD_Data adt ->
     let (TVar.Ex a) = adt.tvar in
     let (xs, data_tp, ctors) = check_data env (TVar a) adt.args adt.ctors in
+    (* TODO: use pure instead of nterm in case of strictly positive
+      recursion. *)
     let env =
       Env.add_irr_var env adt.proof
-        (Type.t_foralls xs (TData(data_tp, ctors))) in
+        (Type.t_foralls xs (TData(data_tp, Effect.nterm, ctors))) in
     (env, dd_eff)
 
   | DD_Label lbl ->
@@ -285,7 +287,7 @@ let rec infer_type_eff env e =
     let tp  = tr_type env tp in
     let eff = tr_type env eff in
     begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
-    | TData(data_tp, ctors) when List.length cls = List.length ctors ->
+    | TData(data_tp, meff, ctors) when List.length cls = List.length ctors ->
       check_vtype env v data_tp;
       List.iter2 (fun cl ctor ->
           let xs  = cl.cl_vars in
@@ -296,7 +298,7 @@ let rec infer_type_eff env e =
           let env = List.fold_left2 Env.add_var env xs tps in
           check_type_eff env cl.cl_body tp eff
         ) cls ctors;
-      (tp, Effect.join Effect.nterm eff)
+      (tp, Effect.join meff eff)
     | _ ->
       failwith "Internal type error"
     end
@@ -375,7 +377,7 @@ and infer_vtype env v =
 and infer_ctor_type env proof n tps args check_arg =
   assert (n >= 0);
   begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
-  | TData(tp, ctors) ->
+  | TData(tp, _, ctors) ->
     begin match List.nth_opt ctors n with
     | Some ctor ->
       let sub = tr_types_sub env Subst.empty ctor.ctor_tvars tps in

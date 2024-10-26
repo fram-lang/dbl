@@ -83,8 +83,9 @@ let rec equal : type k. k typ -> k typ -> bool =
     end
   | TLabel _, _ -> false
 
-  | TData(tp1, ctors1), TData(tp2, ctors2) ->
+  | TData(tp1, eff1, ctors1), TData(tp2, eff2, ctors2) ->
     equal tp1 tp2 &&
+    equal eff1 eff2 &&
     List.length ctors1 = List.length ctors2 &&
     List.for_all2 ctor_type_equal ctors1 ctors2
   | TData _, _ -> false
@@ -176,7 +177,11 @@ let rec subtype tp1 tp2 =
   | TLabel _, (TUVar _ | TVar _ | TArrow _ | TForall _ | TData _ | TApp _) ->
     false
 
-  | TData _, TData _ -> equal tp1 tp2
+  | TData(tp1, eff1, ctors1), TData(tp2, eff2, ctors2) ->
+    equal tp1 tp2 &&
+    subeffect eff1 eff2 &&
+    List.length ctors1 = List.length ctors2 &&
+    List.for_all2 ctor_type_equal ctors1 ctors2
   | TData _, (TUVar _ | TVar _ | TArrow _ | TForall _ | TLabel _ | TApp _) ->
     false
 
@@ -241,12 +246,13 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
         { effect; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
     | _ -> None
     end
-  | TData(tp, ctors) ->
+  | TData(tp, eff, ctors) ->
     begin match
       type_in_scope scope tp,
+      type_in_scope scope eff,
       forall_map (ctor_type_in_scope scope) ctors
     with
-    | Some tp, Some ctors -> Some (TData(tp, ctors))
+    | Some tp, Some eff, Some ctors -> Some (TData(tp, eff, ctors))
     | _ -> None
     end
   | TApp(tp1, tp2) ->
@@ -318,7 +324,7 @@ let rec supertype_in_scope scope (tp : ttype) =
   are members of given set ([scope]) *)
 and subtype_in_scope scope (tp : ttype) =
   match tp with
-  | TUVar _ | TVar _ | TLabel _ | TData _ | TApp _ -> type_in_scope scope tp
+  | TUVar _ | TVar _ | TLabel _ | TApp _ -> type_in_scope scope tp
   | TArrow(tp1, tp2, eff) ->
     begin match
       supertype_in_scope scope tp1,
@@ -332,6 +338,15 @@ and subtype_in_scope scope (tp : ttype) =
     begin match subtype_in_scope (TVar.Set.add a scope) body with
     | Some body -> Some (TForall(a, body))
     | None      -> None
+    end
+  | TData(tp, eff, ctors) ->
+    begin match
+      type_in_scope scope tp,
+      subeffect_in_scope scope eff,
+      forall_map (ctor_type_in_scope scope) ctors
+    with
+    | Some tp, eff, Some ctors -> Some (TData(tp, eff, ctors))
+    | _ -> None
     end
 
 type ex = Ex : 'k typ -> ex
