@@ -202,16 +202,24 @@ let prepare_data_def env (dd : data_def) =
     let (env, a) = Env.add_tvar env lbl.tvar in
     (env, DD_Label { lbl with tvar = a })
 
-let finalize_data_def (env, dd_eff) dd =
+let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
   match dd with
   | DD_Data adt ->
     let (TVar.Ex a) = adt.tvar in
     let (xs, data_tp, ctors) = check_data env (TVar a) adt.args adt.ctors in
-    (* TODO: use pure instead of nterm in case of strictly positive
-      recursion. *)
+    let eff =
+      if not adt.strictly_positive then
+        Effect.nterm
+      else if Type.strictly_positive_ctors ~nonrec_scope ctors then
+        TEffPure
+      else
+        InterpLib.InternalError.report
+          ~reason:"Type is not strictly positvely recursive"
+          ()
+    in
     let env =
       Env.add_irr_var env adt.proof
-        (Type.t_foralls xs (TData(data_tp, Effect.nterm, ctors))) in
+        (Type.t_foralls xs (TData(data_tp, eff, ctors))) in
     (env, dd_eff)
 
   | DD_Label lbl ->
@@ -226,8 +234,9 @@ let finalize_data_def (env, dd_eff) dd =
     (env, Effect.join Effect.nterm dd_eff)
 
 let check_data_defs env dds =
+  let nonrec_scope = Env.scope env in
   let (env, dds) = List.fold_left_map prepare_data_def env dds in
-  List.fold_left finalize_data_def (env, TEffPure) dds
+  List.fold_left (finalize_data_def ~nonrec_scope) (env, TEffPure) dds
 
 let rec infer_type_eff env e =
   match e with

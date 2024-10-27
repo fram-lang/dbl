@@ -10,10 +10,11 @@ type var = Var.t
 
 type data_def =
   | DD_Data of
-    { tvar  : TVar.ex;
-      proof : var;
-      args  : TVar.ex list;
-      ctors : ctor_type list
+    { tvar              : TVar.ex;
+      proof             : var;
+      args              : TVar.ex list;
+      ctors             : ctor_type list;
+      strictly_positive : bool
     }
   | DD_Label of
     { tvar      : keffect tvar;

@@ -135,8 +135,13 @@ type data_def =
       args  : TVar.ex list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_type list
+      ctors : ctor_type list;
         (** List of constructors. *)
+
+      strictly_positive : bool
+        (** A flag indicating if the type is strictly positively recursive (in
+          particular, not recursive at all) and therefore can be deconstructed
+          without performing NTerm effect. *)
     }
 
   | DD_Label of (** Label *)
