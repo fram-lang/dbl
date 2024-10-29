@@ -5,30 +5,30 @@
 pub data OrderedSet Val = Set of {
     T
     , empty : T
-    , method isEmpty : T -> [] Bool
-    , singleton : Val -> [] T
-    , method insert : T -> Val -> [] T
-    , method remove : T -> Val -> [] T
-    , method singletonSet : Val -> [] T 
-    , method member : T -> Val -> [] Bool
-    , method foldl : {type A} -> T -> (Val -> A -> [] A) -> A -> [] A
-    , method foldr : {type A} -> T -> (Val -> A -> [] A) -> A -> [] A
-    , method toList : T -> [] List Val
-    , method union : T -> T -> [] T
-    , method intersection : T -> T -> [] T
-    , method diffrence : T -> T -> [] T
-    , method eq : T -> T -> [] Bool
-    , method subset : T -> T -> [] Bool
-    , method partionLt : T -> Val -> [] (Pair T T)
-    , method partionGt : T -> Val -> [] (Pair T T)
-    , method rangeii : T -> Val -> Val -> [] T
-    , method rangeei : T -> Val -> Val -> [] T
-    , method rangeie : T -> Val -> Val -> [] T
+    , method isEmpty : {E} -> T -> [E] Bool
+    , singleton : {E} -> Val -> [E] T
+    , method insert : {E} ->  T -> Val -> [E] T
+    , method remove : {E} -> T -> Val -> [E] T
+    , method singletonSet : {E} ->  Val -> [E] T 
+    , method member : {E} -> T -> Val -> [E] Bool
+    , method foldl : {type A,E} -> T -> (Val -> A -> [E] A) -> A -> [E] A
+    , method foldr : {type A,E} -> T -> (Val -> A -> [E] A) -> A -> [E] A
+    , method toList : {E} -> T -> [E] List Val
+    , method union : {E} -> T -> T -> [E] T
+    , method intersection : {E} -> T -> T -> [E] T
+    , method diffrence : {E} -> T -> T -> [E] T
+    , method eq : {E} ->  T -> T -> [E] Bool
+    , method subset : {E} -> T -> T -> [E] Bool
+    , method partionLt : {E} ->  T -> Val -> [E] (Pair T T)
+    , method partionGt : {E} -> T -> Val -> [E] (Pair T T)
+    , method rangeii : {E} -> T -> Val -> Val -> [E] T
+    , method rangeei : {E} -> T -> Val -> Val -> [E] T
+    , method rangeie : {E} -> T -> Val -> Val -> [E] T
     , method rangeee : T -> Val -> Val -> [] T
-    , method least : T -> [] Option Val
-    , method greatest : T -> [] Option Val
-    , method leastGt : T -> Val -> [] Option Val
-    , method leastGeq : T -> Val -> [] Option Val
-    , method greatestLt : T -> Val -> [] Option Val
-    , method greatestLeq : T -> Val -> [] Option Val 
+    , method least : {E} -> T -> [E] Option Val
+    , method greatest : {E} -> T -> [E] Option Val
+    , method leastGt : {E} -> T -> Val -> [E] Option Val
+    , method leastGeq : {E} -> T -> Val -> [E] Option Val
+    , method greatestLt : {E} -> T -> Val -> [E] Option Val
+    , method greatestLeq : {E} -> T -> Val -> [E] Option Val 
 }
