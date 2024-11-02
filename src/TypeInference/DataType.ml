@@ -50,9 +50,10 @@ let finalize_check env x ~name args ctors =
   let env = open_data env info ctors in
   let dd =
     T.DD_Data {
-      tvar  = x;
-      proof = px;
-      args  = args;
-      ctors = info.adt_ctors
+      tvar              = x;
+      proof             = px;
+      args              = args;
+      ctors             = info.adt_ctors;
+      strictly_positive = false (* TODO: set correct value *)
     } in
   (env, dd)

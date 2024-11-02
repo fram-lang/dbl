@@ -9,10 +9,11 @@ open Common
 (** Half-translated data-like definition *)
 type data_def =
   | DD_Data of
-    { tvar  : T.TVar.ex;
-      proof : S.var;
-      args  : S.named_tvar list;
-      ctors : S.ctor_decl list;
+    { tvar              : T.TVar.ex;
+      proof             : S.var;
+      args              : S.named_tvar list;
+      ctors             : S.ctor_decl list;
+      strictly_positive : bool;
     }
   | DD_Label of
     { tvar      : T.keffect T.tvar;
@@ -40,8 +41,13 @@ let prepare_data_def env (dd : S.data_def) =
   match dd with
   | DD_Data dd ->
     let (env, tvar) = Env.add_tvar env dd.tvar in
-    let dd =
-      DD_Data { tvar; proof = dd.proof; args = dd.args; ctors = dd.ctors } in
+    let dd = DD_Data
+      { tvar;
+        proof             = dd.proof;
+        args              = dd.args;
+        ctors             = dd.ctors;
+        strictly_positive = dd.strictly_positive
+      } in
     (env, dd)
 
   | DD_Label dd ->
@@ -67,8 +73,7 @@ let finalize_data_def env (dd : data_def) =
       proof             = dd.proof;
       args              = args;
       ctors             = ctors;
-      (* TODO: use information from previous phases *)
-      strictly_positive = false;
+      strictly_positive = dd.strictly_positive;
     }
 
   | DD_Label dd ->
