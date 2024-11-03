@@ -309,7 +309,7 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
     end;
     let (named, body) =
       ExprUtils.inst_args_match sch_info.rsi_named body
-        sch_info.rsi_body_tp T.Effect.pure in
+        sch_info.rsi_body_tp None in
     let body = ExprUtils.make_nfun named body in
     { def with
       data = D4_LetFun(fd.var, fd.scheme, fd.name, sch_info.rsi_tvars, body)

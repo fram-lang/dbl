@@ -1,0 +1,14 @@
+rec
+  data Trie X = Node of X, TrieList X
+  data TrieList X = [] | (::) of Trie X, TrieList X
+end
+
+let get t =
+  match t with
+  | Node _ (_ :: _ :: Node _ (_ :: Node x _ :: _) :: _) => x
+  | _ => ()
+  end
+
+let checkPure (f : _ -> _) = ()
+
+let _ = checkPure get

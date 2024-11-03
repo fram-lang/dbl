@@ -97,8 +97,8 @@ and expr_data =
   | ELetRec     of rec_def list * expr
   | ECtor       of expr * int * typ list * expr list
   | EData       of data_def list * expr
-  | EMatchEmpty of expr * expr * typ * effrow
-  | EMatch      of expr * match_clause list * typ * effrow
+  | EMatchEmpty of expr * expr * typ * effrow option
+  | EMatch      of expr * match_clause list * typ * effrow option
   | EHandle     of tvar * var * typ * expr * expr
   | EHandler    of
     { label     : var;

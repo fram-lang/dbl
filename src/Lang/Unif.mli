@@ -208,13 +208,15 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
-  | EMatchEmpty of expr * expr * typ * effrow
+  | EMatchEmpty of expr * expr * typ * effrow option
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression, that is a witness that the type of the second
-      parameter is an empty ADT *)
+      parameter is an empty ADT. The last parameter is an optional effect of
+      the whole expression: [None] means that pattern-matching is pure. *)
 
-  | EMatch of expr * match_clause list * typ * effrow
-    (** Pattern-matching. It stores type and effect of the whole expression. *)
+  | EMatch of expr * match_clause list * typ * effrow option
+    (** Pattern-matching. It stores type and effect of the whole expression.
+      If the effect is [None], the pattern-matching is pure. *)
 
   | EHandle of tvar * var * typ * expr * expr
     (** Handling construct. In [EHandle(a, x, tp, e1, e2)] the meaning of
