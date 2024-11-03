@@ -239,7 +239,8 @@ let check_def : type dir. tcfix:tcfix ->
     let kind  = DataType.kind args in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
     let (env, x) = Env.add_tvar ~pos env ~public name kind in
-    let (env, dd) = DataType.finalize_check env x ~name args ctors in 
+    let (env, dd) =
+      DataType.finalize_check ~nonrec_scope:scope env x ~name args ctors in
     let (e, resp, r_eff) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData([dd], e)), resp, r_eff)

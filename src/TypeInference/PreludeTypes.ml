@@ -35,21 +35,17 @@ let mk_Some ~env ~pos tp_arg expr_arg : T.expr =
   let _, x = option_to_whnf ~env ~pos tp' in
   match Env.lookup_adt env x with
   | Some adt_info -> (
-      let { Module.adt_proof; adt_args; adt_ctors; adt_type } = adt_info in
       match
         List.find_index
           (fun (ctor_decl : T.ctor_decl) -> ctor_decl.ctor_name = "Some")
-          adt_ctors
+          adt_info.adt_ctors
       with
       | Some idx ->
-          make
-            (T.ECtor
-               ( make (T.ETApp (adt_proof, tp_arg)) Position.nowhere,
-                 idx,
-                 [],
-                 [ expr_arg ] ))
-            Position.nowhere
-      | None -> Error.fatal (Error.ctor_not_in_type ~pos ~env "Some" tp'))
+        let proof =
+          make (T.ETApp(adt_info.adt_proof, tp_arg)) Position.nowhere in
+        make (T.ECtor(proof, idx, [], [ expr_arg ])) Position.nowhere
+      | None ->
+        Error.fatal (Error.ctor_not_in_type ~pos ~env "Some" tp'))
   | None -> Error.fatal (Error.unbound_adt ~pos ~env x)
 
 let mk_None ~env ~pos option_tp : T.expr =
@@ -57,16 +53,15 @@ let mk_None ~env ~pos option_tp : T.expr =
   let tp_arg, x = option_to_whnf ~env ~pos option_tp in
   match Env.lookup_adt env x with
   | Some adt_info -> (
-      let { Module.adt_proof; adt_args; adt_ctors; adt_type } = adt_info in
       match
         List.find_index
           (fun (ctor_decl : T.ctor_decl) -> ctor_decl.ctor_name = "None")
-          adt_ctors
+          adt_info.adt_ctors
       with
       | Some idx ->
-          make
-            (T.ECtor
-               (make (T.ETApp (adt_proof, tp_arg)) Position.nowhere, idx, [], []))
-            Position.nowhere
-      | None -> Error.fatal (Error.ctor_not_in_type ~pos ~env "None" option_tp))
+        let proof =
+          make (T.ETApp(adt_info.adt_proof, tp_arg)) Position.nowhere in
+        make (T.ECtor(proof, idx, [], [])) Position.nowhere
+      | None ->
+        Error.fatal (Error.ctor_not_in_type ~pos ~env "None" option_tp))
   | None -> Error.fatal (Error.unbound_adt ~pos ~env x)

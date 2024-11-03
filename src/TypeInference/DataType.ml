@@ -8,6 +8,15 @@ open Common
 
 type ctor_decl_list = (S.is_public * T.ctor_decl) list
 
+(* ========================================================================= *)
+
+(** Check if ADT definition is strictly positively recursive *)
+let adt_strictly_positive ~nonrec_scope args ctors =
+  let nonrec_scope = List.fold_left T.Scope.add_named nonrec_scope args in
+  List.for_all (T.CtorDecl.strictly_positive ~nonrec_scope) ctors
+
+(* ========================================================================= *)
+
 let kind args =
   T.Kind.k_arrows
     (List.map (fun (_, x) -> T.TVar.kind x) args)
@@ -36,15 +45,18 @@ let open_data env adt ctors =
   List.fold_left (open_data_ctor adt) (env, 0) ctors
   |> fst
 
-let finalize_check env x ~name args ctors =
+let finalize_check ~nonrec_scope env x ~name args ctors =
   let px = Var.fresh ~name () in
+  let adt_ctors = List.map snd ctors in
   let info = {
     Module.adt_proof = { T.pos = Position.nowhere; T.data = T.EVar px };
     Module.adt_args  = args;
-    Module.adt_ctors = List.map snd ctors;
+    Module.adt_ctors = adt_ctors;
     Module.adt_type  =
       T.Type.t_apps (T.Type.t_var x)
-        (List.map (fun (_, x) -> T.Type.t_var x) args)
+        (List.map (fun (_, x) -> T.Type.t_var x) args);
+    Module.adt_strictly_positive =
+      adt_strictly_positive ~nonrec_scope args adt_ctors
   } in
   let env = Env.add_data env x info in
   let env = open_data env info ctors in
@@ -53,7 +65,7 @@ let finalize_check env x ~name args ctors =
       tvar              = x;
       proof             = px;
       args              = args;
-      ctors             = info.adt_ctors;
-      strictly_positive = false (* TODO: set correct value *)
+      ctors             = adt_ctors;
+      strictly_positive = info.adt_strictly_positive
     } in
   (env, dd)

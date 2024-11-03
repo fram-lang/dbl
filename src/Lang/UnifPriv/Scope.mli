@@ -22,6 +22,9 @@ val filter : int -> (TVar.t -> bool) -> t -> t
 (** Check if given type variable is defined in given scope *)
 val mem : t -> TVar.t -> bool
 
+(** Check if given predicate holds for each element of given scope *)
+val for_all : (TVar.t -> bool) -> t -> bool
+
 (** Permute variables in given scope *)
 val perm : TVar.Perm.t -> t -> t
 

@@ -33,6 +33,8 @@ let filter lvl f scope =
 
 let mem scope x = TVar.Set.mem x scope.tvar_set
 
+let for_all f scope = TVar.Set.for_all f scope.tvar_set
+
 let perm p scope =
   { tvar_set = TVar.Perm.map_set p scope.tvar_set;
     level    = scope.level

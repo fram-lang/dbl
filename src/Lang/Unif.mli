@@ -750,6 +750,11 @@ module CtorDecl : sig
 
   (** Get the index of a constructor with a given name *)
   val find_index : ctor_decl list -> string -> int option
+
+  (** Check if given constructor is strictly positive, i.e., if all type
+    variables on non-strictly positive positions and all scopes of unification
+    variables fit in [nonrec_scope]. *)
+  val strictly_positive : nonrec_scope:scope -> ctor_decl -> bool
 end
 
 (* ========================================================================= *)

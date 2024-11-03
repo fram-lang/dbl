@@ -234,6 +234,111 @@ let try_shrink_scope ~scope tp =
 
 (* ========================================================================= *)
 
+let uvar_fits_in_scope ~scope p u =
+  Scope.for_all
+    (fun x -> Scope.mem scope (TVar.Perm.apply p x))
+    (UVar.scope u)
+
+(** Check if all type variables and all scopes of unification variables fit in
+  given scope *)
+let rec fits_in_scope ~scope tp =
+  match view tp with
+  | TUVar(p, u) -> uvar_fits_in_scope ~scope p u
+  | TVar    x   -> Scope.mem scope x
+  | TEffect xs  ->
+    TVar.Set.for_all (Scope.mem scope) xs
+  | TEffrow(xs, ee) ->
+    TVar.Set.for_all (Scope.mem scope) xs &&
+    begin match ee with
+    | EEClosed -> true
+    | EEUVar(p, u) -> uvar_fits_in_scope ~scope p u
+    | EEVar x -> Scope.mem scope x
+    | EEApp(tp1, tp2) ->
+      fits_in_scope ~scope tp1 && fits_in_scope ~scope tp2
+    end
+  | TPureArrow(sch, tp) ->
+    scheme_fits_in_scope ~scope sch &&
+    fits_in_scope ~scope tp
+  | TArrow(sch, tp, eff) ->
+    scheme_fits_in_scope ~scope sch &&
+    fits_in_scope ~scope tp &&
+    fits_in_scope ~scope eff
+  | THandler(x, tp, itp, ieff, otp, oeff) ->
+    fits_in_scope ~scope otp &&
+    fits_in_scope ~scope oeff &&
+    begin
+      let scope = Scope.add scope x in
+      fits_in_scope ~scope tp &&
+      fits_in_scope ~scope itp &&
+      fits_in_scope ~scope otp
+    end
+  | TLabel(eff0, tp, eff) ->
+    fits_in_scope ~scope eff0 &&
+    fits_in_scope ~scope tp &&
+    fits_in_scope ~scope eff
+  | TApp(tp1, tp2) ->
+    fits_in_scope ~scope tp1 && fits_in_scope ~scope tp2
+
+and scheme_fits_in_scope ~scope sch =
+  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
+  List.for_all (named_scheme_fits_in_scope ~scope) sch.sch_named &&
+  fits_in_scope ~scope sch.sch_body
+
+and named_scheme_fits_in_scope ~scope (_, sch) =
+  scheme_fits_in_scope ~scope sch
+
+(** Check if all type variables on non-strictly positive positions and all
+  scopes of unification variables fit in given scope *)
+let rec strictly_positive ~nonrec_scope tp =
+  match view tp with
+  | TUVar(p, u) | TEffrow(_, EEUVar(p, u)) ->
+    uvar_fits_in_scope ~scope:nonrec_scope p u
+  | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) ->
+    true
+  | TPureArrow(sch, tp) ->
+    scheme_fits_in_scope ~scope:nonrec_scope sch &&
+    strictly_positive ~nonrec_scope tp
+  | TArrow(sch, tp, eff) ->
+    scheme_fits_in_scope ~scope:nonrec_scope sch &&
+    strictly_positive ~nonrec_scope tp &&
+    strictly_positive ~nonrec_scope eff
+  | THandler(x, tp, itp, ieff, otp, oeff) ->
+    strictly_positive ~nonrec_scope otp &&
+    strictly_positive ~nonrec_scope oeff &&
+    begin
+      let scope = Scope.add nonrec_scope x in
+      (* Type [tp] is on positive position, but in encoding of handler
+        types in Core it is not strictly positive. *)
+      fits_in_scope ~scope tp &&
+      fits_in_scope ~scope itp &&
+      fits_in_scope ~scope ieff
+    end
+  | TLabel _ ->
+    fits_in_scope ~scope:nonrec_scope tp
+  | TApp(tp1, tp2) | TEffrow(_, EEApp(tp1, tp2)) ->
+    strictly_positive ~nonrec_scope tp1 &&
+    fits_in_scope ~scope:nonrec_scope tp2
+
+let scheme_strictly_positive ~nonrec_scope sch =
+  let nonrec_scope =
+    List.fold_left Scope.add_named nonrec_scope sch.sch_targs in
+  List.for_all (named_scheme_fits_in_scope ~scope:nonrec_scope)
+    sch.sch_named &&
+  strictly_positive ~nonrec_scope sch.sch_body
+
+let named_scheme_strictly_positive ~nonrec_scope (_, sch) =
+  scheme_strictly_positive ~nonrec_scope sch
+
+let ctor_strictly_positive ~nonrec_scope ctor =
+  let nonrec_scope =
+    List.fold_left Scope.add_named nonrec_scope ctor.ctor_targs in
+  List.for_all (named_scheme_strictly_positive ~nonrec_scope)
+    ctor.ctor_named &&
+  List.for_all (scheme_strictly_positive ~nonrec_scope)
+    ctor.ctor_arg_schemes
+
+(* ========================================================================= *)
+
 let mono_scheme tp =
   { sch_targs = [];
     sch_named = [];
