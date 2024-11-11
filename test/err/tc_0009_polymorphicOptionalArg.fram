@@ -1,0 +1,3 @@
+let foo {?x:{x:Int} -> Int} = x
+
+// @stderr: Optional parameters cannot be polymorphic

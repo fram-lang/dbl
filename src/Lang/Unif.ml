@@ -81,6 +81,7 @@ and expr = expr_data node
 and expr_data =
   | EUnitPrf
   | ENum        of int
+  | ENum64      of int64
   | EStr        of string
   | EChr        of char
   | EVar        of var
@@ -95,17 +96,20 @@ and expr_data =
   | EData       of data_def list * expr
   | EMatchEmpty of expr * expr * typ * effrow
   | EMatch      of expr * match_clause list * typ * effrow
-  | EHandle     of
-    { label      : expr;
-      effect     : effect;
-      cap_var    : var;
-      body       : expr;
-      capability : expr;
-      ret_var    : var;
-      ret_body   : expr;
-      result_tp  : typ;
-      result_eff : effrow }
-  | EHandler    of tvar * var * typ * effrow * expr
+  | EHandle     of tvar * var * typ * expr * expr
+  | EHandler    of
+    { label     : var;
+      effect    : tvar;
+      delim_tp  : typ;
+      delim_eff : effect;
+      cap_type  : typ;
+      cap_body  : expr;
+      ret_var   : var;
+      body_tp   : typ;
+      ret_body  : expr;
+      fin_var   : var;
+      fin_body  : expr;
+    }
   | EEffect     of expr * var * expr * typ
   | EExtern     of string * typ
   | ERepl       of (unit -> expr) * typ * effrow

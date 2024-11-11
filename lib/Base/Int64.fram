@@ -1,0 +1,62 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+ *)
+
+import open Types
+import open Operators
+
+pub method equal {self : Int64} =
+  (extern dbl_eqInt64  : Int64 -> Int64 -> Bool) self
+pub method neq   {self : Int64} =
+  (extern dbl_neqInt64 : Int64 -> Int64 -> Bool) self
+pub method gt    {self : Int64} =
+  (extern dbl_gtInt64  : Int64 -> Int64 -> Bool) self
+pub method lt    {self : Int64} =
+  (extern dbl_ltInt64  : Int64 -> Int64 -> Bool) self
+pub method ge    {self : Int64} =
+  (extern dbl_geInt64  : Int64 -> Int64 -> Bool) self
+pub method le    {self : Int64} =
+  (extern dbl_leInt64  : Int64 -> Int64 -> Bool) self
+
+pub method neg {self : Int64} =
+  (extern dbl_negInt64 : Int64 -> Int64) self
+pub method add {self : Int64} =
+  (extern dbl_addInt64 : Int64 -> Int64 -> Int64) self
+pub method sub {self : Int64} =
+  (extern dbl_subInt64 : Int64 -> Int64 -> Int64) self
+pub method mul {self : Int64} =
+  (extern dbl_mulInt64 : Int64 -> Int64 -> Int64) self
+pub method div {~re : {type X} -> Unit ->[|_] X} (n : Int64) =
+  if n.equal 0L then ~re ()
+  else (extern dbl_divInt64 : Int64 -> Int64 -> Int64) self n
+pub method mod {~re : {type X} -> Unit ->[|_] X} (n : Int64) =
+  if n.equal 0L then ~re ()
+  else (extern dbl_modInt64 : Int64 -> Int64 -> Int64) self n
+
+pub method land = (extern dbl_andInt64 : Int64 -> Int64 -> Int64) self
+pub method lor  = (extern dbl_orInt64  : Int64 -> Int64 -> Int64) self
+pub method lxor = (extern dbl_xorInt64 : Int64 -> Int64 -> Int64) self
+pub method shiftl  = (extern dbl_lslInt64 : Int64 -> Int64 -> Int64) self
+pub method shiftr  = (extern dbl_lsrInt64 : Int64 -> Int64 -> Int64) self
+pub method ashiftr = (extern dbl_asrInt64 : Int64 -> Int64 -> Int64) self
+
+pub method succ {self : Int64} = self + 1L
+pub method pred {self : Int64} = self - 1L
+
+pub method toString {self : Int64} =
+  (extern dbl_int64ToString : Int64 -> String) self
+pub method toInt {~re : {type X} -> Unit ->[|_] X, self : Int64} =
+  if self <= 0x3fffffffffffffffL && self >= 0xc000000000000000L then
+    (extern dbl_intToInt64 : Int64 -> Int) self
+  else ~re ()
+pub method toIntOpt {self : Int64} =
+  if self <= 0x3fffffffffffffffL && self >= 0x7fffffffffffffffL then
+    Some ((extern dbl_intToInt64 : Int64 -> Int) self)
+  else None
+
+pub method abs {self : Int64} =
+  if self < 0L then self.neg else self
+pub method min {self : Int64} oth =
+  if self <= oth then self else oth
+pub method max {self : Int64} oth =
+  if self >= oth then self else oth

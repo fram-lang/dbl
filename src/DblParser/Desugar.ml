@@ -106,12 +106,12 @@ let rec find_self_arg args =
     let (self, args) = find_self_arg args in
     (self, arg :: args)
 
-let ident_of_name (name : Raw.name) =
+let ident_of_name ~public (name : Raw.name) =
   match name with
   | NLabel      -> IdLabel
-  | NVar x      -> IdVar(false, x)
-  | NImplicit n -> IdImplicit(false, n)
-  | NMethod   n -> IdMethod(false, n)
+  | NVar x | NOptionalVar x -> IdVar(public, x)
+  | NImplicit n -> IdImplicit(public, n)
+  | NMethod   n -> IdMethod(public, n)
 
 let rec path_append path rest =
   match path with
@@ -190,16 +190,16 @@ and tr_scheme_field (fld : Raw.ty_field) =
   let make data = { fld with data = data } in
   match fld.data with
   | FldAnonType tp ->
-    Either.Left (make (TNAnon, tr_type_arg tp))
+    Either.Left (make (TNAnon, tr_type_arg ~public:false tp))
   | FldEffect ->
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
-    Either.Left (make (TNEffect, tr_type_arg arg))
+    Either.Left (make (TNEffect, tr_type_arg ~public:false arg))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
-    Either.Left (make (TNVar x, make (TA_Var(x, k))))
+    Either.Left (make (TNVar x, make (TA_Var(false, x, k))))
   | FldTypeVal(x, arg) ->
-    Either.Left (make (TNVar x, tr_type_arg arg))
+    Either.Left (make (TNVar x, tr_type_arg ~public:false arg))
   | FldName n ->
     let sch =
       { sch_pos   = fld.pos;
@@ -215,13 +215,13 @@ and tr_scheme_field (fld : Raw.ty_field) =
     assert false
 
 (** Translate a type expression as a type parameter *)
-and tr_type_arg (tp : Raw.type_expr) =
+and tr_type_arg ~public (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
-  | TParen tp -> make (tr_type_arg tp).data
+  | TParen tp -> make (tr_type_arg ~public tp).data
   | TVar (NPName x, ka) -> 
     let k = Option.value ka ~default:(make KWildcard) in
-    make (TA_Var(x, k))
+    make (TA_Var(public, x, k))
   | TVar (NPSel _, _) | TWildcard | TArrow _ | TEffect _ | TApp _ | TRecord _
   | TTypeLbl _ | TEffectLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
@@ -233,9 +233,9 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   | TParen tp -> make (tr_named_type_arg tp).data
   | TVar (NPName x, ka) -> 
     let k = Option.value ka ~default:(make KWildcard) in
-    make (TNVar x, make (TA_Var(x, k)))
-  | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
-  | TEffectLbl tp -> make (TNEffect, tr_type_arg tp)
+    make (TNVar x, make (TA_Var(false, x, k)))
+  | TTypeLbl tp -> make (TNAnon, tr_type_arg ~public:false tp)
+  | TEffectLbl tp -> make (TNEffect, tr_type_arg ~public:false tp)
   | TWildcard -> make (TNAnon, make (TA_Wildcard))
   | TVar (NPSel _, _) | TArrow _ | TEffect _ | TApp _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
@@ -288,10 +288,10 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EList []         -> NPName (tr_ctor_name (make Raw.CNNil))
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
 
-  | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EVar _ | EImplicit _
-  | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _)
-  | EPub _ | EMethodCall _  ->
+  | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EVar _
+  | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _
+  | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _
+  | EList (_ :: _) | EPub _ | EMethodCall _ ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -302,6 +302,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EUnit | ECtor _ | ESelect _ ->
     make (PCtor(make (tr_ctor_pattern p), CNParams([], []), []))
   | ENum _      -> Error.fatal (Error.desugar_error p.pos)
+  | ENum64 _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern ~public p).data
@@ -315,7 +316,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
     let ps = List.map (tr_pattern ~public) ps in
     begin match flds with
     | [ { data = FldModule name; _ } ] ->
-      make (PCtor(cpath, CNModule name, ps))
+      make (PCtor(cpath, CNModule(public, name), ps))
     | _ ->
       let (targs, iargs) = map_inst_like (tr_named_pattern ~public) flds in
       make (PCtor(cpath, CNParams(targs, iargs), ps))
@@ -352,19 +353,19 @@ and tr_named_pattern ~public (fld : Raw.field) =
   | FldEffect ->
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
-    Either.Left (make (TNEffect, tr_type_arg arg))
+    Either.Left (make (TNEffect, tr_type_arg ~public arg))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
-    Either.Left (make (TNVar x, make (TA_Var(x, k))))
+    Either.Left (make (TNVar x, make (TA_Var(public, x, k))))
   | FldTypeVal(x, arg) ->
-    Either.Left (make (TNVar x, tr_type_arg arg))
+    Either.Left (make (TNVar x, tr_type_arg ~public arg))
   | FldName n ->
-    Either.Right (make (n, make (PId (ident_of_name n))))
+    Either.Right (make (n, make (PId (ident_of_name ~public n))))
   | FldNameVal(n, p) ->
     Either.Right (make (n, tr_pattern ~public p))
   | FldNameAnnot(n, sch) ->
     Either.Right
-      (make (n, make (PAnnot(make (PId (ident_of_name n)),
+      (make (n, make (PAnnot(make (PId (ident_of_name ~public n)),
                              tr_scheme_expr sch))))
   | FldModule _ ->
     Error.fatal (Error.desugar_error fld.pos)
@@ -375,8 +376,9 @@ let rec tr_function_arg (arg : Raw.expr) =
   | EParen arg -> tr_function_arg arg
   | EAnnot(p, sch) ->
     ArgAnnot(tr_pattern ~public:false p, tr_scheme_expr sch)
-  | EWildcard | EUnit | ENum _ | EStr _ | EChr _ | EVar _ | EImplicit _ | ECtor _
-  | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _  | ESelect _ | EList _ ->
+  | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
+  | EImplicit _ | ECtor _ | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _
+  | ESelect _ | EList _ ->
     ArgPattern (tr_pattern ~public:false arg)
 
   | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
@@ -387,23 +389,26 @@ let tr_named_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
   | FldAnonType arg ->
-    Either.Left (make (TNAnon, tr_type_arg arg))
+    Either.Left (make (TNAnon, tr_type_arg ~public:false arg))
   | FldEffect ->
     Either.Left (make (TNEffect, make TA_Effect))
   | FldEffectVal arg ->
-    Either.Left (make (TNEffect, tr_type_arg arg))
+    Either.Left (make (TNEffect, tr_type_arg ~public:false arg))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
-    Either.Left (make (TNVar x, make (TA_Var(x, k))))
+    Either.Left (make (TNVar x, make (TA_Var(false, x, k))))
   | FldTypeVal(x, arg) ->
-    Either.Left (make (TNVar x, tr_type_arg arg))
+    Either.Left (make (TNVar x, tr_type_arg ~public:false arg))
   | FldName n ->
-    Either.Right (make (n, ArgPattern(make (PId (ident_of_name n)))))
+    let arg = ArgPattern(make (PId (ident_of_name ~public:false n))) in
+    Either.Right (make (n, arg))
   | FldNameVal(n, e) ->
     Either.Right (make (n, tr_function_arg e))
   | FldNameAnnot(n, sch) ->
-    Either.Right
-      (make (n, ArgAnnot(make (PId (ident_of_name n)), tr_scheme_expr sch)))
+    let arg =
+      ArgAnnot(make (PId (ident_of_name ~public:false n)), tr_scheme_expr sch)
+    in
+    Either.Right (make (n, arg))
   | FldModule _ ->
     (* TODO: This might eventually be supported. *)
     Error.fatal (Error.desugar_error fld.pos)
@@ -431,7 +436,8 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       let (targs, iargs) = map_inst_like tr_named_arg flds in
       LP_Fun(id, targs, iargs, ps)
 
-    | EUnit | ENum _ | EStr _ | EChr _ | ECtor _ | ESelect _ | EList _ ->
+    | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | ECtor _ | ESelect _
+    | EList _ ->
       LP_Pat(tr_pattern ~public p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
@@ -440,8 +446,8 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       Error.fatal (Error.desugar_error p1.pos)
     end
 
-  | EWildcard | EUnit | ENum _ | EStr _ | EChr _ | EParen _ | ECtor _ | EAnnot _
-  | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
+  | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _
+  | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
     LP_Pat (tr_pattern ~public p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -494,14 +500,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EUOpID    x -> make (EVar      (prepend_path (make_uop_id x)))
     | EList    [] -> make (EVar      (prepend_path (tr_ctor_name' CNNil)))
     
-    | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
-    | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-    | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
+    | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _
+    | EApp _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _
+    | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
     | EList (_ :: _) | EPub _ | EMethodCall _ ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
-  | EWildcard | ENum _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
+  | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
   | EMethodCall _ ->
@@ -514,6 +520,7 @@ and tr_expr (e : Raw.expr) =
   | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (EPoly(tr_poly_expr e, [], []))
   | ENum n -> make (ENum n)
+  | ENum64 n -> make (ENum64 n)
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
@@ -535,7 +542,10 @@ and tr_expr (e : Raw.expr) =
     tr_expr_app (tr_expr e1) es
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
-  | EHandler h     -> make (EHandler (tr_expr h))
+  | EHandler(h, hcs) ->
+    let e = tr_expr h in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    make (EHandler(e, rcs, fcs))
   | EEffect(es, rp_opt, e) ->
     let (pos, rp) =
       match rp_opt with
@@ -625,10 +635,10 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldName n ->
     let pe =
       match n with
-      | NLabel      -> Error.fatal (Error.desugar_error fld.pos)
-      | NVar      x -> make (EVar (NPName x))
-      | NImplicit n -> make (EImplicit (NPName n))
-      | NMethod   n -> Error.fatal (Error.desugar_error fld.pos)
+      | NLabel       -> Error.fatal (Error.desugar_error fld.pos)
+      | NVar x | NOptionalVar x -> make (EVar (NPName x))
+      | NImplicit n  -> make (EImplicit (NPName n))
+      | NMethod   n  -> Error.fatal (Error.desugar_error fld.pos)
     in
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
@@ -721,18 +731,20 @@ and tr_def ?(public=false) (def : Raw.def) =
     ]
   | DLabel(pub, pat) ->
     let public = public || pub in
-    let (eff_opt, pat) = tr_label_pattern ~public pat in
+    let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
     [ make (DLabel (eff_opt, pat)) ]
-  | DHandle(pub, pat, h, hcs) ->
+  | DHandle(pub, pat, body, hcs) ->
     let public = public || pub in
-    let (lbl_opt, eff_opt, pat)  = tr_handle_pattern ~public pat in
-    let body = { h with data = EHandler(tr_expr h) } in
-    [ make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs ]
-  | DHandleWith(pub, pat, e, hcs) ->
+    let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
+    let body = tr_expr body in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    let body = { body with data = EHandler(body, rcs, fcs) } in
+    [ make (DHandlePat(eff_opt, pat, body)) ]
+  | DHandleWith(pub, pat, body) ->
     let public = public || pub in
-    let (lbl_opt, eff_opt, pat)  = tr_handle_pattern ~public pat in
-    let body = tr_expr e in
-    [ make_handle ~pos:def.pos lbl_opt eff_opt pat body hcs ]
+    let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
+    let body = tr_expr body in
+    [ make (DHandlePat(eff_opt, pat, body)) ]
   | DModule(pub, x, defs) ->
     let public = public || pub in
     [ make (DModule(public, x, tr_defs defs)) ]
@@ -758,40 +770,15 @@ and tr_pattern_with_fields ~public (pat : Raw.expr) =
   | _ ->
     (None, tr_pattern ~public pat)
 
-and tr_label_pattern ~public (pat : Raw.expr) =
+and tr_pattern_with_eff_opt ~public (pat : Raw.expr) =
   let (flds_opt, pat) = tr_pattern_with_fields ~public pat in
-  (Option.map tr_label_fields flds_opt, pat)
+  (Option.map (tr_eff_opt_fields ~public) flds_opt, pat)
 
-and tr_handle_pattern ~public (pat : Raw.expr) =
-  let (flds_opt, pat) = tr_pattern_with_fields ~public pat in
-  match flds_opt with
-  | Some flds ->
-    let (lbl_opt, eff_opt) = tr_handle_fields flds in
-    (lbl_opt, eff_opt, pat)
-  | None -> (None, None, pat)
-
-and tr_label_fields flds =
+and tr_eff_opt_fields ~public flds =
   match flds with
   | [] -> assert false
-  | [{ data = FldEffectVal tp; _ }] -> tr_type_arg tp
+  | [{ data = FldEffectVal tp; _ }] -> tr_type_arg ~public tp
   | { data = FldEffectVal _; _} :: fld :: _ | fld :: _ ->
-    Error.fatal (Error.desugar_error fld.pos)
-
-and tr_handle_fields flds =
-  match flds with
-  | [] -> assert false
-  | [{ data = FldNameVal(NLabel, e); _ }] ->
-    (Some (tr_expr e), None)
-  | [{ data = FldEffectVal eff; _ }] ->
-    (None, Some (tr_type_arg eff))
-  | [{ data = FldNameVal(NLabel, e); _ }; { data = FldEffectVal eff; _ }]
-  | [{ data = FldEffectVal eff; _ }; { data = FldNameVal(NLabel, e); _ }] ->
-    (Some (tr_expr e), Some (tr_type_arg eff))
-  | { data=FldNameVal(NLabel, _); _} :: { data=FldEffectVal _; _ } :: fld :: _
-  | { data=FldEffectVal _; _ } :: { data=FldNameVal(NLabel, _); _} :: fld :: _
-  | { data=FldNameVal(NLabel, _); _} :: fld :: _
-  | { data=FldEffectVal _; _ } :: fld :: _
-  | fld :: _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_h_clause (hc : Raw.h_clause) =
@@ -802,19 +789,7 @@ and tr_h_clause (hc : Raw.h_clause) =
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern ~public:false pat, tr_expr body)))
 
-and make_handle ~pos lbl_opt eff_opt pat body hcs =
-  let make data = { pos; data } in
-  let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
-  make (DHandlePat
-    { label       = lbl_opt;
-      effect      = eff_opt;
-      cap_pat     = pat;
-      capability  = body;
-      ret_clauses = rcs;
-      fin_clauses = fcs
-    })
-
-(** Returns: list of explicit type adnotations with fresh type variable names
+(** Returns: list of explicit type annotations with fresh type variable names
     and a function that given a field name returns piece of code that
     represents pattern which pulls out this variable, making it easy to use in
     generated code *)
@@ -824,11 +799,13 @@ and generate_accessor_method_pattern named_type_args type_name =
   let create_mapping i arg =
     let old_name, new_name =
       match (snd arg.data).data with
-      | TA_Var(name, _) -> name, name ^ "#TA_Var#" ^ string_of_int i
+      | TA_Var(_, name, _) -> name, name ^ "#TA_Var#" ^ string_of_int i
       | TA_Effect -> "TNEffect", "TNEffect#TA_Effect#" ^ string_of_int i
       | TA_Wildcard -> "TNAnon", "TNAnon#TA_Wildcard#" ^ string_of_int i
     in
-    make (TNVar old_name, make (TA_Var(new_name, make (KWildcard)))), new_name
+    let named_arg =
+      make (TNVar old_name, make (TA_Var (false, new_name, make KWildcard))) in
+    named_arg, new_name
   in
   let (new_named_type_args, new_names : named_type_arg list * ctor_name list) =
     List.split (List.mapi create_mapping named_type_args) in
@@ -862,7 +839,7 @@ and create_accessor_method ~public named_type_args pattern_gen scheme =
       [],
       make (EFn(pattern_gen field, e))))
     |> Option.some
-  | (NLabel | NImplicit _ | NMethod _), _ ->
+  | (NLabel | NImplicit _ | NMethod _ | NOptionalVar _), _ ->
     Error.warn (Error.ignored_field_in_record scheme.pos);
     None
 

@@ -9,8 +9,8 @@ open Common
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e.data with
-  | EUnitPrf | ENum _ | EStr _ | EVar _ | EChr _ | EPureFn _ | EFn _ | ETFun _
-  | ECtor _ | EHandler _ | EExtern _ ->
+  | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EVar _ | EChr _ | EPureFn _ | EFn _
+  | ETFun _ | ECtor _ | EHandler _ | EExtern _ ->
     tr_expr_v env e (fun v -> T.EValue v)
 
   | EApp(e1, e2) ->
@@ -47,16 +47,11 @@ let rec tr_expr env (e : S.expr) =
     tr_expr_v env me (fun v ->
     PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 
-  | EHandle { label; effect; cap_var; body; capability;
-      ret_var; ret_body; result_tp; result_eff } ->
-    tr_expr_v env label (fun lv ->
-    tr_expr_v env capability (fun hv ->
-    let h_eff = Type.tr_effect env effect in
-    let hx  = Var.fresh () in
-    let r_body = tr_expr env ret_body in
-    T.ELet(hx, T.ETApp(hv, h_eff),
-      T.ELet(cap_var, T.EApp(T.VVar hx, lv),
-        T.EReset(lv, [], [], tr_expr env body, ret_var, r_body)))))
+  | EHandle(a, x, tp, e1, e2) ->
+    tr_expr_v env e1 (fun v1 ->
+    let (env, Ex a) = Env.add_tvar env a in
+    let tp = Type.tr_ttype env tp in
+    T.EApp(v1, T.VTFun(a, T.EValue (T.VFn(x, tp, tr_expr env e2)))))
 
   | EEffect(l, x, body, tp) ->
     tr_expr_v env l (fun lv ->
@@ -73,8 +68,8 @@ let rec tr_expr env (e : S.expr) =
 (** Translate expression and store result in variable [x] bound in [rest] *)
 and tr_expr_as env (e : S.expr) x rest =
   match e.data with
-  | EUnitPrf | ENum _ | EStr _ | EVar _ | EChr _ | EPureFn _ | EFn _ | ETFun _
-  | ECtor _ | EHandler _ | EExtern _ ->
+  | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EVar _ | EChr _ | EPureFn _ | EFn _
+  | ETFun _ | ECtor _ | EHandler _ | EExtern _ ->
     T.ELetPure(x, tr_expr env e, rest)
 
   | EApp _ | ETApp _ | ELet _ | ELetRec _ | EData _ | EMatchEmpty _
@@ -87,6 +82,7 @@ and tr_expr_v env (e : S.expr) cont =
   match e.data with
   | EUnitPrf -> cont v_unit_prf
   | ENum n -> cont (VNum n)
+  | ENum64 n -> cont (VNum64 n)
   | EStr s -> cont (VStr s)
   | EChr c -> cont (VNum (Char.code c))
   | EVar x -> cont (VVar x)
@@ -117,20 +113,36 @@ and tr_expr_v env (e : S.expr) cont =
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr_v env e cont)
 
-  | EHandler(a, lx, tp, eff, h) ->
-    let (env, Ex a) = Env.add_tvar env a in
+  | EHandler h ->
+    let (env, Ex a) = Env.add_tvar env h.effect in
     begin match T.TVar.kind a with
     | KEffect ->
-      let tp  = Type.tr_ttype  env tp in
-      let eff = Type.tr_effect env eff in
-      let lbl_tp = T.TLabel
-        { effect    = TVar a;
+      let delim_tp  = Type.tr_ttype env h.delim_tp in
+      let delim_eff = Type.tr_effect env h.delim_eff in
+      let cap_tp    = Type.tr_ttype env h.cap_type in
+      let body_tp   = Type.tr_ttype env h.body_tp in
+      let comp_x    = Var.fresh () in (* a parameter to handler: computation *)
+      let comp_y    = Var.fresh () in (* partially applied computation *)
+      let comp_eff  = T.Effect.join (TVar a) delim_eff in
+      let comp_tp   =
+        T.TForall(a, T.TArrow(cap_tp, body_tp, comp_eff)) in
+      let label_def = T.DD_Label
+        { tvar      = a;
+          var       = h.label;
           tvars     = [];
           val_types = [];
-          delim_tp  = tp;
-          delim_eff = eff
+          delim_tp  = delim_tp;
+          delim_eff = delim_eff;
         } in
-      cont (T.VTFun(a, T.EValue(T.VFn(lx, lbl_tp, tr_expr env h))))
+      cont (VFn(comp_x, comp_tp,
+        T.EData([label_def],
+        T.ELet(h.fin_var,
+          T.EReset(T.VVar h.label, [], [],
+            tr_expr_v env h.cap_body (fun cap_v ->
+            T.ELetPure(comp_y, T.ETApp(T.VVar comp_x, T.TVar a),
+            T.EApp(T.VVar comp_y, cap_v))),
+            h.ret_var, tr_expr env h.ret_body),
+          tr_expr env h.fin_body))))
     | _ ->
       failwith "Internal kind error"
     end
