@@ -1,1 +1,1 @@
-let h = handler effect x => resume x
+let h = handler effect x => resume x end

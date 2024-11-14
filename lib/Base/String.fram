@@ -1,0 +1,31 @@
+(* This file is part of DBL, released under MIT license.
+ * See LICENSE for details.
+ *)
+
+import open /Base/Types
+import open /Base/Operators
+import /Base/Int
+
+pub method add = (extern dbl_strCat : String -> String -> String) self
+
+pub method equal = (extern dbl_eqStr  : String -> String -> Bool) self
+pub method neq   = (extern dbl_neqStr : String -> String -> Bool) self
+pub method gt    = (extern dbl_gtStr  : String -> String -> Bool) self
+pub method lt    = (extern dbl_ltStr  : String -> String -> Bool) self
+pub method ge    = (extern dbl_geStr  : String -> String -> Bool) self
+pub method le    = (extern dbl_leStr  : String -> String -> Bool) self
+
+pub method length = (extern dbl_strLen : String -> Int) self
+pub method get {~re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
+  if n >= 0 && n < self.length then
+    (extern dbl_strGet : String -> Int -> Char) self n
+  else ~re ()
+
+pub method toList {self : String} =
+  let getChar = extern dbl_strGet : String -> Int -> Char in
+  let rec iter (n : Int) acc = 
+    if n == 0 then 
+      acc
+    else 
+      iter (n - 1) (getChar self (n - 1) :: acc) 
+  in iter self.length []

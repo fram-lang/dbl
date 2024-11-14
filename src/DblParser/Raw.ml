@@ -31,9 +31,10 @@ type var_id =
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
   | NLabel
-  | NVar      of var
-  | NImplicit of iname
-  | NMethod   of method_name
+  | NVar         of var
+  | NOptionalVar of var
+  | NImplicit    of iname
+  | NMethod      of method_name
 
 (** Names of constructors of ADTs *)
 type ctor_name =
@@ -174,6 +175,9 @@ and expr_data =
   | ENum of int
     (** Integer literal *)
 
+  | ENum64 of int64
+    (** 64 bit integer literal *)
+
   | EStr of string
     (** String literal *)
 
@@ -192,7 +196,7 @@ and expr_data =
   | EMatch of expr * match_clause list
     (** Pattern-matching *)
 
-  | EHandler of expr
+  | EHandler of expr * h_clause list
     (** First-class handler *)
 
   | EEffect of expr list * expr option * expr
@@ -261,7 +265,7 @@ and def_data =
   | DHandle of is_public * expr * expr * h_clause list
     (** Effect handler *)
 
-  | DHandleWith of is_public * expr * expr * h_clause list
+  | DHandleWith of is_public * expr * expr
     (** Effect handler, with first-class handler *)
 
   | DMethod of is_public * expr * expr

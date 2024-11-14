@@ -1,0 +1,9 @@
+data T = C of { S, x : Int }
+
+module M
+  pub let C { S, x } = C { S = Unit, x = 42 }
+end
+
+let y = M.x
+
+let f (x : M.S) = x

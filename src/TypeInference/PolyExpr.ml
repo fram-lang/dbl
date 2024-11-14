@@ -137,25 +137,47 @@ let rec check_explicit_insts ~tcfix
   | { data = (n, e); pos } :: insts ->
     let make data = { T.data; T.pos } in
     let n = Name.tr_name env n in
-    let (e, sch, r_eff1) =
+    let (n, e, sch, r_eff1) =
       match T.Name.assoc n named with
       | Some sch ->
         begin match T.Name.assoc n cache with
         | None ->
           let (e, r_eff1) =
             check_actual_arg ~tcfix env e sch eff in
-          (e, sch, r_eff1)
+          (n, e, sch, r_eff1)
         | Some (e, tp, r_eff1) ->
           assert (T.Scheme.is_monomorphic sch);
           Error.check_unify_result ~pos:e.pos
             (Unification.subtype env tp sch.sch_body)
             ~on_error:(Error.named_param_type_mismatch ~env n tp sch.sch_body);
-          (e, sch, r_eff1)
+          (n, e, sch, r_eff1)
         end
       | None ->
-        Error.warn (Error.redundant_named_parameter ~pos n);
-        let (e, tp, r_eff1) = infer_expr_type env e eff in
-        (e, T.Scheme.of_type tp, r_eff1)
+        (* If there is no such a name in the scheme, we should also look for
+          its optional variant in case of a regular name *)
+        let res = 
+          begin match n with
+          | NVar x -> 
+            begin match T.Name.assoc (T.NOptionalVar x) named with
+            | Some sch ->
+              assert (T.Scheme.is_monomorphic sch);
+              let tp = PreludeTypes.extr_arg_tp ~env ~pos:e.pos sch.sch_body in
+              let (e, r_eff1) = check_actual_arg ~tcfix env e 
+                (T.Scheme.of_type tp) eff 
+              in
+              Some (T.NOptionalVar x, 
+                PreludeTypes.mk_Some ~env ~pos:e.pos tp e, sch.sch_body, r_eff1)
+            | None -> None
+            end
+          | _ -> None
+          end 
+        in
+        match res with
+        | Some(n, e, tp, r_eff1) -> (n, e, T.Scheme.of_type tp, r_eff1)
+        | None -> 
+          Error.warn (Error.redundant_named_parameter ~pos n);
+          let (e, tp, r_eff1) = infer_expr_type env e eff in
+          (n, e, T.Scheme.of_type tp, r_eff1)
     in
     let (ctx, insts, r_eff2) =
       check_explicit_insts ~tcfix env named insts cache eff in

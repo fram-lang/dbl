@@ -6,6 +6,6 @@ data State (effect E) X = State of
 method get {E, self = State { get } : State E _ } = get
 method put {E, self = State { put } : State E _ } = put
 
-implicit `st { State_Eff } : State State_Eff _
+implicit ~st { State_Eff } : State State_Eff _
 
-let update f = `st.put (f (`st.get ()))
+let update f = ~st.put (f (~st.get ()))

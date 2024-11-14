@@ -26,7 +26,7 @@ type handler =
   | H_No
     (** Type is not a handler *)
 
-  | H_Handler of T.tvar * T.typ * T.typ * T.effrow
+  | H_Handler of T.tvar * T.typ * T.typ * T.effrow * T.typ * T.effrow
     (** Handler type *)
 
 (** Label type *)

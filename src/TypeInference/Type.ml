@@ -120,6 +120,11 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     | L_No       -> Error.fatal (Error.label_type_mismatch ~pos:nsch.pos)
     end
   | NVar      x -> (T.NVar x, sch)
+  | NOptionalVar x -> 
+    if not (T.Scheme.is_monomorphic sch ) then
+      Error.fatal (Error.polymorphic_optional_parameter ~pos:nsch.pos);
+    let tp = PreludeTypes.mk_Option ~env ~pos: nsch.pos sch.sch_body in
+    (T.NOptionalVar x, T.Scheme.of_type tp)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)
 
@@ -132,7 +137,8 @@ and tr_effrow env eff =
 and tr_type_arg env (arg : S.type_arg) =
   match arg.data with
   | TA_Effect -> Env.add_the_effect ~pos:arg.pos env
-  | TA_Var(x, k) -> Env.add_tvar ~pos:arg.pos env x (tr_kind_expr k)
+  | TA_Var(public, x, k) ->
+    Env.add_tvar ~pos:arg.pos ~public env x (tr_kind_expr k)
   | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env (T.Kind.fresh_uvar ())
 
 and check_type_arg env (arg : S.type_arg) kind =
@@ -142,11 +148,11 @@ and check_type_arg env (arg : S.type_arg) kind =
     if not (Unification.unify_kind kind T.Kind.k_effect) then
       Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
     (env, x)
-  | TA_Var(x, k) -> 
+  | TA_Var(public, x, k) ->
     let kind_annot = tr_kind_expr k in
     if not (Unification.unify_kind kind_annot kind) then
       Error.fatal (Error.kind_annot_mismatch ~pos:arg.pos kind kind_annot);
-    Env.add_tvar ~pos:arg.pos env x kind
+    Env.add_tvar ~pos:arg.pos ~public env x kind
   | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env kind
 
 and tr_named_type_arg env (arg : S.named_type_arg) =
@@ -175,8 +181,8 @@ let check_type_alias_binder env (arg : S.type_arg) tp =
     if not (Unification.unify_kind kind T.Kind.k_effect) then
       Error.fatal (Error.effect_arg_kind_mismatch ~pos:arg.pos kind);
     Env.add_the_effect_alias env tp
-  | TA_Var(x, _) ->
-    Env.add_type_alias env x tp
+  | TA_Var(public, x, _) ->
+    Env.add_type_alias ~public env x tp
   | TA_Wildcard -> env
 
 let check_type_alias_binder_opt env arg_opt tp =
