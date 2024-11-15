@@ -23,9 +23,7 @@ pub let hd xs =
   end
 
 pub let hdErr { ~onError } xs =
-pub let hdErr { ~onError } xs =
   match xs with
-  | []      => ~onError ()
   | []      => ~onError ()
   | x :: xs => x
   end
@@ -37,9 +35,7 @@ pub let tl xs =
   end
 
 pub let tlErr { ~onError } xs =
-pub let tlErr { ~onError } xs =
   match xs with
-  | []      => ~onError ()
   | []      => ~onError ()
   | x :: xs => xs
   end
@@ -53,14 +49,11 @@ pub let nth xs (n : Int) =
   in if n < 0 then None else nthAux xs n
 
 pub let nthErr { ~onError } xs (n : Int) =
-pub let nthErr { ~onError } xs (n : Int) =
   let rec nthErrAux xs (n : Int) =
     match xs with
     | []      => ~onError ()
-    | []      => ~onError ()
     | x :: xs => if n == 0 then x else nthErrAux xs (n - 1)
     end
-  in if n < 0 then ~onError () else nthErrAux xs n
   in if n < 0 then ~onError () else nthErrAux xs n
 
 pub let rec append xs ys =
@@ -100,12 +93,10 @@ pub let rec mapi {?i : Int} f xs =
   end
 
 pub let map2 { ~onError } f xs ys =
-pub let map2 { ~onError } f xs ys =
   let rec map2Aux xs ys =
     match xs, ys with
     | [],      []      => []
     | x :: xs, y :: ys => f x y :: map2Aux xs ys
-    | _,       _       => ~onError ()
     | _,       _       => ~onError ()
     end
   in map2Aux xs ys
@@ -119,12 +110,10 @@ pub let rec revMapAppend f xs ys =
 pub let revMap f xs = revMapAppend f xs []
 
 pub let revMap2 { ~onError } f xs ys =
-pub let revMap2 { ~onError } f xs ys =
   let rec revMap2Aux acc xs ys =
     match xs, ys with
     | [],      []      => acc
     | x :: xs, y :: ys => revMap2Aux (f x y :: acc) xs ys
-    | _,       _       => ~onError ()
     | _,       _       => ~onError ()
     end
   in revMap2Aux [] xs ys
@@ -215,12 +204,10 @@ pub let rec iteri {?i : Int} f xs =
   end
 
 pub let iter2 { ~onError } f xs ys =
-pub let iter2 { ~onError } f xs ys =
   let rec iter2Aux xs ys =
     match xs, ys with
     | [],      []      => ()
     | x :: xs, y :: ys => f x y; iter2Aux xs ys
-    | _                => ~onError ()
     | _                => ~onError ()
     end
   in iter2Aux xs ys
@@ -244,17 +231,14 @@ pub let rec foldRight f xs acc =
   end
 
 pub let foldLeft2 { ~onError } f acc xs ys =
-pub let foldLeft2 { ~onError } f acc xs ys =
   let rec foldLeft2Aux acc xs ys =
     match xs, ys with
     | [],      []      => acc
     | x :: xs, y :: ys => foldLeft2Aux (f acc x y) xs ys
     | _,       _       => ~onError ()
-    | _,       _       => ~onError ()
     end
   in foldLeft2Aux acc xs ys
 
-pub let foldRight2 { ~onError } f xs ys acc =
 pub let foldRight2 { ~onError } f xs ys acc =
   let rec foldRight2Aux xs ys acc =
     match xs, ys with
@@ -271,12 +255,10 @@ pub let rec forAll p xs =
   end
 
 pub let forAll2 { ~onError } p xs ys =
-pub let forAll2 { ~onError } p xs ys =
   let rec forAll2Aux xs ys =
     match xs, ys with
     | [],      []      => True
     | x :: xs, y :: ys => p x y && forAll2Aux xs ys
-    | _,       _       => ~onError ()
     | _,       _       => ~onError ()
     end
   in forAll2Aux xs ys
@@ -288,12 +270,10 @@ pub let rec exists p xs =
   end
 
 pub let exists2 { ~onError } p xs ys =
-pub let exists2 { ~onError } p xs ys =
   let rec exists2Aux xs ys =
     match xs, ys with
     | [],      []      => False
     | x :: xs, y :: ys => p x y || exists2Aux xs ys
-    | _,       _       => ~onError ()
     | _,       _       => ~onError ()
     end
   in exists2Aux xs ys
@@ -305,10 +285,8 @@ pub let rec find p xs =
   end
 
 pub let findErr { ~onError } p xs =
-pub let findErr { ~onError } p xs =
   let rec findErrAux p xs =
     match xs with
-    | []      => ~onError ()
     | []      => ~onError ()
     | x :: xs => if p x then x else findErrAux p xs
     end
@@ -323,10 +301,8 @@ pub let findIndex p xs =
   in findIndexAux 0 xs
 
 pub let findIndexErr { ~onError } p xs =
-pub let findIndexErr { ~onError } p xs =
   let rec findIndexErrAux (i : Int) xs =
     match xs with
-    | []      => ~onError ()
     | []      => ~onError ()
     | x :: xs => if p x then i else findIndexErrAux (i + 1) xs
     end
@@ -343,10 +319,8 @@ pub let rec findMap f xs =
   end
 
 pub let findMapErr { ~onError } f xs =
-pub let findMapErr { ~onError } f xs =
   let rec findMapErrAux f xs =
     match xs with
-    | []      => ~onError ()
     | []      => ~onError ()
     | x :: xs =>
       match f x with
@@ -375,7 +349,6 @@ pub let rec findMapiErr { ~onError, ?i : Int} f xs =
   | None   => findMapiErr {i = 0} f xs
   | Some i =>
     match xs with
-    | []      => ~onError ()
     | []      => ~onError ()
     | x :: xs =>
       match f i x with
@@ -435,7 +408,6 @@ pub let equal
   in equalAux xs ys
 
 {# method versions of these functions #}
-implicit ~onError
 implicit ~onError
 
 pub method isEmpty = isEmpty self
