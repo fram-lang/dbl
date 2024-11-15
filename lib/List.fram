@@ -2,7 +2,7 @@
  # See LICENSE for details.
  #}
 
-pub let isEmpty (xs : List _) =
+pub let isEmpty xs =
   match xs with
   | [] => True
   | _  => False
@@ -82,7 +82,7 @@ pub let rec map f xs =
   | x :: xs => f x :: map f xs
   end
 
-pub let rec mapi {?i : Int} f xs =
+pub let rec mapi { ?i : Int } f xs =
   match i with
   | None   => mapi {i = 0} f xs
   | Some i =>
@@ -124,7 +124,7 @@ pub let rec filter p xs =
   | x :: xs => if p x then x :: filter p xs else filter p xs
   end
 
-pub let rec filteri {?i : Int} p xs =
+pub let rec filteri { ?i : Int } p xs =
   match i with
   | None   => filteri {i = 0} p xs
   | Some i =>
@@ -146,7 +146,7 @@ pub let rec filterMap f xs =
     end
   end
 
-pub let rec filterMapi {?i : Int} f xs =
+pub let rec filterMapi { ?i : Int } f xs =
   match i with
   | None   => filterMapi {i = 0} f xs
   | Some i =>
@@ -193,7 +193,7 @@ pub let rec iter f xs =
   | x :: xs => f x; iter f xs
   end
 
-pub let rec iteri {?i : Int} f xs =
+pub let rec iteri { ?i : Int } f xs =
   match i with
   | None   => iteri {i = 0} f xs
   | Some i =>
@@ -212,11 +212,15 @@ pub let iter2 { ~onError } f xs ys =
     end
   in iter2Aux xs ys
 
-pub let init (len : Int) f =
-  let rec initAux (i : Int) f =
-    if i >= len then []
-    else f i :: initAux (i + 1) f
-  in initAux 0 f
+pub let rec init { ?i : Int } (len : Int) f =
+  match i with
+  | None    => init {i = 0} len f
+  | Some i =>
+    let rec initAux (i : Int) f =
+      if i >= len then []
+      else f i :: initAux (i + 1) f
+    in initAux i f
+  end
 
 pub let rec foldLeft f acc xs =
   match xs with
@@ -330,7 +334,7 @@ pub let findMapErr { ~onError } f xs =
     end
   in findMapErrAux f xs
 
-pub let rec findMapi {?i : Int} f xs =
+pub let rec findMapi { ?i : Int } f xs =
   match i with
   | None   => findMapi {i = 0} f xs
   | Some i =>
@@ -344,7 +348,7 @@ pub let rec findMapi {?i : Int} f xs =
     end
   end
 
-pub let rec findMapiErr { ~onError, ?i : Int} f xs =
+pub let rec findMapiErr { ~onError, ?i : Int } f xs =
   match i with
   | None   => findMapiErr {i = 0} f xs
   | Some i =>
