@@ -115,8 +115,13 @@ type data_def =
       args  : named_tvar list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_decl list
+      ctors : ctor_decl list;
         (** List of constructors. *)
+
+      strictly_positive : bool
+        (** A flag indicating if the type is strictly positively recursive (in
+          particular, not recursive at all) and therefore can be deconstructed
+          in pure way. *)
     }
 
   | DD_Label of (** Label *)
@@ -203,13 +208,15 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
-  | EMatchEmpty of expr * expr * typ * effrow
+  | EMatchEmpty of expr * expr * typ * effrow option
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression, that is a witness that the type of the second
-      parameter is an empty ADT *)
+      parameter is an empty ADT. The last parameter is an optional effect of
+      the whole expression: [None] means that pattern-matching is pure. *)
 
-  | EMatch of expr * match_clause list * typ * effrow
-    (** Pattern-matching. It stores type and effect of the whole expression. *)
+  | EMatch of expr * match_clause list * typ * effrow option
+    (** Pattern-matching. It stores type and effect of the whole expression.
+      If the effect is [None], the pattern-matching is pure. *)
 
   | EHandle of tvar * var * typ * expr * expr
     (** Handling construct. In [EHandle(a, x, tp, e1, e2)] the meaning of
@@ -745,6 +752,11 @@ module CtorDecl : sig
 
   (** Get the index of a constructor with a given name *)
   val find_index : ctor_decl list -> string -> int option
+
+  (** Check if given constructor is strictly positive, i.e., if all type
+    variables on non-strictly positive positions and all scopes of unification
+    variables fit in [nonrec_scope]. *)
+  val strictly_positive : nonrec_scope:scope -> ctor_decl -> bool
 end
 
 (* ========================================================================= *)

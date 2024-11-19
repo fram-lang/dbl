@@ -77,7 +77,7 @@ let rec check_ctor_type_args ~pos ~env ~scope ~sub
 
 (** Extend the environment by a named parameter that is not explicitly
   mentioned. The middle element of returned triple is a set of names
-  implicity bound. *)
+  implicitly bound. *)
 let introduce_implicit_name ~pos env (name : T.name) sch =
   match name with
   | NLabel ->
@@ -304,19 +304,17 @@ and check_type ~env ~scope (pat : S.pattern) tp =
       List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
     if List.length ctor_arg_schemes <> List.length args then
       Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
-        cpath.data (List.length ctor_arg_schemes) (List.length args))
-    else
-      Error.check_unify_result ~is_fatal:true ~pos:pat.pos
-        (Unification.subtype env tp res_tp)
-        ~on_error:(Error.pattern_type_mismatch ~env res_tp tp);
-      let (env, ps2, bn2, _) =
-        check_pattern_schemes ~env ~scope args ctor_arg_schemes in
-      let cname = S.path_name cpath.data in
-      let pat = make
-        (T.PCtor(cname, idx, proof, ctors, tvars, ps1 @ ps2)) in
-      (* Pattern matching is always impure, as due to recursive types it can
-        be used to encode non-termination *)
-      (env, pat, union_bound_names bn1 bn2, Impure)
+        cpath.data (List.length ctor_arg_schemes) (List.length args));
+    Error.check_unify_result ~is_fatal:true ~pos:pat.pos
+      (Unification.subtype env tp res_tp)
+      ~on_error:(Error.pattern_type_mismatch ~env res_tp tp);
+    let (env, ps2, bn2, _) =
+      check_pattern_schemes ~env ~scope args ctor_arg_schemes in
+    let cname = S.path_name cpath.data in
+    let pat = make
+      (T.PCtor(cname, idx, proof, ctors, tvars, ps1 @ ps2)) in
+    let reff = if info.adt_strictly_positive then Pure else Impure in
+    (env, pat, union_bound_names bn1 bn2, reff)
 
 and check_pattern_schemes ~env ~scope pats schs =
   match pats, schs with

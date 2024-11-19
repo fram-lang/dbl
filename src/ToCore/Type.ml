@@ -135,3 +135,9 @@ and tr_scheme env (sch : S.scheme) =
   T.Type.t_foralls tvars
     (T.Type.t_pure_arrows itps
       (tr_ttype env sch_body))
+
+(** Translate optional effect ([None] means pure effect) *)
+let tr_effect_opt env eff =
+  match eff with
+  | None     -> T.TEffPure
+  | Some eff -> tr_effect env eff

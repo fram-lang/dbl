@@ -22,8 +22,12 @@ type adt_info = {
   adt_ctors : T.ctor_decl list;
     (** List of constructors of an ADT *)
 
-  adt_type  : T.typ
+  adt_type  : T.typ;
     (** The type that is an ADT, already applied to [adt_args] *)
+
+  adt_strictly_positive : bool
+    (** A flag indicating that the type is strictly positively recursive, and
+      therefore pattern-matching on it is pure. *)
 }
 
 type var_info =
@@ -57,7 +61,8 @@ let unit_info =
           ctor_named       = [];
           ctor_arg_schemes = []
         } ];
-    adt_type  = T.Type.t_unit
+    adt_type  = T.Type.t_unit;
+    adt_strictly_positive = true
   }
 
 let empty =

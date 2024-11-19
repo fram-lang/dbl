@@ -1,0 +1,11 @@
+data rec List X = [] | (::) of X, List X
+
+let tail xs =
+  match xs with
+  | []      => []
+  | _ :: xs => xs
+  end
+
+let checkPure (f : _ -> _) = ()
+
+let _ = checkPure (tail : List Unit -> List Unit)

@@ -20,8 +20,12 @@ type adt_info = {
   adt_ctors : T.ctor_decl list;
     (** List of constructors of an ADT *)
 
-  adt_type  : T.typ
+  adt_type  : T.typ;
     (** The type that is an ADT, already applied to [adt_args] *)
+
+  adt_strictly_positive : bool
+    (** A flag indicating that the type is strictly positively recursive, and
+      therefore pattern-matching on it is pure. *)
 }
 
 (** Information about variable-like identifier (variable, constructor, etc.) *)
