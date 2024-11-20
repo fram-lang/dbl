@@ -120,7 +120,7 @@ let shadow_names ienv names =
   T.Name.Map.fold
     (fun name _ ienv ->
       match name with
-      | T.NLabel | T.NVar _ | T.NMethod _ -> ienv
+      | T.NLabel | T.NVar _ | T.NOptionalVar _ | T.NMethod _ -> ienv
       | T.NImplicit n -> shadow ienv n)
     names ienv
 

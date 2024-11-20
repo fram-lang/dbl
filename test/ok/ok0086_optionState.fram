@@ -5,17 +5,17 @@ data State (effect E) X = State of
   , put    : X ->[E] Unit
   }
 
-implicit `st {E_st} : State E_st _
+implicit ~st {E_st} : State E_st _
 
 let get x =
-  let (State { get }) = `st in
+  let (State { get }) = ~st in
   get x
 
 let put x =
-  let (State { put }) = `st in
+  let (State { put }) = ~st in
   put x
 
-handle `st =
+handle ~st =
   let get = effect x / r => fn s => r s  s
   let put = effect s / r => fn _ => r () s
   in State { get, put }

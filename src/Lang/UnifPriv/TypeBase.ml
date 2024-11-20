@@ -18,9 +18,10 @@ type named_tvar = tname * tvar
 
 type name =
   | NLabel
-  | NVar      of string
-  | NImplicit of string
-  | NMethod   of string
+  | NVar         of string
+  | NOptionalVar of string
+  | NImplicit    of string
+  | NMethod      of string
 
 type uvar = {
   uid   : UID.t;
@@ -43,7 +44,7 @@ and type_view =
   | TEffrow    of TVar.Set.t * effrow_end
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effrow
-  | THandler   of tvar * typ * typ * effrow
+  | THandler   of tvar * typ * typ * effrow * typ * effrow
   | TLabel     of effect * typ * effrow
   | TApp       of typ * typ
 
@@ -82,7 +83,7 @@ let t_pure_arrow sch tp2 = TPureArrow(sch, tp2)
 
 let t_arrow sch tp2 eff = TArrow(sch, tp2, eff)
 
-let t_handler a tp tp0 eff0 = THandler(a, tp, tp0, eff0)
+let t_handler a tp itp ieff otp oeff = THandler(a, tp, itp, ieff, otp, oeff)
 
 let t_label eff tp0 eff0 = TLabel(eff, tp0, eff0)
 
@@ -90,7 +91,7 @@ let t_app tp1 tp2 = TApp(tp1, tp2)
 
 let perm_name p n =
   match n with
-  | NLabel | NVar _ | NImplicit _ | NMethod _ -> n
+  | NLabel | NVar _ | NOptionalVar _ | NImplicit _ | NMethod _ -> n
 
 let perm_named_tvar p (n, x) =
   (n, TVar.Perm.apply p x)
@@ -139,9 +140,9 @@ and perm_rec p tp =
     TPureArrow(perm_scheme_rec p sch, perm_rec p tp2)
   | TArrow(sch, tp2, eff) ->
     TArrow(perm_scheme_rec p sch, perm_rec p tp2, perm_rec p eff)
-  | THandler(a, tp, tp0, eff0) ->
-    THandler(TVar.Perm.apply p a,
-      perm_rec p tp, perm_rec p tp0, perm_rec p eff0)
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    THandler(TVar.Perm.apply p a, perm_rec p tp,
+      perm_rec p itp, perm_rec p ieff, perm_rec p otp, perm_rec p oeff)
   | TLabel(eff, tp0, eff0) ->
     TLabel(perm_rec p tp, perm_rec p tp0, perm_rec p eff0)
   | TApp(tp1, tp2) ->

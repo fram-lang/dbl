@@ -53,7 +53,7 @@ let in_uvar sub p u =
 
 let in_name sub n =
   match n with
-  | NLabel | NVar _ | NImplicit _ | NMethod _ -> n
+  | NLabel | NVar _ | NOptionalVar _ | NImplicit _ | NMethod _ -> n
 
 (* Substitute in variable of kind [effect]. Since kind [effect] can contain
   only ground effects, substituted type is always (in some sense) a set of
@@ -98,10 +98,15 @@ and in_type_rec sub tp =
     t_pure_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2)
   | TArrow(sch, tp2, eff) ->
     t_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2) (in_type_rec sub eff)
-  | THandler(a, tp, tp0, eff0) ->
+  | THandler(a, tp, itp, ieff, otp, oeff) ->
+    let otp  = in_type_rec sub otp in
+    let oeff = in_type_rec sub oeff in
     let (sub, a) = add_tvar sub a in
     t_handler a (in_type_rec sub tp)
-      (in_type_rec sub tp0) (in_type_rec sub eff0)
+      (in_type_rec sub itp)
+      (in_type_rec sub ieff)
+      otp
+      oeff
   | TLabel(eff, tp0, eff0) ->
     t_label (in_type_rec sub eff) (in_type_rec sub tp0) (in_type_rec sub eff0)
   | TApp(tp1, tp2) ->

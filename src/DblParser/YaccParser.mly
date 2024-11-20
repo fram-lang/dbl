@@ -4,9 +4,8 @@
 
 /** Yacc-generated parser */
 
-%token<string> LID UID TLID
+%token<string> LID UID TLID QLID
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
-%token<string> OP_230 
 %token<int> NUM
 %token<int64> NUM64
 %token<string> STR
@@ -70,6 +69,7 @@ var_id
 name
 : KW_LABEL  { NLabel       }
 | LID       { NVar $1      }
+| QLID      { NOptionalVar $1 }
 | TLID      { NImplicit $1 }
 | KW_METHOD LID { NMethod $2   }
 ;
@@ -134,10 +134,6 @@ uop_150
 : OP_80 { make $1 }
 ;
 
-uop_230
-: OP_230 { make $1 }
-;
-
 op
 : op_0   { $1 }
 | op_20  { $1 }
@@ -149,7 +145,6 @@ op
 | op_80  { $1 }
 | op_90  { $1 }
 | op_100 { $1 }
-| OP_230 { make $1 }
 ; 
 
 /* ========================================================================= */
@@ -269,7 +264,6 @@ expr
 | KW_FN expr_250_list1 ARROW2 expr { make (EFn($2, $4))   }
 | KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr
     { make (EEffect($2, $3, $5)) }
-| KW_HANDLER expr { make (EHandler $2) }
 | expr_0 { $1 }
 ;
 
@@ -278,7 +272,6 @@ expr_no_comma
 | KW_FN expr_250_list1 ARROW2 expr_no_comma { make (EFn($2, $4))   }
 | KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr_no_comma
     { make (EEffect($2, $3, $5)) }
-| KW_HANDLER expr_no_comma { make (EHandler $2) }
 | expr_0_no_comma { $1 }
 ;
 
@@ -409,11 +402,11 @@ expr_150
 ;
 
 expr_200
-: expr_230 { $1 }
+: expr_250 { $1 }
 | expr_250 expr_250_list1 { make (EApp($1, $2)) }
 | expr_200 GT_DOT lid expr_250_list { make (EMethodCall($1, $3, $4)) }
 | KW_EXTERN LID { make (EExtern $2) }
-| KW_PUB expr_230 { make (EPub $2) }
+| KW_PUB expr_250 { make (EPub $2) }
 ;
 
 expr_ctor
@@ -424,11 +417,6 @@ expr_select
 : UID DOT expr_ctor   { (NPName $1, $3) }
 | UID DOT expr_300    { (NPName $1, $3) }
 | UID DOT expr_select { let (p, e) = $3 in (NPSel($1, p), e) }
-
-expr_230
-: uop_230 expr_230 { make (EUOp($1, $2))}
-| expr_250 { $1 }
-;
 
 expr_250
 : expr_300    { $1 }
@@ -465,6 +453,7 @@ expr_simple
 | KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
+| KW_HANDLER expr h_clauses KW_END { make (EHandler($2, $3)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
 | BR_OPN op BR_CLS           { make (EBOpID ($2).data)}
 | BR_OPN op DOT BR_CLS       { make (EUOpID ($2).data)}
@@ -534,8 +523,8 @@ def
 | pub KW_LABEL rec_opt expr_70 { make_def $3 (DLabel($1, $4)) }
 | pub KW_HANDLE rec_opt expr_70 EQ expr h_clauses
     { make_def $3 (DHandle($1, $4, $6, $7)) }
-| pub KW_HANDLE rec_opt expr_70 KW_WITH expr h_clauses
-    { make_def $3 (DHandleWith($1, $4, $6, $7)) }
+| pub KW_HANDLE rec_opt expr_70 KW_WITH expr
+    { make_def $3 (DHandleWith($1, $4, $6)) }
 | pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
 | pub KW_METHOD KW_FN var_id { make (DMethodFn($1, $4, $4)) }
 | pub KW_METHOD KW_FN var_id EQ var_id { make (DMethodFn($1, $4, $6)) }

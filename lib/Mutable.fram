@@ -36,17 +36,17 @@ pub method length {self : ConstArray _} =
 pub method get {E, type T, self : Ref E T} =
   (extern dbl_refGet : Ref E T ->[E] T) self
 
-pub method get {E, type T, `onError, self : Array E T} (n : Int) =
+pub method get {E, type T, ~onError, self : Array E T} (n : Int) =
   if n >= 0 && n < self.length then
     unsafeGetArray {E} self n
   else
-    `onError ()
+    ~onError ()
 
-pub method get {type T, `onError, self : ConstArray T} (n : Int) =
+pub method get {type T, ~onError, self : ConstArray T} (n : Int) =
   if n >= 0 && n < self.length then
     unsafeGetConstArray self n
   else
-    `onError ()
+    ~onError ()
 
 pub method set {E, type T, self : Ref E T} =
   (extern dbl_refSet : Ref E T -> T ->[E] Unit) self
@@ -132,16 +132,16 @@ pub method pureInitArray {E, self : Mut E} (n : Int) (f : _ ->[E] _) =
 pub let pureInitConstArray n (f : _ ->[] _) =
   unsafeFreeze {E=[]} (Mut {effect=[]} >.pureInitArray n f)
 
-pub method toArray {E, `mut : Mut E, self : List _} =
+pub method toArray {E, ~mut : Mut E, self : List _} =
   let arr = unsafeMakeArray {E} self.length in
   self.iteri (unsafeSetArray {E} arr);
   arr
 
 pub method toConstArray {self : List _} =
-  unsafeFreeze {E=[]} (self.toArray {`mut = Mut {effect=[]}})
+  unsafeFreeze {E=[]} (self.toArray {~mut = Mut {effect=[]}})
 
 pub method initArray {E, self : Mut E} n f =
-  (List.init n f).toArray {`mut=self}
+  (List.init n f).toArray {~mut=self}
 
 pub let initConstArray n f =
   (List.init n f).toConstArray

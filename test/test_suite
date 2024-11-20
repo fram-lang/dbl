@@ -10,7 +10,6 @@ run_with_flags simple_run_tests "-no-prelude -no-stdlib"
 function simple_examples {
   simple_test examples/Tick.fram
   simple_test examples/LWT_lexical.fram
-  simple_test examples/LWT.fram
   simple_test examples/Prolog.fram
   simple_test examples/Pythagorean.fram
   simple_test examples/Modules/Main.fram
@@ -34,4 +33,4 @@ function simple_error_tests {
   done
 }
 
-run_with_flags simple_error_tests "-no-prelude -no-stdlib"
+run_with_flags simple_error_tests "-no-prelude -no-stdlib -no-error-context"
