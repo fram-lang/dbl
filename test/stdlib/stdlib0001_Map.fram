@@ -1,4 +1,4 @@
-import OrderedMap
+import Map
 import open List
 import open Ordered
 import open Prelude
@@ -11,7 +11,7 @@ let lt (v1 : Int) (v2 : Int) =
     else if v2 < v1 then Greater
     else Equal
 
-let OrderedMap.Map {module IntMap} = OrderedMap.makeOrderedMap lt
+let Map.Map {module IntMap} = Map.make lt
 
 let x = IntMap.empty
 
@@ -23,10 +23,6 @@ let z = x.insert 1 "a"
 let _ = assert (y.isEmpty == False)
 let _ = assert (z.isEmpty == False)
 let _ = assert (y.remove 1 >. isEmpty)
-
-(* singleton check *)
-let y = IntMap.singleton 1 1 
-let _ = assert (y.toValueList == [1])
 
 (* domain check *)
 let z = y.insert 2 1 >. insert 3 2 >. insert 4 3
@@ -78,15 +74,9 @@ let _ = assert (fst q >. toValueList == [3,2])
 let _ = assert (snd q >. toValueList == [1,10,1,2,3])
 
 (* rangeee check *)
-let q = w.rangeee 0 2
+let q = w.range (Exclusion 0) (Exclusion 2)
 let _ = assert (q.toValueList == [10])
-
-(* rangeii check *)
-let q = w.rangeii 0 2
+let q = w.range (Inclusion 0) (Inclusion 2)
 let _ = assert (q.toValueList == [1,10,1])
-
-(* rangeie check *)
-let _ = assert (w.rangeie 0 2 >. toValueList == [1,10])
-
-(* rangeei check *)
-let _ = assert (w.rangeei 0 2 >. toValueList == [10,1])
+let _ = assert (w.range (Inclusion 0) (Exclusion 2) >. toValueList == [1,10])
+let _ = assert (w.range (Exclusion 0) (Inclusion 2) >. toValueList == [10,1])

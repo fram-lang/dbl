@@ -1,4 +1,4 @@
-import OrderedSet
+import Set
 import open List
 import open Ordered
 import open Prelude
@@ -11,15 +11,17 @@ let lt (v1 : Int) (v2 : Int) =
     else if v2 < v1 then Greater
     else Equal
 
-let OrderedSet.Set {module IntSet} = OrderedSet.makeOrderedSet lt
+let Set.Set {module IntSet} = Set.make lt
 
 (* empty check *)
 let x = IntSet.empty
 let _ = assert (x.isEmpty)
 
-(* singletonSet check *)
-let x = 0.singletonSet
-let _ = assert (not x.isEmpty)
+(* singletonSet check depricated *)
+(*let x = 0.singletonSet
+let _ = assert (not x.isEmpty)*)
+
+let x = x.insert 0
 
 (* toList check *)
 let _ = assert (x.toList == [0])
@@ -65,8 +67,8 @@ let _ = assert (not (x.subset y))
 let _ = assert (fst (y.partionLt 2) >. toList == [0,1])
 let _ = assert (snd (y.partionLt 2) >. toList == [2,3])
 
-(* rangeii check *)
-let _ = assert (y.rangeii 1 2 >. toList == [1,2])
+(* range check *)
+let _ = assert (y.range (Inclusion 1) (Inclusion 2) >. toList == [1,2])
 
 (* least check *)
 let _ = assert (match y.least with | Some x => x == 0 | _ => False end)

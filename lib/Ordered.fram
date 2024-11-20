@@ -2,12 +2,14 @@
  * See LICENSE for details.
 *)
 
-import open Comparable
+pub data Comparable = Eq| Noteq
 
 pub data Ordered = 
 | Less
 | Equal
 | Greater
+
+pub data Interval Value = Inclusion of Value | Exclusion of Value
 
 pub let ordToComp elem = match elem with | Equal => Eq | _ => Noteq end
 
