@@ -6,7 +6,7 @@ import open Types
 import open Operators
 
 pub method toString = (extern dbl_intToString : Int -> String) self
-pub method toInt64 = (extern dbl_int64ToInt : Int -> Int64) self
+pub method toInt64 = (extern dbl_intToInt64 : Int -> Int64) self
 
 pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
 pub method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self

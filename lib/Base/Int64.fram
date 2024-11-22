@@ -47,11 +47,11 @@ pub method toString {self : Int64} =
   (extern dbl_int64ToString : Int64 -> String) self
 pub method toInt {~re : {type X} -> Unit ->[|_] X, self : Int64} =
   if self <= 0x3fffffffffffffffL && self >= 0xc000000000000000L then
-    (extern dbl_intToInt64 : Int64 -> Int) self
+    (extern dbl_int64ToInt : Int64 -> Int) self
   else ~re ()
 pub method toIntOpt {self : Int64} =
   if self <= 0x3fffffffffffffffL && self >= 0x7fffffffffffffffL then
-    Some ((extern dbl_intToInt64 : Int64 -> Int) self)
+    Some ((extern dbl_int64ToInt : Int64 -> Int) self)
   else None
 
 pub method abs {self : Int64} =
