@@ -2,7 +2,17 @@
  * See LICENSE for details.
  *)
 
-(** Base HTML-like protocol *)
+(** Base HTTP-like protocol *)
+
+(** The JSON-RPC messages are sent over this simple protocol.
+  It consists of a header and a content part, separated by "\r\n":
+    header1: value1\r\n
+    header2: value2\r\n
+    \r\n
+    [JSON-RPC message]
+  The only recognized headers are Content-Length and Content-Type
+  and there is really one possible value for Content-Type,
+  so we don't care about that. *)
 
 open In_channel
 open Out_channel
@@ -22,11 +32,11 @@ let parse_header headers line =
     | Some len -> { headers with content_length = Some len }
     end
   | ["Content-Type"; value] -> { headers with content_type = Some value }
-  | _ -> raise (Connection_error ("Invalid header: " ^ line))
+  | _ -> headers
 
 let rec collect_headers (ic: in_channel) =
   match input_line ic with
-  | None -> raise (Connection_error "Unexpected end of file")
+  | None -> raise (Connection_error "Unexpected end of input")
   | Some "\r" -> []
   | Some line -> line :: collect_headers ic
 
@@ -38,7 +48,7 @@ let receive_headers (ic: in_channel) =
 
 let receive_body (ic: in_channel) len =
   match really_input_string ic len with
-  | None -> raise (Connection_error "Unexpected end of file")
+  | None -> raise (Connection_error "Unexpected end of input")
   | Some body -> body
 
 let receive_string (ic: in_channel) =

@@ -24,7 +24,8 @@ type error_class =
 (** Report the error *)
 val report : ?pos:Position.t -> cls:error_class -> string -> unit
 
-(* Used by the language server to intercept reports *)
+(** Set a custom function to intercept reports.
+  All reports will be made to this function. Used by the language server. *)
 val set_report_function :
   (?pos:Position.t -> cls:error_class -> string -> unit) -> unit
 

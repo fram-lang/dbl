@@ -2,4 +2,4 @@
   (name framls)
   (modes byte exe)
   (public_name framls)
-  (libraries yojson dblParser interpLib typeInference toCore))
+  (libraries yojson uri dblParser interpLib typeInference toCore))

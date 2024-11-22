@@ -2,10 +2,14 @@
  * See LICENSE for details.
  *)
 
-(** Main loop. Get message, handle it, send response. *)
+(** Main loop. Get a message, handle it, send response. *)
 
 open Connection
 open Message
+
+(* ------------------------------------------------------------------------- *)
+(* Auxiliary functions doing type -> json -> string conversion
+  and sending it to the output *)
 
 let send_response state response =
   let response_json = json_of_response response in
@@ -21,43 +25,49 @@ let send_notification state notification =
   let message = message_of_notification notification in
   send_message state message
 
-let rec run (state : State.t) handle_request handle_notification =
+let send_error state ?id code message =
+  let error = make_response_error ~code ~message () |> Result.error in
+  let response = make_response ?id ~result_or_error:error () in
+  send_response state response
+
+(* ------------------------------------------------------------------------- *)
+(* Main function *)
+
+let rec run state handle_request handle_notification =
+
+  (* Handle messages in a loop *)
   let rec loop state =
-    let open Yojson.Safe.Util in
-
-    let ic = State.in_channel state in
-
-    let message_raw = receive_string ic in
-    match parse_message_option message_raw with
-    | None ->
-      let response = make_response
-        (make_response_error ~code:ParseError ~message:"Parse error" ()) in
-      send_response state response;
+    let string = receive_string (State.in_channel state) in
+    match message_of_string string with
+    (* There was an error parsing the message *)
+    | Error (code, msg) ->
+      send_error state code msg;
       loop state
-    | Some { id; method_name; params; _ } ->
-      try
-        match id with
-        | None ->
-          let notification = parse_notification method_name params in
-          let state = handle_notification state notification in
-          loop state
-        | Some id ->
-          let request = parse_request method_name params in
-          let state, result_or_error = handle_request state request in
-          let response = make_response ~id result_or_error in
-          send_response state response;
-          loop state
-      with
-      (* Only send error response if the message was a Request *)
-      | Type_error _ when Option.is_some id ->
-        let error = make_response_error
-            ~code:InvalidParams
-            ~message:"Invalid params" () in
-        let response = make_response ?id error in
+    (* The message is a notification *)
+    | Ok ({ id = None; _ } as message) -> begin
+      match notification_of_message message with
+      | Ok notification ->
+        let state = handle_notification state notification in
+        loop state
+      (* There was an error interpreting the message as notification.
+        Because notifications don't get a response, we ignore it
+        (according to the specification). *)
+      | Error _ ->
+        loop state
+      end
+    (* The message is a request *)
+    | Ok ({ id = Some id; _ } as message) -> begin
+      match request_of_message message with
+      | Ok request ->
+        let state, result = handle_request state request in
+        let response = make_response ~id ~result_or_error:result () in
         send_response state response;
         loop state
-      (* The server MUST NOT reply to a Notification even in case of an error *)
-      | Type_error _ ->
+      (* There was an error interpreting the message as a request *)
+      | Error (code, msg) ->
+        send_error state ~id code msg;
         loop state
+      end
+
   in loop state
 
