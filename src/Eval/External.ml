@@ -55,8 +55,12 @@ let int64_cmpop op = int64_fun2 (fun x y -> of_bool (op x y))
 
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
 
+let runtime_error msg =
+  failwith ("Runtime error: " ^ msg)
+
 let extern_map =
-  [ "dbl_negInt",      int_unop ( ~- );
+  [ "dbl_runtimeError", str_fun runtime_error;
+    "dbl_negInt",      int_unop ( ~- );
     "dbl_addInt",      int_binop ( + );
     "dbl_subInt",      int_binop ( - );
     "dbl_mulInt",      int_binop ( * );

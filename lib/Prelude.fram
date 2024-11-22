@@ -4,6 +4,7 @@
 
 import /Base/Types
 import /Base/Operators
+import /Base/Assert
 import /Base/Bool
 import /Base/Int
 import /Base/Int64
@@ -12,6 +13,7 @@ import /Base/String
 
 pub open Types
 pub open Operators
+pub open Assert
 
 pub let id x = x
 
