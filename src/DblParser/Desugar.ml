@@ -42,6 +42,19 @@ let tr_ctor_name' (cname : Raw.ctor_name) =
 
 let with_nowhere data = { pos = Position.nowhere; data = data}
 
+let rec node_is_rec_data (def : Raw.def) =
+  match def.data with
+  | DRecord _ -> true
+  | DData   _ -> true
+  | DLabel  _ -> true
+  | _ -> false
+
+let node_is_data_def (def : def) =
+  match def.data with
+  | DData  _ -> true
+  | DLabel _ -> true
+  | _ -> false
+
 let annot_tp e tp =
   { pos = e.pos;
     data = Raw.EAnnot(e, with_nowhere tp)
@@ -751,6 +764,11 @@ and tr_def ?(public=false) (def : Raw.def) =
   | DOpen(pub, path) -> 
     let public = public || pub in
     [ make (DOpen(public, path)) ]
+  | DRec(pub, defs) when List.for_all node_is_rec_data defs ->
+    let public = public || pub in
+    let dds, accessors = tr_defs ~public defs
+      |> List.partition node_is_data_def in
+    make (DRec dds) :: accessors
   | DRec(pub, defs) ->
     let public = public || pub in
     [ make (DRec (tr_defs ~public defs)) ]
