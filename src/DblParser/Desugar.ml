@@ -765,6 +765,9 @@ and tr_def ?(public=false) (def : Raw.def) =
     let public = public || pub in
     [ make (DOpen(public, path)) ]
   | DRec(pub, defs) when List.for_all node_is_rec_data defs ->
+    (* This case is a quick fix to make most record accessors
+       not marked impure if they aren't. (Explained #160) *)
+    (* TODO: Remove when more robust solution is implemented *)
     let public = public || pub in
     let dds, accessors = tr_defs ~public defs
       |> List.partition node_is_data_def in
