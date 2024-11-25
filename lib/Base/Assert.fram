@@ -14,7 +14,7 @@ pub let runtimeError {type T} =
   (extern dbl_runtimeError : String ->[] T)
 
 (** Explicitly assert, that this case is impossible *)
-pub let assertImpossible {?msg : String} () =
+pub let impossible {?msg : String} () =
   runtimeError
     match msg with
     | None     => "Assertion failed"
@@ -25,4 +25,4 @@ pub let assertImpossible {?msg : String} () =
 pub let assert {?msg} b =
   if b then ()
   else
-    assertImpossible {?msg} ()
+    impossible {?msg} ()

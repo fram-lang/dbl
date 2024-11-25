@@ -4,6 +4,8 @@
 
 open Value
 
+exception Runtime_error = External.Runtime_error
+
 (** Evaluator *)
 (* ========================================================================= *)
 
@@ -90,7 +92,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     end
   | ERepl func -> eval_repl env func cont
   | EReplExpr(e1, tp, e2) ->
-    Printf.printf ": %s\n" tp;
+    Printf.printf ": %s\n%!" tp;
     eval_expr env e1 (fun v1 ->
       Printf.printf "= %s\n" (to_string v1);
       eval_expr env e2 cont)

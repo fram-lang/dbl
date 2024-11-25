@@ -4,26 +4,32 @@
 
 open Value
 
+exception Runtime_error
+
 (** External functions *)
 (* ========================================================================= *)
+
+let runtime_error msg =
+  Printf.eprintf "Runtime error: %s\n%!" msg;
+  raise Runtime_error
 
 let unit_fun f = VFn (fun v cont -> cont (f ()))
 
 let int_fun f = VFn (fun v cont ->
   match v with
   | VNum n -> cont (f n)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not an integer")
 
 let str_fun f = VFn (fun v cont ->
   match v with
   | VStr s -> cont (f s)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not a string")
 
 let list_chr_fun f = VFn (fun v cont ->
   let rec parse_list = function
   | VCtor(0, []) -> []
   | VCtor(1, [VNum x; xs]) -> Char.chr x :: parse_list xs 
-  | _ -> failwith "Runtime error!" in
+  | _ -> runtime_error "Not a list" in
   cont (f @@ parse_list v))
 
 let v_unit = VCtor(0, [])
@@ -44,7 +50,7 @@ let int_cmpop op = int_fun2 (fun x y -> of_bool (op x y))
 let int64_fun f = VFn (fun v cont ->
   match v with
   | VNum64 n -> cont (f n)
-  | _ -> failwith "Runtime error!")
+  | _ -> failwith "Not a 64-bit integer")
 
 let int64_fun2 f = int64_fun (fun x -> int64_fun (f x))
 
@@ -54,9 +60,6 @@ let int64_int_op op = int64_fun2 (fun x y -> VNum64 (op x (Int64.to_int y)))
 let int64_cmpop op = int64_fun2 (fun x y -> of_bool (op x y))
 
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
-
-let runtime_error msg =
-  failwith ("Runtime error: " ^ msg)
 
 let extern_map =
   [ "dbl_runtimeError", str_fun runtime_error;
