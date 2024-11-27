@@ -4,4 +4,6 @@
 
 (** Evaluator *)
 
+exception Runtime_error
+
 val eval_program : Lang.Untyped.program -> unit

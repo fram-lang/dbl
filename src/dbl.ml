@@ -79,3 +79,4 @@ let _ =
     | Some fname -> Pipeline.run_file fname
   with
   | InterpLib.Error.Fatal_error -> exit 1
+  | Eval.Runtime_error -> exit 2
