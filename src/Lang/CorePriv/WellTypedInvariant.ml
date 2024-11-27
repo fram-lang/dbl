@@ -188,9 +188,9 @@ let rec tr_types_sub env sub xs tps =
   | [], _ :: _ | _ :: _, [] ->
     failwith "Internal type error"
 
-(** [tr_tvars_sub env sub xs ys] extends environment [env] by variables [ys]
-  and extends substitution [sub] by a mapping from [xs] to refreshed [ys].
-  It returns pair: extended environment and extended substitution. *)
+(** [tr_tvars_sub env sub xs ys] extends environment [env] by variables [xs]
+  and extends substitution [sub] by a mapping from [ys] to refreshed [xs].
+  It returns a pair: the extended environment and the extended substitution. *)
 let rec tr_tvars_sub env sub xs ys =
   match xs, ys with
   | [], [] -> (env, sub)
