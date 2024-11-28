@@ -10,11 +10,13 @@ data Color =
   | Black
 pub data rec Tree Value = 
   | Leaf
-  | Node of {color: Color,
-            size: Int,
-            left: Tree Value,
-            value: Value,
-            right: Tree Value}
+  | Node of {
+      color: Color,
+      size: Int,
+      left: Tree Value,
+      value: Value,
+      right: Tree Value
+    }
 data ZipElem Value =
   | Left of Color, Value, Tree Value
   | Right of Color, Tree Value, Value 
@@ -22,168 +24,168 @@ data ZipElem Value =
 pub let empty = Leaf
 
 pub let size tree = 
- match tree with
- | Leaf => 0
- | Node {size} => size
- end
+  match tree with
+    | Leaf => 0
+    | Node {size} => size
+  end
 
 pub let makeNode color left value right = 
- Node {color, size = size left + size right + 1, left, value, right}
+  Node {color, size = size left + size right + 1, left, value, right}
 
 pub let construct color size left value right = 
   Node {color,size,left,value,right}
 
 pub let rec zip tree zipper =
- match zipper with
- | [] => tree
+  match zipper with
+  | [] => tree
 
- | Left color value right :: rest => 
-    zip (makeNode color tree value right) rest
+  | Left color value right :: rest => 
+      zip (makeNode color tree value right) rest
 
- | Right color left value :: rest => 
-    zip (makeNode color left value tree) rest
+  | Right color left value :: rest => 
+      zip (makeNode color left value tree) rest
 
  end
 
 pub let rec zipRed value left right zipper =
- match zipper with
- |[] => makeNode Black left value right
+  match zipper with
+  |[] => makeNode Black left value right
 
- |Left Black value1 right1 :: rest => 
-    zip (makeNode Black (makeNode Red left value right) value1 right1) rest
+  |Left Black value1 right1 :: rest => 
+      zip (makeNode Black (makeNode Red left value right) value1 right1) rest
 
- | Right Black left1 value1  :: rest => 
-    zip (makeNode Black left1 value1 (makeNode Red left value right)) rest
+  | Right Black left1 value1  :: rest => 
+      zip (makeNode Black left1 value1 (makeNode Red left value right)) rest
 
- |Left Red value1 right1 :: 
-  Left _ value2 
-  (Node {color = Red, size = bulk3, left = left3,
-  value = value3, right = right3}) :: rest => 
-    zipRed value2 
-    (makeNode Black (makeNode Red left value right) value1 right1) 
-    (construct Black bulk3 left3 value3 right3) rest
+  | Left Red value1 right1 :: 
+    Left _ value2 
+    (Node {color = Red, size = bulk3, left = left3,
+    value = value3, right = right3}) :: rest => 
+      zipRed value2 
+      (makeNode Black (makeNode Red left value right) value1 right1) 
+      (construct Black bulk3 left3 value3 right3) rest
 
- |Left Red value1 right1 ::
-  Right _ 
-  (Node {color = Red, size = bulk3, left = left3,
+  | Left Red value1 right1 ::
+    Right _ 
+    (Node {color = Red, size = bulk3, left = left3,
     value = value3, right = right3}) value2 :: rest => 
-    zipRed value2 
-    (construct Black bulk3 left3 value3 right3)
-    (makeNode Black (makeNode Red left value right) value1 right1) rest 
+      zipRed value2 
+      (construct Black bulk3 left3 value3 right3)
+      (makeNode Black (makeNode Red left value right) value1 right1) rest 
 
- |Right Red left1 value1 :: 
-  Left _ value2 
-  (Node {color = Red, size = bulk3, left = left3,
-  value = value3, right = right3}) :: rest => 
-    zipRed value2 
-    (makeNode Black left1 value1 (makeNode Red left value right))
-    (construct Black bulk3 left3 value3 right3) rest
+  | Right Red left1 value1 :: 
+    Left _ value2 
+    (Node {color = Red, size = bulk3, left = left3,
+    value = value3, right = right3}) :: rest => 
+      zipRed value2 
+      (makeNode Black left1 value1 (makeNode Red left value right))
+      (construct Black bulk3 left3 value3 right3) rest
 
- |Right Red left1 value1 :: 
-  Right _ (Node {color = Red, size = bulk3, left = left3,
-  value = value3, right = right3}) value2 :: rest => 
-    zipRed value2 
-    (construct Black bulk3 left3 value3 right3) 
-    (makeNode Black left1 value1 (makeNode Red left value right)) rest
+  | Right Red left1 value1 :: 
+    Right _ (Node {color = Red, size = bulk3, left = left3,
+    value = value3, right = right3}) value2 :: rest => 
+      zipRed value2 
+      (construct Black bulk3 left3 value3 right3) 
+      (makeNode Black left1 value1 (makeNode Red left value right)) rest
 
- |Left Red value1 right1 ::
-  Left _ value2 node3 :: rest => 
-    zip 
-    (makeNode Black (makeNode Red left value right) value1 
-    (makeNode Red right1 value2 node3)) rest 
+  | Left Red value1 right1 ::
+    Left _ value2 node3 :: rest => 
+      zip 
+      (makeNode Black (makeNode Red left value right) value1 
+      (makeNode Red right1 value2 node3)) rest 
 
- |Left Red value1 right1 ::
-  Right _ node3 value2  :: rest => 
-    zip 
-    (makeNode Black (makeNode Red node3 value2 left)
-    value (makeNode Red right value1 right1)) rest
+  | Left Red value1 right1 ::
+    Right _ node3 value2  :: rest => 
+      zip 
+      (makeNode Black (makeNode Red node3 value2 left)
+      value (makeNode Red right value1 right1)) rest
 
- |Right Red left1 value1 ::
-  Left _ value2 node3 :: rest => 
-    zip 
-    (makeNode Black (makeNode Red left1 value1 left)
-    value (makeNode Red right value2 node3)) rest
+  | Right Red left1 value1 ::
+    Left _ value2 node3 :: rest => 
+      zip 
+      (makeNode Black (makeNode Red left1 value1 left)
+      value (makeNode Red right value2 node3)) rest
 
- |Right Red left1 value1 ::
-  Right _  node3 value2 :: rest => 
-    zip 
-    (makeNode Black (makeNode Red node3 value2 left1)
-    value1 (makeNode Red left value right)) rest 
+  | Right Red left1 value1 ::
+    Right _  node3 value2 :: rest => 
+      zip 
+      (makeNode Black (makeNode Red node3 value2 left1)
+      value1 (makeNode Red left value right)) rest 
 
- |Left Red value1 right1 :: 
+  | Left Red value1 right1 :: 
     [] => makeNode Black (makeNode Red left value right) value1 right1
 
- |Right Red left1 value1 :: 
+  | Right Red left1 value1 :: 
     [] => makeNode Black left1 value1 (makeNode Red left value right)
 
  end
 
 pub let rec zipBlack tree zipper =
- match zipper with
- |[] => tree
+  match zipper with
+  | [] => tree
 
- |Left color1 value1 
-  (Node {left = left2, value = value2,
-  right = (Node {color = Red, size = bulk3, 
-  left = left3, value = value3, right = right3})}) ::
-  rest => 
-    zip 
-    (makeNode color1 (makeNode Black tree value1 left2 ) value2
-    (construct Black bulk3 left3 value3 right3)) rest
+  | Left color1 value1 
+    (Node {left = left2, value = value2,
+    right = (Node {color = Red, size = bulk3, 
+    left = left3, value = value3, right = right3})}) ::
+    rest => 
+      zip 
+      (makeNode color1 (makeNode Black tree value1 left2 ) value2
+      (construct Black bulk3 left3 value3 right3)) rest
 
- |Right color1 (Node { left = (Node {color = Red, size = bulk3, left = left3, 
-  value = value3, right = right3}), value = value2, right = right2}) 
-  value1 :: rest => 
-    zip 
-    (makeNode color1 (construct Black bulk3 left3 value3 right3) value2
-    (makeNode Black right2 value1 tree)) rest
+  | Right color1 (Node { left = (Node {color = Red, size = bulk3, left = left3,
+    value = value3, right = right3}), value = value2, right = right2}) 
+    value1 :: rest => 
+      zip 
+      (makeNode color1 (construct Black bulk3 left3 value3 right3) value2
+      (makeNode Black right2 value1 tree)) rest
 
- |Left color1 value1 (Node {left = (Node {color = Red, left = left3, 
-  value = value3, right = right3}), value = value2, right = right2}) :: rest => 
-    zip 
-    (makeNode color1 (makeNode Black tree value1 left3) value3
-    (makeNode Black right3 value2 right2)) rest
+  | Left color1 value1 (Node {left = (Node {color = Red, left = left3, 
+    value = value3, right = right3}), value = value2, right = right2}) :: rest => 
+      zip 
+      (makeNode color1 (makeNode Black tree value1 left3) value3
+      (makeNode Black right3 value2 right2)) rest
 
- |Right color1 (Node {left = left2, value = value2, right = 
-  (Node {color = Red,left = left3, value = value3, right = right3})})
-  value1 :: rest => 
-    zip (makeNode color1 (makeNode Black left2 value2 left3)
-    value3 (makeNode Black right3 value1 tree)) rest 
+  | Right color1 (Node {left = left2, value = value2, right = 
+    (Node {color = Red,left = left3, value = value3, right = right3})})
+    value1 :: rest => 
+      zip (makeNode color1 (makeNode Black left2 value2 left3)
+      value3 (makeNode Black right3 value1 tree)) rest 
 
- |Left Red value1 (Node {size = bulk2, left = left2, 
-  value = value2, right=right2}) :: rest => 
-    zip 
-    (makeNode Black tree value1 (construct Red bulk2 left2 value2 right2)) rest
+  | Left Red value1 (Node {size = bulk2, left = left2, 
+    value = value2, right=right2}) :: rest => 
+      zip 
+      (makeNode Black tree value1 (construct Red bulk2 left2 value2 right2)) rest
 
- |Right Red (Node {size = bulk2, left = left2, 
-  value = value2, right = right2}) value1 :: rest =>
-    zip 
-    (makeNode Black (construct Red bulk2 left2 value2 right2) value1 tree) rest
+  | Right Red (Node {size = bulk2, left = left2, 
+    value = value2, right = right2}) value1 :: rest =>
+      zip 
+      (makeNode Black (construct Red bulk2 left2 value2 right2) value1 tree) rest
 
- |Left Black value1 (Node {color = Black, size = bulk2, left = left2,
-  value = value2,right = right2}) :: rest => 
-    zipBlack 
-    (makeNode Black tree value1 (construct Red bulk2 left2 value2 right2)) rest
+  | Left Black value1 (Node {color = Black, size = bulk2, left = left2,
+    value = value2,right = right2}) :: rest => 
+      zipBlack 
+      (makeNode Black tree value1 (construct Red bulk2 left2 value2 right2)) rest
 
- |Right Black (Node {color = Black, size = bulk2, left = left2, 
-  value = value2, right = right2}) value1 :: rest => 
-    zipBlack 
-    (makeNode Black (construct Red bulk2 left2 value2 right2) value1 tree) rest
+  | Right Black (Node {color = Black, size = bulk2, left = left2, 
+    value = value2, right = right2}) value1 :: rest => 
+      zipBlack 
+      (makeNode Black (construct Red bulk2 left2 value2 right2) value1 tree) rest
 
- |Left Black value1 (Node {color = Red, left = left2,
-  value = value2, right = right2}) :: rest =>
-    zipBlack 
-    tree (Left Red value1 left2 :: Left Black value2 right2 :: rest)
+  | Left Black value1 (Node {color = Red, left = left2,
+    value = value2, right = right2}) :: rest =>
+      zipBlack 
+      tree (Left Red value1 left2 :: Left Black value2 right2 :: rest)
 
- |Right Black (Node {color = Red, left = left2, value = value2, 
-  right = right2}) value1 :: rest =>
-    zipBlack 
-    tree (Right Red  right2  value1 :: Right Black left2 value2 :: rest)
+  | Right Black (Node {color = Red, left = left2, value = value2, 
+    right = right2}) value1 :: rest =>
+      zipBlack 
+      tree (Right Red  right2  value1 :: Right Black left2 value2 :: rest)
    
   //Impossible
- | Left _ _ Leaf :: _ => tree 
+  | Left _ _ Leaf :: _ => tree 
 
- | Right _ Leaf _  :: _ => tree
+  | Right _ Leaf _  :: _ => tree
 
  end
 

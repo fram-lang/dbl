@@ -5,16 +5,16 @@
 data NotNegativeInt = Zero | Positive of Int
 
 let addOne value = 
-match value with
-| Zero => Positive 1
-| Positive n => Positive (n+1)
-end
+  match value with
+    | Zero => Positive 1
+    | Positive n => Positive (n+1)
+  end
 
 let subOne value = 
-match value with
-| Zero => Zero
-| Positive n => if n == 1 then Zero else Positive (n-1)
-end
+  match value with
+  | Zero => Zero
+  | Positive n => if n == 1 then Zero else Positive (n-1)
+  end
 
 data RotationState Val = 
   | Idle
@@ -27,84 +27,84 @@ data HoodMelvilleQueue Val =
    NotNegativeInt, List Val
 
 let exec state = 
-match state with 
-  | Reversing ok (x::f) f' (y::r) r' => 
-    Reversing (addOne ok) f (x::f') r (y::r')
-  | Reversing ok [] f' [y] r' => Appending ok f' (y::r')
-  | Appending Zero f' r' => Done r'
-  | Appending ok (x::f') r' => Appending (subOne ok) f' (x::r')
-  | _ => state
-end
+  match state with 
+    | Reversing ok (x::f) f' (y::r) r' => 
+      Reversing (addOne ok) f (x::f') r (y::r')
+    | Reversing ok [] f' [y] r' => Appending ok f' (y::r')
+    | Appending Zero f' r' => Done r'
+    | Appending ok (x::f') r' => Appending (subOne ok) f' (x::r')
+    | _ => state
+  end
 
 let invalidate state =
-match state with
-  | Reversing ok f f' r r' => Reversing (subOne ok) f f' r r'
-  | Appending Zero f' (x::r') => Done r'
-  | Appending ok f' r' => Appending (subOne ok) f' r'
-  | _ => state
-end
+  match state with
+    | Reversing ok f f' r r' => Reversing (subOne ok) f f' r r'
+    | Appending Zero f' (x::r') => Done r'
+    | Appending ok f' r' => Appending (subOne ok) f' r'
+    | _ => state
+  end
 
 let exec_twice hmqueue =
-match hmqueue with
-| HMQueue lenf f state lenr r => 
-  match exec (exec state) with
-  | Done newf => HMQueue lenf newf Idle lenr r
-  | newstate => HMQueue lenf f newstate lenr r
+  match hmqueue with
+  | HMQueue lenf f state lenr r => 
+    match exec (exec state) with
+    | Done newf => HMQueue lenf newf Idle lenr r
+    | newstate => HMQueue lenf f newstate lenr r
+    end
   end
-end
 
 let leq v1 v2 = 
-match (v1,v2) with
-| (Zero,Zero) => True
-| (Zero,Positive _) => True
-| (Positive _, Zero) => False
-| (Positive n, Positive m) => n <= m
-end
+  match (v1,v2) with
+  | (Zero,Zero) => True
+  | (Zero,Positive _) => True
+  | (Positive _, Zero) => False
+  | (Positive n, Positive m) => n <= m
+  end
 
 let add v1 v2 = 
-match (v1,v2) with
-| (Zero,any) => any
-| (any,Zero) => any
-| (Positive n, Positive m) => Positive (n+m)
-end
+  match (v1,v2) with
+  | (Zero,any) => any
+  | (any,Zero) => any
+  | (Positive n, Positive m) => Positive (n+m)
+  end
 
 let check queue =
-match queue with
-| HMQueue lenf f state lenr r => 
-if leq lenr lenf then exec_twice queue
-else (
-  let newstate = Reversing Zero f [] r [] in
-  exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
-)
-end
+  match queue with
+  | HMQueue lenf f state lenr r => 
+    if leq lenr lenf then exec_twice queue
+    else (
+      let newstate = Reversing Zero f [] r [] in
+        exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
+    )
+  end
 
 pub let emptyQueue = HMQueue Zero [] Idle Zero []
 pub let isEmpty queue = 
-match queue with 
-| HMQueue Zero _ _ _ _ => True
-| _ => False
-end
+  match queue with 
+  | HMQueue Zero _ _ _ _ => True
+  | _ => False
+  end
 
 let snoc queue value =
-match queue with
-| HMQueue lenf f state lenr r => 
-check (HMQueue lenf f state (addOne lenr) (value :: r))
-end
+  match queue with
+  | HMQueue lenf f state lenr r => 
+  check (HMQueue lenf f state (addOne lenr) (value :: r))
+  end
 
 let head queue =
-match queue with 
-| HMQueue Zero _ _ _ _ => None
-| HMQueue _ (x::xs) _ _ _ => Some x
-| _ => None // Impossible
-end
+  match queue with 
+  | HMQueue Zero _ _ _ _ => None
+  | HMQueue _ (x::xs) _ _ _ => Some x
+  | _ => None // Impossible
+  end
 
 let tail queue =
-match queue with
-| HMQueue Zero _ _ _ _ => emptyQueue
-| HMQueue _ [] _ _ _ => emptyQueue
-| HMQueue lenf (x::xs) state lenr r => 
-check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
-end
+  match queue with
+  | HMQueue Zero _ _ _ _ => emptyQueue
+  | HMQueue _ [] _ _ _ => emptyQueue
+  | HMQueue lenf (x::xs) state lenr r => 
+  check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
+  end
 
 
 pub method isEmpty = isEmpty self
