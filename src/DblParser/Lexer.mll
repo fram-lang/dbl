@@ -160,7 +160,8 @@ rule token = parse
   | op_char+ as x { tokenize_oper x }
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
-  | '`' lid_start var_char* as x { YaccParser.TLID x }
+  | '~' lid_start var_char* as x { YaccParser.TLID x }
+  | '?' (lid_start var_char* as x) { YaccParser.QLID x }
   | '\'' (char as ch) '\'' { parse_char ch }
   | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_start_p x }
   | '"' {

@@ -84,14 +84,19 @@ type _ typ =
         (** Effect of the delimiter *)
     } -> ktype typ
 
-  | TData    : ttype * ctor_type list -> ktype typ
+  | TData    : ttype * effect * ctor_type list -> ktype typ
     (** Proof of the shape of ADT.
       
       Algebraic data type (ADTs) are just abstract types, but each operation
       on them like constructors or pattern-matching requires additional
       computationally irrelevant parameter of type that describes the shape
       of ADTs. This approach simplifies many things, e.g., mutually recursive
-      types are not recursive at all! *)
+      types are not recursive at all!
+
+      The element of type [TData(tp, eff, ctors)] is a witness that type [tp]
+      has constructors [ctors]. The effect [eff] is an effect of
+      pattern-matching: its pure for strictly positively recursive types,
+      and impure for other types (because it may lead to non-termination). *)
 
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
     (** Type application *)
@@ -130,8 +135,13 @@ type data_def =
       args  : TVar.ex list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_type list
+      ctors : ctor_type list;
         (** List of constructors. *)
+
+      strictly_positive : bool
+        (** A flag indicating if the type is strictly positively recursive (in
+          particular, not recursive at all) and therefore can be deconstructed
+          without performing NTerm effect. *)
     }
 
   | DD_Label of (** Label *)

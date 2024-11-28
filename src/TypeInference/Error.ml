@@ -33,9 +33,10 @@ let rec string_of_path (p : string Lang.Surface.path) =
 let string_of_name (name : Lang.Unif.name) =
   match name with
   | NLabel -> "the effect label"
-  | NImplicit n -> Printf.sprintf "implicit parameter %s" n
-  | NVar x      -> Printf.sprintf "named parameter %s" x
-  | NMethod n   -> Printf.sprintf "method %s" n
+  | NImplicit n    -> Printf.sprintf "implicit parameter %s" n
+  | NVar x         -> Printf.sprintf "named parameter %s" x
+  | NOptionalVar x -> Printf.sprintf "optional named parameter %s" x
+  | NMethod n      -> Printf.sprintf "method %s" n
 
 let kind_mismatch ~pos k1 k2 =
   let pp_ctx = Pretty.empty_context () in
@@ -104,6 +105,13 @@ let unbound_method ~pos ~env x name =
     "Type %s has no method named %s"
     (Pretty.tvar_to_string pp_ctx env x)
     name
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let unbound_adt ~pos ~env x =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "There is no ADT assigned to this type var %s"
+    (Pretty.tvar_to_string pp_ctx env x)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let method_fn_without_arg ~pos x name =
@@ -183,6 +191,30 @@ let method_effect_mismatch ~pos ~env eff1 eff2 =
     ^^ " in a context that accepts effect %s")
     (Pretty.type_to_string pp_ctx env eff1)
     (Pretty.type_to_string pp_ctx env eff2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let return_type_mismatch ~pos ~env tp1 tp2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Return clause has type %s, but was expected to have type %s"
+    (Pretty.type_to_string pp_ctx env tp1)
+    (Pretty.type_to_string pp_ctx env tp2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let finally_type_mismatch ~pos ~env tp1 tp2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Finally clause has type %s, but was expected to have type %s"
+    (Pretty.type_to_string pp_ctx env tp1)
+    (Pretty.type_to_string pp_ctx env tp2)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let finally_effect_mismatch ~pos ~env eff1 eff2 =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Finally clause has effect %s, which is not a supereffect of the delimiter's effect %s"
+    (Pretty.type_to_string pp_ctx env eff2)
+    (Pretty.type_to_string pp_ctx env eff1)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let func_not_pure ~pos =
@@ -356,6 +388,9 @@ let non_polymorphic_pattern ~pos =
 let polymorphic_label ~pos =
   (pos, "Labels cannot be polymorphic", [])
 
+let polymorphic_optional_parameter ~pos =
+  (pos, "Optional parameters cannot be polymorphic", [])
+
 let label_type_mismatch ~pos =
   (pos, "Labels cannot have non-label type", [])
 
@@ -395,10 +430,11 @@ let type_inst_redefinition ~pos ~ppos (name : Lang.Surface.tname) =
 let inst_redefinition ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
-    | NLabel      -> Printf.sprintf "The label"
-    | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar      x -> Printf.sprintf "Named parameter %s" x
-    | NMethod   n -> Printf.sprintf "Method %s" n
+    | NLabel         -> Printf.sprintf "The label"
+    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar         x -> Printf.sprintf "Named parameter %s" x
+    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
+    | NMethod      n -> Printf.sprintf "Method %s" n
   in
   (pos, Printf.sprintf "%s is provided more than once" nn,
     [ ppos, "Here is a previous definition" ])
@@ -417,10 +453,11 @@ let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
 let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with
-    | NLabel      -> Printf.sprintf "The label"
-    | NImplicit n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar      x -> Printf.sprintf "Named parameter %s" x
-    | NMethod   n -> Printf.sprintf "Method %s" n
+    | NLabel         -> Printf.sprintf "The label"
+    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar         x -> Printf.sprintf "Named parameter %s" x
+    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
+    | NMethod      n -> Printf.sprintf "Method %s" n
   in
   (pos,
     Printf.sprintf "%s is provided more than once" nn,
@@ -465,3 +502,10 @@ let redundant_named_pattern ~pos name =
     "Providing %s to a constructor that do not expect it"
     (string_of_name name),
     [])
+
+let invalid_whnf_form ~pos ~env tp =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Got invalid whnf form when converting type %s"
+    (Pretty.type_to_string pp_ctx env tp)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])

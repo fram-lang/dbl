@@ -49,6 +49,8 @@ module CtorDecl = struct
   let subst = UnifPriv.Subst.in_ctor_decl
 
   let find_index cs name = List.find_index (fun c -> c.ctor_name = name) cs
+
+  let strictly_positive = UnifPriv.Type.ctor_strictly_positive
 end
 
 module Subst = UnifPriv.Subst
@@ -58,10 +60,11 @@ type var = Var.t
 
 type data_def =
   | DD_Data of
-    { tvar  : tvar;
-      proof : var;
-      args  : named_tvar list;
-      ctors : ctor_decl list
+    { tvar              : tvar;
+      proof             : var;
+      args              : named_tvar list;
+      ctors             : ctor_decl list;
+      strictly_positive : bool
     }
 
   | DD_Label of
@@ -94,19 +97,22 @@ and expr_data =
   | ELetRec     of rec_def list * expr
   | ECtor       of expr * int * typ list * expr list
   | EData       of data_def list * expr
-  | EMatchEmpty of expr * expr * typ * effrow
-  | EMatch      of expr * match_clause list * typ * effrow
-  | EHandle     of
-    { label      : expr;
-      effect     : effect;
-      cap_var    : var;
-      body       : expr;
-      capability : expr;
-      ret_var    : var;
-      ret_body   : expr;
-      result_tp  : typ;
-      result_eff : effrow }
-  | EHandler    of tvar * var * typ * effrow * expr
+  | EMatchEmpty of expr * expr * typ * effrow option
+  | EMatch      of expr * match_clause list * typ * effrow option
+  | EHandle     of tvar * var * typ * expr * expr
+  | EHandler    of
+    { label     : var;
+      effect    : tvar;
+      delim_tp  : typ;
+      delim_eff : effect;
+      cap_type  : typ;
+      cap_body  : expr;
+      ret_var   : var;
+      body_tp   : typ;
+      ret_body  : expr;
+      fin_var   : var;
+      fin_body  : expr;
+    }
   | EEffect     of expr * var * expr * typ
   | EExtern     of string * typ
   | ERepl       of (unit -> expr) * typ * effrow

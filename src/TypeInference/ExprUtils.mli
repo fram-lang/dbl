@@ -53,12 +53,14 @@ val ctor_func : pos:Position.t -> int -> Module.adt_info -> T.expr
   - [body] -- an expression that should be extended with a pattern-matching,
       e.g. body of a function;
   - [tp]   -- the type of [body] expression;
-  - [eff]  -- the effect of [body] expression.
+  - [eff]  -- the optional effect of [body] expression. [None] means that both
+    body and pattern-matching is pure.
   It returns a variable that should be bound instead of pattern together with
   an extended expression. *)
-val arg_match : T.pattern -> T.expr -> T.typ -> T.effrow -> T.var * T.expr
+val arg_match :
+  T.pattern -> T.expr -> T.typ -> T.effrow option -> T.var * T.expr
 
 (** Same as [arg_match], but take multiple binders of named parameters. *)
 val inst_args_match :
-  (T.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effrow ->
+  (T.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effrow option ->
     (T.name * T.var * T.scheme) list * T.expr

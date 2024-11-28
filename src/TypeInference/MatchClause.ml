@@ -41,48 +41,42 @@ let make_nonempty_match ~tcfix env tp cls res_tp res_eff =
       let p2 = List.fold_left (fun _ cl -> cl.S.pos) p1 cls in
       Position.join p1 p2
   in
-  let (cls, _) = check_match_clauses ~tcfix env tp cls res_tp res_eff in
+  let (cls, r_eff) = check_match_clauses ~tcfix env tp cls res_tp res_eff in
+  let meff = match_effect r_eff res_eff in
   let x = Var.fresh () in
   let body =
     { T.pos;
-      T.data = T.EMatch({ pos; data = T.EVar x }, cls, res_tp, res_eff) }
+      T.data = T.EMatch({ pos; data = T.EVar x }, cls, res_tp, meff) }
   in (x, body)
 
 (* ------------------------------------------------------------------------- *)
-let check_return_clauses ~tcfix env rcs res_tp res_eff =
-  match rcs with
-  | [] ->
-    let x = Var.fresh () in
-    (x, res_tp, { T.pos = Position.nowhere; T.data = T.EVar x })
-  | _ ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
-    let (x, body) = make_nonempty_match ~tcfix env tp rcs res_tp res_eff in
-    (x, tp, body)
+let default_clause ~pos res1 res2 =
+  let x = Var.fresh () in
+  (x, res1, { T.pos; T.data = T.EVar x }, res2)
 
-(* ------------------------------------------------------------------------- *)
-let check_finally_clauses (type dir)
-  ~tcfix env fcs hexpr htp (req : (T.typ, dir) request) eff :
-    T.expr * (T.typ, dir) response * ret_effect =
-  match fcs with
-  | [] ->
-    begin match req with
-    | Infer -> (hexpr, Infered htp, Impure)
-    | Check tp ->
-      Error.check_unify_result ~pos:hexpr.pos
-        (Unification.subtype env htp tp)
-        ~on_error:(Error.expr_type_mismatch ~env htp tp);
-      (hexpr, Checked, Impure)
-    end
+let guess_type (type d) env (req : (_, d) request) : _ * (_, d) response =
+  match req with
+  | Check tp -> (tp, Checked)
+  | Infer    ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    (tp, Infered tp)
+
+let tr_opt_clauses (type md rd) ~tcfix ~pos env
+  (mtp_req : (_, md) request) cls (rtp_req : (_, rd) request) eff ~on_error :
+    _ * (_, md) response * _ * (_, rd) response =
+  match mtp_req, cls, rtp_req with
+  | Check tp, [], Infer ->
+    default_clause ~pos Checked (Infered tp)
+  | Infer, [], Check tp ->
+    default_clause ~pos (Infered tp) Checked
+  | Infer, [], Infer ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    default_clause ~pos (Infered tp) (Infered tp)
+  | Check tp1, [], Check tp2 ->
+    Error.check_unify_result ~pos (Unification.subtype env tp1 tp2) ~on_error;
+    default_clause ~pos Checked Checked
   | _ ->
-    let (tp, (resp : (T.typ, dir) response)) =
-      match req with
-      | Infer ->
-        let tp = Env.fresh_uvar env T.Kind.k_type in
-        (tp, Infered tp)
-      | Check tp -> (tp, Checked)
-    in
-    let (x, body) = make_nonempty_match ~tcfix env htp fcs tp eff in
-    let expr =
-      { T.pos  = Position.join body.pos hexpr.pos;
-        T.data = T.ELet(x, T.Scheme.of_type htp, hexpr, body) }
-    in (expr, resp, Impure)
+    let (mtp, mtp_resp) = guess_type env mtp_req in
+    let (rtp, rtp_resp) = guess_type env rtp_req in
+    let (x, body) = make_nonempty_match ~tcfix env mtp cls rtp eff in
+    (x, mtp_resp, body, rtp_resp)

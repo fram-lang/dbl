@@ -46,6 +46,9 @@ type name =
   | NVar      of string
     (** Regular named parameter *)
 
+  | NOptionalVar of string
+    (** Optional named parameter *)
+
   | NImplicit of string
     (** Implicit parameter *)
 
@@ -112,8 +115,13 @@ type data_def =
       args  : named_tvar list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_decl list
+      ctors : ctor_decl list;
         (** List of constructors. *)
+
+      strictly_positive : bool
+        (** A flag indicating if the type is strictly positively recursive (in
+          particular, not recursive at all) and therefore can be deconstructed
+          in pure way. *)
     }
 
   | DD_Label of (** Label *)
@@ -200,52 +208,61 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
-  | EMatchEmpty of expr * expr * typ * effrow
+  | EMatchEmpty of expr * expr * typ * effrow option
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression, that is a witness that the type of the second
-      parameter is an empty ADT *)
+      parameter is an empty ADT. The last parameter is an optional effect of
+      the whole expression: [None] means that pattern-matching is pure. *)
 
-  | EMatch of expr * match_clause list * typ * effrow
-    (** Pattern-matching. It stores type and effect of the whole expression. *)
+  | EMatch of expr * match_clause list * typ * effrow option
+    (** Pattern-matching. It stores type and effect of the whole expression.
+      If the effect is [None], the pattern-matching is pure. *)
 
-  | EHandle of (** Handler *)
-    { label : expr;
-      (** Label of the handler *)
+  | EHandle of tvar * var * typ * expr * expr
+    (** Handling construct. In [EHandle(a, x, tp, e1, e2)] the meaning of
+      parameters is the following.
+      - [a]  -- effect variable that represent introduced effect
+      - [x]  -- capability variable
+      - [tp] -- type of the capability
+      - [e1] -- expression that should evaluate to first-class handler
+      - [e2] -- body of the handler *)
 
-      effect : effect;
-      (** Effect handled by the label *)
+  | EHandler of (** First class handler *)
+    { label     : var;
+      (** Variable, that binds the runtime-label *)
 
-      cap_var : var;
-      (** Variable that binds effect capability *)
+      effect    : tvar;
+      (** Effect variable *)
 
-      body : expr;
-      (** Handled expression *)
+      delim_tp  : typ;
+      (** Type of the delimiter *)
 
-      capability : expr;
-      (** An expression providing capability to this handler *)
+      delim_eff : effect;
+      (** Effect of the delimiter *)
 
-      ret_var : var;
+      cap_type  : typ;
+      (** Type of the capability *)
+
+      cap_body  : expr;
+      (** An expression that should evaluate to effect capability. It can use
+        [label] and [effect]. It should be pure and have type [cap_type]. *)
+
+      ret_var   : var;
       (** An argument to the return clause *)
 
-      ret_body : expr;
-      (** A body of the return clause *)
+      body_tp   : typ;
+      (** Type of the handled expression. It is also a type of an argument
+        [ret_var] to the return clause *)
 
-      result_tp : typ;
-      (** The type of the whole handler *)
+      ret_body  : expr;
+      (** Body of the return clause *)
 
-      result_eff : effrow }
-      (** The effect of the whole handler *)
+      fin_var   : var;
+      (** An argument to the finally clause. It has type [delim_tp] *)
 
-  | EHandler of tvar * var * typ * effrow * expr
-    (** First-class handler. In [EHandler(a, lx, tp, eff, h)] the meaning of
-      parameter is the following:
-      - [a] -- binder of an effect variable (of kind [effect]). The variable
-        is bound in other arguments of [EHandler] expression.
-      - [lx] -- label variable bound by the handler. Its type should be
-        [TLabel(Effect.singleton a, tp, eff)].
-      - [tp] -- type of the delimiter ([EHandle]).
-      - [eff] -- effect of the delimiter.
-      - [h] -- body of the handler. *)
+      fin_body  : expr;
+      (** Body of the finally clause *)
+    }
 
   | EEffect of expr * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
@@ -500,11 +517,13 @@ module Type : sig
     | TArrow of scheme * typ * effrow
       (** Impure arrow *)
   
-    | THandler of tvar * typ * typ * effrow
-      (** First class handler. In [THandler(a, tp, tp0, eff0)]:
-        - [a] is a variable bound in [tp], [tp0], and [eff0];
+    | THandler of tvar * typ * typ * effrow * typ * effect
+      (** First class handler. In [THandler(a, tp, itp, ieff, otp, oeff)]:
+        - [a] is a variable bound in [tp], [itp], and [ieff];
         - [tp] is a type of provided capability;
-        - [tp0] and [eff0] are type and effects of the whole delimiter. *)
+        - [itp] and [ieff] are type and effects of handled expression.
+          The variable [a] in [ieff] can be omitted.
+        - [otp] and [oeff] are type and effects of the whole handler. *)
   
     | TLabel of effect * typ * effrow
       (** Type of first-class label. It stores the effect of the label and
@@ -538,7 +557,7 @@ module Type : sig
     | Whnf_Arrow of scheme * typ * effrow
       (** Impure arrow *)
   
-    | Whnf_Handler of tvar * typ * typ * effrow
+    | Whnf_Handler   of tvar * typ * typ * effrow * typ * effrow
       (** Handler type *)
 
     | Whnf_Label of effect * typ * effrow
@@ -563,7 +582,7 @@ module Type : sig
   val t_arrow : scheme -> typ -> effrow -> typ
 
   (** Type of first-class handlers *)
-  val t_handler : tvar -> typ -> typ -> effrow -> typ
+  val t_handler : tvar -> typ -> typ -> effrow -> typ -> effrow -> typ
 
   (** Type of first-class label *)
   val t_label : effect -> typ -> effrow -> typ
@@ -733,6 +752,11 @@ module CtorDecl : sig
 
   (** Get the index of a constructor with a given name *)
   val find_index : ctor_decl list -> string -> int option
+
+  (** Check if given constructor is strictly positive, i.e., if all type
+    variables on non-strictly positive positions and all scopes of unification
+    variables fit in [nonrec_scope]. *)
+  val strictly_positive : nonrec_scope:scope -> ctor_decl -> bool
 end
 
 (* ========================================================================= *)

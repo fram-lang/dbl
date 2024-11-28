@@ -6,7 +6,7 @@ import open Types
 import open Operators
 
 pub method toString = (extern dbl_intToString : Int -> String) self
-pub method toInt64 = (extern dbl_int64ToInt : Int -> Int64) self
+pub method toInt64 = (extern dbl_intToInt64 : Int -> Int64) self
 
 pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
 pub method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
@@ -19,12 +19,12 @@ pub method add = (extern dbl_addInt : Int -> Int -> Int) self
 pub method sub = (extern dbl_subInt : Int -> Int -> Int) self
 pub method mul = (extern dbl_mulInt : Int -> Int -> Int) self
 
-pub method div {`re : {type X} -> Unit ->[|_] X} (n : Int) =
-  if n.equal 0 then `re ()
+pub method div {~re : {type X} -> Unit ->[|_] X} (n : Int) =
+  if n.equal 0 then ~re ()
   else (extern dbl_divInt : Int -> Int -> Int) self n
 
-pub method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
-  if n.equal 0 then `re ()
+pub method mod {~re : {type X} -> Unit ->[|_] X} (n : Int) =
+  if n.equal 0 then ~re ()
   else (extern dbl_modInt : Int -> Int -> Int) self n
 
 pub method neg {self : Int} = 0 - self

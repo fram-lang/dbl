@@ -28,7 +28,7 @@ let v_unit_prf =
       T.ctor_tvars     = [];
       T.ctor_arg_types = []
     } in
-  T.VExtern("__Unit_Proof__", T.TData(T.Type.t_unit, [ ctor ]))
+  T.VExtern("__Unit_Proof__", T.TData(T.Type.t_unit, T.TEffPure, [ ctor ]))
 
 let v_unit =
   T.VCtor(T.EValue v_unit_prf, 0, [], [])

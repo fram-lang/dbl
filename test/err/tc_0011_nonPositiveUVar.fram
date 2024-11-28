@@ -1,0 +1,9 @@
+data rec T = C of _
+
+let checkPure (f : _ -> _) = ()
+
+let _ = checkPure (fn (C x) => x)
+
+let _ = C (fn (C x) => C x)
+
+// @stderr::5:19-33: error:

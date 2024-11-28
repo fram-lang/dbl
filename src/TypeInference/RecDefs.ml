@@ -89,7 +89,7 @@ let rec prepare_rec_data env (def : S.def) =
 
 (** The second pass for single definition. See [finalize_rec_data_defs] for
   more details. *)
-let rec finalize_rec_data env ienv (def : def1 T.node) =
+let rec finalize_rec_data ~nonrec_scope env ienv (def : def1 T.node) =
   match def.data with
   | D1_Blank | D1_LetVar _ | D1_LetFun _ -> (env, ienv, [], Pure)
   | D1_Label(tvar, id, tp_opt) ->
@@ -119,21 +119,25 @@ let rec finalize_rec_data env ienv (def : def1 T.node) =
     | false -> assert false
     end;
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
-    let (env, dd) = DataType.finalize_check env x ~name args ctors in 
+    let (env, dd) =
+      DataType.finalize_check ~nonrec_scope env x ~name args ctors in
     (env, ienv, [dd], Pure)
   | D1_Section defs ->
-    let (env, dds, r_eff) = finalize_rec_data_defs env ienv defs in
+    let (env, dds, r_eff) =
+      finalize_rec_data_defs ~nonrec_scope env ienv defs in
     (env, ienv, dds, r_eff)
 
 (** The main function of the second pass. It returns extended environment,
   list of data/label definitions and the effect of this block (impure, when
   new run-time labels are generated). *)
-and finalize_rec_data_defs env ienv defs =
+and finalize_rec_data_defs ~nonrec_scope env ienv defs =
   match defs with
   | [] -> (env, [], Pure)
   | def :: defs ->
-    let (env, ienv, dds1, r_eff1) = finalize_rec_data env ienv def in
-    let (env, dds2, r_eff2) = finalize_rec_data_defs env ienv defs in
+    let (env, ienv, dds1, r_eff1) =
+      finalize_rec_data ~nonrec_scope env ienv def in
+    let (env, dds2, r_eff2) =
+      finalize_rec_data_defs ~nonrec_scope env ienv defs in
     (env, dds1 @ dds2, ret_effect_join r_eff1 r_eff2)
 
 (* ========================================================================= *)
@@ -305,7 +309,7 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
     end;
     let (named, body) =
       ExprUtils.inst_args_match sch_info.rsi_named body
-        sch_info.rsi_body_tp T.Effect.pure in
+        sch_info.rsi_body_tp None in
     let body = ExprUtils.make_nfun named body in
     { def with
       data = D4_LetFun(fd.var, fd.scheme, fd.name, sch_info.rsi_tvars, body)
@@ -450,8 +454,10 @@ let finalize_rec_fun (fds : def6 list) (fd : def6) =
 (* ========================================================================= *)
 
 let check_rec_defs ~tcfix env ienv defs =
+  let nonrec_scope = Env.scope env in
   let (env, defs) = List.fold_left_map prepare_rec_data env defs in
-  let (env, dds, r_eff) = finalize_rec_data_defs env ienv defs in
+  let (env, dds, r_eff) =
+    finalize_rec_data_defs ~nonrec_scope env ienv defs in
   let (rec_env, ims) = ImplicitEnv.begin_generalize env ienv in
   let (rec_env, fds) = prepare_rec_funs rec_env ienv defs in
   let fds = List.map (check_rec_fun ~tcfix rec_env) fds in

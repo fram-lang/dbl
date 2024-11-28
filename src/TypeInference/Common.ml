@@ -54,3 +54,9 @@ let ret_effect_join eff1 eff2 =
 
 let ret_effect_joins effs =
   List.fold_left ret_effect_join Pure effs
+
+(** Effect of match_clause *)
+let match_effect reff (eff : T.effect) =
+  match reff with
+  | Pure   -> None
+  | Impure -> Some eff

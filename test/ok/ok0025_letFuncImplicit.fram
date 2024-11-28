@@ -1,8 +1,8 @@
-implicit `f
+implicit ~f
 
-let foo x = `f x
+let foo x = ~f x
 
-let `f x = x
+let ~f x = x
 
 let _ =
   foo ()
