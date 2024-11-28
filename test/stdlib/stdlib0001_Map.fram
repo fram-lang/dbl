@@ -3,9 +3,6 @@ import open List
 import open Ordered
 import open Prelude
 
-let assert condition = 
-if condition then () else exit 1
-
 let lt (v1 : Int) (v2 : Int) = 
     if v1 < v2 then Less
     else if v2 < v1 then Greater
@@ -20,63 +17,66 @@ let y = x.insert 1 1
 let z = x.insert 1 "a"
 
 (* isEmpty check *)
-let _ = assert (y.isEmpty == False)
-let _ = assert (z.isEmpty == False)
-let _ = assert (y.remove 1 >. isEmpty)
+let _ = assert (y.isEmpty == False) "Failed isEmpty"
+let _ = assert (z.isEmpty == False) "Failed isEmpty"
+let _ = assert (y.remove 1 >. isEmpty) "Failed isEmpty"
 
 (* domain check *)
-let z = y.insert 2 1 >. insert 3 2 >. insert 4 3
-let _ = assert (z.domain == [1,2,3,4] && z.toValueList ==  [1,1,2,3])
+let z = y.insert 2 1 >. insert 3 2 >. insert 4 3 
+let _ = assert (z.domain == [1,2,3,4] && z.toValueList ==  [1,1,2,3]) "Failed domain"
 
 (* toList check *)
 let _ = assert ((z.toList.foldLeft 
-    (fn acc (key,val) => val :: acc) []) == [1,1,2,3].rev)
+    (fn acc (key,val) => val :: acc) []) == [1,1,2,3].rev) "Failed toList"
 
 (* foldl check *)
 let _ = assert (z.foldl (fn key val acc => key :: acc) [] == [1,2,3,4].rev)
+  "Failed foldl"
 
 (* member check *)
-let _ = assert (z.member 1)
+let _ = assert (z.member 1) "Failed member"
 
 (* find check *)
-let _ = assert (match z.find 1 with | None => False | _ => True end)
+let _ = assert (match z.find 1 with | None => False | _ => True end) "Failed find"
 
 (* operate change check *)
 let _ = assert (snd (z.operate 1 (fn () => Some 2) (fn a => Some 0))  
-    >. toValueList == [0,1,2,3])
+    >. toValueList == [0,1,2,3]) "Failed operate"
 
 (* operate add check *)
 let _ = assert (snd (z.operate 0 (fn () => Some 2) (fn a => Some 0))  
-    >. toValueList == [2,1,1,2,3])
+    >. toValueList == [2,1,1,2,3]) "Failed operate"
 
 (* map check *)
-let _ = assert (z.map (fn x => if x == x.shiftr 1 >. shiftl 1 then -x else x) 
-    >. toValueList == [1,1,(0-2),3])
+let _ = assert (z.mapVal (fn x => if x == x.shiftr 1 >. shiftl 1 then -x else x) 
+    >. toValueList == [1,1,(0-2),3]) "Failed map"
 
 (* union check *)
 let y = x.insert 1.neg 2 >. insert 2.neg 3 >. insert 0 1 >. insert 1 10
 let w = z.union y (fn key val1 val2 => val2) 
-let _ = assert (w.toValueList == [3,2,1,10,1,2,3])
+let _ = assert (w.toValueList == [3,2,1,10,1,2,3]) "Failed union"
 
 (* partion check *)
 let q = w.partion 0
-let _ = assert (fst (fst q) >. toValueList == [3,2])
-let _ = assert (snd q >. toValueList == [10,1,2,3])
+let _ = assert (fst (fst q) >. toValueList == [3,2]) "Failed partion"
+let _ = assert (snd q >. toValueList == [10,1,2,3]) "Failed partion"
 
 (* partionLt check *)
 let q = w.partionLt 0
-let _ = assert (fst q >. toValueList == [3,2,1])
-let _ = assert (snd q >. toValueList == [10,1,2,3])
+let _ = assert (fst q >. toValueList == [3,2,1]) "Failed partionLt"
+let _ = assert (snd q >. toValueList == [10,1,2,3]) "Failed partionLt"
 
 (* partionGt check *)
 let q = w.partionGt 0
-let _ = assert (fst q >. toValueList == [3,2])
-let _ = assert (snd q >. toValueList == [1,10,1,2,3])
+let _ = assert (fst q >. toValueList == [3,2]) "Failed partionGt"
+let _ = assert (snd q >. toValueList == [1,10,1,2,3]) "Failed partionGt"
 
-(* rangeee check *)
-let q = w.range (Exclusion 0) (Exclusion 2)
-let _ = assert (q.toValueList == [10])
+(* range check *)
+let q = w.range (Exclusion 0) (Exclusion 2) 
+let _ = assert (q.toValueList == [10]) "Failed range"
 let q = w.range (Inclusion 0) (Inclusion 2)
-let _ = assert (q.toValueList == [1,10,1])
-let _ = assert (w.range (Inclusion 0) (Exclusion 2) >. toValueList == [1,10])
-let _ = assert (w.range (Exclusion 0) (Inclusion 2) >. toValueList == [10,1])
+let _ = assert (q.toValueList == [1,10,1]) "Failed range"
+let _ = assert (w.range (Inclusion 0) (Exclusion 2) >. toValueList == [1,10]) 
+  "Failed range"
+let _ = assert (w.range (Exclusion 0) (Inclusion 2) >. toValueList == [10,1]) 
+  "Failed range"

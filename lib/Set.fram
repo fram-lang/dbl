@@ -18,7 +18,7 @@ pub data Set Elem = Set of {
   , method toList : T -> [] List Elem
   , method union : T -> T -> [] T
   , method intersection : T -> T -> [] T
-  , method diffrence : T -> T -> [] T
+  , method difference : T -> T -> [] T
   , method eq : T -> T -> [] Bool
   , method subset : T -> T -> [] Bool
   , method partionLt : T -> Elem -> [] (Pair T T)
@@ -215,7 +215,7 @@ let rec intersection compare tree1 tree2 =
       end
   end
 
-let rec diffrence compare tree1 tree2 = 
+let rec difference compare tree1 tree2 = 
   match tree1 with
     | Leaf => Leaf
     | Node {left = left1, value = key1, right = right1} => 
@@ -224,8 +224,8 @@ let rec diffrence compare tree1 tree2 =
           | _ => 
               let (value_out, left2, right2) =
               split (fn key2 => compare key1 key2) tree2
-              in let left = diffrence compare left1 left2
-              in let right = diffrence compare right1 right2
+              in let left = difference compare left1 left2
+              in let right = difference compare right1 right2
               in 
               match value_out with
                 | Some _ => join left right
@@ -325,7 +325,7 @@ pub let make {Val} (compare : Val -> Val -> [] Ordered) = Set {
   , method toList = fn tree => toList tree []
   , method union = union compare
   , method intersection = intersection compare
-  , method diffrence = diffrence compare
+  , method difference = difference compare
   , method eq = fn set1 set2 => 
       eqMain (fn e1 e2 => (compare e1 e2).toComparable) (T set1 Nil) (T set2 Nil)
   , method subset = subset compare

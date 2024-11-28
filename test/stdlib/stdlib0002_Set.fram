@@ -3,9 +3,6 @@ import open List
 import open Ordered
 import open Prelude
 
-let assert condition = 
-if condition then () else exit 1
-
 let lt (v1 : Int) (v2 : Int) = 
     if v1 < v2 then Less
     else if v2 < v1 then Greater
@@ -15,63 +12,62 @@ let Set.Set {module IntSet} = Set.make lt
 
 (* empty check *)
 let x = IntSet.empty
-let _ = assert (x.isEmpty)
-
-(* singletonSet check depricated *)
-(*let x = 0.singletonSet
-let _ = assert (not x.isEmpty)*)
+let _ = assert (x.isEmpty) "Failed empty"
 
 let x = x.insert 0
 
 (* toList check *)
-let _ = assert (x.toList == [0])
+let _ = assert (x.toList == [0]) "Failed toList"
 
 (* insert check *)
 let y = x.insert 1
-let _ = assert (y.toList == [0,1])
-let _ = assert (y.insert 2 >. toList == [0,1,2])
+let _ = assert (y.toList == [0,1]) "Failed insert"
+let _ = assert (y.insert 2 >. toList == [0,1,2]) "Failed insert"
 
 (* remove check *)
-let y = y.insert 2 >. insert 3
-let _ = assert (y.remove 1 >. toList == [0,2,3])
+let y = y.insert 2 >. insert 3 
+let _ = assert (y.remove 1 >. toList == [0,2,3]) "Failed remove"
 
 (* member check *)
-let _ = assert (y.member 1)
-let _ = assert (not (y.member 10))
+let _ = assert (y.member 1) "Failed check"
+let _ = assert (not (y.member 10)) "Failed check"
 
 (* foldl/r check *)
-let _ = assert (y.foldl (fn x acc => x + acc) 0 == 6)
-let _ = assert (y.foldr (fn x acc => x + acc) 0 == 6)
+let _ = assert (y.foldl (fn x acc => x + acc) 0 == 6) "Failed foldl"
+let _ = assert (y.foldr (fn x acc => x + acc) 0 == 6) "Failed foldr"
 
 (* union check *)
 let x = x.insert 4 >. insert 5 >. insert 6
-let _ = (y.union x >. toList == [0,1,2,3,4,5,6])
+let _ = assert (y.union x >. toList == [0,1,2,3,4,5,6]) "Failed union"
 
 (* intersection check *)
-let _ = assert (x.intersection y >. toList == [0])
+let _ = assert (x.intersection y >. toList == [0]) "Failed intersection"
 
 (* diffrence check *)
-let _ = assert (y.diffrence x >. toList == [1,2,3])
-let _ = assert (x.diffrence y >. toList == [4,5,6]) 
+let _ = assert (y.difference x >. toList == [1,2,3]) "Failed difference"
+let _ = assert (x.difference y >. toList == [4,5,6]) "Failed difference"
 
 (* eq check *)
-let _ = assert (x.eq x)
-let _ = assert (not (x.eq y))
+let _ = assert (x.eq x) "Failed eq"
+let _ = assert (not (x.eq y)) "Failed eq"
 
 (* subset check *)
-let _ = assert (IntSet.empty.subset x)
-let _ = assert (IntSet.empty.insert 0 >. insert 1 >. subset y)
-let _ = assert (not (x.subset y))
+let _ = assert (IntSet.empty.subset x) "Failed subset"
+let _ = assert (IntSet.empty.insert 0 >. insert 1 >. subset y) "Failed subset"
+let _ = assert (not (x.subset y)) "Failed subset"
 
 (* partionLt check *)
-let _ = assert (fst (y.partionLt 2) >. toList == [0,1])
-let _ = assert (snd (y.partionLt 2) >. toList == [2,3])
+let _ = assert (fst (y.partionLt 2) >. toList == [0,1]) "Failed partionLt"
+let _ = assert (snd (y.partionLt 2) >. toList == [2,3]) "Failed partionLt"
 
 (* range check *)
-let _ = assert (y.range (Inclusion 1) (Inclusion 2) >. toList == [1,2])
+let _ = 
+  assert (y.range (Inclusion 1) (Inclusion 2) >. toList == [1,2]) "Failed range"
 
 (* least check *)
-let _ = assert (match y.least with | Some x => x == 0 | _ => False end)
+let _ = 
+  assert (match y.least with | Some x => x == 0 | _ => False end) "Failed least"
 
 (* greatest check *)
 let _ = assert (match y.greatest with | Some x => x == 3 | _ => False end)
+ "Failed greatest"

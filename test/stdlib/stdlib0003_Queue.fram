@@ -1,7 +1,5 @@
 import Queue
-
-let assert condition = 
-if condition then () else exit 1
+import Prelude
 
 let compare (x : Int) (y : Int) = x == y
 let get_val x = 
@@ -12,10 +10,10 @@ end
 
 let x = Queue.emptyQueue
 let x = x.push 1
-let _ = assert (x.isEmpty == False && compare (get_val x.head) 1)
+let _ = assert (x.isEmpty == False && compare (get_val x.head) 1) "Failed push"
 let x = x.pop
-let _ = assert x.isEmpty
+let _ = assert x.isEmpty "Failed isEmpty"
 let x = x >. push 1 >. push 2 >. push 3
 let _ = assert (x.isEmpty == False && compare (get_val x.head) 1 && 
   compare (get_val (x.pop >. head)) 2 && 
-  compare (get_val (x.pop >. pop >. head)) 3)
+  compare (get_val (x.pop >. pop >. head)) 3) "Failed head and pop"
