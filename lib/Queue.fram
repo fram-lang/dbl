@@ -2,6 +2,8 @@
  * See LICENSE for details.
 *)
 
+import List
+
 data NotNegativeInt = Zero | Positive of Int
 
 let addOne value = 
@@ -106,6 +108,57 @@ let tail queue =
   check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
   end
 
+let foldlRotationState f acc state = 
+  match state with
+    | Idle => acc
+    | Done list => List.foldLeft f acc list
+    | Appending _ list1 list2 => 
+        List.foldLeft f 
+          (List.foldLeft f acc list2) 
+          list1
+    | Reversing _ list1 list2 list3 list4 => 
+        List.foldLeft f 
+          (List.foldLeft f 
+            (List.foldLeft f 
+              (List.foldLeft f acc list4)
+              list3
+            ) 
+            list2
+          )
+          list1
+  end
+
+pub let foldlQueue queue f acc  =
+  match queue with
+    | HMQueue _ list1 state _ list2 =>
+      List.foldLeft f 
+        (foldlRotationState f
+            (List.foldLeft f acc list1)
+            state
+        )
+        list1
+    end
+
+let mapRotationState f state =
+  match state with
+    | Idle => Idle
+    | Done list => Done (List.map f list)
+    | Appending v list1 list2 =>
+        Appending v (List.map f list1) (List.map f list2)
+    | Reversing v list1 list2 list3 list4 =>
+        Reversing v (List.map f list1) (List.map f list2)
+          (List.map f list3) (List.map f list4)
+  end
+
+let mapQueue queue f = 
+  match queue with
+  | HMQueue v1 list1 state v2 list2 =>
+    HMQueue v1 (List.map f list1) 
+      (mapRotationState f state) v2
+      (List.map f list2)
+  end
+
+pub let fromList list = List.foldLeft snoc emptyQueue list
 
 pub method isEmpty = isEmpty self
 pub method snoc = snoc self
@@ -113,3 +166,5 @@ pub method tail = tail self
 pub method push = snoc self
 pub method pop = tail self
 pub method head = head self
+pub method foldl = foldlQueue self
+pub method map = mapQueue self
