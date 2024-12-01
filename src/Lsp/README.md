@@ -66,7 +66,7 @@ JSON-RPC is an RPC protocol using JSON as data format.
 	"id": 1,
 	"method": "textDocument/completion",
 	"params": {
-		...
+	  "param1": "value1",
 	}
 }
 ```
@@ -117,7 +117,7 @@ There is no logging implemented. To see the messages that are being sent
 follow these steps:
 1. Choose your favorite port number and substitute it for `5555` below.
 2. Configure your editor to use `nc localhost 5555` as the language server
-for fram.
+for Fram.
 3. Create two named pipes
 ```bash
 mkfifo in
