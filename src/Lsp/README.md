@@ -62,12 +62,12 @@ JSON-RPC
 JSON-RPC is an RPC protocol using JSON as data format.
 ```json
 {
-	"jsonrpc": "2.0",
-	"id": 1,
-	"method": "textDocument/completion",
-	"params": {
-	  "param1": "value1",
-	}
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "textDocument/completion",
+  "params": {
+    "param1": "value1",
+  }
 }
 ```
 
