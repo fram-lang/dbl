@@ -49,7 +49,7 @@ let rec run state handle_request handle_notification =
       | Ok notification ->
         let state = handle_notification state notification in
         loop state
-      (* There was an error interpreting the message as notification.
+      (* There was an error interpreting the message as a notification.
         Because notifications don't get a response, we ignore it
         (according to the specification). *)
       | Error _ ->
