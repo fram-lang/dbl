@@ -3,7 +3,7 @@
  *)
 
 (** Extraction of type hints *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -109,3 +109,4 @@ let extract_implicit_type_hints ~tcfix ~pos env (sch : T.scheme) inst eff =
       loop hints cache named
   in
   loop T.TVar.Map.empty [] sch.sch_named
+*)

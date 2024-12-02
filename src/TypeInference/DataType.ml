@@ -3,7 +3,7 @@
  *)
 
 (** Checking and processing algebraic data types (ADTs) *)
-
+(*
 open Common
 
 type ctor_decl_list = (S.is_public * T.ctor_decl) list
@@ -69,3 +69,4 @@ let finalize_check ~nonrec_scope env x ~name args ctors =
       strictly_positive = info.adt_strictly_positive
     } in
   (env, dd)
+*)

@@ -19,6 +19,9 @@ let tv_char = TVar.fresh KindBase.k_type
 (** Unit type *)
 let tv_unit = TVar.fresh KindBase.k_type
 
+(** Option type *)
+let tv_option = TVar.fresh (KindBase.k_arrow KindBase.k_type KindBase.k_type)
+
 (** IO effect *)
 let tv_io = TVar.fresh KindBase.k_effect
 
@@ -29,4 +32,5 @@ let all =
     "String", tv_string;
     "Char",   tv_char;
     "Unit",   tv_unit;
+    "Option", tv_option;
     "IO",     tv_io ]

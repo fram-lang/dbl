@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for match clauses and related constructs *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -80,3 +80,4 @@ let tr_opt_clauses (type md rd) ~tcfix ~pos env
     let (rtp, rtp_resp) = guess_type env rtp_req in
     let (x, body) = make_nonempty_match ~tcfix env mtp cls rtp eff in
     (x, mtp_resp, body, rtp_resp)
+*)

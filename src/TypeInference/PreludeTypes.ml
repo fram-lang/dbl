@@ -3,7 +3,7 @@
  *)
 
 (** Functions allowing the use of some of the types defined in the Prelude. *)
-
+(*
 open Common
 
 let mk_Option ~env ~pos tp_arg =
@@ -65,3 +65,4 @@ let mk_None ~env ~pos option_tp : T.expr =
       | None ->
         Error.fatal (Error.ctor_not_in_type ~pos ~env "None" option_tp))
   | None -> Error.fatal (Error.unbound_adt ~pos ~env x)
+*)

@@ -3,7 +3,7 @@
  *)
 
 (** Translation of datatype definitions from Unif to Core *)
-
+(*
 open Common
 
 (** Half-translated data-like definition *)
@@ -89,3 +89,4 @@ let finalize_data_def env (dd : data_def) =
 let tr_data_defs env dds =
   let (env, dds) = List.fold_left_map prepare_data_def env dds in
   (env, List.map (finalize_data_def env) dds)
+*)

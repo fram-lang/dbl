@@ -3,7 +3,7 @@
  *)
 
 (** Reporting errors related to type-inference. *)
-
+(*
 open Common
 
 (** Abstract representation of error *)
@@ -149,3 +149,4 @@ val redundant_named_type : pos:Position.t -> T.tname -> t
 val redundant_named_parameter : pos:Position.t -> T.name -> t
 val redundant_named_pattern : pos:Position.t -> T.name -> t
 val invalid_whnf_form : pos:Position.t -> env:Env.t -> T.typ -> t
+*)

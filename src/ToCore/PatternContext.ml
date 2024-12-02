@@ -3,7 +3,7 @@
  *)
 
 (** Building counterexample of non-matched value in pattern-matching *)
-
+(*
 open Common
 
 (** Example of not-matched pattern *)
@@ -95,3 +95,4 @@ let focus_with ctx ex =
   match try_focus ctx ex with
   | Some ctx -> ctx
   | None     -> refocus_with ctx ex
+*)

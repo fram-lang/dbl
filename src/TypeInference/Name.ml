@@ -3,7 +3,7 @@
  *)
 
 (** Translation of names of named parameters *)
-
+(*
 open Common
 
 let tr_tname (name : S.tname) =
@@ -19,3 +19,4 @@ let tr_name env (name : S.name) =
   | NOptionalVar x -> T.NOptionalVar x
   | NImplicit n    -> T.NImplicit n
   | NMethod   n    -> T.NMethod   n 
+*)

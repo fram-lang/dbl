@@ -3,7 +3,7 @@
  *)
 
 (** Environment of the type inference *)
-
+(*
 open Common
 
 type t
@@ -152,3 +152,4 @@ val leave_module : t -> public:bool -> S.module_name -> t
 (** Introduce the given module's identifiers into scope with visibility
   specified by [~public]. *)
 val open_module : t -> public:bool -> Module.t -> t
+*)

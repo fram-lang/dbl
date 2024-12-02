@@ -29,9 +29,6 @@ type tname =
   | TNAnon
     (** Anonymous parameter *)
 
-  | TNEffect
-    (** Effect variable associated with effect handler *)
-
   | TNVar of string
     (** Regular named type parameter *)
 
@@ -55,16 +52,19 @@ type name =
   | NMethod   of string
     (** Name of methods **)
 
+(* ========================================================================= *)
+
+(** Effects.
+
+  There are two effects in Unif. We only distinguish pure and impure
+  computations. Pure computations doesn't use any control-effects and
+  recursion, therefore they always terminate. *)
+type effect = Pure | Impure
+
 (** Types.
 
   This is an abstract type. Use [Type.view] to view it. *)
 type typ
-
-(** Effects. They are represented as types effect kind. Always ground. *)
-type effect = typ
-
-(** Effect rows. *)
-type effrow = typ
 
 (** Polymorphic type scheme *)
 type scheme = {
@@ -81,9 +81,6 @@ type scheme = {
 (** Scheme with name *)
 and named_scheme = name * scheme
 
-(** Type substitution *)
-type subst
-
 (** Declaration of an ADT constructor *)
 type ctor_decl = {
   ctor_name        : string;
@@ -98,6 +95,106 @@ type ctor_decl = {
   ctor_arg_schemes : scheme list
     (** Type schemes of the regular parameters *)
 }
+
+(** Type substitution *)
+type subst
+
+(* ========================================================================= *)
+(** Type expressions
+
+  Type expressions are used in a syntax, in contrast to types that are uses
+  in a type inference. Type expressions contain additional information about
+  location in the source code and effects. *)
+type type_expr = type_expr_data node
+and type_expr_data =
+  | TE_Type of typ
+    (** Placeholder for a type. It is used for representing a variable or a
+      type inferred during type inference, usually an unification variable *)
+
+  | TE_Effect of type_expr list
+    (** Effect. It is represented as a list of simpler effects. Empty list
+      is a pure effect. *)
+
+  | TE_PureArrow of scheme_expr * type_expr
+    (** Pure arrow *)
+
+  | TE_Arrow of scheme_expr * type_expr * type_expr
+    (** Impure arrow. The last parameter is an effect *)
+
+  | TE_Handler of (** First-class handler *)
+    { effect   : tvar;
+        (** Effect variable bound by this handler (it bound in [cap_type],
+          [in_type], and [in_eff] *)
+
+      cap_type : type_expr;
+        (** Type of a capability provided by this handler *)
+
+      in_type  : type_expr;
+        (** Inner type of a handler: a type of expression that can be run
+          inside this handler *)
+
+      in_eff   : type_expr;
+        (** Inner effect of a handler *)
+
+      out_type : type_expr;
+        (** Outer type of a handler: a type of the whole handler expression
+        *)
+
+      out_eff  : type_expr
+        (** Outer effect of a handler *)
+    }
+
+  | TE_Label of (** First-class label *)
+    { effect    : type_expr;
+        (** Effect of this label *)
+
+      delim_tp  : type_expr;
+        (** Type of the delimiter *)
+
+      delim_eff : type_expr
+        (** Effect of the delimiter *)
+    }
+
+  | TE_App of type_expr * type_expr
+    (** Type application *)
+
+  | TE_Option of type_expr
+    (** Implicitly introduced Option type (in optional parameter) *)
+
+(** Type-scheme expressions *)
+and scheme_expr = {
+  se_pos   : Position.t;
+    (** Location of the scheme expression *)
+
+  se_targs : named_tvar list;
+    (** Type parameters *)
+
+  se_named : named_scheme_expr list;
+    (** Named parameters *)
+
+  se_body  : type_expr
+    (** Body of the scheme *)
+}
+
+(** Named scheme expression *)
+and named_scheme_expr = name * scheme_expr
+
+(** Syntactic version of declaration of an ADT constructor *)
+type ctor_decl_expr = {
+  cde_name        : string;
+    (** Name of the constructor *)
+
+  cde_targs       : named_tvar list;
+    (** Existential type variables of the constructor *)
+
+  cde_named       : named_scheme_expr list;
+    (** Named parameters of the constructor *)
+
+  cde_arg_schemes : scheme_expr list
+    (** Type schemes of the regular parameters *)
+}
+
+(* ========================================================================= *)
 
 (** Variable *)
 type var = Var.t
@@ -115,7 +212,7 @@ type data_def =
       args  : named_tvar list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_decl list;
+      ctors : ctor_decl_expr list;
         (** List of constructors. *)
 
       strictly_positive : bool
@@ -131,10 +228,10 @@ type data_def =
       var       : var;
         (** Regular variable that would store the label *)
 
-      delim_tp  : typ;
+      delim_tp  : type_expr;
         (** Type of the delimiter *)
 
-      delim_eff : effrow
+      delim_eff : type_expr
         (** Effect of the delimiter *)
     }
 
@@ -149,16 +246,39 @@ and pattern_data =
   | PVar of var * scheme
     (** Pattern that binds a variable of given scheme *)
 
-  | PCtor of string * int * expr * ctor_decl list * tvar list * pattern list
+  | PCtor of string * int * expr * tvar list * pattern list * pattern list
     (** ADT constructor pattern. It stores a name, constructor index,
-      proof that matched type is an ADT, full list of constructor of an ADT,
-      existential type binders, and patterns for parameters. *)
+      proof that matched type is an ADT, existential type binders, patterns
+      for named parameters, and patterns for regular parameters. *)
+
+  | PAnnot of pattern * scheme_expr
+    (** Scheme annotated pattern *)
+
+(** Polymorphic expression *)
+and poly_expr = poly_expr_data node
+and poly_expr_data =
+  | EOptionPrf
+    (** The proof that Option is an ADT with None and Some constructors.
+      It expects a single type: the type of the Some parameter. *)
+
+  | EVar of var
+    (** Variable *)
+
+  | EPolyFun of tvar list * (var * scheme) list * expr
+    (** Polymorphic lambda abstraction. Always pure *)
+
+  | EHole of poly_expr option BRef.t
+    (** Placeholder for a polymorphic expression, to be filled by constraint
+      solving. *)
 
 (** Expression *)
 and expr = expr_data node
 and expr_data =
   | EUnitPrf
     (** The proof that Unit is an ADT with only one constructor *)
+
+  | EInst of poly_expr * type_expr list * poly_expr list
+    (** Instantiation of polymorphic expression *)
 
   | ENum of int
     (** Integer literal *)
@@ -172,54 +292,52 @@ and expr_data =
   | EChr of char
     (** String literal *)
 
-  | EVar of var
-    (** Variable *)
-
   | EPureFn of var * scheme * expr
     (** Pure lambda-abstraction *)
 
   | EFn of var * scheme * expr
     (** Impure lambda-abstraction *)
 
-  | ETFun of tvar * expr
-    (** Type function *)
+  | EAppPoly of expr * poly_expr
+    (** Function application to polymorphic expression *)
 
-  | EApp of expr * expr
-    (** Function application *)
+  | EAppMono of expr * expr
+    (** Function application to regular, possibly effectful expression *)
 
-  | ETApp of expr * typ
-    (** Type application *)
+  | ELetPoly of var * poly_expr * expr
+    (** Polymorphic let-definition *)
 
-  | ELet of var * scheme * expr * expr
-    (** Let-definition *)
+  | ELetMono of var * expr * expr
+    (** Monomorphic let-definition *)
 
   | ELetRec of rec_def list * expr
     (** Mutually recursive let-definitions *)
 
-  | ECtor of expr * int * typ list * expr list
+  | ECtor of expr * int * typ list * poly_expr list * poly_expr list
     (** Fully-applied constructor of ADT. The meaning of the parameters
       is the following.
       - Computationally irrelevant proof that given that the type of the
         whole expression is an ADT.
       - An index of the constructor.
       - Existential type parameters of the constructor.
-      - Regular parameter of the constructor, including named and implicit. *)
+      - Named parameters of the constructor.
+      - Regular parameters of the constructor. *)
 
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
-  | EMatchEmpty of expr * expr * typ * effrow option
+  | EMatchEmpty of expr * expr * typ * effect
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression, that is a witness that the type of the second
-      parameter is an empty ADT. The last parameter is an optional effect of
-      the whole expression: [None] means that pattern-matching is pure. *)
+      parameter is an empty ADT. The last parameter is an effect of the whole
+      expression. *)
 
-  | EMatch of expr * match_clause list * typ * effrow option
+  | EMatch of expr * match_clause list * typ * effect
     (** Pattern-matching. It stores type and effect of the whole expression.
-      If the effect is [None], the pattern-matching is pure. *)
+      *)
 
-  | EHandle of tvar * var * typ * expr * expr
-    (** Handling construct. In [EHandle(a, x, tp, e1, e2)] the meaning of
+  | EHandle of tvar * var * expr * expr
+    (** Handling construct. In [EHandle(a, x, e1, e2)] the meaning of
       parameters is the following.
       - [a]  -- effect variable that represent introduced effect
       - [x]  -- capability variable
@@ -236,9 +354,6 @@ and expr_data =
 
       delim_tp  : typ;
       (** Type of the delimiter *)
-
-      delim_eff : effect;
-      (** Effect of the delimiter *)
 
       cap_type  : typ;
       (** Type of the capability *)
@@ -271,17 +386,20 @@ and expr_data =
   | EExtern of string * typ
     (** Externally defined value *)
 
-  | ERepl of (unit -> expr) * typ * effrow
+  | EAnnot of expr * type_expr * type_expr
+    (** Expression explicitly annotated with a type and an effect. *)
+
+  | ERepl of (unit -> expr) * typ
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
-      This constructor stores also type and effect of a REPL expression. *)
+      *)
 
-  | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the first expression,
-      then continue to the second expression. *)
+  | EReplExpr of expr * expr
+    (** Print the type of the first expression, evaluate and print the first
+      expression, then continue to the second expression. *)
 
 (** Definition of recursive value *)
-and rec_def = var * scheme * expr
+and rec_def = var * scheme * poly_expr
 
 (** Clause of a pattern matching *)
 and match_clause = pattern * expr
@@ -296,13 +414,8 @@ module KUVar : sig
   (** Check for equality *)
   val equal : kuvar -> kuvar -> bool
 
-  (** Set a unification variable. Returns false if given kind does not
-    satisfy non-effect constraints. *)
-  val set : kuvar -> kind -> bool
-
-  (** Set a unification variable. This function can be called only on
-    non-effect kinds *)
-  val set_safe : kuvar -> kind -> unit
+  (** Set a unification variable. *) 
+  val set : kuvar -> kind -> unit
 end
 
 (* ========================================================================= *)
@@ -314,12 +427,8 @@ module Kind : sig
       (** Kind of all types *)
 
     | KEffect
-      (** Kind of all (closed) effects. Closed effects cannot contain
-        unification variables. *)
+      (** Kind of all effects. *)
     
-    | KEffrow
-      (** Kind of all effect rows. *)
-
     | KUVar of kuvar
       (** Unification variable *)
 
@@ -329,44 +438,23 @@ module Kind : sig
   (** Kind of all types *)
   val k_type : kind
 
-  (** Kind of all (closed) effects. Closed effects cannot contain unification
-    variables. *)
+  (** Kind of all effects. *)
   val k_effect : kind
 
-  (** Kind of effect rows. Rows contain at most one unification variable or
-    type application. *)
-  val k_effrow : kind
-
-  (** Arrow kind. The result kind (the second parameter) must be non-effect
-    kind. *)
+  (** Arrow kind. *)
   val k_arrow : kind -> kind -> kind
 
   (** Create an arrow kind with multiple parameters. *)
   val k_arrows : kind list -> kind -> kind
 
-  (** Create a fresh unification kind variable. The optional [non_effect]
-    flag indicates whether this kind cannot be instantiated to effect kind.
-    The default value is false, i.e., this kind can be an effect kind. *)
-  val fresh_uvar : ?non_effect:bool -> unit -> kind
+  (** Create a fresh unification kind variable. *)
+  val fresh_uvar : unit -> kind
 
   (** Reveal a top-most constructor of a kind *)
   val view : kind -> kind_view
 
   (** Check if given kind contains given unification variable *)
   val contains_uvar : kuvar -> kind -> bool
-
-  (** Check if given kind cannot be effect kind, even if it is a unification
-    variable. The main purpose of this function is to use it in assert
-    statements. *)
-  val non_effect : kind -> bool
-
-  (** Check whether given kind is an effect kind (but not unification
-    variable). *)
-  val is_effect : kind -> bool
-
-  (** Add non-effect constraint to given kind. Returns true on success.
-    Returns false if given kind is an effect kind. *)
-  val set_non_effect : kind -> bool
 end
 
 (* ========================================================================= *)
@@ -464,9 +552,6 @@ module Name : sig
   (** Find value associated to given name on a list *)
   val assoc : name -> (name * 'a) list -> 'a option
 
-  (** Substitute in name *)
-  val subst : subst -> name -> name
-
   (** Finite sets of names *)
   module Set : Set.S with type elt = name
 
@@ -475,26 +560,23 @@ module Name : sig
 end
 
 (* ========================================================================= *)
+(** Operations on effects *)
+module Effect : sig
+  (** Join of two effects *)
+  val join : effect -> effect -> effect
+
+  (** Join of multiple effects *)
+  val joins : effect list -> effect
+end
+
+(* ========================================================================= *)
 (** Operations on types *)
 module Type : sig
-  (** End of an effect *)
-  type effrow_end =
-    | EEClosed
-      (** Closed effect row *)
-    
-    | EEUVar of TVar.Perm.t * uvar
-      (** Open effect row with unification variable at the end. The unification
-        variable is associated with a delayed partial permutation of type
-        variables. *)
-
-    | EEVar of tvar
-      (** Open effect row with type variable at the end *)
-
-    | EEApp of typ * typ
-      (** Type application of an [effrow] kind *)
-
   (** View of a type *)
   type type_view =
+    | TEffect
+      (** Something of effect kind. In Unif all effects are equal *)
+
     | TUVar of TVar.Perm.t * uvar
       (** Unification variable, associated with a delayed partial permutation,
       of type variables. Mappings of variables not in scope of the
@@ -503,31 +585,18 @@ module Type : sig
     | TVar of tvar
       (** Regular type variable *)
 
-    | TEffect of TVar.Set.t
-      (** (Ground) effect *)
+    | TArrow of scheme * typ * effect
+      (** Effect annotated arrow *)
 
-    | TEffrow of TVar.Set.t * effrow_end
-      (** Effect: a set of simple effect variables together with a way of
-        closing an effect *)
-
-    | TPureArrow of scheme * typ
-      (** Pure arrow, i.e., type of function that doesn't perform any effects
-        and always terminate *)
-
-    | TArrow of scheme * typ * effrow
-      (** Impure arrow *)
-  
-    | THandler of tvar * typ * typ * effrow * typ * effect
-      (** First class handler. In [THandler(a, tp, itp, ieff, otp, oeff)]:
+    | THandler of tvar * typ * typ * typ
+      (** First class handler. In [THandler(a, tp, itp, otp)]:
         - [a] is a variable bound in [tp], [itp], and [ieff];
         - [tp] is a type of provided capability;
-        - [itp] and [ieff] are type and effects of handled expression.
-          The variable [a] in [ieff] can be omitted.
-        - [otp] and [oeff] are type and effects of the whole handler. *)
+        - [itp] is a typ of handled expression.
+        - [otp] s a type of the whole handler. *)
   
-    | TLabel of effect * typ * effrow
-      (** Type of first-class label. It stores the effect of the label and
-        type and effect of the delimiter. *)
+    | TLabel of typ
+      (** Type of a first-class label. It stores the type of the delimiter. *)
 
     | TApp of typ * typ
       (** Type application *)
@@ -542,29 +611,29 @@ module Type : sig
 
   (** Weak head normal form of a type *)
   type whnf =
+    | Whnf_Effect
+      (** Effect *)
+
     | Whnf_Neutral of neutral_head * typ list
       (** Neutral type. Its parameters are in reversed order. *)
 
-    | Whnf_Effect  of effect
-      (** Effect *)
-
-    | Whnf_Effrow of effrow
-      (** Effect rows *)
-
-    | Whnf_PureArrow of scheme * typ
-      (** Pure arrow *)
+    | Whnf_Arrow of scheme * typ * effect
+      (** Effect annotated arrow *)
   
-    | Whnf_Arrow of scheme * typ * effrow
-      (** Impure arrow *)
-  
-    | Whnf_Handler   of tvar * typ * typ * effrow * typ * effrow
+    | Whnf_Handler   of tvar * typ * typ * typ
       (** Handler type *)
 
-    | Whnf_Label of effect * typ * effrow
+    | Whnf_Label of typ
       (** Label type *)
+
+  (** Effect *)
+  val t_effect : typ
 
   (** Unit type *)
   val t_unit : typ
+
+  (** Option type *)
+  val t_option : typ -> typ
 
   (** Unification variable *)
   val t_uvar : TVar.Perm.t -> uvar -> typ
@@ -579,22 +648,13 @@ module Type : sig
   val t_pure_arrows : scheme list -> typ -> typ
 
   (** Arrow type *)
-  val t_arrow : scheme -> typ -> effrow -> typ
+  val t_arrow : scheme -> typ -> effect -> typ
 
   (** Type of first-class handlers *)
-  val t_handler : tvar -> typ -> typ -> effrow -> typ -> effrow -> typ
+  val t_handler : tvar -> typ -> typ -> typ -> typ
 
   (** Type of first-class label *)
-  val t_label : effect -> typ -> effrow -> typ
-
-  (** Create an effect *)
-  val t_effect : TVar.Set.t -> effect
-
-  (** Create an effect row *)
-  val t_effrow : TVar.Set.t -> effrow_end -> effrow
-
-  (** Create a closed effect row *)
-  val t_closed_effrow : TVar.Set.t -> effrow
+  val t_label : typ -> typ
 
   (** Type application *)
   val t_app : typ -> typ -> typ
@@ -611,25 +671,8 @@ module Type : sig
   (** Compute weak head normal form of a type *)
   val whnf : typ -> whnf
 
-  (** Reveal a representation of an effect: a set of effect variables. *)
-  val effect_view : effect -> TVar.Set.t
-
-  (** Reveal a representation of an effect row: a set of effect variables
-    together with a way of closing an effect row. *)
-  val effrow_view : effrow -> TVar.Set.t * effrow_end
-
   (** Get the kind of given type *)
   val kind : typ -> kind
-
-  (** Returns subtype of given type, where all closed rows on negative
-    positions are opened by a fresh unification variable. It works only
-    for proper types (of kind type) *)
-  val open_down : scope:scope -> typ -> typ
-
-  (** Returns supertype of given type, where all closed rows on positive
-    positions are opened by a fresh unification variable. It works only
-    for proper types (of kind type) *)
-  val open_up : scope:scope -> typ -> typ
 
   (** Check if given unification variable appears in given type. It is
     equivalent to [UVar.mem u (uvars tp)], but faster. *)
@@ -652,69 +695,14 @@ module Type : sig
 end
 
 (* ========================================================================= *)
-(** Operations on effects *)
-module Effect : sig
-  (** View of effect row *)
-  type row_view =
-    | RPure
-      (** Pure effect row *)
-
-    | RUVar of TVar.Perm.t * uvar
-      (** Row unification variable (with delayed permutation) *)
-
-    | RVar  of tvar
-      (** Row variable *)
-
-    | RApp  of typ * typ
-      (** Type application of an [effrow] kind *)
-
-    | RCons of tvar * effrow
-      (** Consing an simple effect variable to an effect row *)
-
-  (** Pure effect row *)
-  val pure : effrow
-
-  (** Effect row with single IO effect *)
-  val io : effrow
-
-  (** Create a row that consists of single effect *)
-  val singleton_row : tvar -> effrow
-
-  (** Consing a single effect variable to an effect row *)
-  val cons : tvar -> effrow -> effrow
-
-  (** Consing an effect to an effect row *)
-  val cons_eff : effect -> effrow -> effrow
-
-  (** Row-like view of an effect row *)
-  val view : effrow -> row_view
-
-  (** View the end of given effect row. *) 
-  val view_end : effrow -> Type.effrow_end
-
-  (** Check if an effect row is pure *)
-  val is_pure : effrow -> bool
-end
-
-(* ========================================================================= *)
-(** Type substitutions *)
-module Subst : sig
-  (** Empty substitution *)
-  val empty : subst
-
-  (** Extend substitution with a renaming. The new version of a variable
-    must be fresh enough. *)
-  val rename_to_fresh : subst -> tvar -> tvar -> subst
-
-  (** Extend substitution. It is rather parallel extension than composition *)
-  val add_type : subst -> tvar -> typ -> subst
-end
-
-(* ========================================================================= *)
 (** Operations on type schemes *)
 module Scheme : sig
   (** Create a monomorphic type-scheme *)
   val of_type : typ -> scheme
+
+  (** Convert scheme to monomorphic type. Returns [None], when the scheme is
+    polymorphic. *)
+  val to_type : scheme -> typ option
 
   (** Check if given type-scheme is monomorphic *)
   val is_monomorphic : scheme -> bool
@@ -760,6 +748,20 @@ module CtorDecl : sig
 end
 
 (* ========================================================================= *)
+(** Type substitutions *)
+module Subst : sig
+  (** Empty substitution *)
+  val empty : subst
+
+  (** Extend substitution with a renaming. The new version of a variable
+    must be fresh enough. *)
+  val rename_to_fresh : subst -> tvar -> tvar -> subst
+
+  (** Extend substitution. It is rather parallel extension than composition *)
+  val add_type : subst -> tvar -> typ -> subst
+end
+
+(* ========================================================================= *)
 (** Built-in types *)
 module BuiltinType : sig
   (** Int type *)
@@ -777,6 +779,47 @@ module BuiltinType : sig
   (** Unit type *)
   val tv_unit : tvar
 
+  (** Option type *)
+  val tv_option : tvar
+
+  (** IO effect *)
+  val tv_io : tvar
+
   (** List of all built-in types with their names *)
   val all : (string * tvar) list
+end
+
+(* ========================================================================= *)
+(** Type expressions *)
+module TypeExpr : sig
+  (** Convert to regular type *)
+  val to_type : type_expr -> typ
+end
+
+(* ========================================================================= *)
+(** Scheme expressions *)
+module SchemeExpr : sig
+  (** Create a monomorphic scheme expression *)
+  val of_type_expr : type_expr -> scheme_expr
+
+  (** Convert to monomorphic type expression. Returns [None] when the scheme
+    is polymorphic. *)
+  val to_type_expr : scheme_expr -> type_expr option
+
+  (** Convert to type-scheme *)
+  val to_scheme : scheme_expr -> scheme
+end
+
+(* ========================================================================= *)
+(** Named scheme expressions *)
+module NamedSchemeExpr : sig
+  (** Convert to named scheme *)
+  val to_named_scheme : named_scheme_expr -> named_scheme
+end
+
+(* ========================================================================= *)
+(** Syntactic constructor declarations *)
+module CtorDeclExpr : sig
+  (** Convert to constructor declarations *)
+  val to_ctor_decl : ctor_decl_expr -> ctor_decl
 end

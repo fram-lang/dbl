@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for recursive definitions *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -14,3 +14,4 @@ open TypeCheckFix
 val check_rec_defs : tcfix:tcfix ->
   Env.t -> ImplicitEnv.t -> S.def list ->
     Env.t * T.data_def list * T.rec_def list * ret_effect
+*)

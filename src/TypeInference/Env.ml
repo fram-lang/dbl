@@ -3,7 +3,7 @@
  *)
 
 (** Environment of the type inference *)
-
+(*
 open Common
 
 module StrMap = Map.Make(String)
@@ -237,3 +237,4 @@ let leave_module env ~public name =
 
 let open_module env ~public m =
   { env with mod_stack = ModStack.open_module env.mod_stack ~public m }
+*)
