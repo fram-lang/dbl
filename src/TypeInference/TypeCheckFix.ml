@@ -4,7 +4,7 @@
 
 (** Signatures of mutually recursive functions defined across several
   modules. *)
-
+(*
 open Common
 
 (** Type of continuation used to type-checking of definitions. It is defined
@@ -53,3 +53,4 @@ module type TCFix = sig
 end
 
 type tcfix = (module TCFix)
+*)

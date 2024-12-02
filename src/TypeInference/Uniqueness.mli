@@ -3,7 +3,7 @@
  *)
 
 (** Checking uniqueness of various mutual definitions *)
-
+(*
 open Common
 
 (** Ensure that each constructor in given ADT has a unique name *)
@@ -27,3 +27,4 @@ val check_ctor_named_types : T.named_tvar list -> S.named_type_arg list -> unit
 
 (** Ensure that generalized names are unique *)
 val check_generalized_named_types : pos:Position.t -> T.named_tvar list -> unit
+*)

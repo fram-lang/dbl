@@ -3,7 +3,7 @@
  *)
 
 (** Translation of types *)
-
+(*
 open Common
 
 let eff_cons env x eff =
@@ -141,3 +141,4 @@ let tr_effect_opt env eff =
   match eff with
   | None     -> T.TEffPure
   | Some eff -> tr_effect env eff
+*)

@@ -3,7 +3,7 @@
  *)
 
 (** Checking uniqueness of various mutual definitions *)
-
+(*
 open Common
 
 module StrMap = Map.Make(String)
@@ -106,3 +106,4 @@ let check_generalized_named_types ~pos tvars =
   let on_error ~pos ~ppos (name, _) =
     Error.fatal (Error.type_generalized_twice ~pos name) in
   check_uniqueness ~on_error ~name_of ~pos_of names
+*)

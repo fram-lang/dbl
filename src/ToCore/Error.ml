@@ -3,7 +3,7 @@
  *)
 
 (** Reporting errors that may occur during the translation from Unif to Core *)
-
+(*
 type t = Position.t * string
 
 let fatal (pos, msg) =
@@ -15,3 +15,4 @@ let non_exhaustive_match ~pos ctx =
   let msg = Printf.sprintf
     "This pattern-matching is not exhaustive."
   in (pos, msg)
+*)

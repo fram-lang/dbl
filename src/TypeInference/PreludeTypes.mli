@@ -3,7 +3,7 @@
  *)
 
 (** Functions allowing the use of some of the types defined in the Prelude. *)
-
+(*
 open Common
 
 (** Create an Option type fed with the given argument type *)
@@ -17,3 +17,4 @@ val mk_Some : env:Env.t -> pos:Position.t -> T.typ -> T.expr -> T.expr
 
 (** Create None constructor of given Option type *)
 val mk_None : env:Env.t -> pos:Position.t -> T.typ -> T.expr
+*)

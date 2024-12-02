@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for patterns *)
-
+(*
 open Common
 
 type named_type    = (T.tname * S.type_arg) S.node
@@ -415,3 +415,4 @@ let rec infer_named_arg_schemes env ims =
     let (env, im, r_eff1)  = infer_named_arg_scheme env im in
     let (env, ims, r_eff2) = infer_named_arg_schemes env ims in
     (env, im :: ims, ret_effect_join r_eff1 r_eff2)
+*)

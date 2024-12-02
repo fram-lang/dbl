@@ -3,7 +3,7 @@
  *)
 
 (** Environment of the translation *)
-
+(*
 open Common
 
 type t =
@@ -43,3 +43,4 @@ let lookup_tvar env x =
     failwith "Internal error: unbound type variable"
 
 let in_repl_mode env = env.repl_mode
+*)

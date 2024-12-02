@@ -4,7 +4,7 @@
 
 (** Additional environment used in type-checking definition blocks. It stores
   information about declared named implicits. *)
-
+(*
 open Common
 
 type t = (S.iname * T.named_tvar list * T.scheme) list (* in reversed order *)
@@ -143,3 +143,4 @@ let add_poly_id ~pos env ienv (id : S.ident) sch =
 
 let add_mono_id ~pos env ienv (id : S.ident) tp =
   add_poly_id ~pos env ienv id (T.Scheme.of_type tp)
+*)

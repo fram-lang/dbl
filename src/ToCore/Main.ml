@@ -3,7 +3,7 @@
  *)
 
 (** Main module of a translation from Unif to Core *)
-
+(*
 open Common
 
 (** Translate expression *)
@@ -172,6 +172,7 @@ and tr_rec_def env (x, sch, body) =
   | _ -> failwith "Internal error: non-productive recursive definition"
 
 (* ========================================================================= *)
-
+*)
 let tr_program ~repl_mode p =
-  tr_expr (Env.empty ~repl_mode) p
+  (* tr_expr (Env.empty ~repl_mode) p *)
+  failwith "not implemeted: ToCore.Main.tr_program"

@@ -3,7 +3,7 @@
  *)
 
 (** Kind-checking and translation of type expressions *)
-
+(*
 open Common
 
 let rec tr_kind_expr (k : Lang.Surface.kind_expr) = 
@@ -203,3 +203,4 @@ let check_type_inst env targs (inst : S.type_inst) =
 
 let check_type_insts env tinst targs =
   List.filter_map (check_type_inst env targs) tinst
+*)

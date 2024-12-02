@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for patterns *)
-
+(*
 open Common
 
 (** Check if given pattern fits in given scope and has given type.
@@ -35,3 +35,4 @@ val check_arg_scheme :
 val infer_named_arg_schemes :
   Env.t -> S.named_arg list ->
     Env.t * (T.name * T.pattern * T.scheme) list * ret_effect
+*)

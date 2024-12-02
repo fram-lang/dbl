@@ -3,7 +3,7 @@
  *)
 
 (** Pretty printing of types and kinds *)
-
+(*
 open Common
 
 type ctx = {
@@ -431,3 +431,4 @@ let scheme_to_string ctx env sch =
   let buf = Buffer.create 80 in
   pp_scheme buf (PPEnv.create ctx env) 0 sch;
   Buffer.contents buf
+*)

@@ -3,7 +3,7 @@
  *)
 
 (** Translation of pattern-matching *)
-
+(*
 open Common
 open PatternContext
 
@@ -293,3 +293,4 @@ let tr_single_match ~pos ~env ~tr_expr v cls tp eff =
   end)
   in
   M.tr_single_match env v cls
+*)

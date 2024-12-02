@@ -3,7 +3,7 @@
  *)
 
 (** Reporting errors related to type-inference. *)
-
+(*
 type t = Position.t * string * (Position.t * string) list
 
 let report_note (pos, msg) =
@@ -509,3 +509,4 @@ let invalid_whnf_form ~pos ~env tp =
     "Got invalid whnf form when converting type %s"
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+*)

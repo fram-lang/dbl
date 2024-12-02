@@ -3,7 +3,7 @@
  *)
 
 (** Utility functions that help to build Unif expressions *)
-
+(*
 open Common
 
 (** Make polymorphic function with given type parameters *)
@@ -64,3 +64,4 @@ val arg_match :
 val inst_args_match :
   (T.name * T.pattern * T.scheme) list -> T.expr -> T.typ -> T.effrow option ->
     (T.name * T.var * T.scheme) list * T.expr
+*)

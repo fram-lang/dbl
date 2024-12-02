@@ -4,7 +4,7 @@
 
 (** Scheme-inference for polymorphic expressions and related constructs:
   actual parameters, and explicit instantiations. *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -185,3 +185,4 @@ let rec check_explicit_insts ~tcfix
     let ctx e0 = make (T.ELet(x, sch, e, ctx e0)) in
     let insts = (n, make (T.EVar x)) :: insts in
     (ctx, insts, ret_effect_join r_eff1 r_eff2)
+*)

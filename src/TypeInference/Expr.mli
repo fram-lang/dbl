@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for expressions and related syntactic categories *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -17,3 +17,4 @@ val infer_expr_type : tcfix:tcfix ->
   the purity of an expression. *)
 val check_expr_type : tcfix:tcfix ->
   Env.t -> S.expr -> T.typ -> T.effrow -> T.expr * ret_effect
+*)

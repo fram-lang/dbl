@@ -3,7 +3,7 @@
  *)
 
 (** Represention of module definitions *)
-
+(*
 open Common
 
 module StrMap = Map.Make(String)
@@ -166,3 +166,4 @@ let open_module m ~public m' =
     ctor_map     = StrMap.union combine m.ctor_map     m'.ctor_map;
     mod_map      = StrMap.union combine m.mod_map      m'.mod_map
   }
+*)

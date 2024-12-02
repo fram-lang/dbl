@@ -26,9 +26,6 @@ val add_named_tvars : t -> named_tvar list -> t * named_tvar list
 (** Extend substitution *)
 val add_type : t -> tvar -> typ -> t
 
-(** Substitute in name *)
-val in_name : t -> name -> name
-
 (** Substitute in type *)
 val in_type : t -> typ -> typ
 

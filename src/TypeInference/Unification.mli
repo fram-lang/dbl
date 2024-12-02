@@ -3,7 +3,7 @@
  *)
 
 (** Unification and subtyping of types *)
-
+(*
 open Common
 
 (** Arrow type *)
@@ -99,3 +99,4 @@ val from_handler : Env.t -> T.typ -> handler
   an unification variable, it assumes that the effect of the label is
   "the effect". *)
 val as_label : Env.t -> T.typ -> label
+*)

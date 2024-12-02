@@ -3,7 +3,7 @@
  *)
 
 (** Pretty printing of types and kinds *)
-
+(*
 open Common
 
 (** Contexts of pretty-printing *)
@@ -30,3 +30,4 @@ val scheme_to_string : ctx -> Env.t -> T.scheme -> string
 (** Pretty-print additional information about printing context, e.g.,
   locations of binders of anonymous types. *)
 val additional_info : ctx -> string
+*)

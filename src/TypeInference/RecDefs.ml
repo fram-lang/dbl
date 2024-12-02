@@ -1,7 +1,7 @@
 (* This file is part of DBL, released under MIT license.
  * See LICENSE for details.
  *)
-
+(*
 (** Type-inference for recursive definitions *)
 
 open Common
@@ -466,3 +466,4 @@ let check_rec_defs ~tcfix env ienv defs =
   let (env, ienv, fds) = add_rec_funs env ienv tvars ims fds in
   let fds = List.map (finalize_rec_fun fds) fds in
   (env, dds, fds, r_eff)
+*)

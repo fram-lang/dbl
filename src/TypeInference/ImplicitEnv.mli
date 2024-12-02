@@ -4,7 +4,7 @@
 
 (** Additional environment used in type-checking definition blocks. It stores
   information about declared named implicits. *)
-
+(*
 open Common
 
 type t
@@ -53,3 +53,4 @@ val add_poly_id :
   it will be shadowed in implicit environment. *)
 val add_mono_id :
   pos:Position.t -> Env.t -> t -> S.ident -> T.typ -> Env.t * t * T.var
+*)

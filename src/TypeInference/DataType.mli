@@ -3,7 +3,7 @@
  *)
 
 (** Checking and processing algebraic data types (ADTs) *)
-
+(*
 open Common
 
 (** Internal represenation of list of constructors. *)
@@ -33,3 +33,4 @@ val finalize_check :
   nonrec_scope:T.scope ->
   Env.t -> T.tvar -> name:S.tvar -> T.named_tvar list -> ctor_decl_list ->
     Env.t * T.data_def
+*)

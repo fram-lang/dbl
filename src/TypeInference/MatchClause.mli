@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for match clauses and related constructs *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -42,3 +42,4 @@ val tr_opt_clauses : tcfix:tcfix -> pos:Position.t ->
   S.match_clause list -> (T.typ, 'rd) request -> T.effrow ->
   on_error:(pos:Position.t -> Error.t) ->
     T.var * (T.typ, 'md) response * T.expr * (T.typ, 'rd) response
+*)

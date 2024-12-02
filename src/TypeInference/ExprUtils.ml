@@ -3,7 +3,7 @@
  *)
 
 (** Utility functions that help to build Unif expressions *)
-
+(*
 open Common
 
 (** Make function that takes parameters of given type schemes *)
@@ -204,3 +204,4 @@ let rec inst_args_match ims body tp eff =
     let (x, body)   = arg_match pat body tp eff in
     let (ims, body) = inst_args_match ims body tp eff in
     ((name, x, x_sch) :: ims, body)
+*)
