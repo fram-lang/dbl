@@ -56,14 +56,34 @@ pub data Map Key = Map of {
         [] Pair (T Val) (T Val)
     , method range : {type Val} -> T Val -> Interval Key ->
         Interval Key -> [] T Val
-    , method least : {type Val} -> T Val -> [] Option (Pair Key Val)
-    , method greatest : {type Val} -> T Val -> [] Option (Pair Key Val)
-    , method leastGt : {type Val} -> T Val -> Key -> [] Option (Pair Key Val)
-    , method leastGeq : {type Val} -> T Val -> Key -> [] Option (Pair Key Val)
-    , method greatestLt : {type Val} -> T Val -> 
+    , method lowerBound : {type Val} -> T Val -> [] Option (Pair Key Val)
+    , method lowerBoundErr : 
+      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} -> 
+      T Val -> [Err] (Pair Key Val)
+    , method upperBound : {type Val} -> T Val -> [] Option (Pair Key Val)
+    , method upperBoundErr : 
+      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} -> 
+      T Val -> [Err] (Pair Key Val)
+    , method lowerBoundGt : {type Val} -> T Val -> Key -> 
+      [] Option (Pair Key Val)
+    , method lowerBoundGtErr :
+      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
+      T Val -> Key -> [Err] (Pair Key Val)
+    , method lowerBoundGeq : {type Val} -> T Val -> Key -> 
+      [] Option (Pair Key Val)
+    , method lowerBoundGeqErr :
+      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
+      T Val -> Key -> [Err] (Pair Key Val)
+    , method upperBoundLt : {type Val} -> T Val -> 
         Key -> [] Option (Pair Key Val)
-    , method greatestLeq : {type Val,E} -> T Val ->
+    , method upperBoundLtErr :
+      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
+      T Val -> Key -> [Err] (Pair Key Val)
+    , method upperBoundLeq : {type Val,E} -> T Val ->
         Key -> [] Option (Pair Key Val)
+    , method upperBoundLeqErr :
+      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
+      T Val -> Key -> [Err] (Pair Key Val)
 }
 
 (** implementation *)
@@ -216,78 +236,114 @@ let partionGt compare tree key =
   in 
     (left, right)
 
-let rec least tree = 
+let rec lowerBound tree = 
   match tree with 
     | Leaf => None
     | Node {left = Leaf, value} => Some value
-    | Node {left} => least left
+    | Node {left} => lowerBound left
   end
 
-let rec greatest tree = 
+let lowerBoundErr {~onError} tree =
+  match lowerBound tree with
+  | None => ~onError ()
+  | Some x => x
+  end
+
+let rec upperBound tree = 
   match tree with 
     | Leaf => None
     | Node { value, right=Leaf} => Some value
-    | Node {right} => greatest right
+    | Node {right} => upperBound right
   end
 
-let rec leastGt compare tree key = 
+let upperBoundErr {~onError} tree =
+  match upperBound tree with
+  | None => ~onError ()
+  | Some x => x
+  end
+
+let rec lowerBoundGt compare tree key = 
   match tree with
     | Leaf => None
     | Node {left, value = (key1, value), right} =>
       match compare key key1 with
         | Less => 
-          match leastGt compare left key with
+          match lowerBoundGt compare left key with
             | None => Some (key1, value)
             | x => x
           end
-        | Equal => least right
-        | Greater => leastGt compare right key
+        | Equal => lowerBound right
+        | Greater => lowerBoundGt compare right key
     end
   end
 
-let rec leastGeq compare tree key =
+let lowerBoundGtErr {~onError} compare tree key =
+  match lowerBoundGt compare tree key with
+  | None => ~onError ()
+  | Some x => x
+  end
+
+let rec lowerBoundGeq compare tree key =
   match tree with 
     | Leaf => None
     | Node {left, value = (key1, value), right} =>
       match compare key key1 with
         | Less => 
-          match leastGeq compare left key with
+          match lowerBoundGeq compare left key with
             | None => Some (key1,value)
             | x => x
           end
         | Equal => Some (key1, value)
-        | Greater => leastGeq compare right key
+        | Greater => lowerBoundGeq compare right key
     end
   end
 
-let rec greatestLt compare tree key = 
+let lowerBoundGeqErr {~onError} compare tree key =
+  match lowerBoundGeq compare tree key with
+  | None => ~onError ()
+  | Some x => x
+  end
+
+let rec upperBoundLt compare tree key = 
   match tree with
     | Leaf => None
     | Node {left, value = (key1,value), right} => 
       match compare key key1 with
-        | Less => greatestLt compare left key
-        | Equal => greatest left
+        | Less => upperBoundLt compare left key
+        | Equal => upperBound left
         | Greater => 
-          match greatestLt compare right key with
+          match upperBoundLt compare right key with
             | None => Some (key1,value)
             | x => x
           end
       end
   end
 
-let rec greatestLeq compare tree key =
+let upperBoundLtErr {~onError} compare tree key = 
+  match upperBoundLt compare tree key with 
+  | None => ~onError ()
+  | Some x => x
+  end
+
+let rec upperBoundLeq compare tree key =
   match tree with 
     | Leaf => None 
     | Node {left, value = (key1,value), right} =>
       match compare key key1 with
-        | Less => greatestLt compare left key
+        | Less => upperBoundLt compare left key
         | Equal => Some (key1,value)
         | Greater => 
-          match greatestLeq compare right key with
+          match upperBoundLeq compare right key with
             | None => Some (key1,value)
             | x => x
           end
       end
+  end
+
+let upperBoundLeqErr {~onError} compare tree key = 
+  match upperBoundLeq compare tree key with
+  | None => ~onError ()
+  | Some x => x
   end
 
 let toList tree = foldr (fn key value acc => (key, value) :: acc) tree []
@@ -377,17 +433,33 @@ let partionGtT compare (MapT tree) key =
 let rangeT compare (MapT tree) left right = 
   MapT (range compare tree left right)
 
-let leastT (MapT tree) = least tree
+let lowerBoundT (MapT tree) = lowerBound tree
 
-let greatest (MapT tree) = greatest tree
+let lowerBoundTErr {~onError} (MapT tree) = lowerBoundErr tree
 
-let leastGtT compare (MapT tree) key = leastGt compare tree key
+let upperBoundT (MapT tree) = upperBound tree
 
-let greatestLtT compare (MapT tree) key = greatestLt compare tree key
+let upperBoundTErr {~onError} (MapT tree) = upperBoundErr tree
 
-let leastGeqT compare (MapT tree) key = leastGeq compare tree key
+let lowerBoundGtT compare (MapT tree) key = lowerBoundGt compare tree key
 
-let greatestLeqT compare (MapT tree) key = greatestLeq compare tree key
+let lowerBoundGtTErr {~onError} compare (MapT tree) key =
+  lowerBoundGtErr compare tree key
+
+let upperBoundLtT compare (MapT tree) key = upperBoundLt compare tree key
+
+let upperBoundLtTErr {~onError} compare (MapT tree) key =
+  upperBoundLtErr compare tree key
+
+let lowerBoundGeqT compare (MapT tree) key = lowerBoundGeq compare tree key
+
+let lowerBoundGeqTErr {~onError} compare (MapT tree) key =
+  lowerBoundGeqErr compare tree key
+
+let upperBoundLeqT compare (MapT tree) key = upperBoundLeq compare tree key
+
+let upperBoundLeqTErr {~onError} compare (MapT tree) key = 
+  upperBoundLeqErr compare tree key
 
 pub let make {Key} (compare : Key -> Key -> [] Ordered) = Map {
   T = MapT Key
@@ -413,10 +485,16 @@ pub let make {Key} (compare : Key -> Key -> [] Ordered) = Map {
   , method partionLt = partionLtT compare
   , method partionGt = partionGtT compare
   , method range = rangeT compare 
-  , method least = leastT
-  , method greatest = greatest
-  , method leastGt = leastGtT compare
-  , method leastGeq = leastGeqT compare
-  , method greatestLt = greatestLtT compare
-  , method greatestLeq = greatestLeqT compare
+  , method lowerBound = lowerBoundT
+  , method lowerBoundErr = lowerBoundTErr
+  , method upperBound = upperBoundT
+  , method upperBoundErr = upperBoundTErr
+  , method lowerBoundGt = lowerBoundGtT compare
+  , method lowerBoundGtErr = lowerBoundGtTErr compare
+  , method lowerBoundGeq = lowerBoundGeqT compare
+  , method lowerBoundGeqErr = lowerBoundGeqTErr compare
+  , method upperBoundLt = upperBoundLtT compare
+  , method upperBoundLtErr = upperBoundLtTErr compare
+  , method upperBoundLeq = upperBoundLeqT compare
+  , method upperBoundLeqErr = upperBoundLeqTErr compare
 }

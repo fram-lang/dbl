@@ -26,12 +26,24 @@ pub data Set Elem = Set of {
   , method partionLt : T -> Elem -> [] (Pair T T)
   , method partionGt : T -> Elem -> [] (Pair T T)
   , method range : T -> Interval Elem -> Interval Elem -> [] T
-  , method least : T -> [] Option Elem
-  , method greatest : T -> [] Option Elem
-  , method leastGt : T -> Elem -> [] Option Elem
-  , method leastGeq : T -> Elem -> [] Option Elem
-  , method greatestLt : T -> Elem -> [] Option Elem
-  , method greatestLeq : T -> Elem -> [] Option Elem 
+  , method lowerBound : T -> [] Option Elem
+  , method lowerBoundErr : 
+      {Err, ~onError : Unit -> [Err] Elem} -> T -> [Err] Elem
+  , method upperBound : T -> [] Option Elem
+  , method upperBoundErr : 
+      {Err, ~onError : Unit -> [Err] Elem} -> T -> [Err] Elem
+  , method lowerBoundGt : T -> Elem -> [] Option Elem
+  , method lowerBoundGtErr : 
+      {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
+  , method lowerBoundGeq : T -> Elem -> [] Option Elem
+  , method lowerBoundGeqErr :
+      {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
+  , method upperBoundLt : T -> Elem -> [] Option Elem
+  , method upperBoundLtErr :
+      {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
+  , method upperBoundLeq : T -> Elem -> [] Option Elem 
+  , method upperBoundLeqErr :
+      {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
 }
 
 (** Red black tree implementation *)
@@ -116,11 +128,23 @@ let rec least tree =
     | Node {left} => least left
   end
 
+let leastErr { ~onError } tree =
+  match least tree with
+  | None => ~onError ()
+  | Some x => x
+  end 
+
 let rec greatest tree = 
   match tree with 
     | Leaf => None
     | Node {value = x, right = Leaf} => Some x
     | Node {right} => greatest right
+  end
+
+let greatestErr { ~onError } tree = 
+  match greatest tree with
+  | None => ~onError ()
+  | Some x => x
   end
 
 let empty = Leaf
@@ -269,6 +293,12 @@ let rec leastGt compare tree val =
       end
   end 
 
+let leastGtErr { ~onError } compare tree val =
+  match leastGt compare tree val with
+  | None => ~onError ()
+  | Some x => x
+  end
+
 let rec leastGeq compare tree val =
   match tree with 
   | Leaf => None
@@ -282,6 +312,12 @@ let rec leastGeq compare tree val =
         | Equal => Some val
         | Greater => leastGeq compare right val
       end
+  end
+
+let leastGeqErr { ~onError } compare tree val =
+  match leastGeq compare tree val with
+  | None => ~onError ()
+  | Some x => x
   end
 
 let rec greatestLt compare tree val =
@@ -299,6 +335,12 @@ let rec greatestLt compare tree val =
         end
   end
 
+let greatestLtErr { ~onError } compare tree val =
+  match greatestLt compare tree val with
+  | None => ~onError ()
+  | Some x => x
+  end
+
 let rec greatestLeq compare tree val =  
   match tree with
     | Leaf => None
@@ -312,6 +354,12 @@ let rec greatestLeq compare tree val =
                 | x => x
               end
         end
+  end
+
+let greatestLeqErr { ~onError } compare tree val =
+  match greatestLeq compare tree val with
+  | None => ~onError ()
+  | Some x => x
   end
 
 
@@ -334,10 +382,16 @@ pub let make {Val} (compare : Val -> Val -> [] Ordered) = Set {
   , method partionLt = partionLt compare
   , method partionGt = partionGt compare
   , method range = range compare
-  , method least = least
-  , method greatest = greatest
-  , method leastGt = leastGt compare
-  , method leastGeq = leastGeq compare
-  , method greatestLt = greatestLt compare
-  , method greatestLeq = greatestLeq compare
+  , method lowerBound = least
+  , method lowerBoundErr = leastErr
+  , method upperBound = greatest
+  , method upperBoundErr = greatestErr
+  , method lowerBoundGt = leastGt compare
+  , method lowerBoundGtErr = leastGtErr compare
+  , method lowerBoundGeq = leastGeq compare
+  , method lowerBoundGeqErr = leastGeqErr compare
+  , method upperBoundLt = greatestLt compare
+  , method upperBoundLtErr = greatestLtErr compare
+  , method upperBoundLeq = greatestLeq compare
+  , method upperBoundLeqErr = greatestLeqErr compare
 }
