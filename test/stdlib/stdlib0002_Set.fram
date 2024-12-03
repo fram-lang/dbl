@@ -63,10 +63,10 @@ let _ = assert (snd (y.partionLt 2) >. toList == [2,3]) "Failed partionLt"
 let _ = 
   assert (y.range (Set.Inclusion 1) (Set.Inclusion 2) >. toList == [1,2]) "Failed range"
 
-(* least check *)
+(* lowerBound check *)
 let _ = 
-  assert (match y.least with | Some x => x == 0 | _ => False end) "Failed least"
+  assert (match y.lowerBound with | Some x => x == 0 | _ => False end) "Failed lowerBound"
 
-(* greatest check *)
-let _ = assert (match y.greatest with | Some x => x == 3 | _ => False end)
- "Failed greatest"
+(* upperBound check *)
+let _ = assert (match y.upperBound with | Some x => x == 3 | _ => False end)
+ "Failed upperBound"
