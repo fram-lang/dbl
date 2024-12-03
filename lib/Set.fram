@@ -6,6 +6,8 @@ import open RedBlackTree
 
 (** Signature of Set *)
 
+implicit ~onError
+
 pub data Interval Value = Inclusion of Value | Exclusion of Value
 
 pub data Set Elem = Set of {
@@ -128,7 +130,7 @@ let rec least tree =
     | Node {left} => least left
   end
 
-let leastErr { ~onError } tree =
+let leastErr tree =
   match least tree with
   | None => ~onError ()
   | Some x => x
@@ -141,7 +143,7 @@ let rec greatest tree =
     | Node {right} => greatest right
   end
 
-let greatestErr { ~onError } tree = 
+let greatestErr tree = 
   match greatest tree with
   | None => ~onError ()
   | Some x => x
@@ -293,7 +295,7 @@ let rec leastGt compare tree val =
       end
   end 
 
-let leastGtErr { ~onError } compare tree val =
+let leastGtErr compare tree val =
   match leastGt compare tree val with
   | None => ~onError ()
   | Some x => x
@@ -314,7 +316,7 @@ let rec leastGeq compare tree val =
       end
   end
 
-let leastGeqErr { ~onError } compare tree val =
+let leastGeqErr compare tree val =
   match leastGeq compare tree val with
   | None => ~onError ()
   | Some x => x
@@ -335,7 +337,7 @@ let rec greatestLt compare tree val =
         end
   end
 
-let greatestLtErr { ~onError } compare tree val =
+let greatestLtErr compare tree val =
   match greatestLt compare tree val with
   | None => ~onError ()
   | Some x => x
@@ -356,7 +358,7 @@ let rec greatestLeq compare tree val =
         end
   end
 
-let greatestLeqErr { ~onError } compare tree val =
+let greatestLeqErr compare tree val =
   match greatestLeq compare tree val with
   | None => ~onError ()
   | Some x => x

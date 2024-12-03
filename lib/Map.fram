@@ -8,6 +8,8 @@ import open RedBlackTree
 
 pub data Interval Value = Inclusion of Value | Exclusion of Value
 
+implicit ~onError
+
 pub data Map Key = Map of {
     T 
     , empty : {type Val} -> T Val
@@ -243,7 +245,7 @@ let rec lowerBound tree =
     | Node {left} => lowerBound left
   end
 
-let lowerBoundErr {~onError} tree =
+let lowerBoundErr tree =
   match lowerBound tree with
   | None => ~onError ()
   | Some x => x
@@ -256,7 +258,7 @@ let rec upperBound tree =
     | Node {right} => upperBound right
   end
 
-let upperBoundErr {~onError} tree =
+let upperBoundErr tree =
   match upperBound tree with
   | None => ~onError ()
   | Some x => x
@@ -277,7 +279,7 @@ let rec lowerBoundGt compare tree key =
     end
   end
 
-let lowerBoundGtErr {~onError} compare tree key =
+let lowerBoundGtErr compare tree key =
   match lowerBoundGt compare tree key with
   | None => ~onError ()
   | Some x => x
@@ -298,7 +300,7 @@ let rec lowerBoundGeq compare tree key =
     end
   end
 
-let lowerBoundGeqErr {~onError} compare tree key =
+let lowerBoundGeqErr compare tree key =
   match lowerBoundGeq compare tree key with
   | None => ~onError ()
   | Some x => x
@@ -319,7 +321,7 @@ let rec upperBoundLt compare tree key =
       end
   end
 
-let upperBoundLtErr {~onError} compare tree key = 
+let upperBoundLtErr compare tree key = 
   match upperBoundLt compare tree key with 
   | None => ~onError ()
   | Some x => x
@@ -340,7 +342,7 @@ let rec upperBoundLeq compare tree key =
       end
   end
 
-let upperBoundLeqErr {~onError} compare tree key = 
+let upperBoundLeqErr compare tree key = 
   match upperBoundLeq compare tree key with
   | None => ~onError ()
   | Some x => x
@@ -435,30 +437,30 @@ let rangeT compare (MapT tree) left right =
 
 let lowerBoundT (MapT tree) = lowerBound tree
 
-let lowerBoundTErr {~onError} (MapT tree) = lowerBoundErr tree
+let lowerBoundTErr (MapT tree) = lowerBoundErr tree
 
 let upperBoundT (MapT tree) = upperBound tree
 
-let upperBoundTErr {~onError} (MapT tree) = upperBoundErr tree
+let upperBoundTErr (MapT tree) = upperBoundErr tree
 
 let lowerBoundGtT compare (MapT tree) key = lowerBoundGt compare tree key
 
-let lowerBoundGtTErr {~onError} compare (MapT tree) key =
+let lowerBoundGtTErr compare (MapT tree) key =
   lowerBoundGtErr compare tree key
 
 let upperBoundLtT compare (MapT tree) key = upperBoundLt compare tree key
 
-let upperBoundLtTErr {~onError} compare (MapT tree) key =
+let upperBoundLtTErr compare (MapT tree) key =
   upperBoundLtErr compare tree key
 
 let lowerBoundGeqT compare (MapT tree) key = lowerBoundGeq compare tree key
 
-let lowerBoundGeqTErr {~onError} compare (MapT tree) key =
+let lowerBoundGeqTErr compare (MapT tree) key =
   lowerBoundGeqErr compare tree key
 
 let upperBoundLeqT compare (MapT tree) key = upperBoundLeq compare tree key
 
-let upperBoundLeqTErr {~onError} compare (MapT tree) key = 
+let upperBoundLeqTErr compare (MapT tree) key = 
   upperBoundLeqErr compare tree key
 
 pub let make {Key} (compare : Key -> Key -> [] Ordered) = Map {
