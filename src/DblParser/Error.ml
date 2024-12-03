@@ -59,7 +59,7 @@ let reserved_binop_error pos op =
 let disallowed_op_error pos op =
   (Some pos,
     Printf.sprintf
-      "Syntax error: Operator %s is disallowed due to ambiguity"
+      "Syntax error. Operator %s is disallowed to avoid ambiguity"
       op)
 
 let invalid_pattern_arg pos =
