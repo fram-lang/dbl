@@ -6,6 +6,8 @@ import open RedBlackTree
 
 (** Signature *)
 
+pub data Interval Value = Inclusion of Value | Exclusion of Value
+
 pub data Map Key = Map of {
     T 
     , empty : {type Val} -> T Val

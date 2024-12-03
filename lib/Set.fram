@@ -6,6 +6,8 @@ import open RedBlackTree
 
 (** Signature of Set *)
 
+pub data Interval Value = Inclusion of Value | Exclusion of Value
+
 pub data Set Elem = Set of {
   T
   , empty : T

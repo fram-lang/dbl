@@ -1,5 +1,6 @@
 import Queue
 import Prelude
+import List
 
 let compare (x : Int) (y : Int) = x == y
 let get_val x = 
@@ -17,3 +18,5 @@ let x = x >. push 1 >. push 2 >. push 3
 let _ = assert (x.isEmpty == False && compare (get_val x.head) 1 && 
   compare (get_val (x.pop >. head)) 2 && 
   compare (get_val (x.pop >. pop >. head)) 3) "Failed head and pop"
+let x = Queue.fromList [1,2,3]
+let _ = assert (x.toList == [1,2,3]) "Failed toList and fromList"

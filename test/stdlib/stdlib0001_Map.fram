@@ -1,6 +1,5 @@
 import Map
 import open List
-import open Ordered
 import open Prelude
 
 let lt (v1 : Int) (v2 : Int) = 
@@ -72,11 +71,11 @@ let _ = assert (fst q >. toValueList == [3,2]) "Failed partionGt"
 let _ = assert (snd q >. toValueList == [1,10,1,2,3]) "Failed partionGt"
 
 (* range check *)
-let q = w.range (Exclusion 0) (Exclusion 2) 
+let q = w.range (Map.Exclusion 0) (Map.Exclusion 2) 
 let _ = assert (q.toValueList == [10]) "Failed range"
-let q = w.range (Inclusion 0) (Inclusion 2)
+let q = w.range (Map.Inclusion 0) (Map.Inclusion 2)
 let _ = assert (q.toValueList == [1,10,1]) "Failed range"
-let _ = assert (w.range (Inclusion 0) (Exclusion 2) >. toValueList == [1,10]) 
+let _ = assert (w.range (Map.Inclusion 0) (Map.Exclusion 2) >. toValueList == [1,10]) 
   "Failed range"
-let _ = assert (w.range (Exclusion 0) (Inclusion 2) >. toValueList == [10,1]) 
+let _ = assert (w.range (Map.Exclusion 0) (Map.Inclusion 2) >. toValueList == [10,1]) 
   "Failed range"

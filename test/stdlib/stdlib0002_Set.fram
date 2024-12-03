@@ -1,6 +1,5 @@
 import Set
 import open List
-import open Ordered
 import open Prelude
 
 let lt (v1 : Int) (v2 : Int) = 
@@ -62,7 +61,7 @@ let _ = assert (snd (y.partionLt 2) >. toList == [2,3]) "Failed partionLt"
 
 (* range check *)
 let _ = 
-  assert (y.range (Inclusion 1) (Inclusion 2) >. toList == [1,2]) "Failed range"
+  assert (y.range (Set.Inclusion 1) (Set.Inclusion 2) >. toList == [1,2]) "Failed range"
 
 (* least check *)
 let _ = 
