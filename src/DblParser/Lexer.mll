@@ -66,8 +66,7 @@ let tokenize_oper str =
     | ','                                           -> YaccParser.OP_30 str
     | '|' when (long && str.[1] = '|')              -> YaccParser.OP_40 str
     | '&' when (long && str.[1] = '&')              -> YaccParser.OP_50 str
-    | '!' | '=' | '<' | '>' | '|' | '&' | '$' | '#' | '?' ->
-      YaccParser.OP_60 str
+    | '!' | '=' | '<' | '>' | '|' | '&' | '$' | '?' -> YaccParser.OP_60 str
     | '@' | ':' | '^'                               -> YaccParser.OP_70 str
     | '+' | '-' | '~'                               -> YaccParser.OP_80 str
     | '*' when (long && str.[1] = '*')              -> YaccParser.OP_100 str
@@ -149,8 +148,8 @@ let op_char = [
 rule token = parse
     whitespace+ { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
-  | "(*" { block_comment 1 lexbuf }
-  | "//" { skip_line lexbuf; token lexbuf }
+  | "{#" { block_comment 1 lexbuf }
+  | "#" { skip_line lexbuf; token lexbuf }
   | '('  { YaccParser.BR_OPN     }
   | ')'  { YaccParser.BR_CLS     }
   | '['  { YaccParser.SBR_OPN    }
@@ -204,8 +203,8 @@ and string_token pos buf = parse
 
 and block_comment depth = parse
     '\n' { Lexing.new_line lexbuf; block_comment depth lexbuf }
-  | "(*" { block_comment (depth+1) lexbuf }
-  | "*)" {
+  | "{#" { block_comment (depth+1) lexbuf }
+  | "#}" {
       if depth = 1 then token lexbuf
       else block_comment (depth-1) lexbuf
     }
@@ -215,7 +214,7 @@ and block_comment depth = parse
         string_token lexbuf.Lexing.lex_start_p buf lexbuf in
       block_comment depth lexbuf
     }
-  | "//" { skip_line lexbuf; block_comment depth lexbuf }
+  | "#" { skip_line lexbuf; block_comment depth lexbuf }
   | eof {
       Error.fatal (Error.eof_in_comment
         (Position.of_lexing 0 lexbuf.Lexing.lex_start_p))
