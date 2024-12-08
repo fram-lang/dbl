@@ -1,12 +1,12 @@
-(* In this example we show that lexical handlers are capable of expressing
+{# In this example we show that lexical handlers are capable of expressing
   lightweight threads with yield and spawn operations. The solution is not
   satisfactory, but it is still interesting since it shows how our in approach
   to effect capabilities we can separate an interface from an implementation
-  of algebraic effects. *)
+  of algebraic effects. #}
 
 import List
 
-(* We start by defining the standard State effect representing a single
+{# We start by defining the standard State effect representing a single
   mutable cell. Note that in Fram an effect signature is an ordinary record
   of functions. A special type parameter `(effect E)` is the effect of these
   effectful function, and this parameter will be automatically instantiated
@@ -16,21 +16,21 @@ import List
   troublesome, as a handler of `update f` should call function `f` at the call
   site of `update`, where potentially more effects (described by `Row`) are
   available. In Fram, update function can be implemented on top of more
-  primitive `get` and `put`, even if it is a part of the interface. *)
+  primitive `get` and `put`, even if it is a part of the interface. #}
 data State (effect E) X = State of
   { get    : Unit ->[E] X
   , put    : X ->[E] Unit
   , update : {Row} -> (X ->[E|Row] X) ->[E|Row] Unit
   }
 
-(* We declare implicit parameter named `~st`. Now, the following function may
+{# We declare implicit parameter named `~st`. Now, the following function may
   use `~st` as a regular variable. In such a case, `~st` together with the
-  associated effect E_st will be implicitly generalized. *)
+  associated effect E_st will be implicitly generalized. #}
 implicit ~st {E_st} : State E_st _
 
-(* We define get operation that works on implicit capability `~st`. It can be
+{# We define get operation that works on implicit capability `~st`. It can be
   used in any context, where a variable named ~st is available (or can be
-  implicitly generalized). We also define similar put and update functions. *)
+  implicitly generalized). We also define similar put and update functions. #}
 let get x =
   let (State { get }) = ~st in
   get x
@@ -43,11 +43,11 @@ let update f =
   let (State { update }) = ~st in
   update f
 
-(* Now, we put the standard handler for state, that will become the state of the
+{# Now, we put the standard handler for state, that will become the state of the
   scheduler. Note that an expression that provides capability `~st` is not just
   a value, but more complex series of let-expressions. First, we define
   standard get and put operations, and then on top of them we define the update
-  function. All three functions becomes part of the interface. *)
+  function. All three functions becomes part of the interface. #}
 handle {effect=Sched} ~st =
   let get = effect x / r => fn s => r s  s
   let put = effect s / r => fn _ => r () s
@@ -56,13 +56,13 @@ handle {effect=Sched} ~st =
   return  x => fn _ => x
   finally c => c []
 
-(* Enqueue a ready thread to the scheduler queue. Note that thanks to the
+{# Enqueue a ready thread to the scheduler queue. Note that thanks to the
   mechanism of implicit parameters, this function uses `~st` capability, without
-  mentioning it explicitly. *)
+  mentioning it explicitly. #}
 let enqueue thr =
   update (fn queue => List.append queue [thr])
 
-(* Run the scheduler. It picks one thread from the queue and runs it. *)
+{# Run the scheduler. It picks one thread from the queue and runs it. #}
 let sched _ =
   match get () with
   | []          => ()
@@ -71,29 +71,29 @@ let sched _ =
     thr ()
   end
 
-(* The effect signature of lightweight threads, again as a record. We have two
+{# The effect signature of lightweight threads, again as a record. We have two
   operations: yield for voluntarily passing control to an another thread, and
   spawn for creating new threads. The spawn function is particularly
   troublesome for lexical handlers, as newly created thread should share
   the handler with the parent thread without sharing parent's continuation. 
   With dynamic handlers we can just create a new handler for the same effect,
-  but this is not possible with lexical handlers. *)
+  but this is not possible with lexical handlers. #}
 data LWT_S Row = LWT of
   { yield : Unit ->[|Row] Unit
   , spawn : (Unit ->[|Row] Unit) ->[|Row] Unit
   }
 
-(* For accessing operations of LWT effect we use an another mechanism
+{# For accessing operations of LWT effect we use an another mechanism
   available in Fram, i.e., methods. We can associate functions with each
   datatype and use usual dot syntax for accessing them. The main advantage of
   methods is that the same name of the method can be used with many different
-  datatypes leading to a more concise and readable code. *)
+  datatypes leading to a more concise and readable code. #}
 method yield {self = LWT {yield}} = yield
 method spawn {self = LWT {spawn}} = spawn
 
-(* Here we handle the LWT effect using pure lexical handlers. The problematic
+{# Here we handle the LWT effect using pure lexical handlers. The problematic
   spawn operation is implemented via more primitive fork and exit functions,
-  not accessible directly via the LWT interface. *)
+  not accessible directly via the LWT interface. #}
 handle {effect=LWT} (lwt : LWT_S [LWT,IO]) =
   let yield = effect _ / r => let _ = enqueue r in sched ()
   let exit  = effect _ / _ => sched ()
@@ -108,8 +108,8 @@ handle {effect=LWT} (lwt : LWT_S [LWT,IO]) =
   in LWT { yield, spawn }
   return _ => sched ()
 
-(* Example code using LWT interface. Methods yield and spawn are accessible
-  via the `lwt` object. *)
+{# Example code using LWT interface. Methods yield and spawn are accessible
+  via the `lwt` object. #}
 let startThread (name : String) = lwt.spawn (fn _ =>
   let _ = printStrLn (name + "1") in
   let _ = lwt.yield () in

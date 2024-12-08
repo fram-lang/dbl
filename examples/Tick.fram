@@ -1,4 +1,4 @@
-(* This is a classical example borrowed from Biernacki et al. Handle with
+{# This is a classical example borrowed from Biernacki et al. Handle with
   Care. POPL 2018. In this example function `count` counts how many times
   the higher order function `f` uses its argument `g`.
   The idea is to wrap function `g` around another function that additionally
@@ -19,7 +19,7 @@
   This example shows strength of lexical effect handlers. Effect of the `tick`
   operation is local for the `count` function and cannot interfere with other
   effects used internally by `f`. This would not be true for dynamic handlers.
-*)
+#}
 
 import List
 
@@ -30,12 +30,12 @@ let count (f : {type E} -> (_ ->[|E] _) ->[|E] _) g =
   in
   f (fn x => let _ = tick () in g x)
 
-(* We can use `count` function to compute a length of a list, by counting
-  how many times map function calls identity argument. *)
+{# We can use `count` function to compute a length of a list, by counting
+  how many times map function calls identity argument. #}
 let length xs = count (flip List.map xs) id
 
-(* This code should print 2. *)
+{# This code should print 2. #}
 let _ =
   printStrLn (length [13,42]).toString
 
-// @stdout:2
+# @stdout:2

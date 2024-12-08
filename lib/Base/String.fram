@@ -1,6 +1,6 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
- *)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 import open /Base/Types
 import open /Base/Operators
