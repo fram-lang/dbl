@@ -145,7 +145,7 @@ op
 | op_80  { $1 }
 | op_90  { $1 }
 | op_100 { $1 }
-; 
+;
 
 /* ========================================================================= */
 
@@ -391,7 +391,7 @@ expr_90
 ;
 
 // exp1 ** exp2
-expr_100 
+expr_100
 : expr_150 op_100 expr_100 { make (EBOp($1, $2, $3)) }
 | expr_150 { $1 }
 ;
@@ -417,6 +417,7 @@ expr_select
 : UID DOT expr_ctor   { (NPName $1, $3) }
 | UID DOT expr_300    { (NPName $1, $3) }
 | UID DOT expr_select { let (p, e) = $3 in (NPSel($1, p), e) }
+;
 
 expr_250
 : expr_300    { $1 }
