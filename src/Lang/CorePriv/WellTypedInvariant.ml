@@ -4,6 +4,22 @@
 
 (** Internal type-checker of the Core language *)
 
+(** The role of this type-checker is twofold. First of all, it can be seen as
+  a specification of the Core type system. We refer to [Lang.Core] module for
+  the definition of types and their intuitive meaning. Moreover, the
+  type-checker serves as an assertion that each program representation in Core
+  is well-typed. If not, the type-checker fails with internal error as quick
+  as possible, making debugging the compiler bit easier.
+
+  One important design decision of the implementation of this type-checker
+  should be described here. In order to avoid accidental type-variable capture
+  during the type-checking, the type checker refreshes all type-variables on
+  the fly: the environment maps original type-variables to their refreshed
+  version. The important invariant of the implementation is that all types
+  already touched by the type checker (types stored in the environment, types
+  returned by [infer_type_eff] function, etc.) are always refreshed, and shall
+  not be refreshed further. *)
+
 open Syntax
 open TypeBase
 
@@ -11,9 +27,12 @@ open TypeBase
 module Env : sig
   type t
 
+  (** Empty (initial environment). It contains only built-in types. *)
   val empty : t
 
-  (** Extend the environment with a regular variable *)
+  (** Extend the environment with a regular variable. Types stored in the
+    environment should be in their refreshed form, i.e., built from types
+    returned by [tr_type] and [Env.add_tvar]. *)
   val add_var  : t -> var -> ttype -> t
 
   (** Extend the environment with a computationally irrelevant variable.
@@ -32,10 +51,14 @@ module Env : sig
     variables available *)
   val irrelevant : t -> t
 
+  (** Lookup for a type of given variable in the environment. *)
   val lookup_var : t -> var -> ttype
 
+  (** Lookup for a refreshed version of given type variable. *)
   val lookup_tvar : t -> 'k tvar -> 'k tvar
 
+  (** Get the current scope, i.e., set of available (refreshed) type
+    variables. *)
   val scope : t -> TVar.Set.t
 end = struct
   module TMap = TVar.Map.Make(TVar)
@@ -110,7 +133,7 @@ end = struct
 end
 
 (** Ensure well-formedness of a type and refresh its type variables according
-  to an environment. *)
+  to the environment. *)
 let rec tr_type : type k. Env.t -> k typ -> k typ =
   fun env tp ->
   match tp with
@@ -140,6 +163,8 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   | TApp(tp1, tp2) ->
     TApp(tr_type env tp1, tr_type env tp2)
 
+(** Ensure well-formedness of a constructor type and refresh its type
+  variables according to the environment. *)
 and tr_ctor_type env ctor =
   let (env, tvars) = Env.add_tvars env ctor.ctor_tvars in
   { ctor_name      = ctor.ctor_name;
@@ -147,6 +172,9 @@ and tr_ctor_type env ctor =
     ctor_arg_types = List.map (tr_type env) ctor.ctor_arg_types
   }
 
+(** [tr_types_sub env sub xs tps] extends substitution [sub] by a mapping from
+  type variables [xs] to refreshed version of types [tps]. It raises internal
+  type error when list [xs] and [tps] have different length. *)
 let rec tr_types_sub env sub xs tps =
   match xs, tps with
   | [], [] -> sub
@@ -160,6 +188,9 @@ let rec tr_types_sub env sub xs tps =
   | [], _ :: _ | _ :: _, [] ->
     failwith "Internal type error"
 
+(** [tr_tvars_sub env sub xs ys] extends environment [env] by variables [xs]
+  and extends substitution [sub] by a mapping from [ys] to refreshed [xs].
+  It returns a pair: the extended environment and the extended substitution. *)
 let rec tr_tvars_sub env sub xs ys =
   match xs, ys with
   | [], [] -> (env, sub)
@@ -174,6 +205,13 @@ let rec tr_tvars_sub env sub xs ys =
   | [], _ :: _ | _ :: _, [] ->
     failwith "Internal type error"
 
+(** Check well-formedness of datatype definition.
+  In [check_data env tp xs ctors] it is checked if [ctors] are well-formed,
+  assuming the type is parametrized by [xs]. The functions returns the triple
+  [(ys, tp_ys, ctors')], where [ys] are refreshed type variables [xs],
+  [ctors'] is a refreshed constructor list [ctors], and [tp_ys] is a type [tp]
+  applied to variables [ys]. This value is later used to construct types of
+  proofs of ADT shape (see [TData] constructor). *)
 let rec check_data : type k.
     Env.t -> k typ -> TVar.ex list -> ctor_type list ->
       TVar.ex list * ttype * ctor_type list =
@@ -192,6 +230,9 @@ let rec check_data : type k.
   | _ ->
     failwith "Internal kind error"
 
+(** The first phase of checking recursive datatype: the type variable of the
+  type definition is refreshed and added to the environment. The body of the
+  definition remains unchanged. *)
 let prepare_data_def env (dd : data_def) =
   match dd with
   | DD_Data adt ->
@@ -202,6 +243,16 @@ let prepare_data_def env (dd : data_def) =
     let (env, a) = Env.add_tvar env lbl.tvar in
     (env, DD_Label { lbl with tvar = a })
 
+(** Compute the effect attached to the datatype (the effect of
+  pattern-matching). Types flagged as strictly positive have pure effect
+  of pattern-matching, but the function ensures that provided constructors
+  are strictly positive, i.e., all type variables on non-strictly-positive
+  position fit in [nonrec_scope]. The [nonrec_scope] should be a scope of
+  the definition not extended with types defined in the current recursive
+  block.
+
+  If the type is not flagged as strictly positive, have always NTerm effect
+  attached, and no extra checks are performed. *)
 let adt_effect ~nonrec_scope strictly_positive args ctors =
   if strictly_positive then
     let nonrec_scope = Type.add_tvars_to_scope args nonrec_scope in
@@ -209,11 +260,21 @@ let adt_effect ~nonrec_scope strictly_positive args ctors =
       TEffPure
     else
       InterpLib.InternalError.report
-        ~reason:"Type is not strictly positvely recursive"
+        ~reason:"Type is not strictly positively recursive"
         ()
   else
     Effect.nterm
 
+(** The second and the last phase of checking of recursive type definitions.
+  With extended environment, the bodies of definitions are checked and
+  refreshed, and the environment is extended with term-level counterparts of
+  types (proofs in case of ADTs, and labels in case of effects). The
+  [nonrec_scope] should be a scope of the definitions not extended with
+  types defined in the current recursive block.
+
+  The function returns extended environment and the effect of evaluating this
+  block of definitions. The block has [NTerm] effect if there is a label
+  definition in the block, otherwise the block is pure. *)
 let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
   match dd with
   | DD_Data adt ->
@@ -236,11 +297,16 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
     (* We add nterm effect, since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
 
+(** Check block of mutually recursive type definitions.
+  The function returns extended environment and the effect of evaluating this
+  block of definitions. The block has [NTerm] effect if there is a label
+  definition in the block, otherwise the block is pure. *)
 let check_data_defs env dds =
   let nonrec_scope = Env.scope env in
   let (env, dds) = List.fold_left_map prepare_data_def env dds in
   List.fold_left (finalize_data_def ~nonrec_scope) (env, TEffPure) dds
 
+(** Infer type end effect of given expression. *)
 let rec infer_type_eff env e =
   match e with
   | EValue v -> (infer_vtype env v, TEffPure)
@@ -368,6 +434,7 @@ let rec infer_type_eff env e =
     let (tp, eff2) = infer_type_eff env e2 in
     (tp, Effect.join eff1 eff2)
 
+(** Infer type of given value *)
 and infer_vtype env v =
   match v with
   | VNum _ -> TVar BuiltinType.tv_int
@@ -386,6 +453,11 @@ and infer_vtype env v =
     infer_ctor_type env proof n tps args (check_vtype env)
   | VExtern(_, tp) -> tr_type env tp
 
+(** [infer_ctor_type env proof n tps args check_arg] checks the type of [n]-th
+  constructor of the data type described by [proof], applied to type
+  parameters [tps], and regular parameters [args]. The [check_arg] function
+  is used type check types of [args]: it takes the parameter and its expected
+  type. *)
 and infer_ctor_type env proof n tps args check_arg =
   assert (n >= 0);
   begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
@@ -405,12 +477,16 @@ and infer_ctor_type env proof n tps args check_arg =
     failwith "Internal type error"
   end
 
+(** Infer type of the expression, but check its effect *)
 and infer_type_check_eff env e eff =
   let (tp, eff') = infer_type_eff env e in
   if Type.subeffect eff' eff then
     tp
   else failwith "Internal effect error"
 
+(** Check both type and effect of the expression. Note that this function
+  returns unit. It fails with internal type error, when the type doesn't match.
+  *)
 and check_type_eff env e tp eff =
   let (tp', eff') = infer_type_eff env e in
   if not (Type.subtype tp' tp) then
@@ -429,6 +505,7 @@ and check_type_eff env e tp eff =
       ();
   ()
 
+(** Check type of given value *)
 and check_vtype env v tp =
   let tp' = infer_vtype env v in
   if Type.subtype tp' tp then
@@ -440,17 +517,27 @@ and check_vtype env v tp =
     ~provided:(SExprPrinter.tr_type tp')
     ();
 
+(** Check block of recursive definitions. It is done similarly to checking
+  mutually recursive type definitions: in the first phase, the environment is
+  extended, and in the second phase, bodies of the definitions are checked. *)
 and check_rec_defs env rds =
   let rec_vars = List.map (fun (x, _, _) -> x) rds in
   let (env, rds) = List.fold_left_map prepare_rec_def env rds in
   List.iter (check_rec_def env rec_vars) rds;
   env
 
+(** The first phase of checking recursive definition. It returns the extended
+  environment, and untouched body of the definition together with the
+  refreshed type. Note that actual variable is forgotten, because the
+  environment is extended, so the variable is no longer needed. *)
 and prepare_rec_def env (x, tp, body) =
   let tp = tr_type env tp in
   let env = Env.add_var env x tp in
   (env, (body, tp))
 
+(** Check if given body of recursive definition has expected type. The
+  function checks productiveness of the definition, so the list of variables
+  defined in the current recursive block should be provided. *)
 and check_rec_def env rec_vars (body, tp) =
   check_vtype_productive env rec_vars body tp
 
@@ -513,5 +600,6 @@ and check_vtype_productive env rec_vars v tp =
       ~reason:"non-productive recursive definition"
       ()
 
+(** Check if given program is well-typed *)
 let check_program p =
   check_type_eff Env.empty p Type.t_unit Effect.prog_effect
