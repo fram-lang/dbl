@@ -6,6 +6,7 @@ import /Base/Types
 import /Base/Operators
 import /Base/Assert
 import /Base/Bool
+import /Base/Option
 import /Base/Int
 import /Base/Int64
 import /Base/Char

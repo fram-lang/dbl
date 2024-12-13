@@ -1,0 +1,25 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+import open /Base/Types
+import open /Base/Assert
+
+{## For `Some x` returns `x`, otherwise the provided argument is returned.
+ #}
+pub method unwrapOr default =
+  match self with
+  | None   => default
+  | Some x => x
+  end
+
+{## This method should only be called on `Some x` values, in which case it
+  returns `x`. When applied to `None` the entire program crashes irrecoverably
+  with a runtime error. The resulting error message can be optionally specified
+  with `?msg`.
+ #}
+pub method unwrap {?msg} =
+  match self with
+  | None   => runtimeError (msg.unwrapOr "Called `unwrap` on `None`")
+  | Some x => x
+  end

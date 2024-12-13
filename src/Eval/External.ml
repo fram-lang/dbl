@@ -50,7 +50,7 @@ let int_cmpop op = int_fun2 (fun x y -> of_bool (op x y))
 let int64_fun f = VFn (fun v cont ->
   match v with
   | VNum64 n -> cont (f n)
-  | _ -> failwith "Not a 64-bit integer")
+  | _ -> runtime_error "Not a 64-bit integer")
 
 let int64_fun2 f = int64_fun (fun x -> int64_fun (f x))
 
