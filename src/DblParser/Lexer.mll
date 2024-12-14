@@ -149,10 +149,12 @@ let op_char = [
   '~' '*' '%' ';' ',' '=' '|' ':' '.' '/'
 ]
 
+let comment_name = (var_char | op_char | '#')*
+
 rule token = parse
     whitespace+ { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
-  | "{#" { block_comment 1 lexbuf }
+  | "{#" (comment_name as name) { block_comment name lexbuf }
   | "#" { skip_line lexbuf; token lexbuf }
   | '('  { YaccParser.BR_OPN     }
   | ')'  { YaccParser.BR_CLS     }
@@ -205,25 +207,19 @@ and string_token pos buf = parse
         (Position.of_lexing 0 lexbuf.Lexing.lex_start_p))
     }
 
-and block_comment depth = parse
-    '\n' { Lexing.new_line lexbuf; block_comment depth lexbuf }
-  | "{#" { block_comment (depth+1) lexbuf }
-  | "#}" {
-      if depth = 1 then token lexbuf
-      else block_comment (depth-1) lexbuf
+and block_comment name = parse
+    '\n' { Lexing.new_line lexbuf; block_comment name lexbuf }
+  | (comment_name as name') "#}" {
+      if String.ends_with ~suffix:name name' then token lexbuf
+      else block_comment name lexbuf
     }
-  | '"' {
-      let buf = Buffer.create 32 in
-      let _ : YaccParser.token =
-        string_token lexbuf.Lexing.lex_start_p buf lexbuf in
-      block_comment depth lexbuf
-    }
-  | "#" { skip_line lexbuf; block_comment depth lexbuf }
+  | comment_name { block_comment name lexbuf }
   | eof {
       Error.fatal (Error.eof_in_comment
-        (Position.of_lexing 0 lexbuf.Lexing.lex_start_p))
+        (Position.of_lexing 0 lexbuf.Lexing.lex_start_p)
+        name)
     }
-  | _ { block_comment depth lexbuf }
+  | _ { block_comment name lexbuf }
 
 and skip_line = parse
     '\n' { Lexing.new_line lexbuf }

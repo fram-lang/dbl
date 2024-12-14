@@ -1,0 +1,39 @@
+# This is a single-line comment.
+{# This is a block comment. #}
+{# Block comments
+  may span multiple lines.
+#}
+let id x = x # single-line comment may appear at the end of line of code.
+
+let n {# block comment may span a part of single line #} = 42
+{#aaa
+Comments cannot be nested,
+{# but a programmer may choose the comment delimiters. #}
+aaa#}
+
+{#!a! Comment names may contain operators. !a!#}
+
+{#abc
+This comment is ended by `abc` immediately followed by `#}`,
+even if it is preceded by other characters.
+zzabc#}
+
+let {#
+# This is not a single-line comment,
+# because comments are not nested.
+# This comment can be ended #} here = 13
+
+## This is a documentation comment.
+let foo x = x
+
+{## This is an another documentation comment. ##}
+let bar = foo
+
+{###
+Documentation comments can contain a code
+```
+{## with an another documentation comment (with a different name). #}}
+let some_code = 42
+```
+###}
+let baz = bar

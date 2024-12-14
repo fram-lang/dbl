@@ -22,7 +22,7 @@ val module_dependency_cycle : string -> t
 val unexpected_token  : Position.t -> string -> t
 val invalid_character : Position.t -> char -> t
 
-val eof_in_comment : Position.t -> t
+val eof_in_comment : Position.t -> string -> t
 
 val invalid_number : Position.t -> string -> t
 val number_out_of_bounds : Position.t -> string -> t
