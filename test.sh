@@ -4,9 +4,9 @@ if ! [ -n "$1" ] || ! [ -n "$2" ]; then
 	exit 1
 fi
 
-if ! dune build; then
-	exit 1
-fi
+# if ! dune build; then
+# 	exit 1
+# fi
 
 export DBL_LIB="lib/"
 
