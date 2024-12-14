@@ -10,6 +10,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install Nix
-      uses: cachix/install-nix-action@v17
+        uses: cachix/install-nix-action@v17
       - run: nix shell . --command ./test.sh dbl ./test/test_suite
-
