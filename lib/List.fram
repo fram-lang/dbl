@@ -1,6 +1,6 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
- *)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 pub let isEmpty xs =
   match xs with
@@ -360,7 +360,7 @@ pub let foldLeftConcatMap f acc xs =
   let (acc, xs) = foldLeftMap f acc xs
   in (acc, concat xs)
 
-(* Operations on lists containing comparable elements *)
+{# Operations on lists containing comparable elements #}
 
 pub let mem
   { E, method equal : E -> E ->[] Bool }
@@ -383,7 +383,7 @@ pub let equal
     end
   in equalAux xs ys
 
-(* method versions of these functions *)
+{# method versions of these functions #}
 implicit ~onError
 
 pub method isEmpty = isEmpty self

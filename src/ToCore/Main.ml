@@ -37,13 +37,13 @@ let rec tr_expr env (e : S.expr) =
   | EMatchEmpty(proof, me, tp, eff) ->
     let proof = tr_expr env proof in
     let tp  = Type.tr_ttype env tp in
-    let eff = Type.tr_effect env eff in
+    let eff = Type.tr_effect_opt env eff in
     tr_expr_v env me (fun v ->
     T.EMatch(proof, v, [], tp, eff))
 
   | EMatch(me, cls, tp, eff) ->
     let tp  = Type.tr_ttype env tp in
-    let eff = Type.tr_effect env eff in
+    let eff = Type.tr_effect_opt env eff in
     tr_expr_v env me (fun v ->
     PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
 

@@ -91,7 +91,8 @@ let infer_expr_type ~tcfix env (e : S.expr) eff =
     let body_eff = Env.fresh_uvar env T.Kind.k_effrow in
     let (env, pat, sch, r_eff1) = Pattern.infer_arg_scheme env arg in
     let (body, r_eff2) = check_expr_type env body tp2 body_eff in
-    let (x, body) = ExprUtils.arg_match pat body tp2 body_eff in
+    let meff = match_effect (ret_effect_join r_eff1 r_eff2) body_eff in
+    let (x, body) = ExprUtils.arg_match pat body tp2 meff in
     begin match ret_effect_join r_eff1 r_eff2 with
     | Pure ->
       let b = Unification.subeffect env body_eff T.Effect.pure in
@@ -226,13 +227,13 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
       let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
       if ret_effect_join r_eff1 r_eff2 <> Pure then
         Error.report (Error.func_not_pure ~pos);
-      let (x, body) = ExprUtils.arg_match pat body tp2 T.Effect.pure in
+      let (x, body) = ExprUtils.arg_match pat body tp2 None in
       (make (T.EPureFn(x, sch, body)), Pure)
 
     | Arr_Impure(sch, tp2, eff) ->
       let (env, pat, _) = Pattern.check_arg_scheme env arg sch in
       let (body, _) = check_expr_type env body tp2 eff in
-      let (x, body) = ExprUtils.arg_match pat body tp2 eff in
+      let (x, body) = ExprUtils.arg_match pat body tp2 (Some eff) in
       (make (T.EFn(x, sch, body)), Pure)
 
     | Arr_No ->
@@ -249,14 +250,19 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
     (e, r_eff)
 
   | EMatch(me, []) ->
-    let (me, me_tp, _) = infer_expr_type env me eff in
+    let (me, me_tp, r_eff1) = infer_expr_type env me eff in
     begin match T.Type.whnf me_tp with
     | Whnf_Neutral(NH_Var x, targs_rev) ->
       begin match Env.lookup_adt env x with
-      | Some { adt_ctors = []; adt_proof; _ } ->
+      | Some { adt_ctors = []; adt_proof; adt_strictly_positive; _ } ->
         let targs = List.rev targs_rev in
         let proof = ExprUtils.make_tapp adt_proof targs in
-        (make (T.EMatchEmpty(proof, me, tp, eff)), Impure)
+        let (meff, r_eff2) =
+          if adt_strictly_positive then (None, Pure)
+          else (Some eff, Impure)
+        in
+        (make (T.EMatchEmpty(proof, me, tp, meff)),
+          ret_effect_join r_eff1 r_eff2)
 
       | Some { adt_ctors = _ :: _; _ } ->
         Error.fatal (Error.empty_match_on_nonempty_adt ~pos ~env me_tp)
@@ -273,10 +279,11 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
     end
 
   | EMatch(e, cls) ->
-    let (e, e_tp, _) = infer_expr_type env e eff in
-    let (cls, r_eff) =
+    let (e, e_tp, r_eff1) = infer_expr_type env e eff in
+    let (cls, r_eff2) =
       MatchClause.check_match_clauses ~tcfix env e_tp cls tp eff in
-    (make (T.EMatch(e, cls, tp, eff)), r_eff)
+    (make (T.EMatch(e, cls, tp, match_effect r_eff2 eff)),
+      ret_effect_join r_eff1 r_eff2)
 
   | EHandler(body, rcs, fcs) ->
     begin match Unification.from_handler env tp with
@@ -340,7 +347,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
       let (env, rpat, _) =
         Pattern.check_arg_scheme env arg (T.Scheme.of_type r_tp) in
       let (body, _) = check_expr_type env body res_tp res_eff in
-      let (x, body) = ExprUtils.arg_match rpat body res_tp res_eff in
+      let (x, body) = ExprUtils.arg_match rpat body res_tp (Some res_eff) in
       let e = make (T.EEffect(make (T.EVar lx), x, body, tp)) in
       (e, Impure)
 

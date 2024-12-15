@@ -1,0 +1,7 @@
+data rec T = { foo : T -> T }
+
+let checkPure (f : _ -> _) = ()
+
+let _ = checkPure (fn (x : T) => x.foo)
+
+# @stderr::5:19-39: error:

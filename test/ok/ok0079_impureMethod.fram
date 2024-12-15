@@ -1,5 +1,5 @@
-data U = I
+data rec U = I of (U -> U)
 
-method foo {self = I} = I
+method foo {self = I f} = f (I f)
 
-let baz I (x : U) = x.foo
+let baz (I _) (x : U) = x.foo

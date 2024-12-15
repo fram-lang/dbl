@@ -131,7 +131,7 @@ let check_def : type dir. tcfix:tcfix ->
     | Impure -> Error.report (Error.func_not_pure ~pos:def.pos)
     end;
     (* TODO: check if [tp] is in proper scope (ims2 may bind some types) *)
-    let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
+    let (ims2, body) = ExprUtils.inst_args_match ims2 body tp None in
     let (tvars1, ims1) =
       ImplicitEnv.end_generalize_pure ims1 (T.Type.uvars tp) in
     let (body, sch) =
@@ -150,9 +150,10 @@ let check_def : type dir. tcfix:tcfix ->
       Pattern.check_type ~env ~scope pat tp in
     let ienv = ImplicitEnv.shadow_names ienv names in
     let (e2, resp, r_eff3) = cont.run env ienv req eff in
+    let meff = match_effect (ret_effect_join r_eff2 r_eff3) eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     let res_tp = bidir_result req resp in
-    (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
+    (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, meff)), resp,
       ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
 
   | DMethodFn(public, x, method_name) ->
@@ -177,7 +178,7 @@ let check_def : type dir. tcfix:tcfix ->
     in
     (make e2 (T.EData([dd],
       (make e2 (T.EMatch({ def with data = T.EVar x},
-        [(pat, e2)], res_tp, eff))))),
+        [(pat, e2)], res_tp, Some eff))))),
       resp, Impure)
 
   | DHandlePat(eff_opt, pat, e1) ->
@@ -216,7 +217,7 @@ let check_def : type dir. tcfix:tcfix ->
       let cap_x = Var.fresh ~name:"cap" () in
       (make e2 (T.EHandle(eff_tvar, cap_x, cap_tp, e1,
         (make e2 (T.EMatch({def with data = T.EVar cap_x},
-          [(pat, e2)], tp_in, eff_in))))),
+          [(pat, e2)], tp_in, Some eff_in))))),
         resp, Impure)
     | H_No ->
       Error.fatal (Error.expr_not_handler ~pos:e1.pos ~env tp_h)
@@ -239,7 +240,8 @@ let check_def : type dir. tcfix:tcfix ->
     let kind  = DataType.kind args in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
     let (env, x) = Env.add_tvar ~pos env ~public name kind in
-    let (env, dd) = DataType.finalize_check env x ~name args ctors in 
+    let (env, dd) =
+      DataType.finalize_check ~nonrec_scope:scope env x ~name args ctors in
     let (e, resp, r_eff) = cont.run env ienv req eff in
     let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
     (make e (T.EData([dd], e)), resp, r_eff)

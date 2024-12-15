@@ -41,11 +41,12 @@ let make_nonempty_match ~tcfix env tp cls res_tp res_eff =
       let p2 = List.fold_left (fun _ cl -> cl.S.pos) p1 cls in
       Position.join p1 p2
   in
-  let (cls, _) = check_match_clauses ~tcfix env tp cls res_tp res_eff in
+  let (cls, r_eff) = check_match_clauses ~tcfix env tp cls res_tp res_eff in
+  let meff = match_effect r_eff res_eff in
   let x = Var.fresh () in
   let body =
     { T.pos;
-      T.data = T.EMatch({ pos; data = T.EVar x }, cls, res_tp, res_eff) }
+      T.data = T.EMatch({ pos; data = T.EVar x }, cls, res_tp, meff) }
   in (x, body)
 
 (* ------------------------------------------------------------------------- *)

@@ -54,8 +54,9 @@ let rec tr_type : type k. k typ -> SExpr.t =
         List (List.map tr_type lbl.val_types);
         tr_type lbl.delim_tp;
         tr_type lbl.delim_eff ]
-  | TData(tp, ctors) ->
-    List (Sym "data" :: tr_type tp :: List.map tr_ctor_type ctors)
+  | TData(tp, eff, ctors) ->
+    List (Sym "data" :: tr_type tp :: List (tr_effect eff) ::
+      List.map tr_ctor_type ctors)
   | TApp _ -> tr_type_app tp []
 
 and tr_effect : effect -> SExpr.t list =
