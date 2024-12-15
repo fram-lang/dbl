@@ -9,13 +9,11 @@ import open Types
   Note that this function is pure. In correct programs, this function should
   never be called at runtime, but it can be used to appease the type-checker.
   Use this function only in impossible match clauses or in case of gross
-  violation of function preconditions (e.g., division by zero).
- #}
+  violation of function preconditions (e.g., division by zero). ##}
 pub let runtimeError {type T} =
   (extern dbl_runtimeError : String ->[] T)
 
-{## Explicitly assert that this case is impossible.
- #}
+{## Explicitly assert that this case is impossible. ##}
 pub let impossible {?msg : String} () =
   runtimeError
     match msg with
@@ -23,8 +21,7 @@ pub let impossible {?msg : String} () =
     | Some msg => msg
     end
 
-{## Assert that given condition should always hold.
- #}
+{## Assert that given condition should always hold. ##}
 pub let assert {?msg} b =
   if b then ()
   else
