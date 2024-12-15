@@ -3,19 +3,19 @@
 {# Block comments
   may span multiple lines.
 #}
-let id x = x # single-line comment may appear at the end of line of code.
+let id x = x # A single-line comment may appear at the end of a line.
 
-let n {# block comment may span a part of single line #} = 42
+let n {# A block comment may span a part of a single line. #} = 42
 {#aaa
 Comments cannot be nested,
-{# but a programmer may choose the comment delimiters. #}
+{# but the programmer may choose the comment delimiters. #}
 aaa#}
 
 {#!a! Comment names may contain operators. !a!#}
 
 {#abc
 This comment is ended by `abc` immediately followed by `#}`,
-even if it is preceded by other characters.
+even if the closing sequence is preceded by other characters.
 zzabc#}
 
 let {#
@@ -26,13 +26,13 @@ let {#
 ## This is a documentation comment.
 let foo x = x
 
-{## This is an another documentation comment. ##}
+{## This is another documentation comment. ##}
 let bar = foo
 
 {###
-Documentation comments can contain a code
+Documentation comments can contain some code
 ```
-{## with an another documentation comment (with a different name). #}}
+{## with another documentation comment (with a different name). ##}
 let some_code = 42
 ```
 ###}
