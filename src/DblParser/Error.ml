@@ -31,8 +31,11 @@ let unexpected_token pos tok =
 let invalid_character pos ch =
   (Some pos, Printf.sprintf "Invalid character `%s'" (Char.escaped ch))
 
-let eof_in_comment pos =
-  (Some pos, "Unexpected end of file inside a block comment")
+let eof_in_comment pos name =
+  (Some pos,
+    Printf.sprintf
+      "Unexpected end of file inside a block comment (`%s#}' was expected)"
+      name)
 
 let invalid_number pos str =
   (Some pos, Printf.sprintf "Invalid integer literal `%s'" str)
