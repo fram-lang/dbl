@@ -149,7 +149,7 @@ let op_char = [
   '~' '*' '%' ';' ',' '=' '|' ':' '.' '/'
 ]
 
-let comment_name = (var_char | op_char | '#')*
+let comment_name = [^'\000'-' ' '\x7f' '{' '}']*
 
 rule token = parse
     whitespace+ { token lexbuf }
