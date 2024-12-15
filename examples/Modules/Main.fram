@@ -21,7 +21,7 @@
     Relative imports refer to the module which is the closest to the importing
     module, working upwards through the hierarchy. In this example the module
     `/Main/B/C/D` imports the relative path `A`, and the nearest matching
-    module is `/Main/B/A`. #}
+    module is `/Main/B/A`. ##}
 
 import List
 
