@@ -1,9 +1,10 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
- *)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 import open /Base/Types
 import open /Base/Operators
+import open /Base/Assert
 import /Base/Int
 
 pub method add = (extern dbl_strCat : String -> String -> String) self
@@ -16,10 +17,9 @@ pub method ge    = (extern dbl_geStr  : String -> String -> Bool) self
 pub method le    = (extern dbl_leStr  : String -> String -> Bool) self
 
 pub method length = (extern dbl_strLen : String -> Int) self
-pub method get {~re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
-  if n >= 0 && n < self.length then
-    (extern dbl_strGet : String -> Int -> Char) self n
-  else ~re ()
+pub method get {self : String} (n : Int) =
+  assert {msg="Out of bounds"} (n >= 0 && n < self.length);
+  (extern dbl_strGet : String -> Int -> Char) self n
 
 pub method toList {self : String} =
   let getChar = extern dbl_strGet : String -> Int -> Char in

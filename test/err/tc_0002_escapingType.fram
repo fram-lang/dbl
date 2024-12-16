@@ -1,5 +1,5 @@
 data T X = Ex of {type Y}, (Y -> X)
 
 let foo (Ex f) x = f x
-// @stderr: Type variable
-// @stderr: escapes
+# @stderr: Type variable
+# @stderr: escapes

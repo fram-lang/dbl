@@ -31,8 +31,11 @@ let unexpected_token pos tok =
 let invalid_character pos ch =
   (Some pos, Printf.sprintf "Invalid character `%s'" (Char.escaped ch))
 
-let eof_in_comment pos =
-  (Some pos, "Unexpected end of file inside a block comment")
+let eof_in_comment pos name =
+  (Some pos,
+    Printf.sprintf
+      "Unexpected end of file inside a block comment (`%s#}' was expected)"
+      name)
 
 let invalid_number pos str =
   (Some pos, Printf.sprintf "Invalid integer literal `%s'" str)
@@ -56,6 +59,12 @@ let reserved_binop_error pos op =
       "Syntax error. Operator %s can only be used in binary expressions"
       op)
 
+let disallowed_op_error pos op =
+  (Some pos,
+    Printf.sprintf
+      "Syntax error. Operator %s is disallowed to avoid ambiguity"
+      op)
+
 let invalid_pattern_arg pos =
   (Some pos,
   "Syntax error. This argument is provided to a pattern that do not expect it")
@@ -75,7 +84,7 @@ let finally_before_return_clause pos =
 let multiple_self_parameters pos =
   (Some pos, "Multiple 'self' parameters of a method")
 
-let abstr_data_in_pub_block pos = 
+let abstr_data_in_pub_block pos =
   (Some pos, "This 'abstr' data modifier has no effect. \
   It is overridden by 'public' of entire group of definitions.")
 
