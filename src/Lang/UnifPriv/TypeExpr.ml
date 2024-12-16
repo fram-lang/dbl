@@ -51,5 +51,5 @@ let mono_scheme_expr (tp : type_expr) =
 
 let of_scheme_expr (sch : scheme_expr) =
   match sch with
-  | { se_pos = _; se_targs = []; se_named = _; se_body } -> Some se_body
+  | { se_pos = _; se_targs = []; se_named = []; se_body } -> Some se_body
   | _ -> None
