@@ -11,7 +11,7 @@
   unification variables. However, for effect parameters we need another
   solution: some of type parameters are inferred based on types of actual
   parameters. *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -45,3 +45,4 @@ val type_inst_hints : T.named_tvar list -> T.typ -> T.typ -> t
 val extract_implicit_type_hints : tcfix:tcfix ->
   pos:Position.t -> Env.t -> T.scheme -> S.inst list -> T.effrow ->
     t * inst_cache
+*)

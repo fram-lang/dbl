@@ -3,7 +3,7 @@
  *)
 
 (** Main module of a type inference *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -22,9 +22,11 @@ module rec TCFix : TCFix = struct
   let check_defs env ienv defs tp_req eff cont =
     Def.check_defs ~tcfix:(module TCFix) env ienv defs tp_req eff cont
 end
-
+*)
 let tr_program p =
+(*
   let (p, _) =
     TCFix.check_expr_type Env.empty p T.Type.t_unit T.Effect.io in
   InterpLib.Error.assert_no_error ();
-  p
+  p *)
+  failwith "not implemented: TypeInference.Main.tr_program"

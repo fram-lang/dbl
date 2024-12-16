@@ -3,7 +3,7 @@
  *)
 
 (** Stack of modules which are currently being defined *)
-
+(*
 open Common
 
 module StrMap = Map.Make(String)
@@ -73,3 +73,4 @@ let leave_module (old_top, stack) ~public name =
 
 let open_module (top, stack) ~public m =
   (Module.open_module top ~public m, stack)
+*)

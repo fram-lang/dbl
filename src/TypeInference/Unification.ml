@@ -3,7 +3,7 @@
  *)
 
 (** Unification and subtyping of types *)
-
+(*
 open Common
 
 type arrow =
@@ -435,4 +435,4 @@ let as_label env tp =
 
   | TEffect _ | TEffrow _ ->
     failwith "Internal kind error"
-
+*)

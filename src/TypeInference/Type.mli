@@ -3,7 +3,7 @@
  *)
 
 (** Kind-checking and translation of type expressions *)
-
+(*
 open Common
 
 (** Check kind and translate a type expression *)
@@ -38,3 +38,4 @@ val tr_named_scheme : Env.t -> S.named_scheme -> T.named_scheme
   matter). *)
 val check_type_insts :
   Env.t -> S.type_inst list -> T.named_tvar list -> (T.tname * T.typ) list
+*)

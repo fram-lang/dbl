@@ -3,7 +3,7 @@
  *)
 
 (** Common definitions of type-checker *)
-
+(*
 module S = Lang.Surface
 module T = Lang.Unif
 
@@ -60,3 +60,4 @@ let match_effect reff (eff : T.effect) =
   match reff with
   | Pure   -> None
   | Impure -> Some eff
+*)

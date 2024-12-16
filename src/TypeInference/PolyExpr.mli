@@ -4,7 +4,7 @@
 
 (** Scheme-inference for polymorphic expressions and related constructs:
   actual parameters, and explicit instantiations. *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -42,3 +42,4 @@ val check_explicit_insts : tcfix:tcfix ->
   Env.t ->
   T.named_scheme list -> S.inst list -> TypeHints.inst_cache -> T.effrow ->
     simple_context * (T.name * T.expr) list * ret_effect
+*)

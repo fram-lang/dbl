@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for definitions *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -291,3 +291,4 @@ let check_defs : type dir. tcfix:tcfix ->
   | def :: defs ->
     check_def env ienv def req eff
       { run = fun env ienv req eff -> check_defs env ienv defs req eff cont }
+*)

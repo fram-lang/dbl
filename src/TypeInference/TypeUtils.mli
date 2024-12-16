@@ -3,7 +3,7 @@
  *)
 
 (** Utility function for extracting information about types *)
-
+(*
 open Common
 
 (** Check if type is a neutral type starting with type variable *)
@@ -17,3 +17,4 @@ val method_owner_of_scheme : pos:Position.t -> env:Env.t -> T.scheme -> T.tvar
   introduced named parameters, and the type of the scheme body. *)
 val open_scheme : pos:Position.t -> Env.t -> T.scheme ->
   Env.t * T.named_tvar list * (T.name * T.var * T.scheme) list * T.typ
+*)

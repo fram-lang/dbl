@@ -3,7 +3,7 @@
  *)
 
 (** Reporting errors that may occur during the translation from Unif to Core *)
-
+(*
 (** Abstract representation of error *)
 type t
 
@@ -11,3 +11,4 @@ type t
 val fatal : t -> 'a
 
 val non_exhaustive_match : pos:Position.t -> PatternContext.ctx -> t
+*)

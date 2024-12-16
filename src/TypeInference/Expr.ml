@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for expressions and related syntactic categories *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -367,3 +367,4 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
 
   | ERepl def_seq ->
     (check_repl_def_seq ~tcfix env ImplicitEnv.empty def_seq tp eff, Impure)
+*)

@@ -3,7 +3,7 @@
  *)
 
 (** Type-inference for definitions *)
-
+(*
 open Common
 open TypeCheckFix
 
@@ -22,3 +22,4 @@ val check_defs : tcfix:tcfix ->
   Env.t -> ImplicitEnv.t -> S.def list ->
     (T.typ, 'dir) request -> T.effrow -> def_cont ->
       T.expr * (T.typ, 'dir) response * ret_effect
+*)

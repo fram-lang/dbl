@@ -3,7 +3,7 @@
  *)
 
 (** Environment of the translation *)
-
+(*
 open Common
 
 type t
@@ -28,3 +28,4 @@ val add_tvars' : t -> S.tvar list -> T.TVar.ex list -> t
 val lookup_tvar : t -> S.tvar -> T.TVar.ex
 
 val in_repl_mode : t -> bool
+*)

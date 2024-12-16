@@ -3,7 +3,7 @@
  *)
 
 (** Common definitions of the translation *)
-
+(*
 module S = Lang.Unif
 module T = Lang.Core
 
@@ -32,3 +32,4 @@ let v_unit_prf =
 
 let v_unit =
   T.VCtor(T.EValue v_unit_prf, 0, [], [])
+*)

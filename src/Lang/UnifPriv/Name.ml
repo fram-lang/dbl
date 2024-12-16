@@ -50,7 +50,5 @@ let equal n1 n2 =
 let assoc n xs =
   List.find_map (fun (m, v) -> if equal n m then Some v else None) xs
 
-let subst = Subst.in_name
-
 module Set = Set.Make(Ordered)
 module Map = Map.Make(Ordered)

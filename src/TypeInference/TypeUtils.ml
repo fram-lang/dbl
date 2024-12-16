@@ -3,7 +3,7 @@
  *)
 
 (** Utility function for extracting information about types *)
-
+(*
 open Common
 
 type hints = T.typ T.TVar.Map.t
@@ -58,3 +58,4 @@ let open_scheme ~pos (env : Env.t) (sch : T.scheme) =
       env
       sch.sch_named in
   (env, sch.sch_targs, ims, sch.sch_body)
+*)
