@@ -3,7 +3,7 @@
     opam-nix.url = "github:tweag/opam-nix";
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.follows = "opam-nix/nixpkgs";
-    cpspg.url = "github:Brychlikov/cpspg";
+    cpspg.url = "github:adampsz/cpspg";
     cpspg.inputs.opam-nix.follows = "opam-nix";
   };
   outputs = { self, flake-utils, opam-nix, nixpkgs, cpspg }@inputs:
