@@ -341,7 +341,6 @@ and expr_data =
       parameters is the following.
       - [a]  -- effect variable that represent introduced effect
       - [x]  -- capability variable
-      - [tp] -- type of the capability
       - [e1] -- expression that should evaluate to first-class handler
       - [e2] -- body of the handler *)
 
