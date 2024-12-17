@@ -14,7 +14,7 @@ let ~re _ = exit 4
 let xs = [1,2,3,4]
 let ys = [5,6,7,8]
 
-(* State effect for List.iter* functions *)
+{# State effect for List.iter* functions #}
 data State (effect E) X = State of
   { get    : Unit ->[E] X
   , put    : X ->[E] Unit
@@ -35,12 +35,12 @@ handle {effect=Test} (~st : State Test Int) =
   return  x => fn _ => x
   finally c => c 0
 
-(* Tests *)
+{# Tests #}
 
 let _ = assert (List.isEmpty xs == False)
-(* Without specifying List type:
+{# Without specifying List type:
    fatal error: Unsolved unification variables left.
- *)
+ #}
 let _ = assert (List.isEmpty ([] : List Int))
 
 let _ = assert (List.length xs == 4)
