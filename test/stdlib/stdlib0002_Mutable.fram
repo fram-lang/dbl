@@ -1,6 +1,6 @@
 import open Mutable
 
-# Backtracking for tesing
+# Backtracking for testing
 data BT (effect E) = { flip : Unit ->[E] Bool }
 
 let hBT =
@@ -73,11 +73,11 @@ let _ =
 # Example program
 let primes n =
   {# In order to use mutability, we need a `Mut` capability. There is a
-    predefined `ioMut` capability, but using it performs `IO` effect.
-    Mutability can be handled locally, by introducing some local capability,
-    but the computation that use it must be pure, as in this example. #}
+    predefined `ioMut` capability, but using it performs the `IO` effect.
+    Mutability can be handled locally, by introducing a local capability,
+    but the computation that uses it must be pure, as in this example. #}
   hMutArray (fn mut =>
-    {# New mutable entities are created by calling methods on `Mut`
+    {# New mutable entities are created by calling methods on the `Mut`
       capability. #}
     let arr = mut.makeArray n 2
     let lastPrime = mut.ref 1
@@ -92,17 +92,17 @@ let primes n =
       in
       arr.iter checkPrime
     let rec nextPrime () =
-      {# Mutable entities can be accessed by `get` method, #}
+      {# Mutable entities can be accessed by the `get` method, #}
       let p = lastPrime.get + 1 in
-      {# or modified using `:=` operator. #}
+      {# or modified using the `:=` operator. #}
       lastPrime := p;
       if isPrime p then p
       else nextPrime ()
     in
     arr.iteri (fn i _ =>
-      {# To modify an array, we also use `:=` operator, but on special
-        write-only element that can be obtained by `at` method. To read an
-        array, we use `get` method. #}
+      {# To modify an array, we also use the `:=` operator, but on a special
+        write-only element that can be obtained with the `at` method. To read
+        an array, we use the `get` method. #}
       arr.at i := nextPrime ());
     arr)
 

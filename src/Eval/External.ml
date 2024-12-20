@@ -37,12 +37,12 @@ let list_chr_fun f = VFn (fun v cont ->
 let ref_fun f = VFn (fun v cont ->
   match v with
   | VRef r -> cont (f r)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not a reference")
 
 let array_fun f = VFn (fun v cont ->
   match v with
   | VArray a -> cont (f a)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not an array")
 
 let v_unit = VCtor(0, [])
 
