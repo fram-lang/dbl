@@ -1,0 +1,3 @@
+#@ 123 foo
+in
+# @stderr:foo:123

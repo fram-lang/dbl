@@ -50,6 +50,14 @@ let invalid_escape_code pos =
 let eof_in_string pos =
   (Some pos, "Unexpected end of file inside a string literal")
 
+let invalid_lexer_directive ?msg pos =
+  (Some pos,
+    Printf.sprintf
+      "Invalid lexer directive%s"
+        (match msg with
+        | None -> ""
+        | Some msg -> ": " ^ msg))
+
 let desugar_error pos =
   (Some pos, "Syntax error. This construction cannot be used in this context")
 
