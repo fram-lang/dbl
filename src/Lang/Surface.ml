@@ -199,7 +199,7 @@ and named_pattern_data =
   | NP_Open
     (** Introduce everything into the environment *)
 
-(** Polymorphic expressions *)
+(** Polymorphic expressions, at the place of use. *)
 type poly_expr_use = poly_expr_use_data node
 and poly_expr_use_data =
   | EVar      of var path
@@ -211,7 +211,7 @@ and poly_expr_use_data =
   | EMethod   of expr * method_name
     (** Call of a method *)
 
-(** Polymorphic expression *)
+(** Polymorphic expressions, at the place of definition. *)
 and poly_expr_def = poly_expr_def_data node
 and poly_expr_def_data =
   | PE_Expr of expr
