@@ -133,23 +133,26 @@ and scheme_expr = {
   sch_pos   : Position.t;
     (** Location of the scheme expression *)
 
-  sch_targs : named_type_arg list;
-    (** Type parameters *)
-
-  sch_named : named_scheme list;
-    (** Named parameters *)
+  sch_args  : scheme_arg list;
+    (** Type and named parameters *)
 
   sch_body : type_expr
     (** Body of the scheme *)
 }
 
-(** Declaration of implicit/named parameter *)
-and named_scheme = (name * scheme_expr) node
+(** Named parameter of a scheme *)
+and scheme_arg = scheme_arg_data node
+and scheme_arg_data =
+  | SA_Type of tname * tvar * kind_expr
+    (** Type parameter *)
+
+  | SA_Val  of name * scheme_expr
+    (** Value parameter *)
 
 (** Type formal parameter *)
 and type_arg = type_arg_data node
 and type_arg_data =
-  | TA_Var of is_public * tvar * kind_expr
+  | TA_Var of tvar * kind_expr
     (** Type variable *)
   
   | TA_Wildcard
@@ -161,8 +164,7 @@ and named_type_arg = (tname * type_arg) node
 type ctor_decl = ctor_decl_data node
 and ctor_decl_data = {
   cd_name        : ctor_name;
-  cd_targs       : named_type_arg list;
-  cd_named       : named_scheme list;
+  cd_named_args  : scheme_arg list;
   cd_arg_schemes : scheme_expr list
 }
 
@@ -181,39 +183,24 @@ and pattern_data =
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
 
-(** Set of named subpatterns of constructor *)
-and ctor_pattern_named =
-  | CNParams of named_type_arg list * named_pattern list
-    (** Named type parameters and named patterns of a constructor *)
-  | CNModule of is_public * module_name
-    (** Bind all named parameters under the specified module name *)
-
 (** Pattern for a named parameter *)
 and named_pattern = named_pattern_data node
 and named_pattern_data =
-  | NP_Type   of named_type_arg
+  | NP_Type   of is_public * named_type_arg
     (** Type parameter *)
+
   | NP_Val    of name * pattern
     (** Value parameter *)
+
   | NP_Module of module_name
     (** Bind everything into a module *)
+
   | NP_Open
     (** Introduce everything into the environment *)
 
-(** Formal argument *)
-type arg =
-  | ArgAnnot of pattern * scheme_expr
-    (** Argument with scheme annotation *)
-
-  | ArgPattern of pattern
-    (** Argument with pattern-matching *)
-
-(** Named formal argument *)
-type named_arg = (name * arg) node
-
 (** Polymorphic expressions *)
-type poly_expr = poly_expr_data node
-and poly_expr_data =
+type poly_expr_use = poly_expr_use_data node
+and poly_expr_use_data =
   | EVar      of var path
     (** Variable *)
 
@@ -222,6 +209,18 @@ and poly_expr_data =
 
   | EMethod   of expr * method_name
     (** Call of a method *)
+
+(** Polymorphic expression *)
+and poly_expr_def = poly_expr_def_data node
+and poly_expr_def_data =
+  | PE_Expr of expr
+    (** Expression *)
+
+  | PE_Poly of poly_expr_use
+    (** Polymorphic expression *)
+
+  | PE_Fn   of named_pattern list * expr
+    (** Polymorphic function *)
 
 (** Expressions *)
 and expr = expr_data node
@@ -242,18 +241,15 @@ and expr_data =
   | EChr of char
     (** Char literal *)
 
-  | EPoly of poly_expr * inst list
+  | EPoly of poly_expr_use * inst list
     (** Polymorphic expression with partial explicit instantiation, possibly
       empty *)
 
-  | EFn   of arg * expr
+  | EFn   of pattern * expr
     (** Lambda abstraction *)
 
-  | EApp  of expr * expr
-    (** Application to an expression *)
-
-  | EAppFn of expr * named_pattern list * expr
-    (** Application to explicitly polymorphic function *)
+  | EApp  of expr * poly_expr_def
+    (** Function application *)
 
   | EDefs of def list * expr
     (** Local definitions *)
@@ -265,7 +261,7 @@ and expr_data =
     (** First-class handler, with return and finally clauses. For each of these
       clause lists, empty list means the default identity clause *)
 
-  | EEffect of expr option * arg * expr
+  | EEffect of expr option * pattern * expr
     (** Effectful operation. The only argument is a continuation. Other
       arguments should be bound using regular lambda abstractions ([EFn]).
       The first parameter is an optional label. *)
@@ -286,21 +282,21 @@ and inst = inst_data node
 and inst_data =
   | IType   of tvar * type_expr
     (** Explicit instantiation of a type variable *)
-  | IVal    of name * expr
+
+  | IVal    of name * poly_expr_def
     (** Explicit instantiation of a value-level name *)
+
   | IModule of module_name path
     (** Explicit instantiation, that takes values from given module *)
+
   | IOpen
     (** Explicit instantiation, that takes values from the environment *)
 
 (** Local definitions *)
 and def = def_data node
 and def_data =
-  | DLetId of is_public * ident * expr
+  | DLetId of is_public * ident * poly_expr_def
     (** Let definition: monomorphic or polymorphic, depending on effect *)
-
-  | DLetFun of is_public * ident * named_type_arg list * named_arg list * expr
-    (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
@@ -331,6 +327,9 @@ and def_data =
 
       public_ctors : is_public;
         (** A flag indication that the constructors are visible *)
+
+      tvar         : tvar;
+        (** Type variable that represents this ADT *)
 
       args         : named_type_arg list;
         (** List of type parameters *)
