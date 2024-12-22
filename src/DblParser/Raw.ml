@@ -29,7 +29,7 @@ type var_id =
   | VIdUOp of op_name
 
 (** Name of a named parameter *)
-type name = Lang.Surface.name =
+type name =
   | NLabel
   | NVar         of var
   | NOptionalVar of var
@@ -48,7 +48,7 @@ type ctor_name =
 type module_name = string
 
 (** Module path to an identifier of type 'a *)
-type 'a path = 'a Lang.Surface.path =
+type 'a path =
   | NPName of 'a
   | NPSel  of module_name * 'a path
 
@@ -66,9 +66,6 @@ and kind_expr_data = Lang.Surface.kind_expr_data =
 
   | KEffect
     (** Effect kind*)
-
-  | KEffrow
-    (** Effect row kind *)
 
 (** Field of record-like, e.g., scheme name parameters, or explicit
   instantiation *)

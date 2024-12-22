@@ -181,7 +181,6 @@ kind_expr_simple
 : BR_OPN kind_expr BR_CLS { make ($2).data }
 | KW_TYPE { make KType }
 | KW_EFFECT { make KEffect }
-| KW_EFFROW { make KEffrow }
 | UNDERSCORE { make KWildcard }
 ;
 
