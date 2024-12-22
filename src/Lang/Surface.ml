@@ -149,7 +149,7 @@ and scheme_arg_data =
   | SA_Val  of name * scheme_expr
     (** Value parameter *)
 
-(** Type formal parameter *)
+(** Formal type parameter *)
 and type_arg = type_arg_data node
 and type_arg_data =
   | TA_Var of tvar * kind_expr
@@ -158,6 +158,7 @@ and type_arg_data =
   | TA_Wildcard
     (** Wildcard *)
 
+(** Named formal type parameter *)
 and named_type_arg = (tname * type_arg) node
 
 (** Declaration of constructor of ADT *)
