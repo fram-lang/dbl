@@ -5,7 +5,7 @@
 (** The first phase of desugaring and post-parsing *)
 
 open Lang.Surface
-
+(*
 (** Translation of the binary operator's name to the regular identifier. *)
 let tr_bop_id (op : string node) =
   if List.mem op.data ["&&"; "||"; ";"] then
@@ -863,6 +863,7 @@ and create_accessor_method ~public named_type_args pattern_gen scheme =
   | (NLabel | NImplicit _ | NMethod _ | NOptionalVar _), _ ->
     Error.warn (Error.ignored_field_in_record scheme.pos);
     None
-
+*)
 let tr_program (p : Raw.program) =
-  { p with data = tr_defs p.data }
+  failwith "Not implemented: Desugar.tr_program"
+  (*{ p with data = tr_defs p.data }*)

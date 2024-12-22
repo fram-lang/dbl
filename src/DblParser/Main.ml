@@ -16,7 +16,7 @@ let make_nowhere data =
   { Lang.Surface.pos  = Position.nowhere
   ; Lang.Surface.data = data
   }
-
+(*
 let rec repl_seq imported () =
   InterpLib.Error.wrap_repl_cont (repl_seq_main imported) ()
 
@@ -57,11 +57,14 @@ and repl_seq_main imported () =
         lexbuf.Lexing.lex_start_p
         lexbuf.Lexing.lex_curr_p)
       (Lexing.lexeme lexbuf))
-
+*)
 let repl ~use_prelude =
+  failwith "Not implemented: DblParser.Main.repl"
+(*
   if use_prelude then
     let imported, prelude_defs = Import.import_prelude () in
     let repl_expr = make_nowhere (Lang.Surface.ERepl (repl_seq imported)) in
     make_nowhere (Lang.Surface.EDefs(prelude_defs, repl_expr))
   else
     make_nowhere (Lang.Surface.ERepl (repl_seq Import.import_set_empty))
+*)
