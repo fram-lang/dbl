@@ -205,6 +205,9 @@ and poly_expr_use_data =
   | EVar      of var path
     (** Variable *)
 
+  | ECtor     of ctor_name path
+    (** Constructor *)
+
   | EImplicit of iname path
     (** Implicit parameter *)
 
