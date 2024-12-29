@@ -316,10 +316,10 @@ and def_data =
       - [body] -- An expression that should evaluate to a first-class handler,
           providing the capability of the handled effect. *)
 
-  | DTypeParam of tname * kind_expr
+  | DTypeParam of tname * tvar * kind_expr
     (** Declaration of type parameter *)
 
-  | DValParam of name * scheme_expr
+  | DValParam of name * ident * scheme_expr
     (** Declaration of value parameter *)
 
   | DData of (** Definition of non-recursive ADT *)
