@@ -3,9 +3,9 @@
  *)
 
 (** Type-inference for patterns *)
-(*
-open Common
 
+open Common
+(*
 type named_type    = (T.tname * S.type_arg) S.node
 type named_pattern = (T.name * S.pattern) S.node
 
@@ -269,7 +269,11 @@ and check_scheme ~env ~scope (pat : S.pattern) sch =
       (Unification.subscheme env sch sch')
       ~on_error:(Error.pattern_annot_mismatch ~env sch sch');
     check_scheme ~env ~scope:(Env.scope env) pat sch'
-
+*)
+let check_type env (pat : S.pattern) tp =
+  (* TODO: not implemeted *)
+  begin match None with Some x -> x end
+(*
 and check_type ~env ~scope (pat : S.pattern) tp =
   let make data = { pat with T.data = data } in
   let pos = pat.pos in
@@ -352,7 +356,11 @@ let infer_optional_arg_scheme env (arg : S.arg) =
     let scope = Env.scope env in
     let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
     (env, pat, T.Scheme.of_type tp, r_eff)
-
+*)
+let infer_scheme_ext env (pat : S.pattern) =
+  (* TODO: not implemeted *)
+  begin match None with Some x -> x end
+(*
 let infer_arg_scheme env (arg : S.arg) =
   match arg with
   | ArgAnnot(pat, sch) ->
@@ -366,7 +374,15 @@ let infer_arg_scheme env (arg : S.arg) =
     let scope = Env.scope env in
     let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
     (env, pat, T.Scheme.of_type tp, r_eff)
+*)
+let check_scheme_ext env (pat : S.pattern) sch =
+  (* TODO: not implemeted *)
+  begin match None with Some x -> x end
 
+let check_type_ext env (pat : S.pattern) tp =
+  (* TODO: not implemeted *)
+  begin match None with Some x -> x end
+(*
 let check_arg_scheme env (arg : S.arg) sch =
   match arg with
   | ArgAnnot(pat, sch') ->
@@ -416,3 +432,11 @@ let rec infer_named_arg_schemes env ims =
     let (env, ims, r_eff2) = infer_named_arg_schemes env ims in
     (env, im :: ims, ret_effect_join r_eff1 r_eff2)
 *)
+
+let check_named_patterns_ext env (nps : S.named_pattern list) tvars named =
+  (* TODO: not implemeted *)
+  begin match None with Some x -> x end
+
+let infer_named_patterns_ext env (nps : S.named_pattern list) =
+  (* TODO: not implemeted *)
+  begin match None with Some x -> x end

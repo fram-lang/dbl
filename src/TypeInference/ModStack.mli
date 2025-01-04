@@ -3,11 +3,11 @@
  *)
 
 (** Stack of modules which are currently being defined *)
-(*
+
 open Common
 
 type t
-
+(*
 (** The top-level module stack *)
 val toplevel : t
 

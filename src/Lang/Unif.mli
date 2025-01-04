@@ -37,9 +37,6 @@ type named_tvar = tname * tvar
 
 (** Name of a named parameter *)
 type name =
-  | NLabel
-    (** Dynamic label of a handler *)
-
   | NVar      of string
     (** Regular named parameter *)
 
@@ -228,11 +225,8 @@ type data_def =
       var       : var;
         (** Regular variable that would store the label *)
 
-      delim_tp  : type_expr;
+      delim_tp  : typ
         (** Type of the delimiter *)
-
-      delim_eff : type_expr
-        (** Effect of the delimiter *)
     }
 
 (* ========================================================================= *)
@@ -240,7 +234,7 @@ type data_def =
 (** Pattern *)
 type pattern = pattern_data node
 and pattern_data =
-  | PWildcard
+  | PWildcard of scheme
     (** Wildcard pattern -- it matches everything *)
 
   | PVar of var * scheme
@@ -292,11 +286,8 @@ and expr_data =
   | EChr of char
     (** String literal *)
 
-  | EPureFn of var * scheme * expr
-    (** Pure lambda-abstraction *)
-
-  | EFn of var * scheme * expr
-    (** Impure lambda-abstraction *)
+  | EFn of var * scheme * expr * effect
+    (** Effect-annotated lambda-abstraction *)
 
   | EAppPoly of expr * poly_expr
     (** Function application to polymorphic expression *)
@@ -334,6 +325,10 @@ and expr_data =
 
   | EMatch of expr * match_clause list * typ * effect
     (** Pattern-matching. It stores type and effect of the whole expression.
+      *)
+
+  | EMatchPoly of poly_expr * pattern * expr * typ * effect
+    (** Pattern-matching of polymorphic expression with a single match-clause.
       *)
 
   | EHandle of tvar * var * expr * expr
@@ -380,7 +375,8 @@ and expr_data =
 
   | EEffect of expr * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
-      continuation variable, body, and the type of the whole expression. *)
+      continuation variable binder, body, and the type of the whole
+      expression. *)
 
   | EExtern of string * typ
     (** Externally defined value *)

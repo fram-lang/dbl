@@ -3,11 +3,34 @@
  *)
 
 (** Additional environment used in type-checking definition blocks. It stores
-  information about declared named implicits. *)
-(*
+  information about declared parameters. *)
+
 open Common
 
-type t = (S.iname * T.named_tvar list * T.scheme) list (* in reversed order *)
+(** Parameter declaration *)
+type param_decl =
+  | ParamType of (** Named type parameter *)
+    { pos : Position.t;
+      (** Position of the declaration. *)
+
+      name : T.tname;
+      (** Name of the type parameter that will be visible in the type scheme.
+        *)
+
+      local_name : T.tname;
+      (** Local name of the parameter. It is used in the type environment. *)
+
+      tvar : T.tvar;
+      (** Type variable that represents the parameter. *)
+    }
+
+  | ParamVal  of T.name * T.tvar list * T.scheme
+    (** value-level parameter. It stroes the name, type variables that may
+      differ for each instance, and the parameter scheme. *)
+
+type t = param_decl list (* in reversed order *)
+(*
+(S.iname * T.named_tvar list * T.scheme) list (* in reversed order *)
 
 type implicit = {
   i_name   : string;
@@ -17,7 +40,9 @@ type implicit = {
   i_used   : Position.t option BRef.t
     (** The location of the first usage *)
 }
-
+*)
+type param_list
+(*
 type implicit_list = {
   il_list : implicit list;
     (** List of implicit parameter that potentially could be generalized. *)
@@ -25,9 +50,9 @@ type implicit_list = {
   il_env  : Env.t
     (** Saved environment from the place of the call of [begin_generalize] *)
 }
-
+*)
 let empty = []
-
+(*
 let on_use used pos =
   match BRef.get used with
   | None   -> BRef.set used (Some pos)
@@ -66,12 +91,20 @@ let generalize_implicit (env, ims) (name, args, sch) =
       i_used   = used
     } in
   (env, im :: ims)
-
+*)
+let begin_generalize env penv =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 let begin_generalize env ims =
   let (new_env, il_list) =
     List.fold_left generalize_implicit (Env.incr_level env, []) ims in
   (new_env, { il_list; il_env = env })
-
+*)
+let end_generalize_pure params uvs cs =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 let end_generalize_pure ims uvs =
   let level = Env.level ims.il_env in
   (* List of used implicits *)
@@ -96,8 +129,11 @@ let end_generalize_pure ims uvs =
     |> List.map (fun x -> (T.TNAnon, T.UVar.fix x))
   in
   (targs1 @ targs2, ims)
-
-let end_generalize_impure ~pos ~env ims tp =
+*)
+let end_generalize_impure params =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let scope = Env.scope ims.il_env in
   begin match T.Type.try_shrink_scope ~scope tp with
   | Ok   () -> ()
@@ -111,9 +147,24 @@ let end_generalize_impure ~pos ~env ims tp =
       | Some pos ->
         Error.fatal (Error.ungeneralizable_implicit ~pos im.i_name))
     ims.il_list
+*)
+let end_generalize_declare params penv name x sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
 
+let shadow_type penv (name : T.tname) =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let declare_type ~pos penv name x kind =
+  let tvar = T.TVar.fresh kind in
+  let decl =
+    ParamType { pos; name = tr_tname name; local_name = TNVar x; tvar } in
+  decl :: shadow_type penv (TNVar x)
+(*
 let declare_implicit ienv name args sch = (name, args, sch) :: ienv
-
+*)
+(*
 let shadow ienv name = List.filter (fun (n', _, _) -> n' <> name) ienv
 
 let shadow_names ienv names =
@@ -123,7 +174,15 @@ let shadow_names ienv names =
       | T.NLabel | T.NVar _ | T.NOptionalVar _ | T.NMethod _ -> ienv
       | T.NImplicit n -> shadow ienv n)
     names ienv
+*)
+let add_tvar ~pos ~public env penv name kind =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
 
+let add_poly_id ~public env penv (id : S.ident) sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 let add_poly_id ~pos env ienv (id : S.ident) sch =
   match id with
   | IdLabel ->
@@ -140,7 +199,18 @@ let add_poly_id ~pos env ienv (id : S.ident) sch =
     let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
     let (env, x) = Env.add_poly_method env ~public owner name sch in
     (env, ienv, x)
-
-let add_mono_id ~pos env ienv (id : S.ident) tp =
-  add_poly_id ~pos env ienv id (T.Scheme.of_type tp)
 *)
+let add_mono_id ~public env penv (id : S.ident) tp =
+  add_poly_id ~public env penv id (T.Scheme.of_type tp)
+
+let add_method_fn ~public env penv x name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let open_module ~public env penv m =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let add_partial_env env penv pat_env =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end

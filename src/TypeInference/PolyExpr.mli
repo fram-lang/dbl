@@ -2,44 +2,48 @@
  * See LICENSE for details.
  *)
 
-(** Scheme-inference for polymorphic expressions and related constructs:
-  actual parameters, and explicit instantiations. *)
-(*
+(** Scheme-inference for polymorphic expressions *)
+
 open Common
 open TypeCheckFix
 
-(** Instantiation context of polymorphic expression. The context is a function
-  that takes instantiated expression, its type and effect, and returns
-  translated expression, its type and the effect. Instantiation contexts are
-  important in case of method calls, because the self parameter should be
-  computed before instantiation and supplied as a additional parameter, after
-  instantiation. *)
-type inst_context =
-  T.expr -> T.typ -> ret_effect -> T.expr * T.typ * ret_effect
+(** Result of scheme-checking of a polymorphic expression definition. *)
+type check_def_result =
+  | Mono of check expr_result
+    (** The definition is a monomorphic expression. *)
 
-(** Simple instantiation context, that do not interact with types *)
-type simple_context = T.expr -> T.expr
+  | Poly of T.poly_expr * Constr.t list
+    (** The definition is a polymorphic expression. *)
 
-(** Infer scheme of a polymorphic expression. The effect of en expression is
-  always in the check-mode. It returns a tuple, that contains the context of
-  the polymorphic expression (computing polymorphic expression may have some
-  effects, that should be performed before explicit instantiation), the
-  translated polymorphic expression, its scheme, and the hints for the scheme
-  instantiation. *)
-val infer_scheme : tcfix:tcfix ->
-  Env.t -> S.poly_expr -> T.effrow ->
-    inst_context * T.expr * T.scheme * TypeHints.t
+(** Result of scheme-inference of a polymorphic expression definition. *)
+type infer_def_result =
+  | PPure of T.poly_expr * T.scheme * Constr.t list
+    (** Pure polymorphic expression *)
 
-(** Check the scheme of an actual parameter of a function *)
-val check_actual_arg : tcfix:tcfix ->
-  Env.t -> S.expr -> T.scheme -> T.effrow -> T.expr * ret_effect
+  | PImpure of infer expr_result
+    (** Monomorphic expression. Always impure. *)
 
-(** Check explicit instantiations against given list of named parameters (from
-  type scheme). It returns context (represented as meta-function) that
-  preserves the order of computations, list of checked instantiations, and
-  the effect. *)
-val check_explicit_insts : tcfix:tcfix ->
-  Env.t ->
-  T.named_scheme list -> S.inst list -> TypeHints.inst_cache -> T.effrow ->
-    simple_context * (T.name * T.expr) list * ret_effect
-*)
+(** Instantiation context of polymorphic expression. Instantiation contexts
+  are important in case of method calls, because the self parameter should
+  be supplied as an additional parameter, after the instantiation. *)
+type inst_context
+
+(** Plug an expression into an instantiation context. *)
+val plug_inst_context : inst_context -> infer expr_result -> infer expr_result
+
+(** Infer the scheme of a polymorphic expression. When the polymorphic
+  expression is applied to some parameters, the [?app_type], if provided,
+  specifies the type of the application. The function returns a tuple, that
+  contains the context of the polymorphic expression (computing polymorphic
+  expression may have some effects, that should be performed before explicit
+  instantiation), the translated polymorphic expression, and its scheme. *)
+val infer_use_scheme : tcfix:tcfix -> ?app_type:T.typ ->
+  Env.t -> S.poly_expr_use -> inst_context * T.poly_expr * T.scheme
+
+(** Check the scheme of a polymorphic expression definition. *)
+val check_def_scheme : tcfix:tcfix ->
+  Env.t -> S.poly_expr_def -> T.scheme -> check_def_result
+
+(** Infer scheme of a polymorphic expression definition. *)
+val infer_def_scheme : tcfix:tcfix ->
+  Env.t -> S.poly_expr_def -> infer_def_result

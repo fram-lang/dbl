@@ -3,11 +3,11 @@
  *)
 
 (** Checking and processing algebraic data types (ADTs) *)
-(*
+
 open Common
 
 type ctor_decl_list = (S.is_public * T.ctor_decl) list
-
+(*
 (* ========================================================================= *)
 
 (** Check if ADT definition is strictly positively recursive *)
@@ -16,13 +16,16 @@ let adt_strictly_positive ~nonrec_scope args ctors =
   List.for_all (T.CtorDecl.strictly_positive ~nonrec_scope) ctors
 
 (* ========================================================================= *)
-
+*)
 let kind args =
   T.Kind.k_arrows
     (List.map (fun (_, x) -> T.TVar.kind x) args)
     T.Kind.k_type
 
 let check_ctor_decl ~data_targs env ({ data = ctor; _ } : S.ctor_decl) =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   Uniqueness.check_ctor_named_types data_targs ctor.cd_targs;
   let (env, ctor_targs) = Type.tr_named_type_args env ctor.cd_targs in
   let decl =
@@ -32,8 +35,11 @@ let check_ctor_decl ~data_targs env ({ data = ctor; _ } : S.ctor_decl) =
       T.ctor_arg_schemes = List.map (Type.tr_scheme env) ctor.cd_arg_schemes
     } in
   (ctor.cd_public, decl)
-
+*)
 let check_ctor_decls ~data_targs env ctors =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   Uniqueness.check_ctor_uniqueness ctors;
   List.map (check_ctor_decl ~data_targs env) ctors
 
@@ -44,8 +50,11 @@ let open_data_ctor adt (env, n) (public, (ctor : T.ctor_decl)) =
 let open_data env adt ctors =
   List.fold_left (open_data_ctor adt) (env, 0) ctors
   |> fst
-
-let finalize_check ~nonrec_scope env x ~name args ctors =
+*)
+let finalize_check ~nonrec_scope ~public env penv x ~name args ctors =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let px = Var.fresh ~name () in
   let adt_ctors = List.map snd ctors in
   let info = {

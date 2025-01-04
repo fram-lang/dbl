@@ -3,13 +3,13 @@
  *)
 
 (** Stack of modules which are currently being defined *)
-(*
+
 open Common
-
+(*
 module StrMap = Map.Make(String)
-
+*)
 type t = Module.t * Module.t list
-
+(*
 let toplevel = (Module.toplevel, [])
 
 let find_map f (m, stack) =

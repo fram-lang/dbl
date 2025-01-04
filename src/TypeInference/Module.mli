@@ -3,29 +3,32 @@
  *)
 
 (** Represention of module definitions *)
-(*
+
 open Common
 
 type t
 
+(** Type of function that is called on each use of the variable *)
+type on_use = Position.t -> unit
+
 (** Information about an ADT definition *)
 type adt_info = {
-  adt_proof : T.expr;
+  adt_proof  : T.poly_expr;
     (** A computationally irrelevant expression that give a proof that given
       type is an ADT. It is polymorphic in the type parameters of an ADT. *)
 
-  adt_args  : T.named_tvar list;
+  adt_args   : T.named_tvar list;
     (** Type parameter of an ADT *)
 
-  adt_ctors : T.ctor_decl list;
+  adt_ctors  : T.ctor_decl list;
     (** List of constructors of an ADT *)
 
-  adt_type  : T.typ;
+  adt_type   : T.typ;
     (** The type that is an ADT, already applied to [adt_args] *)
 
-  adt_strictly_positive : bool
-    (** A flag indicating that the type is strictly positively recursive, and
-      therefore pattern-matching on it is pure. *)
+  adt_effect : T.effect
+    (** An effect of pattern-matching on this type. Generally it is [Pure]
+      for strictly poisitively recursive types. *)
 }
 
 (** Information about variable-like identifier (variable, constructor, etc.) *)
@@ -38,16 +41,16 @@ type var_info =
 
   | VI_MethodFn of S.method_name
     (** Function that is automatically translated to method call *)
-
+(*
 (** The built-in unit type *)
 val unit_info : adt_info
 
 (** Empty module *)
 val empty : t
-
+*)
 (** The top-level module containg the base types *)
 val toplevel : t
-
+(*
 (** Extend the module with a polymorphic variable *)
 val add_var : t -> public:bool -> S.var -> T.scheme -> t * T.var
 
@@ -71,25 +74,25 @@ val add_ctor : t -> public:bool -> string -> int -> adt_info -> t
 
 (** Extend the module with the definition of a module with the given name. *)
 val add_module : t -> public:bool -> S.module_name -> t -> t
-
+*)
 (** Lookup for variable-like identifier. Returns [None] if variable is not
   bound. *)
-val lookup_var : t -> S.var -> var_info option
+val lookup_var : t -> S.var -> (var_info * on_use) option
 
 (** Lookup for Unif representation, a scheme, and "on-use" function of a named
   implicit. Returns [None] if implicit is not bound. *)
 val lookup_implicit :
-  t -> S.var -> (T.var * T.scheme * (Position.t -> unit)) option
-
+  t -> S.iname -> (T.var * T.scheme * on_use) option
+(*
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and
   full information about ADT. *)
 val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
-
+*)
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
-val lookup_tvar : t -> S.tvar -> T.typ option
-
+val lookup_tvar : t -> S.tvar -> (T.typ * on_use) option
+(*
 (** Lookup for a module of the given name. *)
 val lookup_module : t -> S.module_name -> t option
 

@@ -3,7 +3,7 @@
  *)
 
 (** Pretty printing of types and kinds *)
-(*
+
 open Common
 
 type ctx = {
@@ -34,7 +34,7 @@ let empty_context () = {
   used_tvars    = Hashtbl.create 42;
   anon_tvar_pos = []
 }
-
+(*
 (** Environment of pretty-printing *)
 module PPEnv : sig
   type t
@@ -397,7 +397,7 @@ and pp_scheme_named_args buf env sep nargs =
     pp_scheme_named_args buf env ", " nargs
 
 (* ========================================================================= *)
-
+*)
 let additional_info ctx =
   let buf = Buffer.create 80 in
   List.rev ctx.anon_tvar_pos |> List.iter (fun (pos, name) ->
@@ -405,10 +405,13 @@ let additional_info ctx =
       name
       (Position.to_string pos));
   Buffer.contents buf
-
+(*
 (* ========================================================================= *)
-
+*)
 let kind_to_string ctx k =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let buf = Buffer.create 80 in
   pp_kind ctx buf 0 k;
   Buffer.contents buf
@@ -418,15 +421,22 @@ let tname_to_string (name : T.tname) =
   | TNAnon   -> "<anon>"
   | TNEffect -> "effect"
   | TNVar x  -> x
-
+*)
 let tvar_to_string ctx env x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   pp_tvar (PPEnv.create ctx env) x
-
+*)
 let type_to_string ctx env tp =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let buf = Buffer.create 80 in
   pp_type buf (PPEnv.create ctx env) 0 tp;
   Buffer.contents buf
-
+*)
+(*
 let scheme_to_string ctx env sch =
   let buf = Buffer.create 80 in
   pp_scheme buf (PPEnv.create ctx env) 0 sch;

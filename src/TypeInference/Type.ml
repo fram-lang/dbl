@@ -3,18 +3,20 @@
  *)
 
 (** Kind-checking and translation of type expressions *)
-(*
+
 open Common
 
-let rec tr_kind_expr (k : Lang.Surface.kind_expr) = 
+let rec tr_kind (k : S.kind_expr) =
   match k.data with
-  | KWildcard -> T.Kind.fresh_uvar ()
-  | KType     -> T.Kind.k_type
-  | KEffect   -> T.Kind.k_effect
-  | KEffrow   -> T.Kind.k_effrow
-  | KArrow(k1, k2) -> T.Kind.k_arrow (tr_kind_expr k1) (tr_kind_expr k2)
+  | KWildcard      -> T.Kind.fresh_uvar ()
+  | KType          -> T.Kind.k_type
+  | KEffect        -> T.Kind.k_effect
+  | KArrow(k1, k2) -> T.Kind.k_arrow (tr_kind k1) (tr_kind k2)
 
 let rec infer_kind env (tp : S.type_expr) =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   match tp.data with
   | TWildcard ->
     let k = T.Kind.fresh_uvar ~non_effect:true () in
@@ -53,8 +55,11 @@ let rec infer_kind env (tp : S.type_expr) =
     | None ->
       Error.fatal (Error.type_not_function ~pos:pos1 k1)
     end
-
+*)
 and check_kind env (tp : S.type_expr) k =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   match tp.data with
   | TVar _ | TPureArrow _ | TArrow _ | TApp _ ->
     check_kind_default env tp k
@@ -97,7 +102,11 @@ and check_effect env tps =
 and check_effect_it env tvs tp =
   T.TVar.Set.union tvs
     (T.Type.effect_view (check_kind env tp T.Kind.k_effect))
-
+*)
+let tr_scheme env sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 and tr_scheme env (sch : S.scheme_expr) =
   let (env, tvs) = tr_named_type_args env sch.sch_targs in
   let named = List.map (tr_named_scheme env) sch.sch_named in
@@ -127,7 +136,11 @@ and tr_named_scheme env (nsch : S.named_scheme) =
     (T.NOptionalVar x, T.Scheme.of_type tp)
   | NImplicit n -> (T.NImplicit n, sch)
   | NMethod n   -> (T.NMethod n, sch)
-
+*)
+let tr_ttype env tp =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 and tr_ttype env tp =
   check_kind env tp T.Kind.k_type
 
@@ -140,7 +153,11 @@ and tr_type_arg env (arg : S.type_arg) =
   | TA_Var(public, x, k) ->
     Env.add_tvar ~pos:arg.pos ~public env x (tr_kind_expr k)
   | TA_Wildcard -> Env.add_anon_tvar ~pos:arg.pos env (T.Kind.fresh_uvar ())
-
+*)
+let check_type_arg env (arg : S.type_arg) kind =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 and check_type_arg env (arg : S.type_arg) kind =
   match arg.data with
   | TA_Effect ->
@@ -169,8 +186,11 @@ and tr_named_type_arg env (arg : S.named_type_arg) =
   | TNVar _ -> ()
   end;
   (env, (name, x))
-
+*)
 and tr_named_type_args env args =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   Uniqueness.check_named_type_arg_uniqueness args;
   List.fold_left_map tr_named_type_arg env args
 

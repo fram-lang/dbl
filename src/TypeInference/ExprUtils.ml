@@ -3,9 +3,9 @@
  *)
 
 (** Utility functions that help to build Unif expressions *)
-(*
-open Common
 
+open Common
+(*
 (** Make function that takes parameters of given type schemes *)
 let rec make_fun' schs body_f =
   match schs with
@@ -51,8 +51,11 @@ let rec make_tapp e tps =
       }
     in
     make_tapp e tps
-
-let generalize ~pos tvs named e tp =
+*)
+let generalize tvs named e sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   Uniqueness.check_generalized_named_types ~pos tvs;
   let sch =
     { T.sch_targs = tvs
@@ -165,8 +168,12 @@ let instantiate_named_params env e ims inst =
   instantiate_named_params_loop ~nset:T.Name.Set.empty ~inst env e ims
 
 (* ========================================================================= *)
-
+*)
 let ctor_func ~pos idx (info : Module.adt_info) =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+(*
   let type_of_named_targ (_, x) = T.Type.t_var x in
   let mk_var x = { T.pos = pos; T.data = T.EVar x } in
   let ctor = List.nth info.adt_ctors idx in
@@ -181,22 +188,35 @@ let ctor_func ~pos idx (info : Module.adt_info) =
     { T.pos  = pos;
       T.data = T.ECtor(proof, idx, tps, args)
     }))))
+*)
+
+let tr_var_info ~pos ~path (info : Module.var_info) =
+  match info with
+  | VI_Var(x, sch) ->
+    ({ T.pos; T.data = T.EVar x }, sch)
+
+  | VI_Ctor(idx, info) ->
+    let ctor = List.nth info.adt_ctors idx in
+    let sch = {
+        T.sch_targs = info.adt_args @ ctor.ctor_targs;
+        T.sch_named = ctor.ctor_named;
+        T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
+      } in
+    (ctor_func ~pos idx info, sch)
+
+  | VI_MethodFn name ->
+    Error.fatal (Error.method_fn_without_arg ~pos path name)
 
 (* ========================================================================= *)
 
-let arg_match (pat : T.pattern) body tp eff =
-  match pat.data with
-  | PWildcard ->
-    let x = Var.fresh () in
-    (x, body)
-  | PVar(x, _) ->
-    (x, body)
-  | PCtor _ ->
-    let x = Var.fresh () in
-    let make data = { pat with T.data = data } in
-    let body = make (T.EMatch(make (T.EVar x), [(pat, body)], tp, eff)) in
-    (x, body)
-
+let match_var pat body tp eff =
+  let x = Var.fresh () in
+  let e =
+    { body with
+      T.data = T.EMatchPoly({pat with T.data = T.EVar x}, pat, body, tp, eff)
+    } in
+  (x, e)
+(*
 let rec inst_args_match ims body tp eff =
   match ims with
   | [] -> ([], body)
@@ -205,3 +225,12 @@ let rec inst_args_match ims body tp eff =
     let (ims, body) = inst_args_match ims body tp eff in
     ((name, x, x_sch) :: ims, body)
 *)
+
+let rec match_args pats body tp eff =
+  match pats with
+  | [] -> body
+  | (x, pat) :: pats ->
+    { body with
+      T.data = T.EMatchPoly({ pat with T.data = T.EVar x }, pat,
+        match_args pats body tp eff, tp, eff)
+    }

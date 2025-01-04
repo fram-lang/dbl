@@ -15,8 +15,11 @@ let check_match_clause ~tcfix env tp (cl : S.match_clause) res_tp res_eff =
     let (env, pat, _, r_eff1) = Pattern.check_type ~env ~scope pat tp in
     let (body, r_eff2) = check_expr_type env body res_tp res_eff in
     (pat, body, ret_effect_join r_eff1 r_eff2)
-
-let check_match_clauses ~tcfix env tp cls res_tp res_eff =
+*)
+let check_match_clauses ~tcfix env tp cls res_tp =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let (r_eff, cls) = List.fold_left_map
     (fun r_eff1 cl ->
       let (pat, body, r_eff2) =
@@ -81,3 +84,11 @@ let tr_opt_clauses (type md rd) ~tcfix ~pos env
     let (x, body) = make_nonempty_match ~tcfix env mtp cls rtp eff in
     (x, mtp_resp, body, rtp_resp)
 *)
+
+let tr_return_clauses ~tcfix ~pos env tp_in cls rtp_req =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let tr_finally_clauses ~tcfix ~pos env tp_in cls rtp_req =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end

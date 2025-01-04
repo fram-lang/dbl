@@ -3,34 +3,25 @@
  *)
 
 (** Environment of the type inference *)
-(*
+
 open Common
 
-module StrMap = Map.Make(String)
-
-type pp_info = {
-  pp_base_name : string;
-  pp_names     : S.tvar S.path list;
-  pp_pos       : Position.t option
-}
+type on_use = Position.t -> unit
 
 type t = {
-  mod_stack : ModStack.t;
-    (** The module stack *)
+  cur_module : Module.t;
+    (** Currently defined module *)
 
-  adt_map : Module.adt_info T.TVar.Map.t;
-    (** Definition of ADT associated with a type variable *)
+  mod_stack : Module.t list;
+    (** Stack of modules which are currently being defined *)
 
-  method_map : (T.var * T.scheme) StrMap.t T.TVar.Map.t;
-    (** Methods associated with a type variable *)
-
-  pp_map : pp_info T.TVar.Map.t;
-    (** Additional metadata used for pretty-printing of types *)
+  pp_tree : PPTree.t;
+    (** Pretty-printing information for types *)
 
   scope : T.scope
     (** Scope of type variables *)
 }
-
+(*
 let mk_builtin_pp_info (name, x) =
   let info =
     { pp_base_name = name;
@@ -38,21 +29,22 @@ let mk_builtin_pp_info (name, x) =
       pp_pos       = None
     }
   in (x, info)
-
+*)
 let empty =
-  { mod_stack    = ModStack.toplevel;
-    adt_map      = T.TVar.Map.singleton T.BuiltinType.tv_unit Module.unit_info;
-    method_map   = T.TVar.Map.empty;
-    pp_map       =
+  { cur_module   = Module.toplevel;
+    mod_stack    = [];
+    pp_tree      =
       T.BuiltinType.all
-      |> List.map mk_builtin_pp_info
-      |> List.to_seq |> T.TVar.Map.of_seq;
+      |> List.fold_left
+          (fun pp_tree (name, x) ->
+            PPTree.add pp_tree name (T.TVar.uid x))
+          PPTree.empty;
     scope        =
       T.BuiltinType.all
       |> List.map snd
       |> List.fold_left T.Scope.add T.Scope.initial
   }
-
+(*
 let add_poly_var ?(public=false) env x sch =
   let mod_stack, y = ModStack.add_var ~public env.mod_stack x sch in
   { env with mod_stack }, y
@@ -67,10 +59,12 @@ let add_poly_implicit ?(public=false) env name sch on_use =
 
 let add_mono_implicit ?(public=false) env name tp on_use =
   add_poly_implicit ~public env name (T.Scheme.of_type tp) on_use
-
-let add_the_label env eff tp0 eff0 =
-  add_mono_var env "#label" (T.Type.t_label eff tp0 eff0)
-
+*)
+let add_the_label env tp =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+  (* add_mono_var env "#label" (T.Type.t_label eff tp0 eff0) *)
+(*
 let add_method_fn ~public env x name =
   { env with mod_stack = ModStack.add_method_fn ~public env.mod_stack x name }
 
@@ -100,8 +94,11 @@ let add_the_effect ?pos env =
     pp_map   = T.TVar.Map.add x pp_info env.pp_map;
     scope    = T.Scope.add env.scope x
   }, x
-
+*)
 let add_anon_tvar ?pos ?(name="T") env kind =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let x = T.TVar.fresh kind in
   let pp_info =
     { pp_base_name = name;
@@ -112,7 +109,8 @@ let add_anon_tvar ?pos ?(name="T") env kind =
     pp_map = T.TVar.Map.add x pp_info env.pp_map;
     scope  = T.Scope.add env.scope x
   }, x
-
+*)
+(*
 let add_the_effect_alias env tp =
   assert (T.Kind.view (T.Type.kind tp) = KEffect);
   { env with
@@ -164,11 +162,17 @@ let add_poly_method ?(public=false) env owner name sch =
 
 let lookup_module env =
   ModStack.lookup_module env.mod_stack
-
+*)
 let lookup_var env =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   ModStack.lookup_var env.mod_stack
-
+*)
 let lookup_implicit env =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   ModStack.lookup_implicit env.mod_stack
 
 let scheme_to_label sch =
@@ -183,8 +187,11 @@ let scheme_to_label sch =
 let add_the_label_sch env sch =
   let (eff, tp0, eff0) = scheme_to_label sch in
   add_the_label env eff tp0 eff0
-
+*)
 let lookup_the_label env =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   match lookup_var env (NPName "#label") with
   | None -> None
   | Some(VI_Var (x, sch)) ->
@@ -195,17 +202,26 @@ let lookup_the_label env =
 
 let lookup_ctor env =
   ModStack.lookup_ctor env.mod_stack
-
-let lookup_tvar env =
+*)
+let lookup_tvar env x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   ModStack.lookup_tvar env.mod_stack
 
 let lookup_the_effect env =
   lookup_tvar env (NPName "#effect")
-
+*)
 let lookup_adt env x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   T.TVar.Map.find_opt x env.adt_map
-
+*)
 let lookup_method env owner name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   StrMap.find_opt name (lookup_method_map env owner)
 
 let lookup_tvar_pp_info env x =
@@ -213,9 +229,9 @@ let lookup_tvar_pp_info env x =
 
 let incr_level env =
   { env with scope = T.Scope.incr_level env.scope }
-
+*)
 let scope env = env.scope
-
+(*
 let extend_scope env (sch : T.scheme) = 
   let sch = T.Scheme.refresh sch in
   let env = 
@@ -225,14 +241,20 @@ let extend_scope env (sch : T.scheme) =
   (env, sch)
 
 let level env = T.Scope.level env.scope
-
+*)
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
 
 let enter_module env =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   { env with mod_stack = ModStack.enter_module env.mod_stack }
-
+*)
 let leave_module env ~public name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   { env with mod_stack = ModStack.leave_module ~public env.mod_stack name }
 
 let open_module env ~public m =

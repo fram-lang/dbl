@@ -3,26 +3,33 @@
  *)
 
 (** Kind-checking and translation of type expressions *)
-(*
+
 open Common
 
+(** Translate a kind expression *)
+val tr_kind : S.kind_expr -> T.kind
+
+(** Translate a type expression and infer its kind *)
+val infer_kind : Env.t -> S.type_expr -> T.type_expr * T.kind
+
 (** Check kind and translate a type expression *)
-val check_kind : Env.t -> S.type_expr -> T.kind -> T.typ
+val check_kind : Env.t -> S.type_expr -> T.kind -> T.type_expr
 
 (** Check and translate a type-scheme expression *)
-val tr_scheme : Env.t -> S.scheme_expr -> T.scheme
+val tr_scheme : Env.t -> S.scheme_expr -> T.scheme_expr
 
 (** Check kind and translate a type expression of kind Type *)
-val tr_ttype : Env.t -> S.type_expr -> T.typ
+val tr_ttype : Env.t -> S.type_expr -> T.type_expr
+
+(** Check if given type argument has given kind. Returns extended environment,
+  the introduced external type name, and freshly bound type variable. *)
+val check_type_arg : Env.t -> S.type_arg -> T.kind ->
+  Env.t * T.tname * T.tvar
 
 (** Translate formal type parameters and extend the environment *)
 val tr_named_type_args :
   Env.t -> S.named_type_arg list -> Env.t * T.named_tvar list
-
-(** Check if given type argument has given kind. Returns extended environment
-  and freshly bound type variable *)
-val check_type_arg : Env.t -> S.type_arg -> T.kind -> Env.t * T.tvar
-
+(*
 (** Extends the environment with a type alias of given type. *)
 val check_type_alias_binder : Env.t -> S.type_arg -> T.typ -> Env.t
 

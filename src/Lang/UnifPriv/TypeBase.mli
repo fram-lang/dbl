@@ -17,7 +17,6 @@ type tname =
 type named_tvar = tname * tvar
 
 type name =
-  | NLabel
   | NVar         of string
   | NOptionalVar of string
   | NImplicit    of string

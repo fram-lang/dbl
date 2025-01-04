@@ -3,31 +3,23 @@
  *)
 
 (** Represention of module definitions *)
-(*
+
 open Common
 
 module StrMap = Map.Make(String)
 
-type 'data ident_info = { data : 'data; public : bool }
+type on_use = Position.t -> unit
 
+(*
+type 'data ident_info = { data : 'data; public : bool }
+*)
 (** Information about an ADT definition *)
 type adt_info = {
-  adt_proof : T.expr;
-    (** A computationally irrelevant expression that give a proof that given
-      type is an ADT. It is polymorphic in the type parameters of an ADT. *)
-
-  adt_args  : T.named_tvar list;
-    (** Type parameter of an ADT *)
-
-  adt_ctors : T.ctor_decl list;
-    (** List of constructors of an ADT *)
-
-  adt_type  : T.typ;
-    (** The type that is an ADT, already applied to [adt_args] *)
-
-  adt_strictly_positive : bool
-    (** A flag indicating that the type is strictly positively recursive, and
-      therefore pattern-matching on it is pure. *)
+  adt_proof  : T.poly_expr;
+  adt_args   : T.named_tvar list;
+  adt_ctors  : T.ctor_decl list;
+  adt_type   : T.typ;
+  adt_effect : T.effect
 }
 
 type var_info =
@@ -35,7 +27,11 @@ type var_info =
   | VI_Ctor     of int * adt_info
   | VI_MethodFn of S.method_name
 
-type t = {
+type t = unit
+
+let toplevel = ()
+
+(* = {
   var_map  : var_info ident_info StrMap.t;
     (** Information about regular variable names *)
 
@@ -127,14 +123,23 @@ let add_module m ~public name m' =
 
 let find_opt_data x m =
   StrMap.find_opt x m |> Option.map (fun i -> i.data)
-
+*)
 let lookup_var m x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   find_opt_data x m.var_map
-
+*)
 let lookup_tvar m x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   find_opt_data x m.tvar_map
-
+*)
 let lookup_implicit m x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   find_opt_data x m.implicit_map
 
 let lookup_ctor m name =

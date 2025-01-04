@@ -3,7 +3,7 @@
  *)
 
 (** Common definitions of type-checker *)
-(*
+
 module S = Lang.Surface
 module T = Lang.Unif
 
@@ -37,27 +37,12 @@ let bidir_result (type dir)
   | Infer, Infered tp -> tp
   | Check tp, Checked -> tp
 
-(** Return information about effect. *)
-type ret_effect =
-  | Pure
-    (** Expression is pure, i.e, it does not perform any effects, and always
-      terminates *)
+(** Build an AST node with dummy position *)
+let make_nowhere data =
+  { T.data; T.pos = Position.nowhere }
 
-  | Impure
-    (** Expression is inpure *)
-
-let ret_effect_join eff1 eff2 =
-  match eff1, eff2 with
-  | Pure,   eff2   -> eff2
-  | eff1,   Pure   -> eff1
-  | Impure, Impure -> Impure
-
-let ret_effect_joins effs =
-  List.fold_left ret_effect_join Pure effs
-
-(** Effect of match_clause *)
-let match_effect reff (eff : T.effect) =
-  match reff with
-  | Pure   -> None
-  | Impure -> Some eff
-*)
+(** Translate a type name *)
+let tr_tname (name : S.tname) : T.tname =
+  match name with
+  | S.TNAnon  -> T.TNAnon
+  | S.TNVar x -> T.TNVar x
