@@ -276,7 +276,7 @@ let method_call_on_invalid_type ~pos ~env tp =
     "This expression has type %s. This type cannot have any methods"
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
+
 let method_of_bound_tvar ~pos ~env sch =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -312,7 +312,7 @@ let non_arrow_method ~pos ~env sch =
     "Cannot define a method of type %s. This type is not an arrow"
     (Pretty.scheme_to_string pp_ctx env sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
+(*
 let ctor_pattern_on_non_adt ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -401,7 +401,7 @@ let label_pattern_type_mismatch ~pos ~env tp =
     "This label pattern is expected of type %s"
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
+*)
 let looping_named_param ~pos name =
   (pos,
     Printf.sprintf "Resolving of %s leads to an infinite loop"
@@ -411,20 +411,30 @@ let looping_named_param ~pos name =
 let named_param_type_mismatch ~pos ~env name tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    ("Type error during resolving of implicit "
+    ("Type error during resolving of named "
     ^^ "parameters: %s has type %s, but the expected type is %s")
     (string_of_name name)
     (Pretty.type_to_string pp_ctx env tp1)
     (Pretty.type_to_string pp_ctx env tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
+(*
 let ctor_redefinition ~pos ~ppos name =
   (pos, Printf.sprintf "Constructor %s is defined more than once" name,
     [ (ppos, "Here is a previous definition") ])
 *)
-let named_param_not_provided ~pos x =
-  (pos, Printf.sprintf "Cannot implicitly provide a parameter of name %s" x,
-    [])
+let cannot_resolve_named_param ~pos x =
+  (pos, Printf.sprintf "Cannot resolve a parameter of name %s" x, [])
+
+let cannot_resolve_implicit ~pos name =
+  (pos, Printf.sprintf "Cannot resolve an implicit parameter %s" name, [])
+
+let cannot_resolve_method ~pos env owner name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg =
+    Printf.sprintf
+      "Cannot resolve a method %s that belongs to %s" name
+      (Pretty.tvar_to_string pp_ctx env owner)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let type_already_provided ~pos ~npos name =
   (pos,

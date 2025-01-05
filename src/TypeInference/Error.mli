@@ -84,14 +84,14 @@ val expr_not_label : pos:Position.t -> env:Env.t -> T.typ -> t
 val wrong_label_type : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val method_call_on_invalid_type : pos:Position.t -> env:Env.t -> T.typ -> t
-(*
+
 val method_of_bound_tvar : pos:Position.t -> env:Env.t -> T.scheme -> t
 val method_of_unknown_type : pos:Position.t -> env:Env.t -> T.scheme -> t
 val method_of_invalid_type :
   pos:Position.t -> env:Env.t -> T.scheme -> T.typ -> t
 val method_of_polymorphic_type : pos:Position.t -> env:Env.t -> T.scheme -> t
 val non_arrow_method : pos:Position.t -> env:Env.t -> T.scheme -> t
-
+(*
 val ctor_pattern_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t *)
 val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
@@ -115,16 +115,19 @@ val label_type_mismatch : pos:Position.t -> t
 val polymorphic_optional_parameter : pos:Position.t -> t
 
 val label_pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> t
-
+*)
 val looping_named_param : pos:Position.t -> T.name -> t
 
 val named_param_type_mismatch :
   pos:Position.t -> env:Env.t -> T.name -> T.typ -> T.typ -> t
-
+(*
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t
 *)
-val named_param_not_provided : pos:Position.t -> S.var -> t
+val cannot_resolve_named_param : pos:Position.t -> S.var -> t
+val cannot_resolve_implicit : pos:Position.t -> S.iname -> t
+val cannot_resolve_method :
+  pos:Position.t -> Env.t -> T.tvar -> S.method_name -> t
 
 val type_already_provided : pos:Position.t -> npos:Position.t -> S.tvar -> t
 val named_param_already_provided :

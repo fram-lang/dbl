@@ -436,8 +436,11 @@ let type_to_string ctx env tp =
   pp_type buf (PPEnv.create ctx env) 0 tp;
   Buffer.contents buf
 *)
-(*
+
 let scheme_to_string ctx env sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let buf = Buffer.create 80 in
   pp_scheme buf (PPEnv.create ctx env) 0 sch;
   Buffer.contents buf

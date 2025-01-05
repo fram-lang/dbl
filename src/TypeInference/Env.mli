@@ -31,12 +31,11 @@ val add_poly_var : ?public:bool -> t -> S.var -> T.scheme -> t * T.var
 
 (** Extend an environment with a monomorphic variable *)
 val add_mono_var : ?public:bool -> t -> S.var -> T.typ -> t * T.var
-
-(** Extend an environment with a polymorphic named implicit.
-  The last parameter is a function called on each use of implicit parameter *)
+*)
+(** Extend an environment with a polymorphic named implicit. *)
 val add_poly_implicit :
-  ?public:bool -> t -> S.iname -> T.scheme -> (Position.t -> unit) -> t * T.var
-
+  ?public:bool -> ?on_use:on_use -> t -> S.iname -> T.scheme -> t * T.var
+(*
 (** Extend an environment with a monomorphic named implicit.
   The last parameter is a function called on each use of implicit parameter *)
 val add_mono_implicit :
@@ -79,13 +78,14 @@ val add_data : t -> T.tvar -> Module.adt_info -> t
 
 (** Add constructor of given name and index to the environment *)
 val add_ctor : ?public:bool -> t -> string -> int -> Module.adt_info -> t
-
+*)
 (** Add a method associated with given type variable (owner). Method must have
   arrow type, where the head type variable of an argument is the same
   as the owner *)
 val add_poly_method :
-  ?public:bool -> t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
-*)
+  ?public:bool -> ?on_use:on_use ->
+  t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
+
 (** Lookup for variable-like identifier. Returns [None] if variable is not
   bound. *)
 val lookup_var : t -> S.var -> (Module.var_info * on_use) option

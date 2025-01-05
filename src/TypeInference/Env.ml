@@ -51,8 +51,11 @@ let add_poly_var ?(public=false) env x sch =
 
 let add_mono_var ?(public=false) env x tp =
   add_poly_var ~public env x (T.Scheme.of_type tp)
-
-let add_poly_implicit ?(public=false) env name sch on_use =
+*)
+let add_poly_implicit ?(public=false) ?(on_use=ignore) env name sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let mod_stack, x =
     ModStack.add_implicit ~public env.mod_stack name sch on_use in
   { env with mod_stack }, x
@@ -150,8 +153,11 @@ let lookup_method_map env owner =
   match T.TVar.Map.find_opt owner env.method_map with
   | Some map -> map
   | None     -> StrMap.empty
-
-let add_poly_method ?(public=false) env owner name sch =
+*)
+let add_poly_method ?(public=false) ?(on_use=ignore) env owner name sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   (* TODO: implement method visibility *)
   let x = Var.fresh ~name () in
   let method_map =

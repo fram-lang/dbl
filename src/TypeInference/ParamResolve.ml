@@ -4,50 +4,269 @@
 
 (** Resolving named parameters *)
 
-type reinst_list = unit
+open Common
 
-let no_reinst = ()
+module StrMap = Map.Make(String)
 
-let open_scheme ~pos env sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-let open_scheme ~pos (env : Env.t) (sch : T.scheme) =
-  let (env, sch) = Env.extend_scope env sch in
-  let (env, ims) =
-    List.fold_left_map
-      (fun env (name, sch) ->
-        let (env, x) =
-          match name with
-          | T.NLabel -> Env.add_the_label_sch env sch
-          | T.NVar x | T.NOptionalVar x -> Env.add_poly_var env x sch
-          | T.NImplicit n -> Env.add_poly_implicit env n sch ignore
-          | T.NMethod   n ->
-            let owner = method_owner_of_scheme ~pos ~env sch in
-            Env.add_poly_method env owner n sch
-        in
-        (env, (name, x, sch)))
-      env
-      sch.sch_named in
-  (env, sch.sch_targs, ims, sch.sch_body)
-*)
+(** Reinstantiation information about regular and optional parameters *)
+type reinst_regular =
+  | RReg of T.var * T.scheme
+  | ROpt of T.var * T.typ
 
-let open_scheme_explicit ~pos env sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+(** Reinstantiation contexts. They store information which parameters can be
+  reinstantiated. *)
+module Reinst : sig
+  type t
 
-let instantiate ~pos env rctx poly_expr sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  (** Empty reinstantiation context *)
+  val empty : t
+
+  (** Add a regular parameter to the context *)
+  val add_var : t -> S.var -> T.scheme -> t * T.var
+
+  (** Add an optional parameter to the context. The type is a type parameter
+    of the [Option] type. *)
+  val add_optional : t -> S.var -> T.typ -> t * T.var
+
+  (** Check if a parameter can be reinstantiated *)
+  val lookup_var : t -> S.var -> reinst_regular option
+end = struct
+  type t = reinst_regular StrMap.t
+
+  let empty = StrMap.empty
+
+  let add_var rctx name sch =
+    let x = Var.fresh ~name () in
+    (StrMap.add name (RReg(x, sch)) rctx, x)
+
+  let add_optional rctx name tp =
+    let x = Var.fresh ~name () in
+    (StrMap.add name (ROpt(x, tp)) rctx, x)
+
+  let lookup_var rctx name =
+    StrMap.find_opt name rctx
+end
+
+type reinst_list = Reinst.t
+
+let no_reinst = Reinst.empty
+
+(* ========================================================================= *)
+let open_scheme_types ~pos env targs =
+  let open_type (env, sub) (tname, x) =
+    let name =
+      match tname with
+      | T.TNAnon  -> None
+      | T.TNVar x -> Some x
+    in
+    let (env, y) = Env.add_anon_tvar ~pos ?name env (T.TVar.kind x) in
+    ((env, T.Subst.rename_to_fresh sub x y), (tname, y))
+  in
+  let ((env, sub), tvs) =
+    List.fold_left_map open_type (env, T.Subst.empty) targs in
+  (env, tvs, sub)
+
+let open_scheme_values ~pos ~sub env named =
+  let open_named (env, rctx) (name, sch) =
+    let sch = T.Scheme.subst sub sch in
+    match name with
+    | T.NVar name ->
+      let (rctx, x) = Reinst.add_var rctx name sch in
+      ((env, rctx), (x, sch))
+    | T.NOptionalVar name ->
+      let tp = BuiltinTypes.scheme_to_option_arg sch in
+      let (rctx, x) = Reinst.add_optional rctx name tp in
+      ((env, rctx), (x, sch))
+    | T.NImplicit iname ->
+      let (env, x) = Env.add_poly_implicit env iname sch in
+      ((env, rctx), (x, sch))
+    | T.NMethod name ->
+      let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+      let (env, x) = Env.add_poly_method env owner name sch in
+      ((env, rctx), (x, sch))
+  in
+  let ((env, rctx), xs) =
+    List.fold_left_map open_named (env, Reinst.empty) named in
+  (env, rctx, xs)
+
+let open_scheme ~pos env (sch : T.scheme) =
+  let (env, tvs, sub) = open_scheme_types ~pos env sch.sch_targs in
+  let (env, rctx, xs) = open_scheme_values ~pos ~sub env sch.sch_named in
+  let body = T.Type.subst sub sch.sch_body in
+  (env, rctx, List.map snd tvs, xs, body)
+
+let open_scheme_values_explicit ~pos ~sub env named =
+  let open_named env (name, sch) =
+    let sch = T.Scheme.subst sub sch in
+    match name with
+    | T.NVar x | T.NOptionalVar x | T.NImplicit x ->
+      let x = Var.fresh ~name:x () in
+      (env, (name, x, sch))
+    | T.NMethod mname ->
+      let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+      let (env, x) = Env.add_poly_method env owner mname sch in
+      (env, (name, x, sch))
+  in
+  let (env, named) = List.fold_left_map open_named env named in
+  (env, named)
+
+let open_scheme_explicit ~pos env (sch : T.scheme) =
+  let (env, tvs, sub) = open_scheme_types ~pos env sch.sch_targs in
+  let (env, named) = open_scheme_values_explicit ~pos ~sub env sch.sch_named in
+  let body = T.Type.subst sub sch.sch_body in
+  (env, tvs, named, body)
+
+(* ========================================================================= *)
+(** Create a substitution that replaces type variables with fresh unification
+  variables. *)
+let guess_types ~pos env targs =
+  let guess_type sub (_, x) =
+    let tp = Env.fresh_uvar env (T.TVar.kind x) in
+    (T.Subst.add_type sub x tp, { T.pos; T.data = T.TE_Type tp })
+  in
+  List.fold_left_map guess_type T.Subst.empty targs
+
+(** Check for cyclic dependencies in the type parameters, and extend a set of
+  restricted variables. *)
+let restrict_var ~vset ~pos x name =
+  if Var.Set.mem x vset then
+    Error.fatal (Error.looping_named_param ~pos name)
+  else
+    Var.Set.add x vset
+
+(* ------------------------------------------------------------------------- *)
+
+let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
+  let (env, rctx, tvs, xs, tp_out) = open_scheme ~pos env sch_out in
+  (* Now, we do basically the same as in [instantiate], but we perform
+    unification just afeter guessing types, in order to get more precise
+    types in resolving of named parameters. *)
+  let (sub, tps) = guess_types ~pos env sch_in.sch_targs in
+  let tp_in = T.Type.subst sub sch_in.sch_body in
+  Error.check_unify_result ~pos
+    (Unification.subtype env tp_in tp_out)
+    ~on_error:(Error.named_param_type_mismatch ~env name tp_in tp_out);
+  let (named, cs) =
+    resolve_params ~sub ~vset ~pos env rctx sch_in.sch_named in
+  let make data = { T.pos; T.data } in
+  let e = make (T.EPolyFun(tvs, xs, make (T.EInst(e, tps, named)))) in
+  (e, cs)
+
+and resolve_params ~sub ~vset ~pos env rctx named =
+  let resolve cs1 (name, sch) =
+    let sch  = T.Scheme.subst sub sch in
+    let (e, cs2) = resolve_param ~vset ~pos env rctx name sch in
+    (cs1 @ cs2, e)
+  in
+  let (cs, args) = List.fold_left_map resolve [] named in
+  (args, cs)
+
+and resolve_param ~vset ~pos env rctx name sch =
+  match name with
+  | T.NVar x ->
+    begin match Reinst.lookup_var rctx x with
+    | Some (RReg(y, y_sch)) ->
+      let vset = restrict_var ~vset ~pos y name in
+      let e = { T.pos; T.data = T.EVar y } in
+      coerce_scheme ~vset ~pos ~name env e y_sch sch
+    | Some (ROpt _) | None ->
+      Error.fatal (Error.cannot_resolve_named_param ~pos x)
+    end
+
+  | T.NOptionalVar x ->
+    resolve_optional ~vset ~pos env rctx x sch
+
+  | T.NImplicit iname ->
+    resolve_implicit ~vset ~pos env rctx iname sch
+
+  | T.NMethod mname ->
+    resolve_method ~vset ~pos env rctx mname sch
+
+and resolve_optional ~vset ~pos env rctx x sch =
+  let tp = BuiltinTypes.scheme_to_option_arg sch in
+  let name = T.NOptionalVar x in
+  begin match Reinst.lookup_var rctx x with
+  | Some (ROpt(y, y_tp)) ->
+    Error.check_unify_result ~pos
+      (Unification.subtype env y_tp tp)
+      ~on_error:(Error.named_param_type_mismatch ~env name y_tp tp);
+    let e = { T.pos; T.data = T.EVar y } in
+    (e, [])
+
+  | Some (RReg(y, y_sch)) ->
+    let vset = restrict_var ~vset ~pos y name in
+    let e = { T.pos; T.data = T.EVar y } in
+    let (e, cs) =
+      coerce_scheme ~vset ~pos ~name env e y_sch (T.Scheme.of_type tp) in
+    let e = BuiltinTypes.mk_some_poly ~pos tp e in
+    let e = { T.pos; T.data = T.EPolyFun([], [], e) } in
+    (e, cs)
+
+  | None ->
+    let e = BuiltinTypes.mk_none ~pos tp in
+    let e = { T.pos; T.data = T.EPolyFun([], [], e) } in
+    (e, [])
+  end
+
+and resolve_implicit ~vset ~pos env rctx iname sch =
+  let name = T.NImplicit iname in
+  match Env.lookup_implicit env iname with
+  | Some(x, x_sch, on_use) ->
+    on_use pos;
+    let vset = restrict_var ~vset ~pos x name in
+    let e = { T.pos; T.data = T.EVar x } in
+    coerce_scheme ~vset ~pos ~name env e x_sch sch
+
+  | None ->
+    Error.fatal (Error.cannot_resolve_implicit ~pos iname)
+
+and resolve_method ~vset ~pos env rctx mname (sch : T.scheme) =
+  let self_tp =
+    match T.Type.view sch.sch_body with
+    | TArrow(owner_sch, _, _) ->
+      assert (T.Scheme.is_monomorphic owner_sch);
+      owner_sch.sch_body
+    | _ -> assert false
+  in
+  match T.Type.whnf self_tp with
+  | Whnf_Neutral(NH_Var owner, _) ->
+    begin match Env.lookup_method env owner mname with
+    | Some(x, x_sch, on_use) ->
+      on_use pos;
+      let vset = restrict_var ~vset ~pos x (T.NMethod mname) in
+      let e = { T.pos; T.data = T.EVar x } in
+      coerce_scheme ~vset ~pos ~name:(T.NMethod mname) env e x_sch sch
+
+    | None ->
+      Error.fatal (Error.cannot_resolve_method ~pos env owner mname)
+    end
+
+  | Whnf_Neutral(NH_UVar _, _) ->
+    (* TODO: create a method constraint *)
+    failwith "Not implemented: method call on unknown type"
+
+  | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
+    Error.fatal (Error.method_call_on_invalid_type ~pos ~env self_tp)
+
+  | Whnf_Effect ->
+    failwith "Internal kind error"
+
+(* ========================================================================= *)
+let instantiate ~pos env rctx poly_expr (sch : T.scheme) =
+  let vset = Var.Set.empty in
+  let (sub, tps) = guess_types ~pos env sch.sch_targs in
+  let (named, cs) = resolve_params ~sub ~vset ~pos env rctx sch.sch_named in
+  let e = { T.pos; T.data = T.EInst(poly_expr, tps, named) } in
+  (e, T.Type.subst sub sch.sch_body, cs)
 
 let coerce_scheme ~pos ~name env poly_expr sch_in sch_out =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  let vset = Var.Set.empty in
+  coerce_scheme ~vset ~pos ~name env poly_expr sch_in sch_out
 
 let resolve_implicit ~pos env iname sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  let vset = Var.Set.empty in
+  resolve_implicit ~vset ~pos env no_reinst iname sch
 
 let resolve_method ~pos env mname sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  let vset = Var.Set.empty in
+  resolve_method ~vset ~pos env no_reinst mname sch

@@ -530,7 +530,7 @@ let build_named_params ~pos env insts sch_named =
     | T.NVar x ->
       begin match StrMap.find_opt x insts.vi_regular_args with
       | Some e -> (e, [])
-      | None -> Error.fatal (Error.named_param_not_provided ~pos x)
+      | None -> Error.fatal (Error.cannot_resolve_named_param ~pos x)
       end
 
     | T.NOptionalVar x ->
