@@ -5,117 +5,169 @@
 (** Type-inference for patterns *)
 
 open Common
-(*
-type named_type    = (T.tname * S.type_arg) S.node
-type named_pattern = (T.name * S.pattern) S.node
 
-let tr_named_type (ntp : S.named_type_arg) =
-  let (name, arg) = ntp.data in
-  { ntp with data = (Name.tr_tname name, arg) }
+(** Pattern of a named argument *)
+type named_pattern = {
+          name : T.name;
+          var  : T.var;
+  mutable pat  : T.pattern option;
+          sch  : T.scheme;
+}
 
-let tr_named_pattern env (np : S.named_pattern) =
-  let (name, pat) = np.data in
-  { np with data = (Name.tr_name env name, pat) }
+let select_named_type name tvars =
+  tvars
+  |> List.find_opt
+      (fun (n, _) ->
+        match n with
+        | T.TNVar x -> x = name
+        | T.TNAnon  -> false)
+  |> Option.map snd
 
-let union_bound_names bn1 bn2 =
-  T.Name.Map.merge
-    (fun name p1 p2 ->
-      match p1, p2 with
-      | None, _ -> p2
-      | _, None -> p1
-      | Some pos1, Some pos2 ->
-        Error.report (Error.multiple_name_binders ~pos1 ~pos2 name);
-        Some pos1)
-    bn1 bn2
+let select_named_pattern name named =
+  List.find_opt (fun np -> T.Name.equal np.name name) named
 
-(** Select named type for given name. On success returns type argument assigned
-  to given name and list of remaining named types *)
-let rec select_named_type name (ntps : named_type list) =
-  match ntps with
-  | [] -> None
-  | { data = (n, a); _ } :: ntps when n = name -> Some(a, ntps)
-  | ntp :: ntps ->
-    Option.map
-      (fun (a, npts) -> (a, ntp :: ntps))
-      (select_named_type name ntps)
+let make_pattern ~pos np =
+  let pat =
+    match np.pat with
+    | None     -> { T.pos; T.data = T.PWildcard np.sch }
+    | Some pat -> pat
+  in
+  { pat with data = T.PAs(pat, np.var, np.sch) }
 
-(** Select named pattern for given name. On success returns pattern assigned
-  to given name and list of remaining named patterns *)
-let rec select_named_pattern name (nps : named_pattern list) =
-  match nps with
-  | [] -> None
-  | { data = (n, p); _ } :: nps when T.Name.equal n name -> Some(p, nps)
-  | np :: nps ->
-    Option.map
-      (fun (p, nps) -> (p, np :: nps))
-      (select_named_pattern name nps)
+let make_arg_pattern np =
+  Option.map (fun pat -> (np.var, pat)) np.pat
 
-let rec check_ctor_type_args ~pos ~env ~scope ~sub
-    (ntps : named_type list) (tvs : T.named_tvar list) =
-  match tvs with
-  | []        ->
-    List.iter
-      (fun {S.pos; S.data = (n, _) } ->
-        Error.warn (Error.redundant_named_type ~pos n))
-      ntps;
-    (env, scope, sub, [])
-  | (name, tv) :: tvs ->
-    let (env, a, ntps) =
-      match select_named_type name ntps with
-      | None ->
-        let (env, a) = Env.add_anon_tvar ~pos env (T.TVar.kind tv) in
-        (env, a, ntps)
-      | Some(arg, ntps) ->
-        let (env, a) = Type.check_type_arg env arg (T.TVar.kind tv) in
-        (env, a, ntps)
+(* ========================================================================= *)
+
+(** Add all named types to the environment. Returns extended environment. *)
+let add_types_to_env ~pos env tvars =
+  let add_type env (name, x) =
+    match name with
+    | T.TNAnon -> env
+    | T.TNVar name -> Env.add_tvar_alias ~pos env name x
+  in
+  List.fold_left add_type env tvars
+
+(** Create a partial environment that contains a single module with all named
+  parameters. *)
+let make_module_penv ~pos ~public ~env modname tvars named =
+  let types =
+    tvars |> List.filter_map
+      (fun (name, x) ->
+        match name with
+        | T.TNAnon     -> None
+        | T.TNVar name -> Some (name, x)) in
+  let vars =
+    named |> List.filter_map
+      (fun { name; var; pat = _; sch } ->
+        match name with
+        | T.NVar x | T.NOptionalVar x -> Some (x, var, sch)
+        | T.NImplicit _ | T.NMethod _ -> None) in
+  let implicits =
+    named |> List.filter_map
+      (fun { name; var; pat = _; sch } ->
+        match name with
+        | T.NImplicit n -> Some (n, var, sch)
+        | T.NVar _ | T.NOptionalVar _ | T.NMethod _ -> None) in
+  let methods =
+    named |> List.filter_map
+      (fun { name; var; pat = _; sch } ->
+        match name with
+        | T.NMethod mname ->
+          let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+          Some (owner, mname, var, sch)
+        | T.NVar _ | T.NOptionalVar _ | T.NImplicit _ -> None) in
+  PartialEnv.singleton_module ~public ~pos
+    ~types ~vars ~implicits ~methods modname
+
+(** Create a partial environment that contains all named parameters. *)
+let make_open_penv ~pos ~public tvars named =
+  let add_type penv (name, x) =
+    match name with
+    | T.TNAnon -> penv
+    | T.TNVar name ->
+      PartialEnv.add_tvar_alias ~public ~pos penv name x
+  in
+  let add_value penv { name; var; sch; pat = _ } =
+    match name with
+    | NVar x | NOptionalVar x ->
+      PartialEnv.add_var ~public ~pos penv x var sch
+    | NImplicit n ->
+      PartialEnv.add_implicit ~public ~pos penv n var sch
+    | NMethod _ ->
+      (* Methods were added to the environment during the opening of the
+        constructor. *)
+      penv
+  in
+  let penv = List.fold_left add_type PartialEnv.empty tvars in
+  List.fold_left add_value penv named
+
+(* ========================================================================= *)
+
+(** Introduce all existential types as anonymous type variables to the
+  environment and freshly created partial environment. Returns both
+  environments, list of refreshed named type variables, and a renaming
+  substitution that can be used to refresh the types in the constructor. *)
+let open_ctor_types ~pos env targs =
+  let open_ctor_type (env, penv, sub) (tname, x) =
+    let (env, y) = Env.add_anon_tvar ~pos env (T.TVar.kind x) in
+    let penv = PartialEnv.add_anon_tvar ~pos penv y in
+    let sub = T.Subst.rename_to_fresh sub x y in
+    ((env, penv, sub), (tname, y))
+  in
+  let ((env, penv, sub), tvars) =
+    List.fold_left_map open_ctor_type
+      (env, PartialEnv.empty, T.Subst.empty)
+      targs
+  in
+  (env, penv, tvars, sub)
+
+(** Implicitly introduce all named arguments into the environment. Returns
+  extended environment and a list of named arguments. *)
+let open_ctor_named_args ~pos ~env penv named =
+  let open_named_arg penv (name, sch) =
+    let x = Var.fresh () in
+    let penv =
+      match name with
+      | T.NVar _ | T.NOptionalVar _ | T.NImplicit _ -> penv
+      | T.NMethod mname ->
+        let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+        (* Should it be private? *)
+        PartialEnv.add_method ~public:false ~pos penv owner mname x sch
     in
-    let scope = T.Scope.add scope a in
-    let sub   = T.Subst.rename_to_fresh sub tv a in
-    let (env, scope, sub, tvs) =
-      check_ctor_type_args ~pos ~env ~scope ~sub ntps tvs in
-    (env, scope, sub, a :: tvs)
+    (penv, (name, x, sch))
+  in
+  List.fold_left_map open_named_arg penv named
 
-(** Extend the environment by a named parameter that is not explicitly
-  mentioned. The middle element of returned triple is a set of names
-  implicitly bound. *)
-let introduce_implicit_name ~pos env (name : T.name) sch =
-  match name with
-  | NLabel ->
-    (* Do not introduce anything. Just create a fresh variable *)
-    (env, T.Name.Map.empty, Var.fresh ~name:"label" ())
+(** Open a constructor: introduce all existential types as anonymous type
+  variables to the environment, create a partial environment that contains
+  all implicitly bound variables, and return a list of named type variables,
+  initial list of named arguments, and refreshed list of arguments' schemes.
+  *)
+let open_ctor ~pos env (ctor : T.ctor_decl) =
+  let (env, penv, tvars, sub) = open_ctor_types ~pos env ctor.ctor_targs in
+  let named = List.map (T.NamedScheme.subst sub) ctor.ctor_named in
+  let (penv, named) = open_ctor_named_args ~pos ~env penv named in
+  let arg_schemes = List.map (T.Scheme.subst sub) ctor.ctor_arg_schemes in
+  (env, penv, tvars, named, arg_schemes)
 
-  | NVar x | NOptionalVar x ->
-    (* Do not introduce anything. Just create a fresh variable *)
-    (env, T.Name.Map.empty, Var.fresh ~name:x ())
-
-  | NImplicit n ->
-    (* Implicit parameters are implicitly introduced to the environment.
-     This behavior might be considered controversial. We will see how it works
-     in practice. *)
-    let (env, x) = Env.add_poly_implicit env n sch ignore in
-    (env, T.Name.Map.singleton name pos, x)
-
-    (* Methods are implicitly introduced to the environment.*)
-  | NMethod n ->
-    let owner = TypeUtils.method_owner_of_scheme ~pos:pos ~env:env sch in
-    let (env, x) = Env.add_poly_method env owner n sch in
-    (env, T.Name.Map.singleton name pos, x)
-    
 (** For a given constructor name and checked type, produce the ADT info for
     the type, the constructor index, proof that it is an ADT, and the needed
     substitution for the type parameters *)
-let get_ctor_info ~pos ~env (cpath : S.ctor_name S.path S.node) tp =
+let get_ctor_info ~pos env (cpath : S.ctor_name S.path) tp =
+  let make data = { cpath with T.data = data } in
   match T.Type.whnf tp with
   | Whnf_Neutral(NH_Var x, rev_tps) ->
-    begin match Env.lookup_adt env x with
+    begin match ModulePath.lookup_adt env cpath x with
     | Some info ->
       let tps = List.rev rev_tps in
       let sub_add sub (_, tv) tp = T.Subst.add_type sub tv tp in
       let sub = List.fold_left2 sub_add T.Subst.empty info.adt_args tps in
-      let cname = S.path_name cpath.data in
+      let cname = S.path_name cpath in
       begin match T.CtorDecl.find_index info.adt_ctors cname with
       | Some idx ->
-        let proof = ExprUtils.make_tapp info.adt_proof tps in
+        let tps = List.map (fun tp -> make (T.TE_Type tp)) tps in
+        let proof = make (T.EInst(info.adt_proof, tps, [])) in
         (info, idx, proof, sub)
       | None ->
         Error.fatal (Error.ctor_not_in_type ~pos:cpath.pos ~env cname tp)
@@ -125,263 +177,206 @@ let get_ctor_info ~pos ~env (cpath : S.ctor_name S.path S.node) tp =
     end
 
   | Whnf_Neutral(NH_UVar _, _) ->
-    begin match Env.lookup_ctor env cpath.data with
-    | Some(idx, info) ->
-      let (sub, tps) = ExprUtils.guess_types ~pos env info.adt_args in
-      let proof = ExprUtils.make_tapp info.adt_proof tps in
-      (info, idx, proof, sub)
-    | None ->
-      Error.fatal (Error.unbound_constructor ~pos:cpath.pos cpath.data)
-    end
+    let (idx, info) = ModulePath.lookup_ctor env cpath in
+    let (sub, tps) = ParamResolve.guess_types ~pos env info.adt_args in
+    let proof = make (T.EInst(info.adt_proof, tps, [])) in
+    (info, idx, proof, sub)
 
-  | Whnf_PureArrow _ | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
+  | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
     Error.fatal (Error.ctor_pattern_on_non_adt ~pos ~env tp)
 
-  | Whnf_Effect _ | Whnf_Effrow _ ->
+  | Whnf_Effect ->
     failwith "Internal kind error"
 
-(** Introduce all named types (from the constructor scheme) into the
-  environment. Returns extended environment, refreshed type parameters, and a
-  renaming used for refreshing. *)
-let open_named_types ~public env targs =
-  let open_named_type (env, sub) (name, x) =
-    let (env, y) =
-      let kind = T.TVar.kind x in
-      match name with
-      | T.TNAnon   -> Env.add_anon_tvar env kind
-      | T.TNEffect ->
-        assert (T.Kind.is_effect kind);
-        Env.add_the_effect env
-      | T.TNVar x  -> Env.add_tvar ~public env x kind
-    in
-    ((env, T.Subst.rename_to_fresh sub x y), y)
-  in
-  let ((env, sub), targs) =
-    List.fold_left_map open_named_type (env, T.Subst.empty) targs in
-  (env, targs, sub)
+(* ========================================================================= *)
 
-(** Introduce single named argument into the environment. Its scheme is
-  refreshed using given substitution. *)
-let open_named_arg ~pos ~public ~sub env (name, sch) =
-  let sch = T.Scheme.subst sub sch in
-  let (env, x) =
-    match name with
-    | T.NLabel -> Env.add_the_label_sch env sch
-    | T.NVar x -> Env.add_poly_var ~public env x sch
-    | T.NOptionalVar x -> Env.add_mono_var ~public env x sch.sch_body
-    | T.NImplicit n -> Env.add_poly_implicit ~public env n sch ignore
-    | T.NMethod   n ->
-      let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
-      Env.add_poly_method ~public env owner n sch
-  in
-  (env, T.{ pos; data = PVar(x, sch) })
-
-(** Same as [open_named_arg], but works on list of named parameters. *)
-let open_named_args ~pos ~public ~sub env named =
-  List.fold_left_map (open_named_arg ~pos ~public ~sub) env named
-
-(** Introduce all named types and named arguments into the environment.
-  The type variables are refreshed, so the function returns a renaming. *)
-let open_named ~pos ~public env targs named =
-  let (env, targs, sub) = open_named_types ~public env targs in
-  let (env, named) = open_named_args ~pos ~public ~sub env named in
-  (env, targs, named, sub)
-
-let rec check_ctor_named ~pos ~env ~scope
-    (cpath : S.ctor_name S.path S.node) (ctor : T.ctor_decl) named =
-  match named with
-  | S.CNParams(targs, nps) ->
-    Uniqueness.check_named_type_arg_uniqueness targs;
-    let targs = List.map tr_named_type targs in
-    let (env, scope, sub2, tvars) =
-      check_ctor_type_args ~pos:cpath.pos ~env ~scope ~sub:T.Subst.empty
-        targs ctor.ctor_targs in
-    let ctor_named = List.map (T.NamedScheme.subst sub2) ctor.ctor_named in
-    Uniqueness.check_named_pattern_uniqueness nps;
-    let nps = List.map (tr_named_pattern env) nps in
-    let (env, bn1, ps1) =
-      check_ctor_named_args ~pos ~env ~scope nps ctor_named in
-    (env, scope, sub2, tvars, ps1, bn1)
-  | S.CNModule(public, modname) ->
-    (* TODO: This may seem inconsistent with the other case as implicits aren't
-       introduced to the current namespace, just the provided module name. *)
-    let env = Env.enter_module env in
-    let (env, tvars, ps1, sub2) =
-      open_named ~pos ~public:true env ctor.ctor_targs ctor.ctor_named in
-    let env = Env.leave_module env ~public modname in
-    (env, Env.scope env, sub2, tvars, ps1, T.Name.Map.empty)
-
-and check_ctor_named_args ~pos ~env ~scope nps named =
-  match named with
-  | [] ->
-    List.iter
-      (fun { S.pos; S.data = (n, _) } ->
-        Error.warn (Error.redundant_named_pattern ~pos n))
-      nps;
-    (env, T.Name.Map.empty, [])
-  | (name, sch) :: named ->
-    begin match select_named_pattern name nps with
-    | None ->
-      let (env, bn1, x) = introduce_implicit_name ~pos env name sch in
-      let p = { T.pos = pos; T.data = T.PVar(x, sch) } in
-      let (env, bn2, ps) =
-        check_ctor_named_args ~pos ~env ~scope nps named in
-      let bn = union_bound_names bn1 bn2 in
-      (env, bn, p :: ps)
-    | Some(p, nps) ->
-      let (env, p, bn1, _) = check_scheme ~env ~scope p sch in
-      let (env, bn2, ps) =
-        check_ctor_named_args ~pos ~env ~scope nps named in
-      let bn = union_bound_names bn1 bn2 in
-      (env, bn, p :: ps)
-    end
-
-and check_scheme ~env ~scope (pat : S.pattern) sch =
-  let make data = { pat with T.data = data } in
-  match pat.data with
-  | PWildcard ->
-    (env, make T.PWildcard, T.Name.Map.empty, Pure)
-  | PId (IdVar(public, x)) ->
-    let bn = T.Name.Map.singleton (T.NVar x) pat.pos in
-    let (env, x) = Env.add_poly_var env ~public x sch in
-    (env, make (T.PVar(x, sch)), bn, Pure)
-  | PId (IdImplicit(public, n)) ->
-    let bn = T.Name.Map.singleton (T.NImplicit n) pat.pos in
-    let (env, x) = Env.add_poly_implicit env ~public n sch ignore in
-    (env, make (T.PVar(x, sch)), bn, Pure)
-  | PId (IdMethod(public, name)) ->
-    (* TODO: bettern bn *)
-    let bn = T.Name.Map.empty in
-    let owner = TypeUtils.method_owner_of_scheme ~pos:pat.pos ~env sch in
-    let (env, x) = Env.add_poly_method env ~public owner name sch in
-    (env, make (T.PVar(x, sch)), bn, Pure)
-  | PCtor _ | PId IdLabel ->
-    begin match sch with
-    | { sch_targs = []; sch_named = []; sch_body = tp } ->
-      check_type ~env ~scope pat tp
-    | _ ->
-      Error.fatal (Error.non_polymorphic_pattern ~pos:pat.pos)
-    end
-  | PAnnot(pat, sch') ->
-    let sch_pos = sch'.sch_pos in
-    let sch' = Type.tr_scheme env sch' in
-    Error.check_unify_result ~pos:sch_pos
-      (Unification.subscheme env sch sch')
-      ~on_error:(Error.pattern_annot_mismatch ~env sch sch');
-    check_scheme ~env ~scope:(Env.scope env) pat sch'
-*)
-let check_type env (pat : S.pattern) tp =
-  (* TODO: not implemeted *)
-  begin match None with Some x -> x end
-(*
-and check_type ~env ~scope (pat : S.pattern) tp =
+let rec check_scheme env (pat : S.pattern) sch =
   let make data = { pat with T.data = data } in
   let pos = pat.pos in
   match pat.data with
-  | PWildcard | PId (IdVar _ | IdImplicit _ | IdMethod _) | PAnnot _ ->
-    let sch = T.Scheme.of_type tp in
-    check_scheme ~env ~scope pat sch
+  | PWildcard ->
+    (PartialEnv.empty, make (T.PWildcard sch), T.Pure)
 
-  | PId IdLabel ->
-    begin match Unification.as_label env tp with
-    | L_Label(eff, tp0, eff0) ->
-      let bn = T.Name.Map.singleton T.NLabel pat.pos in
-      let (env, x) = Env.add_the_label env eff tp0 eff0 in
-      (env, make (T.PVar(x, T.Scheme.of_type tp)), bn, Pure)
+  | PId(public, id) ->
+    let (penv, x) =
+      match id with
+      | IdVar      x -> PartialEnv.singleton_var ~public ~pos x sch
+      | IdImplicit n -> PartialEnv.singleton_implicit ~public ~pos n sch
+      | IdMethod name ->
+        let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+        PartialEnv.singleton_method ~public ~pos owner name sch
+    in
+    (penv, make (T.PAs(make (T.PWildcard sch), x, sch)), T.Pure)
 
-    | L_NoEffect ->
-      Error.fatal (Error.cannot_guess_label_effect ~pos)
-
-    | L_No ->
-      Error.fatal
-        (Error.label_pattern_type_mismatch ~pos:pat.pos ~env tp)
+  | PCtor _ ->
+    begin match T.Scheme.to_type sch with
+    | Some tp -> check_type env pat tp
+    | None -> Error.fatal (Error.non_polymorphic_pattern ~pos)
     end
 
-  | PCtor(cpath, named, args) ->
-    let (info, idx, proof, sub) = get_ctor_info ~pos ~env cpath tp in
-    let ctors  = List.map (T.CtorDecl.subst sub) info.adt_ctors in
-    let ctor   = List.nth ctors idx in
+  | PAnnot(pat, sch') ->
+    let sch_expr = Type.tr_scheme env sch' in
+    let sch' = T.SchemeExpr.to_scheme sch_expr in
+    Error.check_unify_result ~pos:sch_expr.se_pos
+      (Unification.subscheme env sch sch')
+      ~on_error:(Error.pattern_annot_mismatch ~env sch sch');
+    check_scheme env pat sch'
+
+and check_type env (pat : S.pattern) tp =
+  let make data = { pat with T.data = data } in
+  let pos = pat.pos in
+  match pat.data with
+  | PWildcard | PId _ | PAnnot _ ->
+    let sch = T.Scheme.of_type tp in
+    check_scheme env pat sch
+
+  | PCtor(cpath, named_pats, pats) ->
+    let (info, idx, proof, sub) = get_ctor_info ~pos env cpath tp in
+    let ctor = T.CtorDecl.subst sub (List.nth info.adt_ctors idx) in
     let res_tp = T.Type.subst sub info.adt_type in
-    let (env, scope, sub2, tvars, ps1, bn1) =
-      check_ctor_named ~pos ~env ~scope cpath ctor named in
-    let ctor_arg_schemes =
-      List.map (T.Scheme.subst sub2) ctor.ctor_arg_schemes in
-    if List.length ctor_arg_schemes <> List.length args then
-      Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
-        cpath.data (List.length ctor_arg_schemes) (List.length args));
-    Error.check_unify_result ~is_fatal:true ~pos:pat.pos
-      (Unification.subtype env tp res_tp)
+    Error.check_unify_result ~pos (Unification.subtype env tp res_tp)
       ~on_error:(Error.pattern_type_mismatch ~env res_tp tp);
-    let (env, ps2, bn2, _) =
-      check_pattern_schemes ~env ~scope args ctor_arg_schemes in
-    let cname = S.path_name cpath.data in
+    let (env, penv, tvars, named, arg_schemes) = open_ctor ~pos env ctor in
+    let (env, penv, named, eff1) =
+      check_named_patterns ~pos env penv named_pats tvars named in
+    let ps1 = List.map (make_pattern ~pos) named in
+    if List.length arg_schemes <> List.length pats then
+      Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
+        cpath (List.length arg_schemes) (List.length pats));
+    let (penv, ps2, eff2) =
+      check_patterns env penv pats arg_schemes in
+    let cname = S.path_name cpath in
     let pat = make
-      (T.PCtor(cname, idx, proof, ctors, tvars, ps1 @ ps2)) in
-    let reff = if info.adt_strictly_positive then Pure else Impure in
-    (env, pat, union_bound_names bn1 bn2, reff)
+      (T.PCtor(cname, idx, proof, List.map snd tvars, ps1, ps2)) in
+    let eff = T.Effect.joins [info.adt_effect; eff1; eff2] in
+    (penv, pat, eff)
 
-and check_pattern_schemes ~env ~scope pats schs =
+and check_patterns env penv pats schs =
   match pats, schs with
-  | [], [] -> (env, [], T.Name.Map.empty, Pure)
-
+  | [], [] -> (penv, [], T.Pure)
   | pat :: pats, sch :: schs ->
-    let (env, pat, bn1, r_eff1)  = check_scheme ~env ~scope pat sch in
-    let (env, pats, bn2, r_eff2) =
-      check_pattern_schemes ~env ~scope pats schs in
-    let bn = union_bound_names bn1 bn2 in
-    (env, pat :: pats, bn, ret_effect_join r_eff1 r_eff2)
+    let (penv1, pat, eff1) = check_scheme env pat sch in
+    let (penv, pats, eff2) =
+      check_patterns env (PartialEnv.join penv penv1) pats schs in
+    (penv, pat :: pats, T.Effect.join eff1 eff2)
 
   | [], _ :: _ | _ :: _, [] -> assert false
 
-(** Infer type-scheme of given formal optional argument. Returns extended
-  environment, a pattern that represents an argument, its scheme, and the
-  effect of pattern-matching *)
-let infer_optional_arg_scheme env (arg : S.arg) =
-  match arg with
-  | ArgAnnot(pat, sch) ->
-    let sch_pos = sch.sch_pos in
-    let sch = Type.tr_scheme env sch in
-    if not (T.Scheme.is_monomorphic sch) then
-      Error.fatal (Error.polymorphic_optional_parameter ~pos:sch_pos);
-    let sch = T.Scheme.of_type 
-      (PreludeTypes.mk_Option ~env ~pos:sch_pos sch.sch_body)
-    in
-    let scope = Env.scope env in
-    let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope pat sch in
-    (env, pat, sch, r_eff)
-  | ArgPattern pat ->
+and check_named_patterns ~pos env penv named_pats tvars named =
+  let prepare_named (name, x, sch) =
+    { name; var = x; pat = None; sch } in
+  let named = List.map prepare_named named in
+  let rec loop env penv named_pats eff =
+    match named_pats with
+    | [] -> (env, penv, named, eff)
+    | np :: named_pats ->
+      let (env, penv1, eff1) = check_named_pattern env np tvars named in
+      let penv = PartialEnv.join penv penv1 in
+      let eff  = T.Effect.join eff eff1 in
+      loop env penv named_pats eff
+  in
+  loop env penv named_pats T.Pure
+
+and check_named_pattern env np tvars named =
+  match np.data with
+  | NP_Type(_, { T.data = (TNAnon, _); _ }) ->
+    Error.report (Error.anonymous_type_pattern ~pos:np.pos);
+    (env, PartialEnv.empty, T.Pure)
+
+  | NP_Type(public, { T.data = (TNVar name, arg); T.pos = pos }) ->
+    begin match select_named_type name tvars, arg.data with
+    | Some x, TA_Wildcard ->
+      (env, PartialEnv.empty, T.Pure)
+
+    | Some x, TA_Var(name, kind) ->
+      let kind = Type.tr_kind kind in
+      let x_kind = T.TVar.kind x in
+      if not (Unification.unify_kind x_kind kind) then
+        Error.fatal (Error.kind_annot_mismatch ~pos x_kind kind);
+      let env = Env.add_tvar_alias ~pos env name x in
+      let penv = PartialEnv.singleton_tvar_alias ~public ~pos name x in
+      (env, penv, T.Pure)
+
+    | None, _ ->
+      Error.report (Error.unknown_named_type_pattern ~pos name);
+      (env, PartialEnv.empty, T.Pure)
+    end
+
+  | NP_Val((NVar _ | NOptionalVar _ | NImplicit _) as name, pat) ->
+    let name = tr_name name in
+    begin match select_named_pattern name named with
+    | None ->
+      Error.report (Error.unknown_named_pattern ~pos:np.pos name);
+      (env, PartialEnv.empty, T.Pure)
+
+    | Some { pat = Some ppat; sch; _ } ->
+      let ppos = ppat.pos in
+      Error.report (Error.multiple_named_patterns ~pos:np.pos ~ppos name);
+      let (penv, _, eff) = check_scheme env pat sch in
+      (env, penv, eff)
+
+    | Some ({ pat = None; sch; _ } as np) ->
+      let (penv, pat, eff) = check_scheme env pat sch in
+      np.pat <- Some pat;
+      (env, penv, eff)
+    end
+
+  | NP_Val(NMethod _, _) ->
+    Error.report (Error.method_pattern_not_allowed ~pos:np.pos);
+    (env, PartialEnv.empty, T.Pure)
+
+  | NP_Module modname ->
+    (* TODO: Public flag is missing *)
+    (* Since during type-checking of patterns we use the environment to
+      store types, we don't need to add regular variables. *)
+    let env = Env.enter_module env in
+    let env = add_types_to_env ~pos:np.pos env tvars in
+    let env = Env.leave_module env ~public:false modname in
+    let penv =
+      make_module_penv ~pos:np.pos ~public:false ~env modname tvars named in
+    (env, penv, T.Pure)
+
+  | NP_Open ->
+    (* TODO: Public flag is missing *)
+    (* Since during type-checking of patterns we use the environment to
+      store types, we don't need to add regular variables. *)
+    let env = add_types_to_env ~pos:np.pos env tvars in
+    let penv = make_open_penv ~pos:np.pos ~public:false tvars named in
+    (env, penv, T.Pure)
+
+(* ========================================================================= *)
+
+let infer_scheme env (pat : S.pattern) =
+  match pat.data with
+  | PWildcard | PId _ | PCtor _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
-    let tp = (PreludeTypes.mk_Option ~env ~pos:pat.pos tp) in
-    let scope = Env.scope env in
-    let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
-    (env, pat, T.Scheme.of_type tp, r_eff)
-*)
+    let sch = T.Scheme.of_type tp in
+    let (penv, pat, eff) = check_type env pat tp in
+    (penv, pat, sch, eff)
+
+  | PAnnot(pat, sch) ->
+    let sch_expr = Type.tr_scheme env sch in
+    let sch = T.SchemeExpr.to_scheme sch_expr in
+    let (penv, pat, eff) = check_scheme env pat sch in
+    let pat = { pat with T.data = T.PAnnot(pat, sch_expr) } in
+    (penv, pat, sch, eff)
+
+(* ========================================================================= *)
+
 let infer_scheme_ext env (pat : S.pattern) =
-  (* TODO: not implemeted *)
-  begin match None with Some x -> x end
-(*
-let infer_arg_scheme env (arg : S.arg) =
-  match arg with
-  | ArgAnnot(pat, sch) ->
-    let sch = Type.tr_scheme env sch in
-    let scope = Env.scope env in
-    let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope pat sch in
-    (env, pat, sch, r_eff)
-  | ArgPattern pat ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
-    let scope = Env.scope env in
-    let (env, pat, _, r_eff) = check_type ~env ~scope pat tp in
-    (env, pat, T.Scheme.of_type tp, r_eff)
-*)
+  let (penv, pat, sch, eff) = infer_scheme env pat in
+  let env = PartialEnv.extend env penv in
+  (env, pat, sch, eff)
+
 let check_scheme_ext env (pat : S.pattern) sch =
-  (* TODO: not implemeted *)
-  begin match None with Some x -> x end
+  let (penv, pat, eff) = check_scheme env pat sch in
+  let env = PartialEnv.extend env penv in
+  (env, pat, eff)
 
 let check_type_ext env (pat : S.pattern) tp =
-  (* TODO: not implemeted *)
-  begin match None with Some x -> x end
+  let (penv, pat, eff) = check_type env pat tp in
+  let env = PartialEnv.extend env penv in
+  (env, pat, eff)
 (*
 let check_arg_scheme env (arg : S.arg) sch =
   match arg with
@@ -433,9 +428,13 @@ let rec infer_named_arg_schemes env ims =
     (env, im :: ims, ret_effect_join r_eff1 r_eff2)
 *)
 
-let check_named_patterns_ext env (nps : S.named_pattern list) tvars named =
-  (* TODO: not implemeted *)
-  begin match None with Some x -> x end
+let check_named_patterns_ext
+    ~pos env (nps : S.named_pattern list) tvars named =
+  let (env, penv, named, eff) =
+    check_named_patterns ~pos env PartialEnv.empty nps tvars named in
+  let arg_pats = List.filter_map make_arg_pattern named in
+  let env = PartialEnv.extend env penv in
+  (env, arg_pats, eff)
 
 let infer_named_patterns_ext env (nps : S.named_pattern list) =
   (* TODO: not implemeted *)

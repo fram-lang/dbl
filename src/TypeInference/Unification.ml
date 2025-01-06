@@ -39,10 +39,11 @@ let unify_with_kuvar x k =
     (* TODO: Give some information about not-satisfied constraints to the user
       *)
     raise Error
-
+*)
 let rec check_kind_equal k1 k2 =
   match T.Kind.view k1, T.Kind.view k2 with
   | KUVar x1, KUVar x2 when T.KUVar.equal x1 x2 -> ()
+(*
   | KUVar x, _ -> unify_with_kuvar x k2
   | _, KUVar x -> unify_with_kuvar x k1
 
@@ -86,7 +87,7 @@ let set_uvar env p u tp =
   match T.Type.try_shrink_scope ~scope tp with
   | Ok   () -> ()
   | Error e -> raise (Escapes_scope (env, e))
-
+*)
 let rec unify_named_type_args env sub1 sub2 args1 args2 =
   match args1, args2 with
   | [], [] -> (env, sub1, sub2)
@@ -99,7 +100,7 @@ let rec unify_named_type_args env sub1 sub2 args1 args2 =
     let sub2 = T.Subst.rename_to_fresh sub2 x2 x in
     unify_named_type_args env sub1 sub2 args1 args2
   | [], _ :: _ | _ :: _, [] -> raise Error
-
+(*
 let rec check_effect_mem env x eff =
   match T.Effect.view eff with
   | RPure | RVar _ | RApp _ -> raise Error
@@ -304,8 +305,8 @@ let rec check_subtype env tp1 tp2 =
 
   | TApp _, TApp _ -> unify env tp1 tp2
   | TApp _, _ -> raise Error
-
-and check_subscheme env sch1 sch2 =
+*)
+and check_subscheme env (sch1 : T.scheme) (sch2 : T.scheme) =
   if List.length sch1.sch_named <> List.length sch2.sch_named then
     raise Error;
   let (env, sub1, sub2) =
@@ -313,8 +314,6 @@ and check_subscheme env sch1 sch2 =
       sch1.sch_targs sch2.sch_targs in
   List.iter2
     (fun (name1, isch1) (name2, isch2) ->
-      let name1 = T.Name.subst sub1 name1 in
-      let name2 = T.Name.subst sub2 name2 in
       if not (T.Name.equal name1 name2) then raise Error;
       (* contravariant *)
       check_subscheme env
@@ -322,7 +321,7 @@ and check_subscheme env sch1 sch2 =
     sch1.sch_named sch2.sch_named;
   check_subtype env
     (T.Type.subst sub1 sch1.sch_body) (T.Type.subst sub2 sch2.sch_body)
-
+(*
 let unify_type env tp1 tp2 =
   match BRef.bracket (fun () -> 
   	unify_at_kind env tp1 tp2 (T.Type.kind tp1)) with
@@ -341,13 +340,13 @@ let subtype env tp1 tp2 =
   | ()              -> Unify_Success
   | exception Error -> Unify_Fail []
   | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
-(*
+
 let subscheme env sch1 sch2 =
   match BRef.bracket (fun () -> check_subscheme env sch1 sch2) with
   | ()              -> Unify_Success
   | exception Error -> Unify_Fail []
   | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
-*)
+
 let to_arrow env tp =
   match T.Type.view tp with
 (*  | TUVar(p, u) ->

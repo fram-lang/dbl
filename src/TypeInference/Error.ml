@@ -38,6 +38,26 @@ let string_of_name (name : T.name) =
   | NVar x         -> Printf.sprintf "named parameter %s" x
   | NOptionalVar x -> Printf.sprintf "optional named parameter %s" x
   | NMethod n      -> Printf.sprintf "method %s" n
+
+let escaping_tvar_message ~env x =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Type variable %s escapes its scope"
+    (Pretty.tvar_to_string pp_ctx env x)
+  in msg ^ Pretty.additional_info pp_ctx
+
+let unification_error_to_string (err : Unification.error_info) =
+  match err with 
+  | TVarEscapesScope(env, tv) -> escaping_tvar_message ~env tv
+
+let check_unify_result ?(is_fatal=false) ~pos
+    (result : Unification.result) ~on_error =
+  let inform = if is_fatal then fatal else report in
+  match result with
+  | Unify_Success -> ()
+  | Unify_Fail errors -> 
+    inform (add_notes (on_error ~pos)
+      (List.map (fun err -> (pos, unification_error_to_string err)) errors))
 (*
 let kind_mismatch ~pos k1 k2 =
   let pp_ctx = Pretty.empty_context () in
@@ -55,7 +75,7 @@ let named_type_kind_mismatch ~pos name k1 k2 =
     (Pretty.kind_to_string pp_ctx k1)
     (Pretty.kind_to_string pp_ctx k2)
   in (pos, msg, [])
-(*
+
 let kind_annot_mismatch ~pos k k_annot = 
   let pp_ctx = Pretty.empty_context () in 
   let msg = Printf.sprintf
@@ -63,7 +83,7 @@ let kind_annot_mismatch ~pos k k_annot =
     (Pretty.kind_to_string pp_ctx k)
     (Pretty.kind_to_string pp_ctx k_annot)
   in (pos, msg, [])
-
+(*
 let wildcard_in_effect ~pos =
   (pos, "Wild-cards in effects are forbidden", [])
 
@@ -153,7 +173,7 @@ let delim_effect_mismatch ~pos ~env eff1 eff2 =
     (Pretty.type_to_string pp_ctx env eff1)
     (Pretty.type_to_string pp_ctx env eff2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
+*)
 let pattern_type_mismatch ~pos ~env tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -171,7 +191,7 @@ let pattern_annot_mismatch ~pos ~env sch1 sch2 =
     (Pretty.scheme_to_string pp_ctx env sch2)
     (Pretty.scheme_to_string pp_ctx env sch1)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
+(*
 let func_effect_mismatch ~pos ~env eff1 eff2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -312,14 +332,14 @@ let non_arrow_method ~pos ~env sch =
     "Cannot define a method of type %s. This type is not an arrow"
     (Pretty.scheme_to_string pp_ctx env sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
+
 let ctor_pattern_on_non_adt ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This pattern matches values of type %s, which is not an ADT"
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
+
 let empty_match_on_non_adt ~pos ~env tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -334,7 +354,7 @@ let empty_match_on_nonempty_adt ~pos ~env tp =
     ^^ " which is not an empty ADT")
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
+
 let ctor_not_in_type ~pos ~env name tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -342,13 +362,7 @@ let ctor_not_in_type ~pos ~env name tp =
     name
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
-let escaping_tvar_message ~env x =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "Type variable %s escapes its scope"
-    (Pretty.tvar_to_string pp_ctx env x)
-  in msg ^ Pretty.additional_info pp_ctx
+
 (*
 let type_escapes_its_scope ~pos ~env x =
   let pp_ctx = Pretty.empty_context () in
@@ -357,18 +371,7 @@ let type_escapes_its_scope ~pos ~env x =
     (Pretty.tvar_to_string pp_ctx env x)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 *)
-let unification_error_to_string (err : Unification.error_info) =
-  match err with 
-  | TVarEscapesScope(env, tv) -> escaping_tvar_message ~env tv
 
-let check_unify_result ?(is_fatal=false) ~pos
-    (result : Unification.result) ~on_error =
-  let inform = if is_fatal then fatal else report in
-  match result with
-  | Unify_Success -> ()
-  | Unify_Fail errors -> 
-    inform (add_notes (on_error ~pos)
-      (List.map (fun err -> (pos, unification_error_to_string err)) errors))
 (*
 let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
   (pos,
@@ -382,10 +385,10 @@ let cannot_guess_label_effect ~pos =
 let ungeneralizable_implicit ~pos name =
   (pos, Printf.sprintf "Implicit %s is used, but cannot be generalized" name,
     [])
-
+*)
 let non_polymorphic_pattern ~pos =
   (pos, Printf.sprintf "This pattern cannot match polymorphic values", [])
-
+(*
 let polymorphic_label ~pos =
   (pos, "Labels cannot be polymorphic", [])
 
@@ -402,6 +405,9 @@ let label_pattern_type_mismatch ~pos ~env tp =
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 *)
+let anonymous_type_pattern ~pos =
+  (pos, "Anonymous types patterns cannot be used in scheme-checking mode", [])
+
 let looping_named_param ~pos name =
   (pos,
     Printf.sprintf "Resolving of %s leads to an infinite loop"
@@ -457,6 +463,23 @@ let named_param_provided_as_optional ~pos name =
 
 let method_instantiation_not_allowed ~pos =
   (pos, "Method instantiation is not allowed", [])
+
+let unknown_named_type_pattern ~pos name =
+  (pos, Printf.sprintf "Type %s was not expected here" name, [])
+
+let unknown_named_pattern ~pos name =
+  (pos,
+    Printf.sprintf "A pattern for %s was not expected here"
+      (string_of_name name),
+    [])
+
+let multiple_named_patterns ~pos ~ppos name =
+  (pos,
+    Printf.sprintf "Multiple patterns for %s" (string_of_name name),
+    [ ppos, "Here is a previous pattern" ])
+
+let method_pattern_not_allowed ~pos =
+  (pos, "Method patterns are not allowed", [])
 (*
 let multiple_named_type_args ~pos ~ppos (name : Lang.Surface.tname) =
   (pos,
@@ -492,14 +515,14 @@ let type_generalized_twice ~pos name =
     Printf.sprintf "Type %s is generalized twice"
       (Pretty.tname_to_string name) in
   (pos, msg, [])
-
+*)
 let ctor_arity_mismatch ~pos cpath req_n prov_n =
   (pos,
     Printf.sprintf
       "Constructor %s expects %d parameter(s), but is applied to %d"
       (string_of_path cpath) req_n prov_n,
     [])
-*)
+
 let redundant_named_type ~pos name =
   (pos, Printf.sprintf
       "Providing type %s to a function that do not expect it" name, [])

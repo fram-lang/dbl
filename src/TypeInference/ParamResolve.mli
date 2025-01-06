@@ -26,6 +26,11 @@ val open_scheme : pos:Position.t -> Env.t -> T.scheme ->
 val open_scheme_explicit : pos:Position.t -> Env.t -> T.scheme ->
   Env.t * (T.tname * T.tvar) list * (T.name * T.var * T.scheme) list * T.typ
 
+(** Create a substitution that replaces type variables with fresh unification
+  variables. *)
+val guess_types :
+  pos:Position.t -> Env.t -> T.named_tvar list -> T.subst * T.type_expr list
+
 (** Implicitly instantiate all parameters in given polymorphic expression of
   given scheme. Returns the instantiated expression, its type, and the list of
   generated constraints. If the expression is instantiated immediately after a

@@ -65,11 +65,11 @@ val subeffect : Env.t -> T.effrow -> T.effrow -> result
 (** Check if one type is a subtype of another.
   It performs some unifications when necessary. *)
 val subtype : Env.t -> T.typ -> T.typ -> result
-(*
+
 (** Check if one scheme is a subscheme of another.
   It performs some unifications when necessary. *)
 val subscheme : Env.t -> T.scheme -> T.scheme -> result
-*)
+
 (** Coerce given type to an arrow.
   It performs some unifications when necessary. *)
 val to_arrow : Env.t -> T.typ -> arrow

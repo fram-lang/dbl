@@ -17,13 +17,17 @@ val report : t -> unit
 
 (** Report a warning *)
 val warn : t -> unit
+
+val check_unify_result :
+  ?is_fatal:bool -> pos:Position.t -> Unification.result ->
+  on_error:(pos:Position.t -> t) -> unit
 (*
 val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t *)
 val named_type_kind_mismatch :
   pos:Position.t -> S.tvar -> T.kind -> T.kind -> t
-(*
-val kind_annot_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 
+val kind_annot_mismatch : pos:Position.t -> T.kind -> T.kind -> t
+(*
 val wildcard_in_effect : pos:Position.t -> t
 val anon_effect_arg : pos:Position.t -> t
 val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
@@ -50,11 +54,11 @@ val expr_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val delim_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val delim_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
-
+*)
 val pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val pattern_annot_mismatch :
   pos:Position.t -> env:Env.t -> T.scheme -> T.scheme -> t
-
+(*
 val func_effect_mismatch :
   pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
@@ -91,31 +95,30 @@ val method_of_invalid_type :
   pos:Position.t -> env:Env.t -> T.scheme -> T.typ -> t
 val method_of_polymorphic_type : pos:Position.t -> env:Env.t -> T.scheme -> t
 val non_arrow_method : pos:Position.t -> env:Env.t -> T.scheme -> t
-(*
-val ctor_pattern_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t *)
+
+val ctor_pattern_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
-(*
-val ctor_not_in_type : pos:Position.t -> env:Env.t -> S.ctor_name -> T.typ -> t
 
+val ctor_not_in_type : pos:Position.t -> env:Env.t -> S.ctor_name -> T.typ -> t
+(*
 val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
 *)
-val check_unify_result :
-  ?is_fatal:bool -> pos:Position.t -> Unification.result ->
-  on_error:(pos:Position.t -> t) -> unit
 (*
 val cannot_guess_effect_param : pos:Position.t -> T.tname -> t
 val cannot_guess_label_effect : pos:Position.t -> t
 
-val ungeneralizable_implicit : pos:Position.t -> S.iname -> t
+val ungeneralizable_implicit : pos:Position.t -> S.iname -> t *)
 val non_polymorphic_pattern : pos:Position.t -> t
-
+(*
 val polymorphic_label : pos:Position.t -> t
 val label_type_mismatch : pos:Position.t -> t
 val polymorphic_optional_parameter : pos:Position.t -> t
 
 val label_pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> t
 *)
+val anonymous_type_pattern : pos:Position.t -> t
+
 val looping_named_param : pos:Position.t -> T.name -> t
 
 val named_param_type_mismatch :
@@ -134,6 +137,11 @@ val named_param_already_provided :
   pos:Position.t -> npos:Position.t -> T.name -> t
 val named_param_provided_as_optional : pos:Position.t -> S.var -> t
 val method_instantiation_not_allowed : pos:Position.t -> t
+
+val unknown_named_type_pattern : pos:Position.t -> S.tvar -> t
+val unknown_named_pattern : pos:Position.t -> T.name -> t
+val multiple_named_patterns : pos:Position.t -> ppos:Position.t -> T.name -> t
+val method_pattern_not_allowed : pos:Position.t -> t
 (*
 val multiple_named_type_args :
   pos:Position.t -> ppos:Position.t -> S.tname -> t
@@ -147,10 +155,10 @@ val multiple_name_binders :
   pos1:Position.t -> pos2:Position.t -> T.name -> t
 
 val type_generalized_twice : pos:Position.t -> T.tname -> t
-
+*)
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name S.path -> int -> int -> t
-*)
+
 val redundant_named_type : pos:Position.t -> S.tvar -> t
 val redundant_named_parameter : pos:Position.t -> T.name -> t (*
 val redundant_named_pattern : pos:Position.t -> T.name -> t

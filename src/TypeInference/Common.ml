@@ -46,3 +46,8 @@ let tr_tname (name : S.tname) : T.tname =
   match name with
   | S.TNAnon  -> T.TNAnon
   | S.TNVar x -> T.TNVar x
+
+(** Translate a name of parameter *)
+let tr_name (name : S.name) : T.name =
+  match name with
+  | S.NVar x -> T.NVar x

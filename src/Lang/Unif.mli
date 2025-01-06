@@ -237,8 +237,9 @@ and pattern_data =
   | PWildcard of scheme
     (** Wildcard pattern -- it matches everything *)
 
-  | PVar of var * scheme
-    (** Pattern that binds a variable of given scheme *)
+  | PAs of pattern * var * scheme
+    (** Pattern that binds a variable of given scheme, and continues with
+      a subpattern *)
 
   | PCtor of string * int * expr * tvar list * pattern list * pattern list
     (** ADT constructor pattern. It stores a name, constructor index,

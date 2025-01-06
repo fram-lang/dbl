@@ -65,6 +65,11 @@ val add_the_effect : ?pos:Position.t -> t -> t * T.tvar
   optional name is used for pretty-printing purposes. *)
 val add_anon_tvar :
   ?pos:Position.t -> ?name:string -> t -> T.kind -> t * T.tvar
+
+(** Extend an environment with an alias for an existing type variable.
+  This type variables should be present in the environment. *)
+val add_tvar_alias :
+  ?pos:Position.t -> ?public:bool -> t -> S.tvar -> T.tvar -> t
 (*
 (** Extend an environment with a type alias. *)
 val add_type_alias : ?public:bool -> t -> S.tvar -> T.typ -> t

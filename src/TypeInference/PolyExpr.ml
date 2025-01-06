@@ -141,7 +141,7 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     let (env, targs, named, body_tp) =
       ParamResolve.open_scheme_explicit ~pos env sch in
     let (env, pats, pat_eff) =
-      Pattern.check_named_patterns_ext env pats targs named in
+      Pattern.check_named_patterns_ext ~pos env pats targs named in
     let body = check_expr_type env body body_tp in
     let eff = T.Effect.join pat_eff body.er_effect in
     begin match eff with

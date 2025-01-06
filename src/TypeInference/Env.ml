@@ -101,6 +101,10 @@ let add_the_effect ?pos env =
 let add_anon_tvar ?pos ?(name="T") env kind =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
+
+let add_tvar_alias ?pos ?(public=false) env name x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
 (*
   let x = T.TVar.fresh kind in
   let pp_info =
