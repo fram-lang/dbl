@@ -76,6 +76,10 @@ val add_mono_id : public:bool -> Env.t -> t -> S.ident -> T.typ ->
 val add_method_fn : public:bool -> Env.t -> t -> S.var -> S.method_name ->
   Env.t * t
 
+(** Extend an environment with a constructor of given ADT and index. *)
+val add_ctor : public:bool ->
+  Env.t -> t -> S.ctor_name -> int -> Module.adt_info -> Env.t * t
+
 (** Open given module, shadowing named parameters *)
 val open_module : public:bool -> Env.t -> t -> Module.t -> Env.t * t
 

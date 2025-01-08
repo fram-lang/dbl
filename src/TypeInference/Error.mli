@@ -121,10 +121,10 @@ val looping_named_param : pos:Position.t -> T.name -> t
 
 val named_param_type_mismatch :
   pos:Position.t -> env:Env.t -> T.name -> T.typ -> T.typ -> t
-(*
+
 val ctor_redefinition :
   pos:Position.t -> ppos:Position.t -> S.ctor_name -> t
-*)
+
 val cannot_resolve_named_param : pos:Position.t -> S.var -> t
 val cannot_resolve_implicit : pos:Position.t -> S.iname -> t
 val cannot_resolve_method :
@@ -151,9 +151,9 @@ val multiple_named_args :
 val multiple_method_args :
   env:Env.t -> pos:Position.t -> ppos:Position.t ->
     T.tvar -> S.method_name -> t
-(*
-val ctor_type_arg_same_as_data_arg : pos:Position.t -> S.tname -> t
 
+val ctor_type_arg_same_as_data_arg : pos:Position.t -> S.tvar -> t
+(*
 val multiple_inst_patterns :
   pos:Position.t -> ppos:Position.t -> S.name -> t
 

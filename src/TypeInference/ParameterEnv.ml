@@ -207,6 +207,10 @@ let add_method_fn ~public env penv x name =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
 
+let add_ctor ~public env penv name idx adt =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
 let open_module ~public env penv m =
   (* TODO: not implemented *)
   begin match None with Some x -> x end

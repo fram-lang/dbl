@@ -77,10 +77,11 @@ val add_type_alias : ?public:bool -> t -> S.tvar -> T.typ -> t
 (** Extend an environment with an alias labeled with "effect". Given type
   must have the [effect] kind. *)
 val add_the_effect_alias : t -> T.typ -> t
-
-(** Assign ADT definition to given type variable. *)
-val add_data : t -> T.tvar -> Module.adt_info -> t
-
+*)
+(** Assign ADT definition to given type variable. For abstract datatype,
+  the [public] flag should be set to [false]. *)
+val add_data : ?public:bool -> t -> T.tvar -> Module.adt_info -> t
+(*
 (** Add constructor of given name and index to the environment *)
 val add_ctor : ?public:bool -> t -> string -> int -> Module.adt_info -> t
 *)

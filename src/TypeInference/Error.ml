@@ -415,11 +415,11 @@ let named_param_type_mismatch ~pos ~env name tp1 tp2 =
     (Pretty.type_to_string pp_ctx env tp1)
     (Pretty.type_to_string pp_ctx env tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
+
 let ctor_redefinition ~pos ~ppos name =
   (pos, Printf.sprintf "Constructor %s is defined more than once" name,
     [ (ppos, "Here is a previous definition") ])
-*)
+
 let cannot_resolve_named_param ~pos x =
   (pos, Printf.sprintf "Cannot resolve a parameter of name %s" x, [])
 
@@ -502,12 +502,12 @@ let multiple_method_args ~env ~pos ~ppos owner name =
       (Pretty.tvar_to_string pp_ctx env owner)
   in (pos, msg ^ Pretty.additional_info pp_ctx,
     [ ppos, "Here is a previous method with this name" ])
-(*
-let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
+
+let ctor_type_arg_same_as_data_arg ~pos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is already bound by datatype itself"
-      (Pretty.tname_to_string (Name.tr_tname name)), [])
-
+      name, [])
+(*
 let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
   let nn =
     match name with

@@ -50,11 +50,11 @@ type var = Var.t
 
 type data_def =
   | DD_Data of
-    { tvar  : tvar;
-      proof : var;
-      args  : named_tvar list;
-      ctors : ctor_decl_expr list;
-      strictly_positive : bool
+    { tvar   : tvar;
+      proof  : var;
+      args   : named_tvar list;
+      ctors  : ctor_decl_expr list;
+      effect : effect
     }
   | DD_Label of
     { tvar      : tvar;

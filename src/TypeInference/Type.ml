@@ -114,7 +114,11 @@ and tr_scheme env (sch : S.scheme_expr) =
     T.sch_named = named;
     T.sch_body  = tr_ttype env sch.sch_body
   }
-
+*)
+let tr_scheme_args ?data_targs env args =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
 and tr_named_scheme env (nsch : S.named_scheme) =
   let (name, sch) = nsch.data in
   let sch = tr_scheme env sch in

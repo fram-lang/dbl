@@ -29,7 +29,9 @@ val check_ctor_decls :
   not fit in this scope. This approach may lead to some false-negatives, if
   the programmer omit some types that do not contain any recursive
   occurrences, e.g.,
-  [ data rec T = C of (_ -> T) in ... C (fn (x : Int) => ...) ]. *)
+  [ data rec T = C of (_ -> T) in ... C (fn (x : Int) => ...) ].
+  The [public] flag indicates if the constructors (and adt_proof) are publicly
+  visible, i.e, if the data type is public or abstract/private. *)
 val finalize_check :
   nonrec_scope:T.scope -> public:bool -> Env.t -> ParameterEnv.t ->
   T.tvar -> name:S.tvar -> T.named_tvar list -> ctor_decl_list ->

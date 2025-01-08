@@ -37,14 +37,14 @@ let check_uniqueness ~on_error ~name_of ~pos_of xs =
       end
   in
   loop StrMap.empty xs
-(*
+
 let check_ctor_uniqueness ctors =
   let name_of (ctor : S.ctor_decl) = ctor.data.cd_name in
   let pos_of  (ctor : S.ctor_decl) = ctor.pos in
   let on_error ~pos ~ppos ctor =
     Error.report (Error.ctor_redefinition ~pos ~ppos (name_of ctor)) in
   check_uniqueness ~on_error ~name_of ~pos_of ctors
-
+(*
 let check_type_inst_uniqueness tinsts =
   let name_of (inst : S.type_inst) =
     match fst inst.data with
@@ -97,10 +97,9 @@ let check_ctor_named_types data_args ctor_args =
   let check_ctor_arg (arg : S.named_type_arg) =
     match fst arg.data with
     | TNAnon  -> ()
-    | (TNEffect | TNVar _) as name ->
-      let name' = Name.tr_tname name in
-      if List.exists (fun (n, _) -> n = name') data_args then
-        Error.report (Error.ctor_type_arg_same_as_data_arg ~pos:arg.pos name)
+    | TNVar x ->
+      if List.exists (fun (n, _) -> n = T.TNVar x) data_args then
+        Error.report (Error.ctor_type_arg_same_as_data_arg ~pos:arg.pos x)
   in
   List.iter check_ctor_arg ctor_args
 

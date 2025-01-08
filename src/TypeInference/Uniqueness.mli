@@ -15,10 +15,10 @@ type unique_name =
 
 (** Translate a name to Unif representation *)
 val tr_name : unique_name -> T.name
-(*
+
 (** Ensure that each constructor in given ADT has a unique name *)
 val check_ctor_uniqueness : S.ctor_decl list -> unit
-
+(*
 (** Ensure that each named type parameter is instantiated at most once *)
 val check_type_inst_uniqueness : S.type_inst list -> unit
 

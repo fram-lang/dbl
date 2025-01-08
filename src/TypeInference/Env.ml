@@ -144,8 +144,11 @@ let add_type_alias ?(public=false) env name tp =
     mod_stack = ModStack.add_type_alias ~public env.mod_stack name tp;
     pp_map    = pp_map
   }
-
-let add_data env x info =
+*)
+let add_data ?(public=false) env x info =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   assert (not (T.TVar.Map.mem x env.adt_map));
   { env with
     adt_map = T.TVar.Map.add x info env.adt_map

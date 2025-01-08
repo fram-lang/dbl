@@ -199,23 +199,23 @@ type var = Var.t
 (** Data-like definition (ADT or label) *)
 type data_def =
   | DD_Data of (** Algebraic datatype *)
-    { tvar  : tvar;
+    { tvar   : tvar;
         (** Type variable, that represents this ADT. *)
 
-      proof : var;
+      proof  : var;
         (** An irrelevant variable that stores the proof that this ADT has
           the following constructors. *)
 
-      args  : named_tvar list;
+      args   : named_tvar list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_decl_expr list;
+      ctors  : ctor_decl_expr list;
         (** List of constructors. *)
 
-      strictly_positive : bool
-        (** A flag indicating if the type is strictly positively recursive (in
-          particular, not recursive at all) and therefore can be deconstructed
-          in pure way. *)
+      effect : effect
+        (** An effect indicating if the type is strictly positively recursive
+          (in particular, not recursive at all). Strictly positively recursive
+          types can be deconstructed in a pure way. *)
     }
 
   | DD_Label of (** Label *)

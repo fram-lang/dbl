@@ -18,6 +18,15 @@ val check_kind : Env.t -> S.type_expr -> T.kind -> T.type_expr
 (** Check and translate a type-scheme expression *)
 val tr_scheme : Env.t -> S.scheme_expr -> T.scheme_expr
 
+(** Translate scheme named parameters and split it into type and value
+  parameters. The optional [data_targs] parameter is a list of type
+  parameters of a datatype in case of translation of named parameters of
+  the constructor: named types introduced by a datatype cannot be the same
+  as names introduce by a constructor. *)
+val tr_scheme_args : ?data_targs: T.named_tvar list ->
+  Env.t -> S.scheme_arg list ->
+    Env.t * T.named_tvar list * T.named_scheme_expr list
+
 (** Check kind and translate a type expression of kind Type *)
 val tr_ttype : Env.t -> S.type_expr -> T.type_expr
 
