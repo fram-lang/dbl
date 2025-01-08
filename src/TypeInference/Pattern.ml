@@ -361,6 +361,80 @@ let infer_scheme env (pat : S.pattern) =
     let pat = { pat with T.data = T.PAnnot(pat, sch_expr) } in
     (penv, pat, sch, eff)
 
+(** Translate a named pattern. Returns the tuple of the following:
+  - environment extended with type parameters, but not with existential types
+  - partial environment with all variables introduced by the pattern
+  - list of named type variables (with external names) introduced by this
+    pattern
+  - list of named arguments introduced by this pattern
+  - the effect of the pattern-matching *)
+let infer_named_pattern env (np : S.named_pattern) =
+  match np.data with
+  | NP_Type(public, { data = (name, arg); pos }) ->
+    let (env, penv, x) =
+      match arg.data with
+      | TA_Wildcard ->
+        let (env, x) =
+          Env.add_anon_tvar ~pos:arg.pos env (T.Kind.fresh_uvar ()) in
+        let penv = PartialEnv.add_anon_tvar ~pos PartialEnv.empty x in
+        (env, penv, x)
+
+      | TA_Var(xname, kind) ->
+        let kind = Type.tr_kind kind in
+        let (env, x) = Env.add_tvar ~pos env xname kind in
+        let penv = PartialEnv.singleton_tvar ~public ~pos xname x in
+        (env, penv, x)
+    in
+    let tvars = [(np.pos, tr_tname name, x)] in
+    (env, penv, tvars, [], T.Pure)
+
+  | NP_Val(NOptionalVar x, pat) ->
+    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let sch = BuiltinTypes.mk_option_scheme tp in
+    let (penv, pat, eff) = check_scheme env pat sch in
+    let arg = (np.pos, Uniqueness.UNOptionalVar x, pat, sch) in
+    (env, penv, [], [arg], eff)
+
+  | NP_Val(name, pat) ->
+    let (penv, pat, sch, eff) = infer_scheme env pat in
+    let arg =
+      match name with
+      | NVar x -> (np.pos, Uniqueness.UNVar x, pat, sch)
+      | NOptionalVar _ -> assert false
+      | NImplicit n -> (np.pos, Uniqueness.UNImplicit n, pat, sch)
+      | NMethod mname ->
+        let owner = TypeUtils.method_owner_of_scheme ~pos:np.pos ~env sch in
+        (np.pos, Uniqueness.UNMethod(owner, mname), pat, sch)
+    in
+    (env, penv, [], [arg], eff)
+
+  | NP_Open | NP_Module _ ->
+    Error.fatal (Error.open_pattern_not_allowed ~pos:np.pos)
+
+let infer_named_patterns env named_pats =
+  let rec loop env penv named_pats tvars_acc named_acc eff =
+    match named_pats with
+    | [] ->
+      (env, penv, List.rev tvars_acc, List.rev named_acc, eff)
+    | np :: named_pats ->
+      let (env, penv1, tvars, named, eff1) =
+        infer_named_pattern env np in
+      let penv = PartialEnv.join penv penv1 in
+      let tvars_acc = List.rev_append tvars tvars_acc in
+      let named_acc = List.rev_append named named_acc in
+      loop env penv named_pats tvars_acc named_acc (T.Effect.join eff eff1)
+  in
+  let (env, penv, tvars, named, eff) =
+    loop env PartialEnv.empty named_pats [] [] T.Pure in
+  Uniqueness.check_unif_named_type_args tvars;
+  Uniqueness.check_names ~env
+    (List.map (fun (pos, name, _, _) -> (pos, name)) named);
+  let tvars = List.map (fun (_, name, x) -> (name, x)) tvars in
+  let named =
+    named |> List.map
+      (fun (_, name, x, sch) -> (Uniqueness.tr_name name, x, sch)) in
+  (env, penv, tvars, named, eff)
+
 (* ========================================================================= *)
 
 let infer_scheme_ext env (pat : S.pattern) =
@@ -377,56 +451,6 @@ let check_type_ext env (pat : S.pattern) tp =
   let (penv, pat, eff) = check_type env pat tp in
   let env = PartialEnv.extend env penv in
   (env, pat, eff)
-(*
-let check_arg_scheme env (arg : S.arg) sch =
-  match arg with
-  | ArgAnnot(pat, sch') ->
-    let sch_pos = sch'.sch_pos in
-    let sch' = Type.tr_scheme env sch' in
-    Error.check_unify_result ~pos:sch_pos
-      (Unification.subscheme env sch sch')
-      ~on_error:(Error.pattern_annot_mismatch ~env sch sch');
-    let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope:(Env.scope env) pat sch' in
-    (env, pat, r_eff)
-  | ArgPattern pat ->
-    let (env, pat, _, r_eff) =
-      check_scheme ~env ~scope:(Env.scope env) pat sch in
-    (env, pat, r_eff)
-
-let infer_named_arg_scheme env (na : S.named_arg) =
-  let (name, arg) = na.data in
-  let name = Name.tr_name env name in
-  let (env, pat, sch, r_eff) = 
-    begin match name with
-    | NOptionalVar x -> infer_optional_arg_scheme env arg
-    | _ -> infer_arg_scheme env arg
-    end
-  in
-  begin match name with
-  | NLabel ->
-    let { T.sch_targs; sch_named; sch_body } = sch in
-    if not (List.is_empty sch_targs && List.is_empty sch_named) then
-      Error.fatal (Error.polymorphic_label ~pos:na.pos);
-    begin match Unification.as_label env sch_body with
-    | L_Label _ -> ()
-    | L_NoEffect ->
-      Error.fatal (Error.cannot_guess_label_effect ~pos:na.pos)
-    | L_No ->
-      Error.fatal (Error.label_type_mismatch ~pos:na.pos)
-    end
-  | NVar _ | NOptionalVar _ | NImplicit _ | NMethod _ -> ()
-  end;
-  (env, (name, pat, sch), r_eff)
-
-let rec infer_named_arg_schemes env ims =
-  match ims with
-  | []        -> (env, [], Pure)
-  | im :: ims ->
-    let (env, im, r_eff1)  = infer_named_arg_scheme env im in
-    let (env, ims, r_eff2) = infer_named_arg_schemes env ims in
-    (env, im :: ims, ret_effect_join r_eff1 r_eff2)
-*)
 
 let check_named_patterns_ext
     ~pos env (nps : S.named_pattern list) tvars named =
@@ -437,5 +461,7 @@ let check_named_patterns_ext
   (env, arg_pats, eff)
 
 let infer_named_patterns_ext env (nps : S.named_pattern list) =
-  (* TODO: not implemeted *)
-  begin match None with Some x -> x end
+  let (env, penv, tvars, named, eff) = infer_named_patterns env nps in
+  let scope = Env.scope env in
+  let env = PartialEnv.extend env penv in
+  (env, scope, tvars, named, eff)

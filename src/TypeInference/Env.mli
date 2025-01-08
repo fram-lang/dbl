@@ -49,12 +49,12 @@ val add_the_label : t -> T.typ -> t * T.var
 (** Extend an environment with information that given identifier when used
   as function is a method of given name. *)
 val add_method_fn : public:bool -> t -> S.var -> S.method_name -> t
-
+*)
 (** Extend an environment with a named type variable. The optional position
   should point to the place of binding in the source code. *)
 val add_tvar :
   ?pos:Position.t -> ?public:bool -> t -> S.tvar -> T.kind -> t * T.tvar
-
+(*
 (** Extend an environment with a type variable labeled with "effect". Such
   a type always have [effect] kind. The optional position should point to
   the place of binding in the source code. *)

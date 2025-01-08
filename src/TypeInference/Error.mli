@@ -142,10 +142,18 @@ val unknown_named_type_pattern : pos:Position.t -> S.tvar -> t
 val unknown_named_pattern : pos:Position.t -> T.name -> t
 val multiple_named_patterns : pos:Position.t -> ppos:Position.t -> T.name -> t
 val method_pattern_not_allowed : pos:Position.t -> t
-(*
-val multiple_named_type_args :
-  pos:Position.t -> ppos:Position.t -> S.tname -> t
+val open_pattern_not_allowed : pos:Position.t -> t
 
+val multiple_named_type_args :
+  pos:Position.t -> ppos:Position.t -> S.tvar -> t
+
+val multiple_named_args :
+  pos:Position.t -> ppos:Position.t -> T.name -> t
+
+val multiple_method_args :
+  env:Env.t -> pos:Position.t -> ppos:Position.t ->
+    T.tvar -> S.method_name -> t
+(*
 val ctor_type_arg_same_as_data_arg : pos:Position.t -> S.tname -> t
 
 val multiple_inst_patterns :

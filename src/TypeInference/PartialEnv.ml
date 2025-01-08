@@ -8,6 +8,10 @@ type t = unit
 
 let empty = ()
 
+let singleton_tvar ~public ~pos name x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
 let singleton_tvar_alias ~public ~pos name x =
   (* TODO: not implemented *)
   begin match None with Some x -> x end

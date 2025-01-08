@@ -11,7 +11,14 @@ type t
 (** Empty environment *)
 val empty : t
 
-(** Singleton environment with single alias for a type variable *)
+(** Singleton environment with single type variable. Provided Unif type
+  variable should be fresh enough. *)
+val singleton_tvar :
+  public:S.is_public -> pos:Position.t -> S.tvar -> T.tvar -> t
+
+(** Singleton environment with single alias for a type variable. In contrast to
+  [singleton_tvar], given type variable should already exist in the
+  environment. *)
 val singleton_tvar_alias :
   public:S.is_public -> pos:Position.t -> S.tvar -> T.tvar -> t
 

@@ -480,13 +480,37 @@ let multiple_named_patterns ~pos ~ppos name =
 
 let method_pattern_not_allowed ~pos =
   (pos, "Method patterns are not allowed", [])
-(*
-let multiple_named_type_args ~pos ~ppos (name : Lang.Surface.tname) =
+
+let open_pattern_not_allowed ~pos =
+  (pos, "Opening patterns are not allowed in the inference mode", [])
+
+let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is bound more than once in single definition"
-      (Pretty.tname_to_string (Name.tr_tname name)),
+      name,
     [ ppos, "Here is a previous type binder with this name" ])
 
+let multiple_named_args ~pos ~ppos (name : T.name) =
+  let nn =
+    match name with
+    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
+    | NVar         x -> Printf.sprintf "Named parameter %s" x
+    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
+    | NMethod      n -> Printf.sprintf "Method %s" n
+  in
+  (pos, Printf.sprintf "%s is bound more than once" nn,
+    [ ppos, "Here is a previous parameter with this name" ])
+
+let multiple_method_args ~env ~pos ~ppos owner name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg =
+    Printf.sprintf
+      "Method %s that belongs to type %s is bound more than once"
+      name
+      (Pretty.tvar_to_string pp_ctx env owner)
+  in (pos, msg ^ Pretty.additional_info pp_ctx,
+    [ ppos, "Here is a previous method with this name" ])
+(*
 let ctor_type_arg_same_as_data_arg ~pos (name : Lang.Surface.tname) =
   (pos,
     Printf.sprintf "Named type %s is already bound by datatype itself"

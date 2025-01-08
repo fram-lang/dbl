@@ -70,8 +70,11 @@ let add_the_label env tp =
 (*
 let add_method_fn ~public env x name =
   { env with mod_stack = ModStack.add_method_fn ~public env.mod_stack x name }
-
+*)
 let add_tvar ?pos ?(public=false) env name kind =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   let mod_stack, x = ModStack.add_tvar ~public env.mod_stack name kind in
   let pp_info = 
     { pp_base_name = name;
