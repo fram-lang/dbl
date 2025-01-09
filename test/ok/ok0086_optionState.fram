@@ -1,11 +1,12 @@
 data Option A = None | Some of A
 
-data State (effect E) X = State of
+data State E X = State of
   { get    : Unit ->[E] X
   , put    : X ->[E] Unit
   }
 
-implicit ~st {E_st} : State E_st _
+parameter E_st
+parameter ~st : State E_st _
 
 let get x =
   let (State { get }) = ~st in

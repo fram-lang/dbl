@@ -1,7 +1,7 @@
 data rec List A = Nil | Cons of A, List A
 
 let fix {type A, type B, type E} f =
-  data rec Fix = Fix of (Fix -> A ->[|E] B)
+  data rec Fix = Fix of (Fix -> A ->[E] B)
   let fi ix x = let Fix fi = ix in f (fi ix) x in
   fi (Fix fi)
 

@@ -1,4 +1,4 @@
-implicit ~f
+parameter ~f
 
 let foo x = ~f x
 

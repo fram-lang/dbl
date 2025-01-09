@@ -1,9 +1,9 @@
 data Unit = I
 
-data State (effect E) (type T) = State of
+data State E (type T) = State of
   { get    : Unit ->[E] T
   , put    : T ->[E] Unit
-  , update : {R} -> (T ->[E|R] T) ->[E|R] Unit
+  , update : {F} -> (T ->[E,F] T) ->[E,F] Unit
   }
 
 let hState s =

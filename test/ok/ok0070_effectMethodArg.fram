@@ -1,4 +1,4 @@
-data State (effect E) X = State of
+data State (E : effect) X = State of
   { get : Unit ->[E] X
   , put : X ->[E] Unit
   }

@@ -6,7 +6,7 @@ import List
 data Triples = Triple of Int, Int, Int
 
 {# The standard backtracking effect. #}
-data BT (effect E) = BT of
+data BT E = BT of
   { flip : Unit ->[E] Bool
   , fail : {type X} -> Unit ->[E] X
   }
@@ -31,11 +31,11 @@ method triples {E, self : BT E} (n : Int) =
   if a * a + b * b == c * c then Triple a b c
   else self.fail ()
 
-
-implicit ~bt {E_bt} : BT E_bt
+parameter E_bt
+parameter ~bt : BT E_bt
 
 {# The function `takeFirst` returns the first triple found. #}
-let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
+let takeFirst (f : {E} -> BT E -> Int ->[E,_] _) (n: Int) =
   handle bt = BT { flip = effect () / r =>
     match r True with
     | None   => r False
@@ -47,7 +47,7 @@ let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
   in f bt n
 
 {# The function `takeAll` returns list of all triples found. #}
-let takeAll (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
+let takeAll (f : {E} -> BT E -> Int ->[E,_] _) (n: Int) =
   handle bt = BT
     { flip = effect () / r => List.append (r True) (r False)
     , fail = effect () => []
