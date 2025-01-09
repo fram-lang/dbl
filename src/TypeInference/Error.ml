@@ -503,6 +503,27 @@ let multiple_method_args ~env ~pos ~ppos owner name =
   in (pos, msg ^ Pretty.additional_info pp_ctx,
     [ ppos, "Here is a previous method with this name" ])
 
+let generalized_type_clash ~pos name =
+  (pos,
+    Printf.sprintf
+      "Implicitly generalized type %s clashes with other named type parameters"
+        name, [])
+
+let generalized_name_clash ~pos name =
+  (pos,
+    Printf.sprintf
+      "Implicitly generalized %s clashes with other named parameters"
+        (string_of_name name), [])
+
+let generalized_method_clash ~pos ~env owner name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg =
+    Printf.sprintf
+      "Implicitly generalized method %s that belongs to %s clashes with other named parameters"
+        name
+        (Pretty.tvar_to_string pp_ctx env owner)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let ctor_type_arg_same_as_data_arg ~pos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is already bound by datatype itself"

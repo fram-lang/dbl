@@ -44,3 +44,14 @@ val check_unif_named_type_args : (Position.t * T.tname * T.tvar) list -> unit
 
 (** Ensure that checked named parameters are unique *)
 val check_names : env:Env.t -> (Position.t * unique_name) list -> unit
+
+(** Ensure that type names introduced by the first parameter are unique and
+  do not collide with the second parameter *)
+val check_generalized_types :
+  pos:Position.t -> T.named_tvar list -> T.named_tvar list -> unit
+
+(** Ensure that names introduced by the first parameter are unique and do not
+  collide with the second parameter. This function assumes that well-formedness
+  of method schemes has been checked. *)
+val check_generalized_names : pos:Position.t -> env:Env.t ->
+  (T.name * T.var * T.scheme_expr) list -> T.named_scheme list -> unit

@@ -43,9 +43,6 @@ let unify_with_kuvar x k =
 let rec check_kind_equal k1 k2 =
   match T.Kind.view k1, T.Kind.view k2 with
   | KUVar x1, KUVar x2 when T.KUVar.equal x1 x2 -> ()
-(*
-  | KUVar x, _ -> unify_with_kuvar x k2
-  | _, KUVar x -> unify_with_kuvar x k1
 
   | KType, KType -> ()
   | KType, _ -> raise Error
@@ -53,14 +50,11 @@ let rec check_kind_equal k1 k2 =
   | KEffect, KEffect -> ()
   | KEffect, _ -> raise Error
 
-  | KEffrow, KEffrow -> ()
-  | KEffrow, _ -> raise Error
-
   | KArrow(ka1, kv1), KArrow(ka2, kv2) ->
     check_kind_equal ka1 ka2;
     check_kind_equal kv1 kv2
   | KArrow _, _ -> raise Error
-*)
+
 let unify_kind k1 k2 =
   (* TODO: not implemented *)
   begin match None with Some x -> x end

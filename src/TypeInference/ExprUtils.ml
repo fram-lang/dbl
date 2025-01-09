@@ -5,190 +5,74 @@
 (** Utility functions that help to build Unif expressions *)
 
 open Common
-(*
-(** Make function that takes parameters of given type schemes *)
-let rec make_fun' schs body_f =
-  match schs with
-  | [] -> body_f []
-  | sch :: schs ->
-    let x = Var.fresh () in
-    let body = make_fun' schs (fun xs -> body_f (x :: xs)) in
-    { T.pos  = body.T.pos;
-      T.data = T.EPureFn(x, sch, body)
-    }
 
-(** Make polymorphic function with given type parameters *)
-let rec make_tfun tvs body =
-  match tvs with
-  | [] -> body
-  | (_, x) :: tvs ->
-    { T.pos  = body.T.pos;
-      T.data = T.ETFun(x, make_tfun tvs body)
-    }
-
-(** Make function polymorphic in named parameters *)
-let rec make_nfun named body =
-  match named with
-  | [] -> body
-  | (_, x, sch) :: named ->
-    { T.pos  = body.T.pos;
-      T.data = T.EPureFn(x, sch, make_nfun named body)
-    }
-
-(** Same as make_ifun, but creates fresh variables, and pass them to
-  body-generating function *)
-let make_nfun' named body_f =
-  let named = List.map (fun (name, sch) -> (name, Var.fresh (), sch)) named in
-  make_nfun named (body_f (List.map (fun (_, x, _) -> x) named))
-
-let rec make_tapp e tps =
-  match tps with
-  | [] -> e
-  | tp :: tps ->
-    let e =
-      { T.pos  = e.T.pos;
-        T.data = T.ETApp(e, tp)
-      }
-    in
-    make_tapp e tps
-*)
-let generalize tvs named e sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  Uniqueness.check_generalized_named_types ~pos tvs;
-  let sch =
-    { T.sch_targs = tvs
-    ; T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named
-    ; T.sch_body  = tp
-    }
+(** Add scheme-expression annotations (as pattern-matching) to the expression.
+  Returns a list of named arguments, where scheme-expressions are translated
+  to schemes, and the extended expression. *)
+let annotate_named_args named body res_tp =
+  let annotate (name, x, sch_expr) (named, body) =
+    let sch = T.SchemeExpr.to_scheme sch_expr in
+    let body =
+      { body with
+        T.data = T.EMatchPoly(
+          make_nowhere (T.EVar x),
+          make_nowhere (T.PAnnot(
+            make_nowhere (T.PAs(make_nowhere (T.PWildcard sch), x, sch)),
+            sch_expr)),
+          body, res_tp, T.Pure)
+      } in
+    ((name, x, sch) :: named, body)
   in
-  (make_tfun tvs (make_nfun named e), sch)
+  List.fold_right annotate named ([], body)
+
+let generalize ~pos ~env tvs named e (sch : T.scheme) =
+  Uniqueness.check_generalized_types ~pos tvs sch.sch_targs;
+  Uniqueness.check_generalized_names ~pos ~env named sch.sch_named;
+  let inst_tps   =
+    List.map (fun (_, x) -> make_nowhere (T.TE_Type (T.Type.t_var x)))
+      sch.sch_targs in
+  let named_args =
+    List.map (fun (name, sch) -> (name, Var.fresh (), sch)) sch.sch_named in
+  let inst_named =
+    List.map (fun (_, x, _) -> make_nowhere (T.EVar x)) named_args in
+  let body = { e with T.data = T.EInst(e, inst_tps, inst_named) } in
+  let (named, body) = annotate_named_args named body sch.sch_body in
+  let tvs = tvs @ sch.sch_targs in
+  let named = named @ named_args in
+  let poly_args = List.map (fun (_, x, sch) -> (x, sch)) named in
+  let poly_expr =
+    { e with T.data = T.EPolyFun(List.map snd tvs, poly_args, body) } in
+  let sch = {
+    T.sch_targs = tvs;
+    T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named;
+    T.sch_body  = sch.sch_body
+  } in
+  (poly_expr, sch)
 
 (* ========================================================================= *)
 
-let guess_type_by_name ~pos env (name : T.tname) kind =
-  match name with
-  | TNAnon ->
-    assert (T.Kind.non_effect kind);
-    Env.fresh_uvar env kind
-  | TNEffect ->
-    begin match Env.lookup_the_effect env with
-    | Some eff ->
-      assert (T.Kind.is_effect kind);
-      assert (T.Kind.is_effect (T.Type.kind eff));
-      eff
-    | None ->
-      Error.fatal (Error.cannot_guess_effect_param ~pos name)
-    end
-  | TNVar _ ->
-    if T.Kind.set_non_effect kind then
-      Env.fresh_uvar env kind
-    else
-      Error.fatal (Error.cannot_guess_effect_param ~pos name)
-
-let guess_type ~pos env sub ~tinst ~hints (n, tv) =
-  let tp =
-    match List.assoc_opt n tinst with
-    | None ->
-      begin match T.TVar.Map.find_opt tv hints with
-      | None -> guess_type_by_name ~pos env n (T.TVar.kind tv)
-      | Some tp -> tp
-      end
-    | Some tp -> tp
-  in
-  (T.Subst.add_type sub tv tp, tp)
-
-let guess_types ~pos env ?(tinst=[]) ?(hints=T.TVar.Map.empty) tvars =
-  List.fold_left_map (guess_type ~pos env ~tinst ~hints) T.Subst.empty tvars
-
-(** The main instantiation function. [nset] parameter is a set of names
-  currently instantiated, used to avoid infinite loops, e.g., in
-  [~n : {~n : _} -> _]. *)
-let rec instantiate_loop ~nset env (e : T.expr) (sch : T.scheme) =
-  let (sub, tps) = guess_types ~pos:e.pos env sch.sch_targs in
-  let e = make_tapp e tps in
-  let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
-  let e = instantiate_named_params_loop ~nset env e named in
-  (e, T.Type.subst sub sch.sch_body)
-
-and instantiate_named_params_loop ~nset ?(inst=[]) env e named =
-  List.fold_left (instantiate_named_param ~nset ~inst env) e named
-
-and instantiate_named_param ~nset ~inst env (e : T.expr) (name, isch) =
-  if T.Name.Set.mem name nset then
-    Error.fatal (Error.looping_named_param ~pos:e.pos name);
-  let nset = T.Name.Set.add name nset in
-  let instantiate_with_var x sch =
-    let (env, tvs, named, tp) = TypeUtils.open_scheme ~pos: e.pos env isch in
-    let arg = { T.pos = e.pos; T.data = T.EVar x } in
-    let (arg, arg_tp) = instantiate_loop ~nset env arg sch in
-    let arg = make_tfun tvs (make_nfun named arg) in
-    Error.check_unify_result ~is_fatal:true ~pos:e.pos
-      (Unification.subtype env arg_tp tp)
-      ~on_error:(Error.named_param_type_mismatch ~env name arg_tp tp);
-    { T.pos = e.pos; T.data = T.EApp(e, arg) }
-  in
-  match T.Name.assoc name inst, name with
-  | Some arg, _ ->
-    { T.pos = e.pos; T.data = T.EApp(e, arg) }
-  | None, T.NImplicit iname ->
-    begin match Env.lookup_implicit env (NPName iname) with
-    | Some(x, sch, on_use) ->
-      on_use e.pos;
-      instantiate_with_var x sch
-    | None ->
-      Error.fatal (Error.unbound_implicit ~pos:e.pos (NPName iname))
-    end
-  | None, T.NLabel ->
-    begin match Env.lookup_the_label env with
-    | Some(x, eff, tp0, eff0) ->
-      instantiate_with_var x (T.Scheme.of_type (T.Type.t_label eff tp0 eff0))
-    | None ->
-      Error.fatal (Error.unbound_the_label ~pos:e.pos)
-    end
-  | None, T.NMethod mname ->
-    let owner = TypeUtils.method_owner_of_scheme ~pos:e.pos ~env:env isch in
-    begin match Env.lookup_method env owner mname  with
-    | Some(x, sch) ->
-      instantiate_with_var x sch
-    | None ->
-      Error.fatal (Error.unbound_method ~pos:e.pos ~env:env owner mname)
-    end
-  | None, T.NVar x ->
-    (* TODO: we could provide freshly bound parameters here *)
-    Error.fatal (Error.unbound_named_param ~pos:e.pos x)
-  | None, T.NOptionalVar x ->
-    assert (T.Scheme.is_monomorphic isch);
-    let arg = PreludeTypes.mk_None ~env ~pos:e.pos isch.sch_body in
-    { T.pos = e.pos; T.data = T.EApp(e, arg) }
-    
-
-let instantiate_named_params env e ims inst =
-  instantiate_named_params_loop ~nset:T.Name.Set.empty ~inst env e ims
-
-(* ========================================================================= *)
-*)
 let ctor_func ~pos idx (info : Module.adt_info) =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-
-(*
-  let type_of_named_targ (_, x) = T.Type.t_var x in
-  let mk_var x = { T.pos = pos; T.data = T.EVar x } in
+  let make data = { T.pos; T.data } in
   let ctor = List.nth info.adt_ctors idx in
-  let proof = make_tapp info.adt_proof
-    (List.map type_of_named_targ info.adt_args) in
-  make_tfun info.adt_args (
-  make_tfun ctor.ctor_targs (
-  make_nfun' ctor.ctor_named (fun xs1 ->
-  make_fun' ctor.ctor_arg_schemes (fun xs2 ->
-    let tps = List.map type_of_named_targ ctor.ctor_targs in
-    let args = List.map mk_var (xs1 @ xs2) in
-    { T.pos  = pos;
-      T.data = T.ECtor(proof, idx, tps, args)
-    }))))
-*)
+  let proof =
+    make (T.EInst(
+      info.adt_proof,
+      List.map (fun (_, x) -> make (T.TE_Type (T.Type.t_var x)))
+        info.adt_args,
+      [])) in
+  let named_args =
+    List.map (fun (name, sch) -> (Var.fresh (), sch)) ctor.ctor_named in
+  let args =
+    List.map (fun sch -> (Var.fresh (), sch)) ctor.ctor_arg_schemes in
+  let body =
+    make (T.ECtor(proof, idx,
+      List.map (fun (_, x) -> T.Type.t_var x)  ctor.ctor_targs,
+      List.map (fun (x, _) -> make (T.EVar x)) named_args,
+      List.map (fun (x, _) -> make (T.EVar x)) args)) in
+  make (T.EPolyFun(
+    List.map snd (info.adt_args @ ctor.ctor_targs),
+    named_args @ args,
+    body))
 
 let tr_var_info ~pos ~path (info : Module.var_info) =
   match info with
@@ -216,15 +100,6 @@ let match_var pat body tp eff =
       T.data = T.EMatchPoly({pat with T.data = T.EVar x}, pat, body, tp, eff)
     } in
   (x, e)
-(*
-let rec inst_args_match ims body tp eff =
-  match ims with
-  | [] -> ([], body)
-  | (name, pat, x_sch) :: ims ->
-    let (x, body)   = arg_match pat body tp eff in
-    let (ims, body) = inst_args_match ims body tp eff in
-    ((name, x, x_sch) :: ims, body)
-*)
 
 let rec match_args pats body tp eff =
   match pats with

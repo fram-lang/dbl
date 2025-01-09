@@ -152,6 +152,11 @@ val multiple_method_args :
   env:Env.t -> pos:Position.t -> ppos:Position.t ->
     T.tvar -> S.method_name -> t
 
+val generalized_type_clash : pos:Position.t -> S.tvar -> t
+val generalized_name_clash : pos:Position.t -> T.name -> t
+val generalized_method_clash :
+  pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
+
 val ctor_type_arg_same_as_data_arg : pos:Position.t -> S.tvar -> t
 (*
 val multiple_inst_patterns :

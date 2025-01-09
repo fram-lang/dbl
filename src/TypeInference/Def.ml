@@ -33,7 +33,7 @@ let check_def : type dir. tcfix:tcfix ->
     | PPure(body, sch, cs) ->
       let (targs, named, cs) =
         ParameterEnv.end_generalize_pure params (T.Scheme.uvars sch) cs in
-      let (body, sch) = ExprUtils.generalize targs named body sch in
+      let (body, sch) = ExprUtils.generalize ~pos ~env targs named body sch in
       let (env, penv, x) =
         ParameterEnv.add_poly_id ~public env penv id sch in
       let rest = cont.run env penv req in
