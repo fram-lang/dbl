@@ -42,6 +42,7 @@ let update_document state uri new_content =
   match UriMap.find_opt uri state.documents with
   | None -> state
   | Some doc ->
+    (* overwrites the file if it exists *)
     Out_channel.with_open_text doc.temp_path (fun oc ->
       output_string oc new_content
     ); state
