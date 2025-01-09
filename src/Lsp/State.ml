@@ -28,7 +28,7 @@ let create ~in_channel ~out_channel =
   }
 
 let out_channel { connection = { out_channel; _ }; _ } = out_channel
-let in_channel { connection = { in_channel; _}; _ } = in_channel
+let in_channel { connection = { in_channel; _ }; _ } = in_channel
 
 let open_document state uri content =
   let temp_path = Filename.temp_file "" DblConfig.src_extension in

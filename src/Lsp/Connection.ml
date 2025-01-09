@@ -34,14 +34,14 @@ let parse_header headers line =
   | ["Content-Type"; value] -> { headers with content_type = Some value }
   | _ -> headers
 
-let rec collect_headers (ic: in_channel) =
+let rec collect_header_lines (ic: in_channel) =
   match input_line ic with
   | None -> raise (Connection_error "Unexpected end of input")
   | Some "\r" -> []
-  | Some line -> line :: collect_headers ic
+  | Some line -> line :: collect_header_lines ic
 
 let receive_headers (ic: in_channel) =
-  let headers = collect_headers ic in
+  let headers = collect_header_lines ic in
   List.fold_left parse_header
     { content_length = None; content_type = None }
     headers

@@ -33,5 +33,6 @@ val close_document : t -> Uri.t -> t
 (** Close all documents *)
 val close_all_documents : t -> t
 
-(** Get a path to the temporary file associated with the specified uri *)
+(** Get a path to the temporary file associated with the specified uri.
+  The temp file might contain changes that the user hasn't saved yet. *)
 val get_document_path : t -> Uri.t -> string
