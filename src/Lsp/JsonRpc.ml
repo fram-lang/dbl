@@ -11,15 +11,15 @@ open Message
 (* Auxiliary functions doing type -> json -> string conversion
   and sending it to the output *)
 
+let send_json state json =
+  let string = Yojson.Safe.to_string json in
+  send_string (State.out_channel state) string
+
 let send_response state response =
-  let response_json = json_of_response response in
-  let response_string = Yojson.Safe.to_string response_json in
-  send_string (State.out_channel state) response_string
+  send_json state (json_of_response response)
 
 let send_message state message =
-  let message_json = json_of_message message in
-  let message_string = Yojson.Safe.to_string message_json in
-  send_string (State.out_channel state) message_string
+  send_json state (json_of_message message)
 
 let send_notification state notification =
   let message = message_of_notification notification in
