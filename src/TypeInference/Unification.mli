@@ -53,15 +53,11 @@ val unify_kind : T.kind -> T.kind -> bool
 (** Ensure that given kind is an arrow. It performs some unifications when
   necessary. On success, it returns LHS and RHS kinds of an arrow kind. *)
 val kind_to_arrow : T.kind -> (T.kind * T.kind) option
-(*
+
 (** Check if two types (of the same kind) are equivalent.
   It performs some unifications when necessary. *)
 val unify_type : Env.t -> T.typ -> T.typ -> result
 
-(** Check if one effect (row) is a subeffect of another.
-  It performs some unifications when necessary. *)
-val subeffect : Env.t -> T.effrow -> T.effrow -> result
-*)
 (** Check if one type is a subtype of another.
   It performs some unifications when necessary. *)
 val subtype : Env.t -> T.typ -> T.typ -> result
@@ -71,7 +67,7 @@ val subtype : Env.t -> T.typ -> T.typ -> result
 val subscheme : Env.t -> T.scheme -> T.scheme -> result
 
 (** Coerce given type to an arrow.
-  It performs some unifications when necessary. *)
+  It performs some unifications when necessary. Never returns [Arr_UVar]. *)
 val to_arrow : Env.t -> T.typ -> arrow
 
 (** Coerce given type from an arrow.
