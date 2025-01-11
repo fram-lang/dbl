@@ -804,6 +804,9 @@ module SchemeExpr : sig
 
   (** Convert to type-scheme *)
   val to_scheme : scheme_expr -> scheme
+
+  (** Substitute in a scheme expression *)
+  val subst : subst -> scheme_expr -> scheme_expr
 end
 
 (* ========================================================================= *)

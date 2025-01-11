@@ -107,3 +107,12 @@ val filter_public : t -> t
   specified by [~public]. *)
 val open_module : t -> public:bool -> t -> t
 *)
+
+(** Get the list of public type names *)
+val public_types : t -> S.tvar list
+
+(** Get the list of public variables *)
+val public_vars : t -> S.var list
+
+(** Get the list of public implicit variables *)
+val public_implicits : t -> S.iname list

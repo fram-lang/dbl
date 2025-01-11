@@ -35,7 +35,7 @@ let check_def : type dir. tcfix:tcfix ->
         ParameterEnv.end_generalize_pure params (T.Scheme.uvars sch) cs in
       let (body, sch) = ExprUtils.generalize ~pos ~env targs named body sch in
       let (env, penv, x) =
-        ParameterEnv.add_poly_id ~public env penv id sch in
+        ParameterEnv.add_poly_id ~pos ~public env penv id sch in
       let rest = cont.run env penv req in
       { er_expr   = make rest (T.ELetPoly(x, body, rest.er_expr));
         er_type   = rest.er_type;
@@ -46,7 +46,7 @@ let check_def : type dir. tcfix:tcfix ->
       ParameterEnv.end_generalize_impure params;
       let body_tp = expr_result_type body in
       let (env, penv, x) =
-        ParameterEnv.add_mono_id ~public env penv id body_tp in
+        ParameterEnv.add_mono_id ~pos ~public env penv id body_tp in
       let rest = cont.run env penv req in
       { er_expr   = make rest (T.ELetMono(x, body.er_expr, rest.er_expr));
         er_type   = rest.er_type;
@@ -151,7 +151,8 @@ let check_def : type dir. tcfix:tcfix ->
   | DValParam(name, x, sch) ->
     let (sch_env, params) = ParameterEnv.begin_generalize env penv in
     let sch = Type.tr_scheme sch_env sch in
-    let penv = ParameterEnv.end_generalize_declare params penv name x sch in
+    let penv =
+      ParameterEnv.end_generalize_declare ~pos params penv name x sch in
     cont.run env penv req
 
   | DData { public_tp; public_ctors; tvar=name; args; ctors } ->

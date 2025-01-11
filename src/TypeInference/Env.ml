@@ -44,8 +44,11 @@ let empty =
       |> List.map snd
       |> List.fold_left T.Scope.add T.Scope.initial
   }
+
+let add_poly_var ?(public=false) ?(on_use=ignore) env x sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
 (*
-let add_poly_var ?(public=false) env x sch =
   let mod_stack, y = ModStack.add_var ~public env.mod_stack x sch in
   { env with mod_stack }, y
 
@@ -67,11 +70,22 @@ let add_the_label env tp =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
   (* add_mono_var env "#label" (T.Type.t_label eff tp0 eff0) *)
-(*
+
 let add_method_fn ~public env x name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   { env with mod_stack = ModStack.add_method_fn ~public env.mod_stack x name }
 *)
-let add_tvar ?pos ?(public=false) env name kind =
+let add_existing_tvar ?pos ?(public=false) ?(on_use=ignore) env name x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let add_existing_anon_tvar ?pos ?(name="T") ?(on_use=ignore) env x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let add_tvar ?pos ?(public=false) ?(on_use=ignore) env name kind =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
 (*
@@ -101,7 +115,7 @@ let add_the_effect ?pos env =
     scope    = T.Scope.add env.scope x
   }, x
 *)
-let add_anon_tvar ?pos ?(name="T") env kind =
+let add_anon_tvar ?pos ?(name="T") ?(on_use=ignore) env kind =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
 
@@ -153,8 +167,11 @@ let add_data ?(public=false) env x info =
   { env with
     adt_map = T.TVar.Map.add x info env.adt_map
   }
-
+*)
 let add_ctor ?(public=false) env name idx info =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   { env with
     mod_stack = ModStack.add_ctor ~public env.mod_stack name idx info
   }
@@ -242,10 +259,10 @@ let lookup_method env owner name =
 
 let lookup_tvar_pp_info env x =
   T.TVar.Map.find_opt x env.pp_map
-
+*)
 let incr_level env =
   { env with scope = T.Scope.incr_level env.scope }
-*)
+
 let scope env = env.scope
 (*
 let extend_scope env (sch : T.scheme) = 
@@ -255,9 +272,9 @@ let extend_scope env (sch : T.scheme) =
     scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs 
     } in
   (env, sch)
-
-let level env = T.Scope.level env.scope
 *)
+let level env = T.Scope.level env.scope
+
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
 
@@ -272,7 +289,10 @@ let leave_module env ~public name =
   begin match None with Some x -> x end
 (*
   { env with mod_stack = ModStack.leave_module ~public env.mod_stack name }
-
+*)
 let open_module env ~public m =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   { env with mod_stack = ModStack.open_module env.mod_stack ~public m }
 *)

@@ -75,3 +75,12 @@ val join : t -> t -> t
 
 (** Add all members of a partial environment to the environment. *)
 val extend : Env.t -> t -> Env.t
+
+(** Get the list of bound type names *)
+val type_names : t -> S.tvar list
+
+(** Get the list of bound variables *)
+val var_names : t -> S.var list
+
+(** Get the list of bound implicits *)
+val implicit_names : t -> S.iname list

@@ -12,6 +12,8 @@ type unique_name =
   | UNOptionalVar of string
   | UNImplicit    of string
   | UNMethod      of T.tvar * string
+(* TODO: this definition should be moved to Unif. It might be useful in other
+   places as well. *)
 
 (** Translate a name to Unif representation *)
 val tr_name : unique_name -> T.name

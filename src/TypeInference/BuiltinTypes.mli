@@ -10,6 +10,10 @@ open Common
   monomorphic scheme. *)
 val mk_option_scheme : T.typ -> T.scheme
 
+(** Built [Option] type with given type expression argument, and transform it
+  to a monomorphic scheme expression. *)
+val mk_option_scheme_expr : T.type_expr -> T.scheme_expr
+
 (** Treat given scheme as an [Option] type and extract the type argument. *)
 val scheme_to_option_arg : T.scheme -> T.typ
 

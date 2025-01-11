@@ -59,3 +59,15 @@ let join penv1 penv2 =
 let extend env penv =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
+
+let type_names penv =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let var_names penv =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let implicit_names penv =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end

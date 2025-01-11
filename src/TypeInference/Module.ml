@@ -172,3 +172,15 @@ let open_module m ~public m' =
     mod_map      = StrMap.union combine m.mod_map      m'.mod_map
   }
 *)
+
+let public_types m =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let public_vars m =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let public_implicits m =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end

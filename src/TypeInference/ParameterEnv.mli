@@ -37,24 +37,14 @@ val end_generalize_impure : param_list -> unit
 
 (** Enclose generalization and declare a named parameter. *)
 val end_generalize_declare :
-  param_list -> t -> S.name -> S.ident -> T.scheme_expr -> t
+  pos:Position.t -> param_list -> t -> S.name -> S.ident -> T.scheme_expr -> t
 
 (** Extend environment with a declaration of type parameter *)
 val declare_type : pos:Position.t -> t -> S.tname -> S.tvar -> T.kind -> t
-(*
-(** Extend environment with a declaration of implicit *)
-val declare_implicit : t -> S.iname -> T.named_tvar list -> T.scheme -> t
-*)
+
 (** Shadow type with given name. Shadowed type is still present on parameter
   list, but are not accessible by name. *)
 val shadow_type : t -> T.tname -> t
-(*
-(** Shadow existing implicit name *)
-val shadow : t -> S.iname -> t
-
-(** Shadow all implicit names bound in given man *)
-val shadow_names : t -> 'a T.Name.Map.t -> t
-*)
 
 (** Extend an environment with a type variable. It may shadow some type
   parameters. *)
@@ -63,13 +53,13 @@ val add_tvar : pos:Position.t -> public:bool ->
 
 (** Extend an environment with a polymorphic identifier. It may shadow named
   parameters. *)
-val add_poly_id : public:bool -> Env.t -> t -> S.ident -> T.scheme ->
-  Env.t * t * T.var
+val add_poly_id : pos:Position.t -> public:bool ->
+  Env.t -> t -> S.ident -> T.scheme -> Env.t * t * T.var
 
 (** Extend an environment with a monomorphic identifier. It may shadow named
   parameters. *)
-val add_mono_id : public:bool -> Env.t -> t -> S.ident -> T.typ ->
-  Env.t * t * T.var
+val add_mono_id : pos:Position.t -> public:bool ->
+  Env.t -> t -> S.ident -> T.typ -> Env.t * t * T.var
 
 (** Extend an environment with information that given identifier when used
   as function is a method of given name. *)

@@ -15,3 +15,7 @@ let solve_partial cs =
   begin match None with Some x -> x end
 
 let solve_all = List.iter solve
+
+let fix_scopes new_tvars cs =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end

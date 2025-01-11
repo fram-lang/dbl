@@ -9,8 +9,14 @@ open Common
 let mk_option tp =
   T.Type.t_app (T.Type.t_var T.BuiltinType.tv_option) tp
 
+let mk_option_type_expr tp =
+  { tp with T.data = T.TE_Option tp }
+
 let mk_option_scheme tp =
   T.Scheme.of_type (mk_option tp)
+
+let mk_option_scheme_expr tp =
+  T.SchemeExpr.of_type_expr (mk_option_type_expr tp)
 
 let scheme_to_option_arg (sch : T.scheme) =
   assert (T.Scheme.is_monomorphic sch);

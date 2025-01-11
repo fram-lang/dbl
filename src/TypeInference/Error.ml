@@ -32,12 +32,16 @@ let rec string_of_path (p : string S.path) =
   | NPName x    -> x
   | NPSel(p, n) -> Printf.sprintf "%s.%s" (string_of_path p) n
 
-let string_of_name (name : T.name) =
+let string_of_name ?(cap=false) (name : T.name) =
   match name with
-  | NImplicit n    -> Printf.sprintf "implicit parameter %s" n
-  | NVar x         -> Printf.sprintf "named parameter %s" x
-  | NOptionalVar x -> Printf.sprintf "optional named parameter %s" x
-  | NMethod n      -> Printf.sprintf "method %s" n
+  | NImplicit n    ->
+    Printf.sprintf "%cmplicit parameter %s" (if cap then 'I' else 'i') n
+  | NVar x         ->
+    Printf.sprintf "%camed parameter %s" (if cap then 'N' else 'n') x
+  | NOptionalVar x ->
+    Printf.sprintf "%cptional parameter %s" (if cap then 'O' else 'o') x
+  | NMethod n      ->
+    Printf.sprintf "%cethod %s" (if cap then 'M' else 'm') n
 
 let escaping_tvar_message ~env x =
   let pp_ctx = Pretty.empty_context () in
@@ -373,20 +377,57 @@ let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
 
 let cannot_guess_label_effect ~pos =
   (pos, "Cannot guess the effect of this label", [])
-
-let ungeneralizable_implicit ~pos name =
-  (pos, Printf.sprintf "Implicit %s is used, but cannot be generalized" name,
-    [])
 *)
+let ungeneralizable_type_param ~pos ~def_pos (name : T.tname) =
+  let name =
+    match name with
+    | TNAnon  -> "Anonymous type parameter"
+    | TNVar x -> Printf.sprintf "Type parameter %s" x
+  in
+  (pos,
+    Printf.sprintf
+      "%s is used, but cannot be generalized"
+      name,
+    [ def_pos, "Here is the declaration of this type parameter" ])
+
+let ungeneralizable_named_param ~pos ~def_pos (name : T.name) =
+  (pos,
+    Printf.sprintf
+      "%s is used, but cannot be generalized"
+      (string_of_name ~cap:true name),
+    [ def_pos, "Here is the declaration of this parameter" ])
+
+let rejected_type_param_used ~pos ~def_pos (name : T.tname) =
+  let name =
+    match name with
+    | TNAnon  -> "Anonymous type parameter"
+    | TNVar x -> Printf.sprintf "Type parameter %s" x
+  in
+  (pos,
+    Printf.sprintf
+      "%s was not generalized, but later used during constraint solving"
+      name,
+    [ def_pos, "Here is the declaration of this type parameter" ])
+
+let rejected_named_param_used ~pos ~def_pos (name : T.name) =
+  (pos,
+    Printf.sprintf
+      "%s was not generalized, but later used during constraint solving"
+      (string_of_name ~cap:true name),
+    [ def_pos, "Here is the declaration of this parameter" ])
+
+let method_owner_not_declared ~pos =
+  (pos, "Method can be declared only for declared types", [])
+
 let non_polymorphic_pattern ~pos =
   (pos, Printf.sprintf "This pattern cannot match polymorphic values", [])
 (*
 let polymorphic_label ~pos =
   (pos, "Labels cannot be polymorphic", [])
-
+*)
 let polymorphic_optional_parameter ~pos =
   (pos, "Optional parameters cannot be polymorphic", [])
-
+(*
 let label_type_mismatch ~pos =
   (pos, "Labels cannot have non-label type", [])
 
@@ -440,13 +481,7 @@ let type_already_provided ~pos ~npos name =
     [ npos, "Here is the last definition" ])
 
 let named_param_already_provided ~pos ~npos (name : T.name) =
-  let nn =
-    match name with
-    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar         x -> Printf.sprintf "Named parameter %s" x
-    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
-    | NMethod      n -> Printf.sprintf "Method %s" n
-  in
+  let nn = string_of_name ~cap:true name in
   (pos, Printf.sprintf "%s is provided more than once" nn,
     [ npos, "Here is the last definition" ])
 
@@ -483,13 +518,7 @@ let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
     [ ppos, "Here is a previous type binder with this name" ])
 
 let multiple_named_args ~pos ~ppos (name : T.name) =
-  let nn =
-    match name with
-    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar         x -> Printf.sprintf "Named parameter %s" x
-    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
-    | NMethod      n -> Printf.sprintf "Method %s" n
-  in
+  let nn = string_of_name ~cap:true name in
   (pos, Printf.sprintf "%s is bound more than once" nn,
     [ ppos, "Here is a previous parameter with this name" ])
 
