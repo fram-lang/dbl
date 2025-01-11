@@ -114,7 +114,7 @@ and type_expr_data =
         (** Outer effect of a handler *)
     }
 
-  | TE_Label of (** First-class label *)
+  | TLabel of (** First-class label *)
     { effect    : type_expr;
         (** Effect of this label *)
 
