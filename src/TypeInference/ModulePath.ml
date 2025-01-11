@@ -8,6 +8,10 @@ let lookup_module env path =
   (* TODO: not implemented *)
   begin match None with Some x -> x end
 
+let lookup_type env path =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
 let lookup_var env path =
   (* TODO: not implemented *)
   begin match None with Some x -> x end

@@ -62,9 +62,10 @@ let unify_kind k1 k2 =
   match BRef.bracket (fun () -> check_kind_equal k1 k2) with
   | ()              -> true
   | exception Error -> false
-
+*)
 let kind_to_arrow k =
   match T.Kind.view k with
+(*
   | KUVar x ->
     let k1 = T.Kind.fresh_uvar () in
     let k2 = T.Kind.fresh_uvar ~non_effect:true () in
@@ -73,9 +74,9 @@ let kind_to_arrow k =
     else
       None
   | KArrow(k1, k2) -> Some(k1, k2)
-
-  | KType | KEffect | KEffrow -> None
-
+*)
+  | KType | KEffect -> None
+(*
 let set_uvar env p u tp =
   let scope = T.UVar.raw_set p u tp in
   match T.Type.try_shrink_scope ~scope tp with

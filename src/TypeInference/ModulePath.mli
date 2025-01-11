@@ -10,6 +10,9 @@ open Common
 val lookup_module : Env.t -> S.module_name S.path -> Module.t
 
 (** Lookup for given variable in the environment *)
+val lookup_type : Env.t -> S.tvar S.path -> T.typ
+
+(** Lookup for given variable in the environment *)
 val lookup_var : Env.t -> S.var S.path -> Module.var_info
 
 (** Lookup for given implicit in the environment *)

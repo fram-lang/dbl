@@ -62,7 +62,7 @@ let check_unify_result ?(is_fatal=false) ~pos
   | Unify_Fail errors -> 
     inform (add_notes (on_error ~pos)
       (List.map (fun err -> (pos, unification_error_to_string err)) errors))
-(*
+
 let kind_mismatch ~pos k1 k2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -70,7 +70,7 @@ let kind_mismatch ~pos k1 k2 =
     (Pretty.kind_to_string pp_ctx k1)
     (Pretty.kind_to_string pp_ctx k2)
   in (pos, msg, [])
-*)
+
 let named_type_kind_mismatch ~pos name k1 k2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -100,14 +100,14 @@ let effect_arg_kind_mismatch ~pos k =
     "This type parameter has kind %s, but it was expected of the effect kind"
     (Pretty.kind_to_string pp_ctx k)
   in (pos, msg, [])
-
+*)
 let type_not_function ~pos k =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This type has kind %s, and cannot be applied"
     (Pretty.kind_to_string pp_ctx k)
   in (pos, msg, [])
-
+(*
 let unbound_var ~pos x =
   (pos, Printf.sprintf "Unbound variable %s" (string_of_path x), [])
 

@@ -49,11 +49,11 @@ type result =
 (** Check if one kind is equal to another. It performs some unifications
   when necessary. *)
 val unify_kind : T.kind -> T.kind -> bool
-(*
+
 (** Ensure that given kind is an arrow. It performs some unifications when
   necessary. On success, it returns LHS and RHS kinds of an arrow kind. *)
 val kind_to_arrow : T.kind -> (T.kind * T.kind) option
-
+(*
 (** Check if two types (of the same kind) are equivalent.
   It performs some unifications when necessary. *)
 val unify_type : Env.t -> T.typ -> T.typ -> result

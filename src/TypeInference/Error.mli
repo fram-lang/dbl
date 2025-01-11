@@ -21,8 +21,8 @@ val warn : t -> unit
 val check_unify_result :
   ?is_fatal:bool -> pos:Position.t -> Unification.result ->
   on_error:(pos:Position.t -> t) -> unit
-(*
-val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t *)
+
+val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 val named_type_kind_mismatch :
   pos:Position.t -> S.tvar -> T.kind -> T.kind -> t
 
@@ -31,9 +31,9 @@ val kind_annot_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 val wildcard_in_effect : pos:Position.t -> t
 val anon_effect_arg : pos:Position.t -> t
 val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
-
+*)
 val type_not_function : pos:Position.t -> T.kind -> t
-
+(*
 val unbound_var : pos:Position.t -> S.var S.path -> t
 val unbound_implicit : pos:Position.t -> S.iname S.path -> t
 val unbound_constructor : pos:Position.t -> S.ctor_name S.path -> t
