@@ -389,21 +389,6 @@ let tr_param_decl (fld : Raw.field) =
   | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen ->
     Error.fatal (Error.desugar_error fld.pos)
 
-(** Translate a formal parameter of a function *)
-let rec tr_function_arg (arg : Raw.expr) =
-  match arg.data with
-  | EParen arg -> tr_function_arg arg
-  | EAnnot(p, sch) ->
-    { arg with data = PAnnot(tr_pattern ~public:false p, tr_scheme_expr sch) }
-  | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EImplicit _ | ECtor _ | EBOp _ | EUOp _ | EApp _ | EBOpID _ | EUOpID _
-  | ESelect _ | EList _ ->
-    tr_pattern ~public:false arg
-
-  | EFn _ | EEffect _ | EDefs _ | EMatch _ | EHandler _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ | EPub _ | EMethodCall _ ->
-    Error.fatal (Error.desugar_error arg.pos)
-
 (** Translate a field to a named pattern. *)
 let tr_named_arg (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -418,7 +403,7 @@ let tr_named_arg (fld : Raw.field) =
   | FldName n ->
     make (NP_Val(n, make (PId(false, ident_of_name n))))
   | FldNameVal(n, e) ->
-    make (NP_Val(n, tr_function_arg e))
+    make (NP_Val(n, tr_pattern ~public:false e))
   | FldNameAnnot(n, sch) ->
     let arg =
       make (PAnnot(make (PId(false, ident_of_name n)), tr_scheme_expr sch)) in
@@ -472,7 +457,7 @@ let rec tr_function args body =
   | [] -> body
   | arg :: args ->
     { pos  = Position.join arg.pos body.pos;
-      data = EFn(tr_function_arg arg, tr_function args body)
+      data = EFn(tr_pattern ~public:false arg, tr_function args body)
     }
 
 (** Translate a polymorphic function *)
@@ -588,7 +573,7 @@ and tr_expr (e : Raw.expr) =
     let (pos, res) =
       match resumption with
       | None     -> (e.pos, make (PId(false, IdVar("resume"))))
-      | Some res -> (Position.join res.pos e.pos, tr_function_arg res)
+      | Some res -> (Position.join res.pos e.pos, tr_pattern ~public:false res)
     in
     let e = EEffect(Option.map tr_expr label, res, tr_expr body) in
     make (tr_function args { pos; data = e }).data
