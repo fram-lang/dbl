@@ -87,20 +87,7 @@ let kind_annot_mismatch ~pos k k_annot =
     (Pretty.kind_to_string pp_ctx k)
     (Pretty.kind_to_string pp_ctx k_annot)
   in (pos, msg, [])
-(*
-let wildcard_in_effect ~pos =
-  (pos, "Wild-cards in effects are forbidden", [])
 
-let anon_effect_arg ~pos =
-  (pos, "Anonymous type parameters cannot have the effect kind", [])
-
-let effect_arg_kind_mismatch ~pos k =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "This type parameter has kind %s, but it was expected of the effect kind"
-    (Pretty.kind_to_string pp_ctx k)
-  in (pos, msg, [])
-*)
 let type_not_function ~pos k =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -133,14 +120,7 @@ let unbound_method ~pos ~env x name =
     (Pretty.tvar_to_string pp_ctx env x)
     name
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
-let unbound_adt ~pos ~env x =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "There is no ADT assigned to this type var %s"
-    (Pretty.tvar_to_string pp_ctx env x)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
+
 let method_fn_without_arg ~pos x name =
   (pos, Printf.sprintf
     ("Variable %s is registered as method %s"
@@ -154,27 +134,7 @@ let expr_type_mismatch ~pos ~env tp1 tp2 =
     (Pretty.type_to_string pp_ctx env tp1)
     (Pretty.type_to_string pp_ctx env tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
-let delim_type_mismatch ~pos ~env tp1 tp2 =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    ("Type mismatch between label and capability: " ^^
-    "the label provides %s as a type of a delimiter, " ^^
-    "while the capability provides %s")
-    (Pretty.type_to_string pp_ctx env tp1)
-    (Pretty.type_to_string pp_ctx env tp2)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let delim_effect_mismatch ~pos ~env eff1 eff2 =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    ("Type mismatch between label and capability: " ^^
-    "the label provides %s as an effect of a delimiter, " ^^
-    "while the capability provides %s")
-    (Pretty.type_to_string pp_ctx env eff1)
-    (Pretty.type_to_string pp_ctx env eff2)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
 let pattern_type_mismatch ~pos ~env tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -192,25 +152,7 @@ let pattern_annot_mismatch ~pos ~env sch1 sch2 =
     (Pretty.scheme_to_string pp_ctx env sch2)
     (Pretty.scheme_to_string pp_ctx env sch1)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-(*
-let func_effect_mismatch ~pos ~env eff1 eff2 =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    ("This function has effect %s, but"
-    ^^ " it is applied in a context that accepts effect %s")
-    (Pretty.type_to_string pp_ctx env eff1)
-    (Pretty.type_to_string pp_ctx env eff2)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let method_effect_mismatch ~pos ~env eff1 eff2 =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    ("This method has effect %s, but it is applied"
-    ^^ " in a context that accepts effect %s")
-    (Pretty.type_to_string pp_ctx env eff1)
-    (Pretty.type_to_string pp_ctx env eff2)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
 let return_type_mismatch ~pos ~env tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -356,25 +298,6 @@ let ctor_not_in_type ~pos ~env name tp =
     (Pretty.type_to_string pp_ctx env tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-(*
-let type_escapes_its_scope ~pos ~env x =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "Type variable %s escapes its scope"
-    (Pretty.tvar_to_string pp_ctx env x)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
-
-(*
-let cannot_guess_effect_param ~pos (name : Lang.Unif.tname) =
-  (pos,
-    Printf.sprintf "Cannot guess effect named %s"
-      (Pretty.tname_to_string name),
-    [])
-
-let cannot_guess_label_effect ~pos =
-  (pos, "Cannot guess the effect of this label", [])
-*)
 let ungeneralizable_type_param ~pos ~def_pos (name : T.tname) =
   let name =
     match name with
@@ -418,23 +341,10 @@ let method_owner_not_declared ~pos =
 
 let non_polymorphic_pattern ~pos =
   (pos, Printf.sprintf "This pattern cannot match polymorphic values", [])
-(*
-let polymorphic_label ~pos =
-  (pos, "Labels cannot be polymorphic", [])
-*)
+
 let polymorphic_optional_parameter ~pos =
   (pos, "Optional parameters cannot be polymorphic", [])
-(*
-let label_type_mismatch ~pos =
-  (pos, "Labels cannot have non-label type", [])
 
-let label_pattern_type_mismatch ~pos ~env tp =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "This label pattern is expected of type %s"
-    (Pretty.type_to_string pp_ctx env tp)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)
 let anonymous_type_pattern ~pos =
   (pos, "Anonymous types patterns cannot be used in scheme-checking mode", [])
 
@@ -587,31 +497,7 @@ let ctor_type_arg_same_as_data_arg ~pos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is already bound by datatype itself"
       name, [])
-(*
-let multiple_inst_patterns ~pos ~ppos (name : Lang.Surface.name) =
-  let nn =
-    match name with
-    | NLabel         -> Printf.sprintf "The label"
-    | NImplicit    n -> Printf.sprintf "Implicit parameter %s" n
-    | NVar         x -> Printf.sprintf "Named parameter %s" x
-    | NOptionalVar x -> Printf.sprintf "Optional named parameter %s" x
-    | NMethod      n -> Printf.sprintf "Method %s" n
-  in
-  (pos,
-    Printf.sprintf "%s is provided more than once" nn,
-    [ ppos, "Here is a previous parameter with this name" ])
 
-let multiple_name_binders ~pos1 ~pos2 name =
-  (pos2, Printf.sprintf "%s is bound more than once in the same pattern"
-    (string_of_name name),
-    [ pos1, "Here is a previous binding" ])
-
-let type_generalized_twice ~pos name =
-  let msg =
-    Printf.sprintf "Type %s is generalized twice"
-      (Pretty.tname_to_string name) in
-  (pos, msg, [])
-*)
 let ctor_arity_mismatch ~pos cpath req_n prov_n =
   (pos,
     Printf.sprintf
@@ -628,17 +514,3 @@ let redundant_named_parameter ~pos name =
     Printf.sprintf "Providing %s to a function that do not expect it"
       (string_of_name name),
     [])
-(*
-let redundant_named_pattern ~pos name =
-  (pos, Printf.sprintf
-    "Providing %s to a constructor that do not expect it"
-    (string_of_name name),
-    [])
-
-let invalid_whnf_form ~pos ~env tp =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "Got invalid whnf form when converting type %s"
-    (Pretty.type_to_string pp_ctx env tp)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-*)

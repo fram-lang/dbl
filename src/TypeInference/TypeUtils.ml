@@ -6,12 +6,6 @@
 
 open Common
 
-(*
-let is_tvar_neutral tp =
-  match T.Type.whnf tp with
-  | Whnf_Neutral(NH_Var _, _) -> true
-  | _ -> false
-*)
 let method_owner_of_scheme ~pos ~env (sch : T.scheme) =
   let free_for_scheme x =
     not (List.exists (fun (_, y) -> T.TVar.equal x y) sch.sch_targs) in

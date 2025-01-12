@@ -27,11 +27,7 @@ val named_type_kind_mismatch :
   pos:Position.t -> S.tvar -> T.kind -> T.kind -> t
 
 val kind_annot_mismatch : pos:Position.t -> T.kind -> T.kind -> t
-(*
-val wildcard_in_effect : pos:Position.t -> t
-val anon_effect_arg : pos:Position.t -> t
-val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
-*)
+
 val type_not_function : pos:Position.t -> T.kind -> t
 
 val unbound_var : S.var S.path -> t
@@ -40,7 +36,6 @@ val unbound_ctor : S.ctor_name S.path -> t
 val unbound_type : S.tvar S.path -> t
 val unbound_module : S.module_name S.path -> t
 val unbound_the_label : pos:Position.t -> t 
-(* val unbound_adt : pos:Position.t -> env:Env.t -> T.tvar -> t *)
 
 val unbound_method :
   pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
@@ -49,21 +44,11 @@ val method_fn_without_arg :
   pos:Position.t -> S.var S.path -> S.method_name -> t
 
 val expr_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
-(*
-val delim_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
-val delim_effect_mismatch :
-  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
-*)
+
 val pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val pattern_annot_mismatch :
   pos:Position.t -> env:Env.t -> T.scheme -> T.scheme -> t
-(*
-val func_effect_mismatch :
-  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
 
-val method_effect_mismatch :
-  pos:Position.t -> env:Env.t -> T.effrow -> T.effrow -> t
-*)
 val return_type_mismatch :
   pos:Position.t -> env:Env.t -> T.typ -> T.typ -> t
 val finally_type_mismatch :
@@ -98,13 +83,7 @@ val empty_match_on_non_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> env:Env.t -> T.typ -> t
 
 val ctor_not_in_type : pos:Position.t -> env:Env.t -> S.ctor_name -> T.typ -> t
-(*
-val type_escapes_its_scope : pos:Position.t -> env:Env.t -> T.tvar -> t
-*)
-(*
-val cannot_guess_effect_param : pos:Position.t -> T.tname -> t
-val cannot_guess_label_effect : pos:Position.t -> t
-*)
+
 val ungeneralizable_type_param :
   pos:Position.t -> def_pos:Position.t -> T.tname -> t
 val ungeneralizable_named_param :
@@ -118,13 +97,9 @@ val rejected_named_param_used :
 val method_owner_not_declared : pos:Position.t -> t
 
 val non_polymorphic_pattern : pos:Position.t -> t
-(*
-val polymorphic_label : pos:Position.t -> t
-val label_type_mismatch : pos:Position.t -> t *)
+
 val polymorphic_optional_parameter : pos:Position.t -> t
-(*
-val label_pattern_type_mismatch : pos:Position.t -> env:Env.t -> T.typ -> t
-*)
+
 val anonymous_type_pattern : pos:Position.t -> t
 
 val looping_named_param : pos:Position.t -> T.name -> t
@@ -180,20 +155,9 @@ val generalized_method_clash :
   pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
 
 val ctor_type_arg_same_as_data_arg : pos:Position.t -> S.tvar -> t
-(*
-val multiple_inst_patterns :
-  pos:Position.t -> ppos:Position.t -> S.name -> t
 
-val multiple_name_binders :
-  pos1:Position.t -> pos2:Position.t -> T.name -> t
-
-val type_generalized_twice : pos:Position.t -> T.tname -> t
-*)
 val ctor_arity_mismatch :
   pos:Position.t -> S.ctor_name S.path -> int -> int -> t
 
 val redundant_named_type : pos:Position.t -> S.tvar -> t
-val redundant_named_parameter : pos:Position.t -> T.name -> t (*
-val redundant_named_pattern : pos:Position.t -> T.name -> t
-val invalid_whnf_form : pos:Position.t -> env:Env.t -> T.typ -> t
-*)
+val redundant_named_parameter : pos:Position.t -> T.name -> t
