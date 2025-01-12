@@ -1,4 +1,4 @@
-data State (effect E) X = State of
+data State E X = State of
   { get : Unit ->[E] X
   , put : X ->[E] Unit
   }
@@ -6,6 +6,7 @@ data State (effect E) X = State of
 method get {E, self = State { get } : State E _ } = get
 method put {E, self = State { put } : State E _ } = put
 
-implicit ~st { State_Eff } : State State_Eff _
+parameter State_Eff
+parameter ~st : State State_Eff _
 
 let update f = ~st.put (f (~st.get ()))

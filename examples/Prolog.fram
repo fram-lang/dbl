@@ -11,15 +11,15 @@ data Clause = Cl of Term, List Term
 
 {# The signature of the standard reader effect, with a single operation
   used to obtain a value of type X. While we do not need to wrap functions
-  `{effect=E} -> Unit ->[E] X` in a data type to use them as capabilities,
-  this improves readability and allows us to define methods on the type. #}
-data Reader (effect E) X = Reader of (Unit ->[E] X)
+  `{E} -> Unit ->[E] X` in a data type to use them as capabilities, this
+  improves readability and allows us to define methods on the type. #}
+data Reader E X = Reader of (Unit ->[E] X)
 
 {# We expose the `ask` operation of `Reader` as a method. #}
 method ask {E, self = Reader ask : Reader E _} = ask
 
 {# The standard state effect, with its accompanying methods. #}
-data State (effect E) X = State of
+data State E X = State of
   { get : Unit ->[E] X
   , put : X ->[E] Unit
   }
@@ -30,7 +30,7 @@ method put {E, self = State { put } : State E _} = put
 method update {E, self : State E _} f = self.put (f (self.get ()))
 
 {# The standard backtracking effect. #}
-data BT (effect E) = BT of
+data BT E = BT of
   { flip : Unit ->[E] Bool
   , fail : {type X} -> Unit ->[E] X
   }
@@ -50,14 +50,14 @@ method choose {E, self : BT E} =
 
 {# The `Fresh` effect is used to model the generation of fresh variable
   identifiers in the evaluator. #}
-data Fresh (effect E) X = Fresh of (Unit ->[E] X)
+data Fresh E X = Fresh of (Unit ->[E] X)
 
 method fresh {E, self = Fresh fresh : Fresh E _} = fresh
 
 {# ========================================================================= #}
 
 {# The standard state handler, defined as a higher order function. #}
-let hState init (f : {effect=E} -> State E _ ->[E|_] _) =
+let hState init (f : {E} -> State E _ ->[E,_] _) =
   handle st = State
     { get = effect () / r => fn s => r s  s
     , put = effect s  / r => fn _ => r () s
@@ -68,7 +68,7 @@ let hState init (f : {effect=E} -> State E _ ->[E|_] _) =
 
 {# A handler for backtracking which returns the first result wrapped in Some,
   or None if no result is available. #}
-let hBT (f : {effect=E} -> BT E ->[E|_] _) =
+let hBT (f : {E} -> BT E ->[E,_] _) =
   handle bt = BT
     { flip = effect () / r =>
       match r True with
@@ -84,7 +84,7 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
 {# The following few functions on lists require a notion of equality, which is
   passed as the implicit parameter `~eq`. #}
 
-implicit ~eq
+parameter ~eq
 
 let rec nub xs =
   match xs with
@@ -140,7 +140,8 @@ method rename { self = Cl t ts } sub =
   containing an association list of instantiations. As this effect is pervasive
   throughout our implementation, we declare it as an implicit, so that it and
   the associated effect variable E_st are generalized automatically. #}
-implicit ~st {E_st} : State E_st (List (Pair Int Term))
+parameter E_st
+parameter ~st : State E_st (List (Pair Int Term))
 
 {# We also define a pair of functions that let us modify and read `~st`. #}
 
@@ -169,7 +170,8 @@ method rec view {self : Term} =
 
 {# As with `~st`, the capability to generate fresh identifiers ~fresh is also
   declared implicit. #}
-implicit ~fresh {E_fresh} : Fresh E_fresh Int
+parameter E_fresh
+parameter ~fresh : Fresh E_fresh Int
 
 {# To further reduce verbosity, we define a function `fresh` to call the
   `fresh` method of the implicit capability. #}
@@ -189,8 +191,10 @@ method refresh {self : Clause} =
 {# Finally, we make the interpreter's knowledge base and the backtracking
   capability implicit as well. The knowledge base is represented as a reader
   effect providing a simple list of clauses. #}
-implicit ~kb {E_kb} : Reader E_kb (List Clause)
-implicit ~bt {E_bt} : BT E_bt
+parameter E_kb
+parameter ~kb : Reader E_kb (List Clause)
+parameter E_bt
+parameter ~bt : BT E_bt
 
 let fail () = ~bt.fail ()
 

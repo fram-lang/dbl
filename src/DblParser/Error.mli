@@ -37,7 +37,6 @@ val invalid_pattern_arg : Position.t -> t
 val impure_scheme : Position.t -> t
 val anon_type_pattern : Position.t -> t
 
-val value_before_type_param : Position.t -> t
 val finally_before_return_clause : Position.t -> t
 
 val multiple_self_parameters : Position.t -> t
