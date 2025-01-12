@@ -14,19 +14,20 @@ import List
   an additional function `update`. Implementing such an update function in
   some other languages with algebraic effects might turn out to be
   troublesome, as a handler of `update f` should call function `f` at the call
-  site of `update`, where potentially more effects (described by `Row`) are
+  site of `update`, where potentially more effects (described by `F`) are
   available. In Fram, update function can be implemented on top of more
   primitive `get` and `put`, even if it is a part of the interface. #}
-data State (effect E) X = State of
+data State E X = State of
   { get    : Unit ->[E] X
   , put    : X ->[E] Unit
-  , update : {Row} -> (X ->[E|Row] X) ->[E|Row] Unit
+  , update : {F} -> (X ->[E,F] X) ->[E,F] Unit
   }
 
 {# We declare implicit parameter named `~st`. Now, the following function may
   use `~st` as a regular variable. In such a case, `~st` together with the
   associated effect E_st will be implicitly generalized. #}
-implicit ~st {E_st} : State E_st _
+parameter E_st
+parameter ~st : State E_st _
 
 {# We define get operation that works on implicit capability `~st`. It can be
   used in any context, where a variable named ~st is available (or can be
@@ -48,7 +49,7 @@ let update f =
   a value, but more complex series of let-expressions. First, we define
   standard get and put operations, and then on top of them we define the update
   function. All three functions becomes part of the interface. #}
-handle {effect=Sched} ~st =
+handle ~st =
   let get = effect x / r => fn s => r s  s
   let put = effect s / r => fn _ => r () s
   let update f = put (f (get ())) in
@@ -78,9 +79,9 @@ let sched _ =
   the handler with the parent thread without sharing parent's continuation. 
   With dynamic handlers we can just create a new handler for the same effect,
   but this is not possible with lexical handlers. #}
-data LWT_S Row = LWT of
-  { yield : Unit ->[|Row] Unit
-  , spawn : (Unit ->[|Row] Unit) ->[|Row] Unit
+data LWT_S E = LWT of
+  { yield : Unit ->[E] Unit
+  , spawn : (Unit ->[E] Unit) ->[E] Unit
   }
 
 {# For accessing operations of LWT effect we use an another mechanism
@@ -94,7 +95,7 @@ method spawn {self = LWT {spawn}} = spawn
 {# Here we handle the LWT effect using pure lexical handlers. The problematic
   spawn operation is implemented via more primitive fork and exit functions,
   not accessible directly via the LWT interface. #}
-handle {effect=LWT} (lwt : LWT_S [LWT,IO]) =
+handle (lwt : LWT_S [LWT,IO]) / LWT =
   let yield = effect _ / r => let _ = enqueue r in sched ()
   let exit  = effect _ / _ => sched ()
   let fork  = effect _ / r =>

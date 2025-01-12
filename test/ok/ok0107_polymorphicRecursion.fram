@@ -1,7 +1,7 @@
 data Sqr A = (,) of A, A
 data rec Tree A = Leaf | Node of Tree (Sqr A)
 
-method rec map {A,B, self : Tree A} (f : A ->[|_] B) =
+method rec map {A,B, self : Tree A} (f : A ->[_] B) =
   match self with
   | Leaf   => Leaf
   | Node t => Node (t.map (fn (x, y) => (f x, f y)))

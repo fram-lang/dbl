@@ -23,7 +23,7 @@
 
 import List
 
-let count (f : {type E} -> (_ ->[|E] _) ->[|E] _) g =
+let count (f : {type E} -> (_ ->[E] _) ->[E] _) g =
   handle tick = effect _ / k => fn (n : Int) => k () (n + 1)
     return  _ => fn n => n
     finally c => c 0

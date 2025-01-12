@@ -1,10 +1,10 @@
 data Unit = I
 
-data State (effect E) X = State of
+data State E X = State of
   { get : Unit ->[E] X
   , put : X ->[E] Unit
   }
 
 let id x = x
 
-let unitStateCap = State {effect = [], get = id, put = id}
+let unitStateCap = State {E = [], get = id, put = id}

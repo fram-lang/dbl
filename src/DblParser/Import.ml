@@ -137,18 +137,17 @@ let top_sort mods =
 (** Prepend a module alias based on the given import directive to the list
     of definitions, or open the module directly if no new name is specified. *)
 let add_import import defs =
-  failwith "Not implemented: DblParser.Import.add_import"
-(*
   let open Lang.Surface in
   let make data = { import with data } in
   let mod_id, new_name = import.data in
+  let mod_path = make (NPName mod_id) in
   match new_name with
   | Some new_name ->
-    make (DModule(false, new_name, [ make (DOpen(true, NPName mod_id)) ]))
+    make (DModule(false, new_name, [ make (DOpen(true, mod_path)) ]))
     :: defs
   | None ->
-    make (DOpen(false, NPName mod_id)) :: defs
-*)
+    make (DOpen(false, mod_path)) :: defs
+
 let add_imports = List.fold_right add_import
 
 let import_many imported imports =
