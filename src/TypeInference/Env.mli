@@ -26,6 +26,19 @@ type pp_info = {
 (** Empty environment *)
 val empty : t
 
+(** Extend the environment with an existing variable of given scheme *)
+val add_existing_var :
+  ?public:bool -> ?on_use:on_use -> t -> S.var -> T.var -> T.scheme -> t
+
+(** Extend the environment with an existing implicit of given scheme *)
+val add_existing_implicit :
+  ?public:bool -> ?on_use:on_use -> t -> S.iname -> T.var -> T.scheme -> t
+
+(** Extend the environment with an existing variable representing a method *)
+val add_existing_method :
+  ?public:bool -> ?on_use:on_use -> t ->
+    T.tvar -> S.method_name -> T.var -> T.scheme -> t
+
 (** Extend the environment with a polymorphic variable *)
 val add_poly_var :
   ?public:bool -> ?on_use:on_use -> t -> S.var -> T.scheme -> t * T.var

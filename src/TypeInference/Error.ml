@@ -511,6 +511,39 @@ let method_pattern_not_allowed ~pos =
 let open_pattern_not_allowed ~pos =
   (pos, "Opening patterns are not allowed in the inference mode", [])
 
+let duplicate_type_in_pattern ~pos ~ppos name =
+  (pos,
+    Printf.sprintf "Type %s is bound more than once in the same pattern" name,
+    [ ppos, "Here is a previous binding" ])
+
+let duplicate_var_in_pattern ~pos ~ppos name =
+  (pos,
+    Printf.sprintf "Variable %s is bound more than once in the same pattern"
+      name,
+    [ ppos, "Here is a previous binding" ])
+
+let duplicate_implicit_in_pattern ~pos ~ppos name =
+  (pos,
+    Printf.sprintf "Implicit %s is bound more than once in the same pattern"
+      name,
+    [ ppos, "Here is a previous binding" ])
+
+let duplicate_method_in_pattern ~pos ~ppos ~env owner name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg =
+    Printf.sprintf
+      "Method %s that belongs to type %s is bound more than once in the same pattern"
+      name
+      (Pretty.tvar_to_string pp_ctx env owner)
+  in (pos, msg ^ Pretty.additional_info pp_ctx,
+    [ ppos, "Here is a previous binding" ])
+
+let duplicate_module_in_pattern ~pos ~ppos name =
+  (pos,
+    Printf.sprintf "Module %s is bound more than once in the same pattern"
+      name,
+    [ ppos, "Here is a previous binding" ])
+
 let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is bound more than once in single definition"

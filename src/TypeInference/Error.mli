@@ -153,6 +153,18 @@ val multiple_named_patterns : pos:Position.t -> ppos:Position.t -> T.name -> t
 val method_pattern_not_allowed : pos:Position.t -> t
 val open_pattern_not_allowed : pos:Position.t -> t
 
+val duplicate_type_in_pattern :
+  pos:Position.t -> ppos:Position.t -> S.tvar -> t
+val duplicate_var_in_pattern :
+  pos:Position.t -> ppos:Position.t -> S.var -> t
+val duplicate_implicit_in_pattern :
+  pos:Position.t -> ppos:Position.t -> S.iname -> t
+val duplicate_method_in_pattern :
+  pos:Position.t -> ppos:Position.t -> env:Env.t ->
+    T.tvar -> S.method_name -> t
+val duplicate_module_in_pattern :
+  pos:Position.t -> ppos:Position.t -> S.module_name -> t
+
 val multiple_named_type_args :
   pos:Position.t -> ppos:Position.t -> S.tvar -> t
 

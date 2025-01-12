@@ -45,6 +45,18 @@ let empty =
       |> List.fold_left T.Scope.add T.Scope.initial
   }
 
+let add_existing_var ?(public=false) ?(on_use=ignore) env name x sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let add_existing_implicit ?(public=false) ?(on_use=ignore) env name x sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
+let add_existing_method ?(public=false) ?(on_use=ignore) env owner name x sch =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+
 let add_poly_var ?(public=false) ?(on_use=ignore) env x sch =
   (* TODO: not implemented *)
   begin match None with Some x -> x end

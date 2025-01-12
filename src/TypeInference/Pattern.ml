@@ -133,7 +133,7 @@ let open_ctor_named_args ~pos ~env penv named =
       | T.NMethod mname ->
         let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
         (* Should it be private? *)
-        PartialEnv.add_method ~public:false ~pos penv owner mname x sch
+        PartialEnv.add_method ~public:false ~pos ~env penv owner mname x sch
     in
     (penv, (name, x, sch))
   in
@@ -257,7 +257,7 @@ and check_patterns env penv pats schs =
   | pat :: pats, sch :: schs ->
     let (penv1, pat, eff1) = check_scheme env pat sch in
     let (penv, pats, eff2) =
-      check_patterns env (PartialEnv.join penv penv1) pats schs in
+      check_patterns env (PartialEnv.join ~env penv penv1) pats schs in
     (penv, pat :: pats, T.Effect.join eff1 eff2)
 
   | [], _ :: _ | _ :: _, [] -> assert false
@@ -271,7 +271,7 @@ and check_named_patterns ~pos env penv named_pats tvars named =
     | [] -> (env, penv, named, eff)
     | np :: named_pats ->
       let (env, penv1, eff1) = check_named_pattern env np tvars named in
-      let penv = PartialEnv.join penv penv1 in
+      let penv = PartialEnv.join ~env penv penv1 in
       let eff  = T.Effect.join eff eff1 in
       loop env penv named_pats eff
   in
@@ -419,7 +419,7 @@ let infer_named_patterns env named_pats =
     | np :: named_pats ->
       let (env, penv1, tvars, named, eff1) =
         infer_named_pattern env np in
-      let penv = PartialEnv.join penv penv1 in
+      let penv = PartialEnv.join ~env penv penv1 in
       let tvars_acc = List.rev_append tvars tvars_acc in
       let named_acc = List.rev_append named named_acc in
       loop env penv named_pats tvars_acc named_acc (T.Effect.join eff eff1)
