@@ -275,6 +275,8 @@ let extend_scope env (sch : T.scheme) =
 *)
 let level env = T.Scope.level env.scope
 
+let pp_tree env = env.pp_tree
+
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
 

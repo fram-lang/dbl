@@ -167,6 +167,9 @@ val extend_scope : t -> T.scheme -> t * T.scheme
 (** Get the level of the environment *)
 val level : t -> int
 
+(** Get the type pretty-printing tree *)
+val pp_tree : t -> PPTree.t
+
 (** Create a fresh unification variable in the current scope *)
 val fresh_uvar : t -> T.kind -> T.typ
 
