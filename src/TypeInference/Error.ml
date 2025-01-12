@@ -107,25 +107,22 @@ let type_not_function ~pos k =
     "This type has kind %s, and cannot be applied"
     (Pretty.kind_to_string pp_ctx k)
   in (pos, msg, [])
-(*
-let unbound_var ~pos x =
-  (pos, Printf.sprintf "Unbound variable %s" (string_of_path x), [])
 
-let unbound_implicit ~pos name =
-  (pos, Printf.sprintf "Unbound implicit %s" (string_of_path name), [])
+let unbound_var (path : S.var S.path) =
+  (path.pos, Printf.sprintf "Unbound variable %s" (string_of_path path), [])
 
-let unbound_constructor ~pos name =
-  (pos, Printf.sprintf "Unbound constructor %s" (string_of_path name), [])
+let unbound_implicit (path : S.iname S.path) =
+  (path.pos, Printf.sprintf "Unbound implicit %s" (string_of_path path), [])
 
-let unbound_type_var ~pos x =
-  (pos, Printf.sprintf "Unbound type %s" (string_of_path x), [])
+let unbound_ctor (path : S.ctor_name S.path) =
+  (path.pos, Printf.sprintf "Unbound constructor %s" (string_of_path path), [])
 
-let unbound_module ~pos name =
-  (pos, Printf.sprintf "Unbound module %s" (string_of_path name), [])
+let unbound_type (path : S.tvar S.path) =
+  (path.pos, Printf.sprintf "Unbound type %s" (string_of_path path), [])
 
-let unbound_the_effect ~pos =
-  (pos, Printf.sprintf "There is no default effect in this context", [])
-*)
+let unbound_module (path : S.module_name S.path) =
+  (path.pos, Printf.sprintf "Unbound module %s" (string_of_path path), [])
+
 let unbound_the_label ~pos =
   (pos, Printf.sprintf "There is no default label in this context", [])
 

@@ -33,16 +33,15 @@ val anon_effect_arg : pos:Position.t -> t
 val effect_arg_kind_mismatch : pos:Position.t -> T.kind -> t
 *)
 val type_not_function : pos:Position.t -> T.kind -> t
-(*
-val unbound_var : pos:Position.t -> S.var S.path -> t
-val unbound_implicit : pos:Position.t -> S.iname S.path -> t
-val unbound_constructor : pos:Position.t -> S.ctor_name S.path -> t
-val unbound_type_var : pos:Position.t -> S.tvar S.path -> t
-val unbound_module : pos:Position.t -> S.module_name S.path -> t
-val unbound_the_effect : pos:Position.t -> t *)
-val unbound_the_label : pos:Position.t -> t (*
-val unbound_adt : pos:Position.t -> env:Env.t -> T.tvar -> t
-*)
+
+val unbound_var : S.var S.path -> t
+val unbound_implicit : S.iname S.path -> t
+val unbound_ctor : S.ctor_name S.path -> t
+val unbound_type : S.tvar S.path -> t
+val unbound_module : S.module_name S.path -> t
+val unbound_the_label : pos:Position.t -> t 
+(* val unbound_adt : pos:Position.t -> env:Env.t -> T.tvar -> t *)
+
 val unbound_method :
   pos:Position.t -> env:Env.t -> T.tvar -> S.method_name -> t
 

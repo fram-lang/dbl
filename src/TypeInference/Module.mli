@@ -83,19 +83,22 @@ val lookup_var : t -> S.var -> (var_info * on_use) option
   implicit. Returns [None] if implicit is not bound. *)
 val lookup_implicit :
   t -> S.iname -> (T.var * T.scheme * on_use) option
-(*
+
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and
   full information about ADT. *)
 val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
-*)
+
+(** Lookup for ADT definition assigned for given type variable *)
+val lookup_adt : t -> T.tvar -> adt_info option
+
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
 val lookup_tvar : t -> S.tvar -> (T.typ * on_use) option
-(*
+
 (** Lookup for a module of the given name. *)
 val lookup_module : t -> S.module_name -> t option
-
+(*
 (** Use the given lookup function on a module at the specified path.
   Returns [None] if the path is invalid or the lookup fails. *)
 val lookup_path : t -> (t -> 'a -> 'b option) -> 'a S.path -> 'b option

@@ -138,19 +138,19 @@ val add_the_label_sch : t -> T.scheme -> t * Var.t
 *)
 (** Lookup for implicit "label" variable. *)
 val lookup_the_label : t -> (T.var * T.scheme * on_use) option
-(*
+
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and
   full information about ADT *)
-val lookup_ctor : t -> S.ctor_name S.path -> (int * Module.adt_info) option
-*)
+val lookup_ctor : t -> S.ctor_name -> (int * Module.adt_info) option
+
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
 val lookup_tvar : t -> S.tvar -> (T.typ * on_use) option
-(*
-(** Lookup for a module of the given name. *)
-val lookup_module : t -> S.module_name S.path -> Module.t option
 
+(** Lookup for a module of the given name. *)
+val lookup_module : t -> S.module_name -> Module.t option
+(*
 (** Lookup for the effect variable labeled with "effect". It should always
   have an effect kind. *)
 val lookup_the_effect : t -> T.typ option

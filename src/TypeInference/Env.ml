@@ -204,8 +204,11 @@ let add_poly_method ?(public=false) ?(on_use=ignore) env owner name sch =
   { env with
     method_map = T.TVar.Map.add owner method_map env.method_map
   }, x
-
-let lookup_module env =
+*)
+let lookup_module env name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   ModStack.lookup_module env.mod_stack
 *)
 let lookup_var env =
@@ -244,8 +247,11 @@ let lookup_the_label env =
     Some(x, eff, tp0, eff0)
   | Some(VI_Ctor _ | VI_MethodFn _) ->
     assert false
-
+*)
 let lookup_ctor env =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   ModStack.lookup_ctor env.mod_stack
 *)
 let lookup_tvar env x =

@@ -141,11 +141,22 @@ let lookup_implicit m x =
   begin match None with Some x -> x end
 (*
   find_opt_data x m.implicit_map
-
+*)
 let lookup_ctor m name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   find_opt_data name m.ctor_map
+*)
+
+let lookup_adt m x =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
 
 let lookup_module m name =
+  (* TODO: not implemented *)
+  begin match None with Some x -> x end
+(*
   find_opt_data name m.mod_map
 
 let rec lookup_path m lookup (p : 'a S.path) =
