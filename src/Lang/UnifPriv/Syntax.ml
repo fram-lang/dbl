@@ -50,25 +50,24 @@ type var = Var.t
 
 type data_def =
   | DD_Data of
-    { tvar  : tvar;
-      proof : var;
-      args  : named_tvar list;
-      ctors : ctor_decl_expr list;
-      strictly_positive : bool
+    { tvar   : tvar;
+      proof  : var;
+      args   : named_tvar list;
+      ctors  : ctor_decl_expr list;
+      effect : effect
     }
   | DD_Label of
     { tvar      : tvar;
       var       : var;
-      delim_tp  : type_expr;
-      delim_eff : type_expr
+      delim_tp  : typ
     }
 
 type pattern = pattern_data node
 and pattern_data =
-  | PWildcard
-  | PVar   of var * scheme
-  | PCtor  of string * int * expr * tvar list * pattern list * pattern list
-  | PAnnot of pattern * scheme_expr
+  | PWildcard of scheme
+  | PAs       of pattern * var * scheme
+  | PCtor     of string * int * expr * tvar list * pattern list * pattern list
+  | PAnnot    of pattern * scheme_expr
 
 and poly_expr = poly_expr_data node
 and poly_expr_data =
@@ -85,8 +84,7 @@ and expr_data =
   | ENum64      of int64
   | EStr        of string
   | EChr        of char
-  | EPureFn     of var * scheme * expr
-  | EFn         of var * scheme * expr
+  | EFn         of var * scheme * expr * effect
   | EAppPoly    of expr * poly_expr
   | EAppMono    of expr * expr
   | ELetPoly    of var * poly_expr * expr
@@ -96,6 +94,7 @@ and expr_data =
   | EData       of data_def list * expr
   | EMatchEmpty of expr * expr * typ * effect
   | EMatch      of expr * match_clause list * typ * effect
+  | EMatchPoly  of poly_expr * pattern * expr * typ * effect
   | EHandle     of tvar * var * expr * expr
   | EHandler    of
     { label     : var;

@@ -53,3 +53,44 @@ let of_scheme_expr (sch : scheme_expr) =
   match sch with
   | { se_pos = _; se_targs = []; se_named = []; se_body } -> Some se_body
   | _ -> None
+
+let rec subst sub (tp : type_expr) =
+  { tp with data =
+    match tp.data with
+    | TE_Type tp    -> TE_Type (Subst.in_type sub tp)
+    | TE_Effect tps -> TE_Effect (List.map (subst sub) tps)
+    | TE_PureArrow(sch, tp) ->
+      TE_PureArrow(subst_in_scheme sub sch, subst sub tp)
+    | TE_Arrow(sch, tp, eff) ->
+      TE_Arrow(subst_in_scheme sub sch, subst sub tp, subst sub eff)
+    | TE_Handler{ effect; cap_type; in_type; in_eff; out_type; out_eff } ->
+      let out_type = subst sub out_type in
+      let out_eff = subst sub out_eff in
+      let (sub, effect) = Subst.add_tvar sub effect in
+      TE_Handler { effect; out_type; out_eff;
+        cap_type = subst sub cap_type;
+        in_type = subst sub in_type;
+        in_eff = subst sub in_eff
+      }
+    | TE_Label { effect; delim_tp; delim_eff } ->
+      TE_Label {
+        effect    = subst sub effect;
+        delim_tp  = subst sub delim_tp;
+        delim_eff = subst sub delim_eff
+      }
+    | TE_App(tp1, tp2) ->
+      TE_App(subst sub tp1, subst sub tp2)
+    | TE_Option tp ->
+      TE_Option (subst sub tp)
+  }
+
+and subst_in_scheme sub (sch : scheme_expr) =
+  let (sub, targs) = Subst.add_named_tvars sub sch.se_targs in
+  { se_pos   = sch.se_pos;
+    se_targs = targs;
+    se_named = List.map (subst_in_named_scheme sub) sch.se_named;
+    se_body  = subst sub sch.se_body
+  }
+
+and subst_in_named_scheme sub (name, sch) =
+  (name, subst_in_scheme sub sch)

@@ -37,9 +37,6 @@ type named_tvar = tname * tvar
 
 (** Name of a named parameter *)
 type name =
-  | NLabel
-    (** Dynamic label of a handler *)
-
   | NVar      of string
     (** Regular named parameter *)
 
@@ -202,23 +199,23 @@ type var = Var.t
 (** Data-like definition (ADT or label) *)
 type data_def =
   | DD_Data of (** Algebraic datatype *)
-    { tvar  : tvar;
+    { tvar   : tvar;
         (** Type variable, that represents this ADT. *)
 
-      proof : var;
+      proof  : var;
         (** An irrelevant variable that stores the proof that this ADT has
           the following constructors. *)
 
-      args  : named_tvar list;
+      args   : named_tvar list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_decl_expr list;
+      ctors  : ctor_decl_expr list;
         (** List of constructors. *)
 
-      strictly_positive : bool
-        (** A flag indicating if the type is strictly positively recursive (in
-          particular, not recursive at all) and therefore can be deconstructed
-          in pure way. *)
+      effect : effect
+        (** An effect indicating if the type is strictly positively recursive
+          (in particular, not recursive at all). Strictly positively recursive
+          types can be deconstructed in a pure way. *)
     }
 
   | DD_Label of (** Label *)
@@ -228,11 +225,8 @@ type data_def =
       var       : var;
         (** Regular variable that would store the label *)
 
-      delim_tp  : type_expr;
+      delim_tp  : typ
         (** Type of the delimiter *)
-
-      delim_eff : type_expr
-        (** Effect of the delimiter *)
     }
 
 (* ========================================================================= *)
@@ -240,11 +234,12 @@ type data_def =
 (** Pattern *)
 type pattern = pattern_data node
 and pattern_data =
-  | PWildcard
+  | PWildcard of scheme
     (** Wildcard pattern -- it matches everything *)
 
-  | PVar of var * scheme
-    (** Pattern that binds a variable of given scheme *)
+  | PAs of pattern * var * scheme
+    (** Pattern that binds a variable of given scheme, and continues with
+      a subpattern *)
 
   | PCtor of string * int * expr * tvar list * pattern list * pattern list
     (** ADT constructor pattern. It stores a name, constructor index,
@@ -292,11 +287,8 @@ and expr_data =
   | EChr of char
     (** String literal *)
 
-  | EPureFn of var * scheme * expr
-    (** Pure lambda-abstraction *)
-
-  | EFn of var * scheme * expr
-    (** Impure lambda-abstraction *)
+  | EFn of var * scheme * expr * effect
+    (** Effect-annotated lambda-abstraction *)
 
   | EAppPoly of expr * poly_expr
     (** Function application to polymorphic expression *)
@@ -334,6 +326,10 @@ and expr_data =
 
   | EMatch of expr * match_clause list * typ * effect
     (** Pattern-matching. It stores type and effect of the whole expression.
+      *)
+
+  | EMatchPoly of poly_expr * pattern * expr * typ * effect
+    (** Pattern-matching of polymorphic expression with a single match-clause.
       *)
 
   | EHandle of tvar * var * expr * expr
@@ -380,7 +376,8 @@ and expr_data =
 
   | EEffect of expr * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
-      continuation variable, body, and the type of the whole expression. *)
+      continuation variable binder, body, and the type of the whole
+      expression. *)
 
   | EExtern of string * typ
     (** Externally defined value *)
@@ -807,6 +804,9 @@ module SchemeExpr : sig
 
   (** Convert to type-scheme *)
   val to_scheme : scheme_expr -> scheme
+
+  (** Substitute in a scheme expression *)
+  val subst : subst -> scheme_expr -> scheme_expr
 end
 
 (* ========================================================================= *)
