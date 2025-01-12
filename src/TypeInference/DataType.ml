@@ -62,7 +62,7 @@ let finalize_check ~nonrec_scope ~public env penv x ~name args ctors =
         (List.map (fun (_, x) -> T.Type.t_var x) args);
     Module.adt_effect = adt_effect
   } in
-  let env = Env.add_data ~public env x info in
+  let env = Env.add_adt ~public env x info in
   let (env, penv) = open_data ~public env penv info adt_ctors in
   let dd =
     T.DD_Data {

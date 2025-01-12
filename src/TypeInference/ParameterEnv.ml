@@ -127,7 +127,7 @@ let open_param_decl (env, tps, vps, tmap) decl =
           | TNAnon -> None
           | TNVar x -> Some x
         in
-        Env.add_existing_anon_tvar env ~pos ?name ~on_use tvar
+        Env.add_existing_anon_tvar env ~pos ?name tvar
       | TNVar x ->
         Env.add_existing_tvar ~pos ~on_use env x tvar
     in
@@ -157,12 +157,12 @@ let open_param_decl (env, tps, vps, tmap) decl =
     let (env, x) =
       match ident with
       | IdVar x ->
-        Env.add_poly_var ~on_use env x sch
+        Env.add_var ~on_use env x sch
       | IdImplicit x ->
-        Env.add_poly_implicit ~on_use env x sch
+        Env.add_implicit ~on_use env x sch
       | IdMethod name ->
         let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
-        Env.add_poly_method ~on_use env owner name sch
+        Env.add_method ~on_use env owner name sch
     in
     let param =
       { vp_pos    = pos;
@@ -356,16 +356,16 @@ let add_poly_id ~pos ~public env penv (id : S.ident) sch =
   let penv = shadow_val penv id in
   match id with
   | IdVar x ->
-    let (env, x) = Env.add_poly_var env ~public x sch in
+    let (env, x) = Env.add_var env ~public x sch in
     (env, penv, x)
 
   | IdImplicit x ->
-    let (env, x) = Env.add_poly_implicit env ~public x sch in
+    let (env, x) = Env.add_implicit env ~public x sch in
     (env, penv, x)
 
   | IdMethod name ->
     let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
-    let (env, x) = Env.add_poly_method env ~public owner name sch in
+    let (env, x) = Env.add_method env ~public owner name sch in
     (env, penv, x)
 
 let add_mono_id ~pos ~public env penv (id : S.ident) tp =

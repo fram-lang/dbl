@@ -78,11 +78,11 @@ let open_scheme_values ~pos ~sub env named =
       let (rctx, x) = Reinst.add_optional rctx name tp in
       ((env, rctx), (x, sch))
     | T.NImplicit iname ->
-      let (env, x) = Env.add_poly_implicit env iname sch in
+      let (env, x) = Env.add_implicit env iname sch in
       ((env, rctx), (x, sch))
     | T.NMethod name ->
       let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
-      let (env, x) = Env.add_poly_method env owner name sch in
+      let (env, x) = Env.add_method env owner name sch in
       ((env, rctx), (x, sch))
   in
   let ((env, rctx), xs) =
@@ -104,7 +104,7 @@ let open_scheme_values_explicit ~pos ~sub env named =
       (env, (name, x, sch))
     | T.NMethod mname ->
       let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
-      let (env, x) = Env.add_poly_method env owner mname sch in
+      let (env, x) = Env.add_method env owner mname sch in
       (env, (name, x, sch))
   in
   let (env, named) = List.fold_left_map open_named env named in

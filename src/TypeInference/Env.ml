@@ -6,30 +6,27 @@
 
 open Common
 
+let the_label_name = "~label"
+
 type on_use = Position.t -> unit
 
 type t = {
   cur_module : Module.t;
     (** Currently defined module *)
 
-  mod_stack : Module.t list;
+  mod_stack  : Module.t list;
     (** Stack of modules which are currently being defined *)
 
-  pp_tree : PPTree.t;
+  pp_tree    : PPTree.t;
     (** Pretty-printing information for types *)
 
-  scope : T.scope
+  scope      : T.scope;
     (** Scope of type variables *)
+
+  level      : int
+    (** Level of the scope *)
 }
-(*
-let mk_builtin_pp_info (name, x) =
-  let info =
-    { pp_base_name = name;
-      pp_names     = [ NPName name ];
-      pp_pos       = None
-    }
-  in (x, info)
-*)
+
 let empty =
   { cur_module   = Module.toplevel;
     mod_stack    = [];
@@ -37,282 +34,171 @@ let empty =
       T.BuiltinType.all
       |> List.fold_left
           (fun pp_tree (name, x) ->
-            PPTree.add pp_tree name (T.TVar.uid x))
+            PPTree.add ~public:false pp_tree name (T.TVar.uid x))
           PPTree.empty;
     scope        =
       T.BuiltinType.all
       |> List.map snd
       |> List.fold_left T.Scope.add T.Scope.initial
+  ; level = 0
   }
 
-let add_existing_var ?(public=false) ?(on_use=ignore) env name x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+(* ========================================================================= *)
 
-let add_existing_implicit ?(public=false) ?(on_use=ignore) env name x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-
-let add_existing_method ?(public=false) ?(on_use=ignore) env owner name x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-
-let add_poly_var ?(public=false) ?(on_use=ignore) env x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let mod_stack, y = ModStack.add_var ~public env.mod_stack x sch in
-  { env with mod_stack }, y
-
-let add_mono_var ?(public=false) env x tp =
-  add_poly_var ~public env x (T.Scheme.of_type tp)
-*)
-let add_poly_implicit ?(public=false) ?(on_use=ignore) env name sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let mod_stack, x =
-    ModStack.add_implicit ~public env.mod_stack name sch on_use in
-  { env with mod_stack }, x
-
-let add_mono_implicit ?(public=false) env name tp on_use =
-  add_poly_implicit ~public env name (T.Scheme.of_type tp) on_use
-*)
-let add_the_label env tp =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-  (* add_mono_var env "#label" (T.Type.t_label eff tp0 eff0) *)
-
-let add_method_fn ~public env x name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  { env with mod_stack = ModStack.add_method_fn ~public env.mod_stack x name }
-*)
 let add_existing_tvar ?pos ?(public=false) ?(on_use=ignore) env name x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-
-let add_existing_anon_tvar ?pos ?(name="T") ?(on_use=ignore) env x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-
-let add_tvar ?pos ?(public=false) ?(on_use=ignore) env name kind =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let mod_stack, x = ModStack.add_tvar ~public env.mod_stack name kind in
-  let pp_info = 
-    { pp_base_name = name;
-      pp_names     = [ NPName name ];
-      pp_pos       = pos
-    } in
+  assert (not (T.Scope.mem env.scope x));
   { env with
-    mod_stack;
-    pp_map   = T.TVar.Map.add x pp_info env.pp_map;
-    scope    = T.Scope.add env.scope x
-  }, x
+    cur_module =
+      Module.add_type_alias ~public ~on_use env.cur_module name
+        (T.Type.t_var x);
+    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.uid x);
+    scope      = T.Scope.add env.scope x
+  }
 
-let add_the_effect ?pos env =
-  let mod_stack, x =
-    ModStack.add_tvar env.mod_stack ~public:false "#effect" T.Kind.k_effect in
-  let pp_info =
-    { pp_base_name = "effect";
-      pp_names     = [];
-      pp_pos       = pos
-    } in
+let add_existing_anon_tvar ?pos ?name env x =
+  assert (not (T.Scope.mem env.scope x));
   { env with
-    mod_stack;
-    pp_map   = T.TVar.Map.add x pp_info env.pp_map;
-    scope    = T.Scope.add env.scope x
-  }, x
-*)
-let add_anon_tvar ?pos ?(name="T") ?(on_use=ignore) env kind =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+    pp_tree    = PPTree.add_anon ?pos ?name env.pp_tree (T.TVar.uid x);
+    scope      = T.Scope.add env.scope x
+  }
+
+let add_tvar ?pos ?public ?on_use env name kind =
+  let x = T.TVar.fresh kind in
+  let env = add_existing_tvar ?pos ?public ?on_use env name x in
+  (env, x)
+
+let add_anon_tvar ?pos ?name env kind =
+  let x = T.TVar.fresh kind in
+  let env = add_existing_anon_tvar ?pos ?name env x in
+  (env, x)
 
 let add_tvar_alias ?pos ?(public=false) env name x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let x = T.TVar.fresh kind in
-  let pp_info =
-    { pp_base_name = name;
-      pp_names     = [];
-      pp_pos       = pos
-    } in
   { env with
-    pp_map = T.TVar.Map.add x pp_info env.pp_map;
-    scope  = T.Scope.add env.scope x
-  }, x
-*)
-(*
-let add_the_effect_alias env tp =
-  assert (T.Kind.view (T.Type.kind tp) = KEffect);
-  { env with
-    mod_stack = ModStack.add_type_alias env.mod_stack ~public:false "#effect" tp
+    cur_module =
+      Module.add_type_alias ~public ~on_use:ignore
+        env.cur_module name (T.Type.t_var x);
+    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.uid x)
   }
 
-let add_type_alias ?(public=false) env name tp =
-  let pp_map =
-    match T.Type.view tp with
-    | TVar x ->
-      let pp_info =
-        match T.TVar.Map.find_opt x env.pp_map with
-        | Some pp_info ->
-          { pp_info with pp_names = NPName name :: pp_info.pp_names }
-        | None -> assert false
-      in
-      T.TVar.Map.add x pp_info env.pp_map
-    | _ -> env.pp_map
-  in
+(* ========================================================================= *)
+
+let add_existing_var ?(public=false) ?(on_use=ignore) env name x sch =
   { env with
-    mod_stack = ModStack.add_type_alias ~public env.mod_stack name tp;
-    pp_map    = pp_map
-  }
-*)
-let add_data ?(public=false) env x info =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  assert (not (T.TVar.Map.mem x env.adt_map));
-  { env with
-    adt_map = T.TVar.Map.add x info env.adt_map
-  }
-*)
-let add_ctor ?(public=false) env name idx info =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  { env with
-    mod_stack = ModStack.add_ctor ~public env.mod_stack name idx info
+    cur_module = Module.add_var ~public ~on_use env.cur_module name x sch
   }
 
-let lookup_method_map env owner =
-  match T.TVar.Map.find_opt owner env.method_map with
-  | Some map -> map
-  | None     -> StrMap.empty
-*)
-let add_poly_method ?(public=false) ?(on_use=ignore) env owner name sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  (* TODO: implement method visibility *)
+let add_existing_implicit ?(public=false) ?(on_use=ignore) env name x sch =
+  { env with
+    cur_module = Module.add_implicit ~public ~on_use env.cur_module name x sch
+  }
+
+let add_existing_method ?(public=false) ?(on_use=ignore) env owner name x sch =
+  { env with
+    cur_module =
+      Module.add_method ~public ~on_use env.cur_module owner name x sch
+  }
+
+let add_var ?public ?on_use env name sch =
   let x = Var.fresh ~name () in
-  let method_map =
-    lookup_method_map env owner |> StrMap.add name (x, sch) in
+  let env = add_existing_var ?public ?on_use env name x sch in
+  (env, x)
+
+let add_implicit ?(public=false) ?(on_use=ignore) env name sch =
+  let x = Var.fresh ~name () in
+  let env = add_existing_implicit ~public ~on_use env name x sch in
+  (env, x)
+
+let add_the_label env tp =
+  add_implicit env the_label_name (T.Scheme.of_type tp)
+
+let add_method ?(public=false) ?(on_use=ignore) env owner name sch =
+  let x = Var.fresh ~name () in
+  let env = add_existing_method ~public ~on_use env owner name x sch in
+  (env, x)
+
+let add_method_fn ~public env x name =
   { env with
-    method_map = T.TVar.Map.add owner method_map env.method_map
-  }, x
-*)
-let lookup_module env name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  ModStack.lookup_module env.mod_stack
-*)
-let lookup_var env =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  ModStack.lookup_var env.mod_stack
-*)
-let lookup_implicit env =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  ModStack.lookup_implicit env.mod_stack
+    cur_module =
+      Module.add_method_fn ~public ~on_use:ignore env.cur_module x name
+  }
 
-let scheme_to_label sch =
-  match sch with
-  | { T.sch_targs = []; sch_named = []; sch_body } ->
-    begin match T.Type.view sch_body with
-    | TLabel(eff, tp0, eff0) -> (eff, tp0, eff0)
-    | _ -> assert false
-    end
-  | _ -> assert false
+let add_adt ?(public=false) env x info =
+  { env with
+    cur_module = Module.add_adt ~public env.cur_module x info
+  }
 
-let add_the_label_sch env sch =
-  let (eff, tp0, eff0) = scheme_to_label sch in
-  add_the_label env eff tp0 eff0
-*)
-let lookup_the_label env =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  match lookup_var env (NPName "#label") with
-  | None -> None
-  | Some(VI_Var (x, sch)) ->
-    let (eff, tp0, eff0) = scheme_to_label sch in
-    Some(x, eff, tp0, eff0)
-  | Some(VI_Ctor _ | VI_MethodFn _) ->
-    assert false
-*)
-let lookup_ctor env =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  ModStack.lookup_ctor env.mod_stack
-*)
+let add_ctor ?(public=false) env name idx info =
+  { env with
+    cur_module = Module.add_ctor ~public env.cur_module name idx info
+  }
+
+(* ========================================================================= *)
+
+let enter_module env =
+  { env with
+    cur_module = Module.empty;
+    mod_stack  = env.cur_module :: env.mod_stack;
+    pp_tree    = PPTree.enter_module env.pp_tree
+  }
+
+let leave_module ~public env name =
+  match env.mod_stack with
+  | [] -> assert false
+  | new_top :: mod_stack ->
+    let (pp_tree, ppm) = PPTree.leave_module ~public env.pp_tree name in
+    { env with
+      cur_module =
+        Module.add_module ~public new_top name
+          (Module.leave env.cur_module ppm);
+      mod_stack  = mod_stack;
+      pp_tree    = pp_tree
+    }
+
+let open_module ~public env m =
+  { env with
+    cur_module = Module.open_module ~public env.cur_module m;
+    pp_tree    = PPTree.open_module ~public env.pp_tree (Module.pp_module m)
+  }
+
+(* ========================================================================= *)
+
+let lookup_stack env lookup =
+  List.find_map lookup (env.cur_module :: env.mod_stack)
+
 let lookup_tvar env x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  ModStack.lookup_tvar env.mod_stack
+  lookup_stack env (fun m -> Module.lookup_tvar m x)
 
-let lookup_the_effect env =
-  lookup_tvar env (NPName "#effect")
-*)
-let lookup_adt env x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  T.TVar.Map.find_opt x env.adt_map
-*)
+let lookup_var env x =
+  lookup_stack env (fun m -> Module.lookup_var m x)
+  
+let lookup_implicit env x =
+  lookup_stack env (fun m -> Module.lookup_implicit m x)
+
+let lookup_the_label env =
+  lookup_implicit env the_label_name
+
 let lookup_method env owner name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  StrMap.find_opt name (lookup_method_map env owner)
+  lookup_stack env (fun m -> Module.lookup_method m owner name)
 
-let lookup_tvar_pp_info env x =
-  T.TVar.Map.find_opt x env.pp_map
-*)
+let lookup_ctor env name =
+  lookup_stack env (fun m -> Module.lookup_ctor m name)
+
+let lookup_adt env x =
+  lookup_stack env (fun m -> Module.lookup_adt m x)
+
+let lookup_module env name =
+  lookup_stack env (fun m -> Module.lookup_module m name)
+
+(* ========================================================================= *)
+
 let incr_level env =
   { env with scope = T.Scope.incr_level env.scope }
 
 let scope env = env.scope
-(*
-let extend_scope env (sch : T.scheme) = 
-  let sch = T.Scheme.refresh sch in
-  let env = 
-    { env with 
-    scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs 
-    } in
-  (env, sch)
-*)
+
 let level env = T.Scope.level env.scope
 
 let pp_tree env = env.pp_tree
 
 let fresh_uvar env kind =
   T.Type.fresh_uvar ~scope:env.scope kind
-
-let enter_module env =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  { env with mod_stack = ModStack.enter_module env.mod_stack }
-*)
-let leave_module env ~public name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  { env with mod_stack = ModStack.leave_module ~public env.mod_stack name }
-*)
-let open_module env ~public m =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  { env with mod_stack = ModStack.open_module env.mod_stack ~public m }
-*)
