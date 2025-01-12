@@ -119,6 +119,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
     | Pure -> ()
     | Impure -> Error.report (Error.impure_handler ~pos)
     end;
+    let cap_tp = expr_result_type er_cap in
     let body_tp = Env.fresh_uvar env T.Kind.k_type in
     let (ret_x, er_ret) =
       MatchClause.tr_return_clauses ~tcfix ~pos env body_tp rcs
@@ -130,7 +131,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
           label    = lx;
           effect   = a;
           delim_tp = delim_tp;
-          cap_type = expr_result_type er_cap;
+          cap_type = cap_tp;
           cap_body = er_cap.er_expr;
           ret_var  = ret_x;
           body_tp  = body_tp;
@@ -138,7 +139,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
           fin_var  = fin_x;
           fin_body = er_fin.er_expr;
         });
-      er_type   = Infered fin_tp;
+      er_type   = Infered (T.Type.t_handler a cap_tp body_tp fin_tp);
       er_effect = Pure;
       er_constr = er_cap.er_constr @ er_ret.er_constr @ er_fin.er_constr
     }

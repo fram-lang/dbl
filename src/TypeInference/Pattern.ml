@@ -461,7 +461,7 @@ let check_named_patterns_ext
   (env, arg_pats, eff)
 
 let infer_named_patterns_ext env (nps : S.named_pattern list) =
-  let (env, penv, tvars, named, eff) = infer_named_patterns env nps in
-  let scope = Env.scope env in
+  let (env2, penv, tvars, named, eff) = infer_named_patterns env nps in
+  let scope = Env.scope env2 in
   let env = PartialEnv.extend env penv in
   (env, scope, tvars, named, eff)

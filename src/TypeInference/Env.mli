@@ -11,8 +11,8 @@ type on_use = Position.t -> unit
 
 type t
 
-(** Empty environment *)
-val empty : t
+(** Initial environment *)
+val initial : t
 
 (** Extend the environment with a named type variable. In opposite to
   [add_tvar], this function does not create a fresh variable, but uses

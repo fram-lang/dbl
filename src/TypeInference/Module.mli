@@ -41,15 +41,9 @@ type var_info =
 
   | VI_MethodFn of S.method_name
     (** Function that is automatically translated to method call *)
-(*
-(** The built-in unit type *)
-val unit_info : adt_info
-*)
+
 (** Empty module *)
 val empty : t
-
-(** The top-level module containg the base types *)
-val toplevel : t
 
 (** Extend the module with a named type variable. *)
 val add_type_alias : public:bool -> on_use:on_use ->
@@ -90,6 +84,10 @@ val open_module : public:bool -> t -> t -> t
   pretty-printing information. *)
 val leave : t -> PPTree.pp_module -> t
 
+(** Lookup for Unif representation of a type variable. Returns [None] if
+  variable is not bound. *)
+val lookup_tvar : t -> S.tvar -> (T.typ * on_use) option
+
 (** Lookup for variable-like identifier. Returns [None] if variable is not
   bound. *)
 val lookup_var : t -> S.var -> (var_info * on_use) option
@@ -111,14 +109,11 @@ val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
 (** Lookup for ADT definition assigned for given type variable *)
 val lookup_adt : t -> T.tvar -> adt_info option
 
-(** Lookup for Unif representation of a type variable. Returns [None] if
-  variable is not bound. *)
-val lookup_tvar : t -> S.tvar -> (T.typ * on_use) option
-
 (** Lookup for a module of the given name. *)
 val lookup_module : t -> S.module_name -> t option
 
-(** Get pretty-printing information of the module *)
+(** Get pretty-printing information of the module. Can be called only on
+  modules obtained by [leave]. *)
 val pp_module : t -> PPTree.pp_module
 
 (** Get the list of public type names *)

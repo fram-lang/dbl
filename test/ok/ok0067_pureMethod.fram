@@ -1,11 +1,11 @@
 data T = A
 data U = B
 
-method id {self : T} = A
+method id (_ : T) = A
 
 data Pair X Y = Pair of X, Y
 
-method snd {self = Pair _ x} = x
+method snd (Pair _ x) = x
 
 let poly = Pair (A).id (fn x => x)
 

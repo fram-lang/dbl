@@ -4,18 +4,12 @@
 
 (** Constraints generated during type inference *)
 
-type t
+type t = unit
 
-let solve c =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+let solve c = ()
 
-let solve_partial cs =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+let solve_partial cs = []
 
 let solve_all = List.iter solve
 
-let fix_scopes new_tvars cs =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+let fix_scopes new_tvars cs = cs

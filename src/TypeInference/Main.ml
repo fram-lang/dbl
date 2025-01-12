@@ -24,7 +24,7 @@ module rec TCFix : TCFix = struct
 end
 
 let tr_program p =
-  let er = TCFix.check_expr_type Env.empty p T.Type.t_unit in
+  let er = TCFix.check_expr_type Env.initial p T.Type.t_unit in
   Constr.solve_all er.er_constr;
   InterpLib.Error.assert_no_error ();
   er.er_expr

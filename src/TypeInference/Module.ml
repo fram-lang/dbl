@@ -10,9 +10,6 @@ module StrMap = Map.Make(String)
 
 type on_use = Position.t -> unit
 
-(*
-type 'data ident_info = { data : 'data; public : bool }
-*)
 (** Information about an ADT definition *)
 type adt_info = {
   adt_proof  : T.poly_expr;
@@ -27,209 +24,232 @@ type var_info =
   | VI_Ctor     of int * adt_info
   | VI_MethodFn of S.method_name
 
-type t = unit
+type 'a ident_info =
+  | Public  of 'a
+    (** Definition is public *)
 
-let empty = ()
+  | Private of 'a
+    (** Definition is private *)
 
-let toplevel = ()
+  | Both    of { pub : 'a; priv : 'a }
+    (** Definition is public and shadowed by a private definition *)
 
-(* = {
-  var_map  : var_info ident_info StrMap.t;
-    (** Information about regular variable names *)
-
-  tvar_map : T.typ ident_info StrMap.t;
+type t ={
+  tvar_map : (T.typ * on_use) ident_info StrMap.t;
     (** Information about named type variables *)
 
-  implicit_map : (T.var * T.scheme * (Position.t -> unit)) ident_info StrMap.t;
+  var_map  : (var_info * on_use) ident_info StrMap.t;
+    (** Information about regular variable names *)
+
+  implicit_map : (T.var * T.scheme * on_use) ident_info StrMap.t;
     (** Information about named implicits *)
+
+  method_map : (T.var * T.scheme * on_use) ident_info StrMap.t T.TVar.Map.t;
+    (** Information about named methods *)
 
   ctor_map : (int * adt_info) ident_info StrMap.t;
     (** Information about ADT constructors *)
 
+  adt_map  : adt_info ident_info T.TVar.Map.t;
+    (** Information about ADT definitions *)
+
   mod_map : t ident_info StrMap.t;
     (** Information about defined modules *)
+
+  pp_module : PPTree.pp_module option;
+    (** Pretty-printing information. Make sense only for closed modules *)
 }
 
-let unit_info =
-  { adt_proof = { T.pos = Position.nowhere; T.data = T.EUnitPrf };
-    adt_args  = [];
-    adt_ctors =
-      [ { ctor_name        = "()";
-          ctor_targs       = [];
-          ctor_named       = [];
-          ctor_arg_schemes = []
-        } ];
-    adt_type  = T.Type.t_unit;
-    adt_strictly_positive = true
-  }
-
 let empty =
-  { var_map      = StrMap.empty;
-    tvar_map     = StrMap.empty;
+  { tvar_map     = StrMap.empty;
+    var_map      = StrMap.empty;
     implicit_map = StrMap.empty;
+    method_map   = T.TVar.Map.empty;
     ctor_map     = StrMap.empty;
-    mod_map      = StrMap.empty
+    adt_map      = T.TVar.Map.empty;
+    mod_map      = StrMap.empty;
+    pp_module    = None
   }
 
-let toplevel =
-  { empty with
-    var_map  =
-      StrMap.singleton "()" { data = VI_Ctor(0, unit_info); public = false };
-    tvar_map =
-      T.BuiltinType.all
-      |> List.map (fun (name, tv) ->
-        (name, { data = T.Type.t_var tv; public = false }))
-      |> List.to_seq |> StrMap.of_seq;
-    ctor_map = StrMap.singleton "()" { data = (0, unit_info); public = false }
-  }
-*)
+(* ========================================================================= *)
+
+let update_ident_info ~public map name data =
+  if public then
+    StrMap.add name (Public data) map
+  else
+    match StrMap.find_opt name map with
+    | None | Some (Private _) -> StrMap.add name (Private data) map
+    | Some (Public pub | Both { pub; _ }) ->
+      StrMap.add name (Both { pub; priv = data }) map
+
 let add_type_alias ~public ~on_use m name tp =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let x = T.TVar.fresh kind in
   { m with
-    tvar_map = StrMap.add name { data = (T.Type.t_var x); public } m.tvar_map
-  }, x
-*)
-let add_var ~public ~on_use m x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let y = Var.fresh ~name:x () in
+    tvar_map =
+      update_ident_info ~public m.tvar_map name (tp, on_use)
+  }
+
+let add_var ~public ~on_use m name x sch =
   { m with
-    var_map = StrMap.add x { data = VI_Var(y, sch); public } m.var_map
-  }, y
-*)
+    var_map =
+      update_ident_info ~public m.var_map name (VI_Var(x, sch), on_use)
+  }
+
 let add_implicit ~public ~on_use m name x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let x = Var.fresh ~name () in
   { m with
     implicit_map =
-      StrMap.add name { data = (x, sch, on_use); public } m.implicit_map
-  }, x
-*)
+      update_ident_info ~public m.implicit_map name (x, sch, on_use)
+  }
+
 let add_method ~public ~on_use m owner name x sch =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  let tab =
+    match T.TVar.Map.find_opt owner m.method_map with
+    | None -> StrMap.empty
+    | Some tab -> tab
+  in
+  let tab = update_ident_info ~public tab name (x, sch, on_use) in
+  { m with
+    method_map = T.TVar.Map.add owner tab m.method_map
+  }
 
 let add_method_fn ~public ~on_use m x name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
   { m with
-    var_map = StrMap.add x { data = VI_MethodFn name; public } m.var_map
+    var_map =
+      update_ident_info ~public m.var_map x (VI_MethodFn name, on_use)
   }
-*)
+
 let add_adt ~public m x info =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  assert (not (T.TVar.Map.mem x m.adt_map));
+  let info = if public then Public info else Private info in
+  { m with
+    adt_map = T.TVar.Map.add x info m.adt_map
+  }
 
 let add_ctor ~public m name idx info =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
   { m with
-    var_map  = StrMap.add name { data = VI_Ctor(idx, info); public } m.var_map;
-    ctor_map = StrMap.add name { data = (idx, info); public } m.ctor_map
+    var_map  =
+      update_ident_info ~public m.var_map name (VI_Ctor(idx, info), ignore);
+    ctor_map =
+      update_ident_info ~public m.ctor_map name (idx, info)
   }
-*)
-let add_module ~public m name m' =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  { m with
-    mod_map = StrMap.add name { data = m'; public } m.mod_map
-  }
-*)
 
-let open_module ~public m m' =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  let combine _ _ { data; _ } = Some { data; public } in
-  { var_map      = StrMap.union combine m.var_map      m'.var_map;
-    tvar_map     = StrMap.union combine m.tvar_map     m'.tvar_map;
-    implicit_map = StrMap.union combine m.implicit_map m'.implicit_map;
-    ctor_map     = StrMap.union combine m.ctor_map     m'.ctor_map;
-    mod_map      = StrMap.union combine m.mod_map      m'.mod_map
+let add_module ~public m name modl =
+  { m with
+    mod_map = update_ident_info ~public m.mod_map name modl
   }
-*)
+
+(* ========================================================================= *)
+
+let import_ident_info ~public _ info opened =
+  match public, info, opened with
+  | _,     _, (None | Some (Private _)) -> info
+  | true,  _, Some (Public x | Both { pub = x; _ }) -> Some (Public x)
+
+  | false,
+    (None | Some (Private _)),
+    Some (Public x | Both { pub = x; _ }) ->
+      Some (Private x)
+
+  | false,
+    Some (Public pub | Both { pub; _}),
+    Some (Public priv | Both { pub = priv; _ }) ->
+      Some (Both { pub; priv })
+
+let import_map ~public map opened =
+  StrMap.merge (import_ident_info ~public) map opened
+
+let import_method_map ~public =
+  T.TVar.Map.merge
+    (fun _ tab1 tab2 ->
+      match tab1, tab2 with
+      | _,    None      -> tab1
+      | None, Some tab2 -> Some (import_map ~public StrMap.empty tab2)
+      | Some tab1, Some tab2 ->
+        Some (import_map ~public tab1 tab2))
+
+let open_module ~public m opened =
+  { tvar_map     = import_map ~public m.tvar_map opened.tvar_map;
+    var_map      = import_map ~public m.var_map opened.var_map;
+    implicit_map = import_map ~public m.implicit_map opened.implicit_map;
+    method_map   = import_method_map ~public m.method_map opened.method_map;
+    ctor_map     = import_map ~public m.ctor_map opened.ctor_map;
+    adt_map      =
+      T.TVar.Map.merge (import_ident_info ~public) m.adt_map opened.adt_map;
+    mod_map      = import_map ~public m.mod_map opened.mod_map;
+    pp_module    = m.pp_module
+  }
+
+let filter_public_ident _ info =
+  match info with
+  | Public x | Both { pub = x; priv = _ } -> Some (Public x)
+  | Private _ -> None
+
+let filter_public map =
+  StrMap.filter_map filter_public_ident map
+
 let leave m pp_module =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*  let public _ info = info.public in
-  { var_map      = StrMap.filter public m.var_map;
-    tvar_map     = StrMap.filter public m.tvar_map;
-    implicit_map = StrMap.filter public m.implicit_map;
-    ctor_map     = StrMap.filter public m.ctor_map;
-    mod_map      = StrMap.filter public m.mod_map
+  { tvar_map     = filter_public m.tvar_map;
+    var_map      = filter_public m.var_map;
+    implicit_map = filter_public m.implicit_map;
+    method_map   = T.TVar.Map.map filter_public m.method_map;
+    ctor_map     = filter_public m.ctor_map;
+    adt_map      = T.TVar.Map.filter_map filter_public_ident m.adt_map;
+    mod_map      = filter_public m.mod_map;
+    pp_module    = Some pp_module
   }
-*)
-(*
-let find_opt_data x m =
-  StrMap.find_opt x m |> Option.map (fun i -> i.data)
-*)
-let lookup_var m x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  find_opt_data x m.var_map
-*)
+
+(* ========================================================================= *)
+
+let get_ident_info info =
+  match info with
+  | Public x | Private x | Both { pub = _; priv = x } -> x
+
+let lookup m x =
+  Option.map get_ident_info (StrMap.find_opt x m)
+
 let lookup_tvar m x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  find_opt_data x m.tvar_map
-*)
+  lookup m.tvar_map x
+
+let lookup_var m x =
+  lookup m.var_map x
+
 let lookup_implicit m x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  find_opt_data x m.implicit_map
-*)
+  lookup m.implicit_map x
+
 let lookup_method m owner x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  match T.TVar.Map.find_opt owner m.method_map with
+  | None -> None
+  | Some tab -> lookup tab x
 
 let lookup_ctor m name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  find_opt_data name m.ctor_map
-*)
+  lookup m.ctor_map name
 
 let lookup_adt m x =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  Option.map get_ident_info (T.TVar.Map.find_opt x m.adt_map)
 
 let lookup_module m name =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
-(*
-  find_opt_data name m.mod_map
+  lookup m.mod_map name
 
-let rec lookup_path m lookup (p : 'a S.path) =
-  match p with
-  | NPName x    -> lookup m x
-  | NPSel(x, p) ->
-    Option.bind (lookup_module m x) (fun m -> lookup_path m lookup p)
-*)
+(* ========================================================================= *)
 
 let pp_module m =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  match m.pp_module with
+  | None           -> assert false
+  | Some pp_module -> pp_module
+
+let public_names map =
+  map
+  |> StrMap.bindings
+  |> List.filter_map
+      (fun (name, info) ->
+        match info with
+        | Public _ | Both _ -> Some name
+        | Private _ -> None)
 
 let public_types m =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  public_names m.tvar_map
 
 let public_vars m =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  public_names m.var_map
 
 let public_implicits m =
-  (* TODO: not implemented *)
-  begin match None with Some x -> x end
+  public_names m.implicit_map

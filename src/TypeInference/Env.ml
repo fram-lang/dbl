@@ -22,25 +22,13 @@ type t = {
 
   scope      : T.scope;
     (** Scope of type variables *)
-
-  level      : int
-    (** Level of the scope *)
 }
 
 let empty =
-  { cur_module   = Module.toplevel;
+  { cur_module   = Module.empty;
     mod_stack    = [];
-    pp_tree      =
-      T.BuiltinType.all
-      |> List.fold_left
-          (fun pp_tree (name, x) ->
-            PPTree.add ~public:false pp_tree name (T.TVar.uid x))
-          PPTree.empty;
-    scope        =
-      T.BuiltinType.all
-      |> List.map snd
-      |> List.fold_left T.Scope.add T.Scope.initial
-  ; level = 0
+    pp_tree      = PPTree.empty;
+    scope        = T.Scope.initial;
   }
 
 (* ========================================================================= *)
@@ -159,6 +147,55 @@ let open_module ~public env m =
     cur_module = Module.open_module ~public env.cur_module m;
     pp_tree    = PPTree.open_module ~public env.pp_tree (Module.pp_module m)
   }
+
+(* ========================================================================= *)
+
+let unit_adt =
+  { Module.adt_proof =
+      make_nowhere (T.EPolyFun([], [], make_nowhere T.EUnitPrf));
+    Module.adt_args  = [];
+    Module.adt_ctors =
+      [ { ctor_name        = "()";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        } ];
+    Module.adt_type   = T.Type.t_unit;
+    Module.adt_effect = Pure
+  }
+
+let option_adt =
+  let a = T.TVar.fresh T.Kind.k_type in
+  { Module.adt_proof = make_nowhere T.EOptionPrf;
+    Module.adt_args  = [T.TNAnon, a];
+    Module.adt_ctors =
+      [ { ctor_name        = "None";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        };
+        { ctor_name        = "Some";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = [T.Scheme.of_type (T.Type.t_var a)]
+        }
+      ];
+    Module.adt_type   = T.Type.t_option (T.Type.t_var a);
+    Module.adt_effect = Pure
+  }
+
+let initial =
+  let env = 
+    List.fold_left
+      (fun env (name, x) -> add_existing_tvar env name x)
+      empty
+      T.BuiltinType.all in
+  let env = add_adt env T.BuiltinType.tv_unit unit_adt in
+  let env = add_ctor env "()" 0 unit_adt in
+  let env = add_adt env T.BuiltinType.tv_option option_adt in
+  let env = add_ctor env "None" 0 option_adt in
+  let env = add_ctor env "Some" 1 option_adt in
+  env
 
 (* ========================================================================= *)
 

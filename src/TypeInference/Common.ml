@@ -50,4 +50,7 @@ let tr_tname (name : S.tname) : T.tname =
 (** Translate a name of parameter *)
 let tr_name (name : S.name) : T.name =
   match name with
-  | S.NVar x -> T.NVar x
+  | S.NVar x         -> T.NVar x
+  | S.NOptionalVar x -> T.NOptionalVar x
+  | S.NImplicit x    -> T.NImplicit x
+  | S.NMethod x      -> T.NMethod x
