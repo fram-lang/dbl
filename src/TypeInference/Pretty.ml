@@ -48,9 +48,7 @@ module PPEnv : sig
   val get_context : t -> ctx
 
   val lookup_tvar : t -> T.tvar -> PPTree.pp_result
-(*
-  val lookup_tvar_pp_info : t -> T.tvar -> Env.pp_info option
-*)
+
   val is_anon_tvar_fresh : t -> string -> bool
 end = struct
   type t = {
@@ -77,21 +75,7 @@ end = struct
       env.context.anon_tvar_pos <- (pos, name) :: env.context.anon_tvar_pos
 
   let get_context env = env.context
-(*
-  let tvar_valid_name env x name =
-    match Env.lookup_tvar env.env name with
-    | Some tp ->
-      begin match T.Type.view tp with
-      | TVar y -> T.TVar.equal x y
-      | _      -> false
-      end
-    | None    -> false
 
-  let rec pp_path (p : string S.path) =
-    match p with
-    | NPName x    -> x
-    | NPSel(n, p) -> Printf.sprintf "%s.%s" n (pp_path p)
-*)
   let lookup_tvar env x =
     match T.TVar.Map.find_opt x env.local_names with
     | Some name -> PPTree.Found name
@@ -104,10 +88,7 @@ end = struct
         | None -> result
         end
       end
-(*
-  let lookup_tvar_pp_info env x =
-    Env.lookup_tvar_pp_info env.env x
-*)
+
   let is_anon_tvar_fresh env name =
     not (Hashtbl.mem env.context.used_tvars name)
 end
@@ -334,9 +315,9 @@ let additional_info ctx =
       name
       (Position.to_string pos));
   Buffer.contents buf
-(*
+
 (* ========================================================================= *)
-*)
+
 let kind_to_string ctx k =
   let buf = Buffer.create 80 in
   pp_kind ctx buf 0 k;
