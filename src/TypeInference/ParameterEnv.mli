@@ -71,7 +71,8 @@ val add_ctor : public:bool ->
   Env.t -> t -> S.ctor_name -> int -> Module.adt_info -> Env.t * t
 
 (** Open given module, shadowing named parameters *)
-val open_module : public:bool -> Env.t -> t -> Module.t -> Env.t * t
+val open_module : public:bool ->
+  Env.t -> t -> Module.closed Module.t -> Env.t * t
 
 (** Extend environment with variables bound by given partial environment.
   It may shadow named parameters *)

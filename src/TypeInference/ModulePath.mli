@@ -7,7 +7,7 @@
 open Common
 
 (** Lookup for given module in the environment *)
-val lookup_module : Env.t -> S.module_name S.path -> Module.t
+val lookup_module : Env.t -> S.module_name S.path -> Module.closed Module.t
 
 (** Lookup for given variable in the environment *)
 val lookup_type : Env.t -> S.tvar S.path -> T.typ

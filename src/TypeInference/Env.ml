@@ -11,10 +11,10 @@ let the_label_name = "~label"
 type on_use = Position.t -> unit
 
 type t = {
-  cur_module : Module.t;
+  cur_module : Module.opened Module.t;
     (** Currently defined module *)
 
-  mod_stack  : Module.t list;
+  mod_stack  : Module.opened Module.t list;
     (** Stack of modules which are currently being defined *)
 
   pp_tree    : PPTree.t;

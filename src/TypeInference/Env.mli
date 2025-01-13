@@ -99,7 +99,7 @@ val leave_module : public:bool -> t -> S.module_name -> t
 
 (** Introduce the given module's identifiers into scope with visibility
   specified by [~public]. *)
-val open_module : public:bool -> t -> Module.t -> t
+val open_module : public:bool -> t -> Module.closed Module.t -> t
 
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
@@ -130,7 +130,7 @@ val lookup_ctor : t -> S.ctor_name -> (int * Module.adt_info) option
 val lookup_adt : t -> T.tvar -> Module.adt_info option
 
 (** Lookup for a module of the given name. *)
-val lookup_module : t -> S.module_name -> Module.t option
+val lookup_module : t -> S.module_name -> Module.closed Module.t option
 
 (** Increase the level of the environment's scope. The level should be
   increased for each place, when implicit type generalization can occur. *)

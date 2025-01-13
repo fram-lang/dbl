@@ -8,6 +8,13 @@ open Common
 
 module StrMap = Map.Make(String)
 
+type opened = Dummy_Opened
+type closed = Dummy_Closed
+
+type ('a, _) on_closed =
+  | SomeCl : 'a -> ('a, closed) on_closed
+  | NoneCl : ('a, opened) on_closed
+
 type on_use = Position.t -> unit
 
 (** Information about an ADT definition *)
@@ -24,39 +31,40 @@ type var_info =
   | VI_Ctor     of int * adt_info
   | VI_MethodFn of S.method_name
 
-type 'a ident_info =
-  | Public  of 'a
+type ('a, _) ident_info =
+  | Public  : 'a -> ('a, 'st) ident_info
     (** Definition is public *)
 
-  | Private of 'a
+  | Private : 'a -> ('a, opened) ident_info
     (** Definition is private *)
 
-  | Both    of { pub : 'a; priv : 'a }
+  | Both    : { pub : 'a; priv : 'a } -> ('a, opened) ident_info
     (** Definition is public and shadowed by a private definition *)
 
-type t ={
-  tvar_map : (T.typ * on_use) ident_info StrMap.t;
+type 'st t = {
+  tvar_map : (T.typ * on_use, 'st) ident_info StrMap.t;
     (** Information about named type variables *)
 
-  var_map  : (var_info * on_use) ident_info StrMap.t;
+  var_map  : (var_info * on_use, 'st) ident_info StrMap.t;
     (** Information about regular variable names *)
 
-  implicit_map : (T.var * T.scheme * on_use) ident_info StrMap.t;
+  implicit_map : (T.var * T.scheme * on_use, 'st) ident_info StrMap.t;
     (** Information about named implicits *)
 
-  method_map : (T.var * T.scheme * on_use) ident_info StrMap.t T.TVar.Map.t;
+  method_map :
+    (T.var * T.scheme * on_use, 'st) ident_info StrMap.t T.TVar.Map.t;
     (** Information about named methods *)
 
-  ctor_map : (int * adt_info) ident_info StrMap.t;
+  ctor_map : (int * adt_info, 'st) ident_info StrMap.t;
     (** Information about ADT constructors *)
 
-  adt_map  : adt_info ident_info T.TVar.Map.t;
+  adt_map  : (adt_info, 'st) ident_info T.TVar.Map.t;
     (** Information about ADT definitions *)
 
-  mod_map : t ident_info StrMap.t;
+  mod_map : (closed t, 'st) ident_info StrMap.t;
     (** Information about defined modules *)
 
-  pp_module : PPTree.pp_module option;
+  pp_module : (PPTree.pp_module, 'st) on_closed
     (** Pretty-printing information. Make sense only for closed modules *)
 }
 
@@ -68,7 +76,7 @@ let empty =
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
     mod_map      = StrMap.empty;
-    pp_module    = None
+    pp_module    = NoneCl
   }
 
 (* ========================================================================= *)
@@ -139,19 +147,15 @@ let add_module ~public m name modl =
 
 (* ========================================================================= *)
 
-let import_ident_info ~public _ info opened =
+let import_ident_info ~public _ info (opened : (_, closed) ident_info option) =
   match public, info, opened with
-  | _,     _, (None | Some (Private _)) -> info
-  | true,  _, Some (Public x | Both { pub = x; _ }) -> Some (Public x)
+  | _,     _, None -> info
+  | true,  _, Some (Public x) -> Some (Public x)
 
-  | false,
-    (None | Some (Private _)),
-    Some (Public x | Both { pub = x; _ }) ->
+  | false, (None | Some (Private _)), Some (Public x) ->
       Some (Private x)
 
-  | false,
-    Some (Public pub | Both { pub; _}),
-    Some (Public priv | Both { pub = priv; _ }) ->
+  | false, Some (Public pub | Both { pub; _}), Some (Public priv) ->
       Some (Both { pub; priv })
 
 let import_map ~public map opened =
@@ -178,7 +182,7 @@ let open_module ~public m opened =
     pp_module    = m.pp_module
   }
 
-let filter_public_ident _ info =
+let filter_public_ident _ info : (_, closed) ident_info option =
   match info with
   | Public x | Both { pub = x; priv = _ } -> Some (Public x)
   | Private _ -> None
@@ -194,12 +198,12 @@ let leave m pp_module =
     ctor_map     = filter_public m.ctor_map;
     adt_map      = T.TVar.Map.filter_map filter_public_ident m.adt_map;
     mod_map      = filter_public m.mod_map;
-    pp_module    = Some pp_module
+    pp_module    = SomeCl pp_module
   }
 
 (* ========================================================================= *)
 
-let get_ident_info info =
+let get_ident_info (type st) (info : (_, st) ident_info) =
   match info with
   | Public x | Private x | Both { pub = _; priv = x } -> x
 
@@ -233,17 +237,12 @@ let lookup_module m name =
 
 let pp_module m =
   match m.pp_module with
-  | None           -> assert false
-  | Some pp_module -> pp_module
+  | SomeCl pp_module -> pp_module
 
-let public_names map =
+let public_names (map : (_, closed) ident_info StrMap.t) =
   map
   |> StrMap.bindings
-  |> List.filter_map
-      (fun (name, info) ->
-        match info with
-        | Public _ | Both _ -> Some name
-        | Private _ -> None)
+  |> List.map (fun (name, _) -> name)
 
 let public_types m =
   public_names m.tvar_map

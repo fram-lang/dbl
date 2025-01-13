@@ -6,7 +6,11 @@
 
 open Common
 
-type t
+(** Dummy types for representing state of the module at the level of types. *)
+type opened = Dummy_Opened
+type closed = Dummy_Closed
+
+type 'st t
 
 (** Type of function that is called on each use of the variable *)
 type on_use = Position.t -> unit
@@ -43,84 +47,85 @@ type var_info =
     (** Function that is automatically translated to method call *)
 
 (** Empty module *)
-val empty : t
+val empty : opened t
 
 (** Extend the module with a named type variable. *)
 val add_type_alias : public:bool -> on_use:on_use ->
-  t -> S.tvar -> T.typ -> t
+  opened t -> S.tvar -> T.typ -> opened t
 
 (** Extend the module with a polymorphic variable *)
 val add_var : public:bool -> on_use:on_use ->
-  t -> S.var -> T.var -> T.scheme -> t
+  opened t -> S.var -> T.var -> T.scheme -> opened t
 
 (** Extend the module with a polymorphic implicit. *)
 val add_implicit : public:bool -> on_use:on_use ->
-  t -> S.iname -> T.var -> T.scheme -> t
+  opened t -> S.iname -> T.var -> T.scheme -> opened t
 
 (** Extend the module with a polymorphic method. *)
 val add_method : public:bool -> on_use:on_use ->
-  t -> T.tvar -> S.method_name -> T.var -> T.scheme -> t
+  opened t -> T.tvar -> S.method_name -> T.var -> T.scheme -> opened t
 
 (** Extend the module with information that given identifier when used
   as function is a method of given name. *)
 val add_method_fn : public:bool -> on_use:on_use ->
-  t -> S.var -> S.method_name -> t
+  opened t -> S.var -> S.method_name -> opened t
 
 (** Assign ADT definition to given type variable. For abstract datatype,
   the [public] flag should be set to [false]. *)
-val add_adt : public:bool -> t -> T.tvar -> adt_info -> t
+val add_adt : public:bool -> opened t -> T.tvar -> adt_info -> opened t
 
 (** Add constructor of given name and index to the module. *)
-val add_ctor : public:bool -> t -> string -> int -> adt_info -> t
+val add_ctor : public:bool -> opened t -> string -> int -> adt_info -> opened t
 
 (** Extend the module with the definition of a module with the given name. *)
-val add_module : public:bool -> t -> S.module_name -> t -> t
+val add_module :
+  public:bool -> opened t -> S.module_name -> closed t -> opened t
 
 (** Introduce the given module's identifiers into scope with visibility
   specified by [~public]. *)
-val open_module : public:bool -> t -> t -> t
+val open_module : public:bool -> opened t -> closed t -> opened t
 
 (** Finalize module definition: remove all private members and set
   pretty-printing information. *)
-val leave : t -> PPTree.pp_module -> t
+val leave : opened t -> PPTree.pp_module -> closed t
 
 (** Lookup for Unif representation of a type variable. Returns [None] if
   variable is not bound. *)
-val lookup_tvar : t -> S.tvar -> (T.typ * on_use) option
+val lookup_tvar : 'st t -> S.tvar -> (T.typ * on_use) option
 
 (** Lookup for variable-like identifier. Returns [None] if variable is not
   bound. *)
-val lookup_var : t -> S.var -> (var_info * on_use) option
+val lookup_var : 'st t -> S.var -> (var_info * on_use) option
 
 (** Lookup for Unif representation, a scheme, and "on-use" function of a named
   implicit. Returns [None] if implicit is not bound. *)
 val lookup_implicit :
-  t -> S.iname -> (T.var * T.scheme * on_use) option
+  'st t -> S.iname -> (T.var * T.scheme * on_use) option
 
 (** Lookup for method associated with given type variable *)
 val lookup_method :
-  t -> T.tvar -> S.method_name -> (T.var * T.scheme * on_use) option
+  'st t -> T.tvar -> S.method_name -> (T.var * T.scheme * on_use) option
 
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and
   full information about ADT. *)
-val lookup_ctor : t -> S.ctor_name -> (int * adt_info) option
+val lookup_ctor : 'st t -> S.ctor_name -> (int * adt_info) option
 
 (** Lookup for ADT definition assigned for given type variable *)
-val lookup_adt : t -> T.tvar -> adt_info option
+val lookup_adt : 'st t -> T.tvar -> adt_info option
 
 (** Lookup for a module of the given name. *)
-val lookup_module : t -> S.module_name -> t option
+val lookup_module : 'st t -> S.module_name -> closed t option
 
 (** Get pretty-printing information of the module. Can be called only on
   modules obtained by [leave]. *)
-val pp_module : t -> PPTree.pp_module
+val pp_module : closed t -> PPTree.pp_module
 
 (** Get the list of public type names *)
-val public_types : t -> S.tvar list
+val public_types : closed t -> S.tvar list
 
 (** Get the list of public variables *)
-val public_vars : t -> S.var list
+val public_vars : closed t -> S.var list
 
 (** Get the list of public implicit variables *)
-val public_implicits : t -> S.iname list
+val public_implicits : closed t -> S.iname list
