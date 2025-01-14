@@ -254,7 +254,10 @@ let check_named_not_used param =
   end;
   BRef.set param.vp_used Rejected
 
-let end_generalize_impure params =
+let end_generalize_impure params uvs =
+  T.UVar.Set.iter
+    (fun u -> T.UVar.filter_scope u params.pl_level (fun _ -> true))
+    uvs;
   List.iter check_type_not_used params.pl_type_params;
   List.iter check_named_not_used params.pl_val_params
 

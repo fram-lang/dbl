@@ -32,8 +32,11 @@ val end_generalize_pure :
     T.named_tvar list * (T.name * T.var * T.scheme_expr) list * Constr.t list
 
 (** Ensure, that no named parameters on a given list were used. After calling
-  this function, given named parameter become unavailable. *)
-val end_generalize_impure : param_list -> unit
+  this function, given named parameter become unavailable. The fuction takse
+  also a set of unification variables that appears in the entity that was
+  created with the environment returned by [begin_generalize]. This set is
+  needed to decrease the level of unification variables. *)
+val end_generalize_impure : param_list -> T.UVar.Set.t -> unit
 
 (** Enclose generalization and declare a named parameter. *)
 val end_generalize_declare :

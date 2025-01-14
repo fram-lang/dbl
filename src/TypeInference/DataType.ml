@@ -73,3 +73,12 @@ let finalize_check ~nonrec_scope ~public env penv x ~name args ctors =
       effect = adt_effect
     } in
   (env, penv, dd)
+
+(* ========================================================================= *)
+
+let uvars ctors =
+  List.fold_left
+    (fun acc ctor ->
+      T.CtorDecl.collect_uvars (T.CtorDeclExpr.to_ctor_decl ctor) acc)
+    T.UVar.Set.empty
+    ctors

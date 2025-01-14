@@ -43,8 +43,8 @@ let check_def : type dir. tcfix:tcfix ->
         er_constr = cs @ rest.er_constr
       }
     | PImpure body ->
-      ParameterEnv.end_generalize_impure params;
       let body_tp = expr_result_type body in
+      ParameterEnv.end_generalize_impure params (T.Type.uvars body_tp);
       let (env, penv, x) =
         ParameterEnv.add_mono_id ~pos ~public env penv id body_tp in
       let rest = cont.run env penv req in
@@ -106,8 +106,8 @@ let check_def : type dir. tcfix:tcfix ->
     let env0 = env in
     let (hexp_env, params) = ParameterEnv.begin_generalize env penv in
     let hexp = infer_expr_type hexp_env hexp in
-    ParameterEnv.end_generalize_impure params;
     let hexp_tp = expr_result_type hexp in
+    ParameterEnv.end_generalize_impure params (T.Type.uvars hexp_tp);
     begin match Unification.to_handler env hexp_tp with
     | H_Handler(a, cap_tp, tp_in, tp_out) ->
       let (env, name, eff_tvar) =
@@ -162,7 +162,7 @@ let check_def : type dir. tcfix:tcfix ->
     let (data_env, args) = Type.tr_named_type_args data_env args in
     let kind = DataType.kind args in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
-    ParameterEnv.end_generalize_impure params;
+    ParameterEnv.end_generalize_impure params (DataType.uvars ctors);
     let (env, penv, x) =
       ParameterEnv.add_tvar ~pos ~public:public_tp env penv name kind in
     let (env, penv, dd) =

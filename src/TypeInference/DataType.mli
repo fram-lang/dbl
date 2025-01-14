@@ -36,3 +36,6 @@ val finalize_check :
   nonrec_scope:T.scope -> public:bool -> Env.t -> ParameterEnv.t ->
   T.tvar -> name:S.tvar -> T.named_tvar list -> ctor_decl_list ->
     Env.t * ParameterEnv.t * T.data_def
+
+(** Get a set of all unification variables in given list of constructors. *)
+val uvars : ctor_decl_list -> T.UVar.Set.t
