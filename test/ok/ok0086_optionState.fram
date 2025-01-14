@@ -1,5 +1,3 @@
-data Option A = None | Some of A
-
 data State E X = State of
   { get    : Unit ->[E] X
   , put    : X ->[E] Unit

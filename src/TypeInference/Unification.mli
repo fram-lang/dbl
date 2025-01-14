@@ -3,7 +3,7 @@
  *)
 
 (** Unification and subtyping of types *)
-(*
+
 open Common
 
 (** Arrow type *)
@@ -15,18 +15,15 @@ type arrow =
     (** Type is a unification variable. It will never be returned by
       [to_arrow] *)
 
-  | Arr_Pure of T.scheme * T.typ
-    (** Pure arrow *)
-
-  | Arr_Impure of T.scheme * T.typ * T.effrow
-    (** Impure arrow *)
+  | Arr_Arrow of T.scheme * T.typ * T.effect
+    (** Effect-annotated arrow *)
 
 (** Handler type *)
 type handler =
   | H_No
     (** Type is not a handler *)
 
-  | H_Handler of T.tvar * T.typ * T.typ * T.effrow * T.typ * T.effrow
+  | H_Handler of T.tvar * T.typ * T.typ * T.typ
     (** Handler type *)
 
 (** Label type *)
@@ -34,12 +31,8 @@ type label =
   | L_No
     (** Type is not a label *)
 
-  | L_NoEffect
-    (** Cannot guess the effect of the label ("effect" type variable is not
-      bound or not available *)
-
-  | L_Label of T.effect * T.typ * T.effrow
-    (** Label type *)
+  | L_Label of T.typ
+    (** Label type. It stores the type of the delimiter. *)
 
 (** Extra information that can be attached to error occurred during
   unification. *)
@@ -65,10 +58,6 @@ val kind_to_arrow : T.kind -> (T.kind * T.kind) option
   It performs some unifications when necessary. *)
 val unify_type : Env.t -> T.typ -> T.typ -> result
 
-(** Check if one effect (row) is a subeffect of another.
-  It performs some unifications when necessary. *)
-val subeffect : Env.t -> T.effrow -> T.effrow -> result
-
 (** Check if one type is a subtype of another.
   It performs some unifications when necessary. *)
 val subtype : Env.t -> T.typ -> T.typ -> result
@@ -78,7 +67,7 @@ val subtype : Env.t -> T.typ -> T.typ -> result
 val subscheme : Env.t -> T.scheme -> T.scheme -> result
 
 (** Coerce given type to an arrow.
-  It performs some unifications when necessary. *)
+  It performs some unifications when necessary. Never returns [Arr_UVar]. *)
 val to_arrow : Env.t -> T.typ -> arrow
 
 (** Coerce given type from an arrow.
@@ -94,9 +83,6 @@ val to_handler : Env.t -> T.typ -> handler
   It performs some unification when necessary. *)
 val from_handler : Env.t -> T.typ -> handler
 
-(** Reveal the components of the label type.
-  It performs some unification when necessary. In particular, if the type is
-  an unification variable, it assumes that the effect of the label is
-  "the effect". *)
-val as_label : Env.t -> T.typ -> label
-*)
+(** Coerce given type to a label type.
+  It performs some unification when necessary. *)
+val to_label : Env.t -> T.typ -> label

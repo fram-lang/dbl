@@ -3,7 +3,7 @@
  *)
 
 (** Pretty printing of types and kinds *)
-(*
+
 open Common
 
 (** Contexts of pretty-printing *)
@@ -14,9 +14,6 @@ val empty_context : unit -> ctx
 
 (** Pretty-print kind *)
 val kind_to_string : ctx -> T.kind -> string
-
-(** Pretty-print type name *)
-val tname_to_string : T.tname -> string
 
 (** Pretty-print type variable *)
 val tvar_to_string : ctx -> Env.t -> T.tvar -> string
@@ -30,4 +27,3 @@ val scheme_to_string : ctx -> Env.t -> T.scheme -> string
 (** Pretty-print additional information about printing context, e.g.,
   locations of binders of anonymous types. *)
 val additional_info : ctx -> string
-*)

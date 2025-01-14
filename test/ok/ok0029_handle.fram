@@ -1,6 +1,6 @@
 let f p = p
 
-implicit ~f
+parameter ~f
 
 let test f =
   f (~f ())

@@ -2,5 +2,5 @@ data T X = C of {x : X, y : X}
 
 let f (C {open, y = z}) =
   let x = C {x, y}
-  let y = C {y, z} in
-  C {x, y}
+  let y = C {x = y, y = z} in
+  C {open}

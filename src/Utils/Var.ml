@@ -24,4 +24,5 @@ let unique_name x =
 
 let equal x y = x == y
 
+module Set = Set.Make(Ordered)
 module Map = Map.Make(Ordered)

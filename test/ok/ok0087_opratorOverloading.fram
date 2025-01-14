@@ -1,5 +1,5 @@
-method add = (extern dbl_addInt : Int -> Int -> Int) self
-method add = (extern dbl_strCat : String -> String -> String) self
+method add = (extern dbl_addInt : Int -> Int -> Int)
+method add = (extern dbl_strCat : String -> String -> String)
 
 method fn (+) = add
 

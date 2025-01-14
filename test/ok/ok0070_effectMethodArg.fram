@@ -3,12 +3,12 @@ data State (E : effect) X = State of
   , put : X ->[E] Unit
   }
 
-method get {E, self = State { get } : State E _} = get
-method put {E, self = State { put } : State E _} = put
+method get {E} (State { get } : State E _) = get
+method put {E} (State { put } : State E _) = put
 
-method update {E, self : State E _} f =
+method update {E} (self : State E _) f =
   self.put (f (self.get ()))
 
-method updateTwice {E, self : State E _} f =
+method updateTwice {E} (self : State E _) f =
   let _ = self.update f in
   self.update f

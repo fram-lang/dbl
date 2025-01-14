@@ -2,12 +2,12 @@ data Pair A B = (,) of A, B
 
 let (+) = (extern dbl_strCat : String -> String -> String)
 
-method toString = (extern dbl_intToString : Int -> String) self
+method toString = (extern dbl_intToString : Int -> String)
 
 method toString {A, B}
   {method toString : A ->[] String}
   {method toString : B ->[] String}
-  {self = (x : A, (y : B))} =
+  ((x : A), (y : B)) =
     "(" + x.toString + "," + y.toString + ")"
 
 let _ = (13, 42).toString
