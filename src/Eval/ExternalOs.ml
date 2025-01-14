@@ -14,8 +14,8 @@ let str_fun_try f = VFn (fun v cont ->
   | VStr s ->
     cont (try f s
     with Sys_error s ->
-      failwith ("Runtime error: " ^ s ^ "!"))
-  | _ -> failwith "Runtime error!")
+      runtime_error s)
+  | _ -> runtime_error "Not a string")
 
 let getArgv () =
   let argv = Array.of_list !DblConfig.prog_args in
