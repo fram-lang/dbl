@@ -4,7 +4,7 @@
 
 open Value
 
-exception Runtime_error = External.Runtime_error
+exception Runtime_error = ExternalHelpers.Runtime_error
 
 (** Evaluator *)
 (* ========================================================================= *)
