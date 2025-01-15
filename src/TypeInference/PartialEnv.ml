@@ -355,23 +355,25 @@ let introduce_all_methods owner tab env =
 
 let introduce_module_types ~pos types env =
   List.fold_left
-    (fun env (name, x) -> Env.add_existing_tvar ~pos env name x)
+    (fun env (name, x) -> Env.add_existing_tvar ~pos ~public:true env name x)
     env types
 
 let introduce_module_vars vars env =
   List.fold_left
-    (fun env (name, x, sch) -> Env.add_existing_var env name x sch)
+    (fun env (name, x, sch) ->
+      Env.add_existing_var ~public:true env name x sch)
     env vars
 
 let introduce_module_implicits implicits env =
   List.fold_left
-    (fun env (name, x, sch) -> Env.add_existing_implicit env name x sch)
+    (fun env (name, x, sch) ->
+      Env.add_existing_implicit ~public:true env name x sch)
     env implicits
 
 let introduce_module_methods methods env =
   List.fold_left
     (fun env (owner, name, x, sch) ->
-      Env.add_existing_method env owner name x sch)
+      Env.add_existing_method ~public:true env owner name x sch)
     env methods
 
 let introduce_module name info env =
