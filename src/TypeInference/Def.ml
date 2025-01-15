@@ -150,7 +150,16 @@ let check_def : type dir. tcfix:tcfix ->
 
   | DValParam(name, x, sch) ->
     let (sch_env, params) = ParameterEnv.begin_generalize env penv in
-    let sch = Type.tr_scheme sch_env sch in
+    let sch =
+      match sch with
+      | Some sch -> Type.tr_scheme sch_env sch
+      | None     ->
+        let tp =
+          { T.pos  = def.pos;
+            T.data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type) }
+        in
+        T.SchemeExpr.of_type_expr tp
+    in
     let penv =
       ParameterEnv.end_generalize_declare ~pos params penv name x sch in
     cont.run env penv req

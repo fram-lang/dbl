@@ -343,37 +343,36 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
-(** Translate a pattern, separating out its annotation if present or creating
-  a wildcard annotation otherwise. *)
+(** Translate a pattern, separating out its annotation [Some sch] if present
+    or returning [None] otherwise. *)
 and tr_annot_pattern ~public (p : Raw.expr) =
   match p.data with
   | EParen p       -> tr_annot_pattern ~public p
-  | EAnnot(p, sch) -> tr_pattern ~public p, tr_scheme_expr sch
+  | EAnnot(p, sch) -> tr_pattern ~public p, Some (tr_scheme_expr sch)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
   | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ ->
-    tr_pattern ~public p, scheme_wildcard p.pos
+    tr_pattern ~public p, None
 
 and tr_named_pattern ~public (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
-  | FldAnonType _ ->
-    Error.fatal (Error.anon_type_pattern fld.pos)
+  | FldAnonType arg ->
+    make (NP_Type(false, make (TNAnon, tr_type_arg arg)))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
     make (NP_Type(public, make (TNVar x, make (TA_Var(x, k)))))
   | FldTypeVal(x, arg) ->
     make (NP_Type(public, make (TNVar x, tr_type_arg arg)))
   | FldName n ->
-    make (NP_Val(n, make (PId(public, ident_of_name n)),
-                 scheme_wildcard fld.pos))
+    make (NP_Val(n, make (PId(public, ident_of_name n)), None))
   | FldNameVal(n, p) ->
     let (p, sch) = tr_annot_pattern ~public p in
     make (NP_Val(n, p, sch))
   | FldNameAnnot(n, sch) ->
     let p = make (PId(public, ident_of_name n)) in
-    make (NP_Val(n, p, tr_scheme_expr sch))
+    make (NP_Val(n, p, Some (tr_scheme_expr sch)))
   | FldModule { data = NPName name; _ } -> make (NP_Module(public, name))
   | FldModule _ -> Error.fatal (Error.desugar_error fld.pos)
   | FldOpen     -> make (NP_Open public)
@@ -389,36 +388,12 @@ let tr_param_decl (fld : Raw.field) =
     let k = Option.value ka ~default:(make KWildcard) in
     Either.Left (TNVar x, x, k)
   | FldName n ->
-    Either.Right (n, ident_of_name n, scheme_wildcard fld.pos)
+    Either.Right (n, ident_of_name n, None)
   | FldNameAnnot(n, sch) ->
-    Either.Right (n, ident_of_name n, tr_scheme_expr sch)
+    Either.Right (n, ident_of_name n, Some (tr_scheme_expr sch))
 
   | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen ->
     Error.fatal (Error.desugar_error fld.pos)
-
-(** Translate a field to a named pattern. *)
-let tr_named_arg (fld : Raw.field) =
-  let make data = { fld with data = data } in
-  match fld.data with
-  | FldAnonType arg ->
-    make (NP_Type(false, make (TNAnon, tr_type_arg arg)))
-  | FldType(x, ka) ->
-    let k = Option.value ka ~default:(make KWildcard) in
-    make (NP_Type(false, make (TNVar x, make (TA_Var(x, k)))))
-  | FldTypeVal(x, arg) ->
-    make (NP_Type(false, make (TNVar x, tr_type_arg arg)))
-  | FldName n ->
-    make (NP_Val(n, make (PId(false, ident_of_name n)),
-                 scheme_wildcard fld.pos))
-  | FldNameVal(n, e) ->
-    let (p, sch) = tr_annot_pattern ~public:false e in
-    make (NP_Val(n, p, sch))
-  | FldNameAnnot(n, sch) ->
-    let p = make (PId(false, ident_of_name n)) in
-    make (NP_Val(n, p, tr_scheme_expr sch))
-  | FldModule { data = NPName name; _ } -> make (NP_Module(false, name))
-  | FldModule _    -> Error.fatal (Error.desugar_error fld.pos)
-  | FldOpen        -> make (NP_Open false)
 
 (** Translate an expression as a let-pattern. *)
 let rec tr_let_pattern ~public (p : Raw.expr) =
@@ -471,7 +446,7 @@ let rec tr_function args body =
 (** Translate a polymorphic function *)
 let rec tr_poly_function all_args body =
   let (flds, _, args) = collect_fields ~ppos:Position.nowhere all_args in
-  let named = List.map tr_named_arg flds in
+  let named = List.map (tr_named_pattern ~public:false) flds in
   let body = tr_function args body in
   match named with
   | [] -> { body with data = PE_Expr body }
@@ -831,10 +806,9 @@ and generate_accessor_method_pattern named_type_args type_name =
     } in
   (* function that generates pattern for accessing field *)
   let pattern_gen field =
-    let sch = scheme_wildcard Position.nowhere in
     make (PAnnot(make (PCtor(
       make (NPName type_name),
-      [ make (NP_Val(NVar field, make (PId(false, IdVar field)), sch)) ],
+      [ make (NP_Val(NVar field, make (PId(false, IdVar field)), None)) ],
       [])), type_annot))
   in
   new_named_type_args, pattern_gen

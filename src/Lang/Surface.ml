@@ -190,7 +190,7 @@ and named_pattern_data =
   | NP_Type   of is_public * named_type_arg
     (** Type parameter *)
 
-  | NP_Val    of name * pattern * scheme_expr
+  | NP_Val    of name * pattern * scheme_expr option
     (** Value parameter.
       The scheme annotation is distinct from using the [PAnnot] constructor
       from [pattern] because it's treated differently for optional parameters.
@@ -323,7 +323,7 @@ and def_data =
   | DTypeParam of tname * tvar * kind_expr
     (** Declaration of type parameter *)
 
-  | DValParam of name * ident * scheme_expr
+  | DValParam of name * ident * scheme_expr option
     (** Declaration of value parameter *)
 
   | DData of (** Definition of non-recursive ADT *)
