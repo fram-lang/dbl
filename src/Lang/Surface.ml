@@ -190,13 +190,17 @@ and named_pattern_data =
   | NP_Type   of is_public * named_type_arg
     (** Type parameter *)
 
-  | NP_Val    of name * pattern
-    (** Value parameter *)
+  | NP_Val    of name * pattern * scheme_expr option
+    (** Value parameter.
+      The scheme annotation is distinct from using the [PAnnot] constructor
+      from [pattern] because it's treated differently for optional parameters.
+      For example, [?x : T] should produce a variable [x : Option T], while
+      the pattern will be for the [Option T] type. *)
 
-  | NP_Module of module_name
+  | NP_Module of is_public * module_name
     (** Bind everything into a module *)
 
-  | NP_Open
+  | NP_Open   of is_public
     (** Introduce everything into the environment *)
 
 (** Polymorphic expressions, at the place of use. *)
@@ -319,7 +323,7 @@ and def_data =
   | DTypeParam of tname * tvar * kind_expr
     (** Declaration of type parameter *)
 
-  | DValParam of name * ident * scheme_expr
+  | DValParam of name * ident * scheme_expr option
     (** Declaration of value parameter *)
 
   | DData of (** Definition of non-recursive ADT *)

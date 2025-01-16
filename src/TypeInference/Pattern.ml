@@ -190,6 +190,22 @@ let get_ctor_info ~pos env (cpath : S.ctor_name S.path) tp =
 
 (* ========================================================================= *)
 
+(** Translate a scheme expression into a target scheme, taking into account
+  the special treatment of optional parameter annotations. *)
+let tr_named_scheme_annot env (name : T.name) sch_expr =
+  let sch = T.SchemeExpr.to_scheme (Type.tr_scheme env sch_expr) in
+  match name with
+  | NOptionalVar _ ->
+    begin match T.Scheme.to_type sch with
+    | Some tp -> BuiltinTypes.mk_option_scheme tp
+    | None    ->
+      Error.fatal
+        (Error.polymorphic_optional_parameter ~pos:sch_expr.sch_pos)
+    end
+  | NVar _ | NImplicit _ | NMethod _ -> sch
+
+(* ========================================================================= *)
+
 let rec check_scheme env (pat : S.pattern) sch =
   let make data = { pat with T.data = data } in
   let pos = pat.pos in
@@ -302,46 +318,52 @@ and check_named_pattern env np tvars named =
       (env, PartialEnv.empty, T.Pure)
     end
 
-  | NP_Val((NVar _ | NOptionalVar _ | NImplicit _) as name, pat) ->
+  | NP_Val((NVar _ | NOptionalVar _ | NImplicit _) as name, pat, sch_expr) ->
+    let pos = np.pos in
     let name = tr_name name in
     begin match select_named_pattern name named with
     | None ->
       Error.report (Error.unknown_named_pattern ~pos:np.pos name);
       (env, PartialEnv.empty, T.Pure)
 
-    | Some { pat = Some ppat; sch; _ } ->
-      let ppos = ppat.pos in
-      Error.report (Error.multiple_named_patterns ~pos:np.pos ~ppos name);
-      let (penv, _, eff) = check_scheme env pat sch in
-      (env, penv, eff)
-
-    | Some ({ pat = None; sch; _ } as np) ->
-      let (penv, pat, eff) = check_scheme env pat sch in
-      np.pat <- Some pat;
+    | Some ({ pat = ppat; sch; _ } as np) ->
+      let (penv, pat, eff) =
+        match sch_expr with
+        | Some sch_expr ->
+          let sch' = tr_named_scheme_annot env name sch_expr in
+          Error.check_unify_result ~pos:sch_expr.sch_pos
+            (Unification.subscheme env sch sch')
+            ~on_error:(Error.pattern_annot_mismatch ~env sch sch');
+          check_scheme env pat sch'
+        | None -> check_scheme env pat sch
+      in
+      begin match ppat with
+      | Some ppat ->
+        Error.report (Error.multiple_named_patterns ~pos ~ppos:ppat.pos name)
+      | None -> np.pat <- Some pat;
+      end;
       (env, penv, eff)
     end
 
-  | NP_Val(NMethod _, _) ->
+  | NP_Val(NMethod _, _, _) ->
     Error.report (Error.method_pattern_not_allowed ~pos:np.pos);
     (env, PartialEnv.empty, T.Pure)
 
-  | NP_Module modname ->
-    (* TODO: Public flag is missing *)
+  | NP_Module(public, modname) ->
     (* Since during type-checking of patterns we use the environment to
       store types, we don't need to add regular variables. *)
     let env = Env.enter_module env in
     let env = add_types_to_env ~pos:np.pos env tvars in
-    let env = Env.leave_module env ~public:false modname in
+    let env = Env.leave_module env ~public modname in
     let penv =
-      make_module_penv ~pos:np.pos ~public:false ~env modname tvars named in
+      make_module_penv ~pos:np.pos ~public ~env modname tvars named in
     (env, penv, T.Pure)
 
-  | NP_Open ->
-    (* TODO: Public flag is missing *)
+  | NP_Open public ->
     (* Since during type-checking of patterns we use the environment to
       store types, we don't need to add regular variables. *)
     let env = add_types_to_env ~pos:np.pos env tvars in
-    let penv = make_open_penv ~pos:np.pos ~public:false tvars named in
+    let penv = make_open_penv ~pos:np.pos ~public tvars named in
     (env, penv, T.Pure)
 
 (* ========================================================================= *)
@@ -388,15 +410,34 @@ let infer_named_pattern env (np : S.named_pattern) =
     let tvars = [(np.pos, tr_tname name, x)] in
     (env, penv, tvars, [], T.Pure)
 
-  | NP_Val(NOptionalVar x, pat) ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+  | NP_Val(NOptionalVar x, pat, sch_expr) ->
+    let tp =
+      match sch_expr with
+      | Some sch_expr ->
+        let sch = T.SchemeExpr.to_scheme (Type.tr_scheme env sch_expr) in
+        begin match T.Scheme.to_type sch with
+        | Some tp -> tp
+        | None    ->
+          Error.fatal
+            (Error.polymorphic_optional_parameter ~pos:sch_expr.sch_pos)
+        end
+      | None -> Env.fresh_uvar env T.Kind.k_type
+    in
     let sch = BuiltinTypes.mk_option_scheme tp in
     let (penv, pat, eff) = check_scheme env pat sch in
     let arg = (np.pos, Uniqueness.UNOptionalVar x, pat, sch) in
     (env, penv, [], [arg], eff)
 
-  | NP_Val(name, pat) ->
-    let (penv, pat, sch, eff) = infer_scheme env pat in
+  | NP_Val(name, pat, sch_expr) ->
+    let (penv, pat, sch, eff) =
+      match sch_expr with
+      | Some sch_expr ->
+        let sch = T.SchemeExpr.to_scheme (Type.tr_scheme env sch_expr) in
+        let (penv, pat, eff) = check_scheme env pat sch in
+        (penv, pat, sch, eff)
+      | None ->
+        infer_scheme env pat
+    in
     let arg =
       match name with
       | NVar x -> (np.pos, Uniqueness.UNVar x, pat, sch)
@@ -408,7 +449,7 @@ let infer_named_pattern env (np : S.named_pattern) =
     in
     (env, penv, [], [arg], eff)
 
-  | NP_Open | NP_Module _ ->
+  | NP_Open _ | NP_Module _ ->
     Error.fatal (Error.open_pattern_not_allowed ~pos:np.pos)
 
 let infer_named_patterns env named_pats =
