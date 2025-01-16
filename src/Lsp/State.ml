@@ -6,7 +6,6 @@
 
 module UriMap = Map.Make(Uri)
 
-(** We keep the latest version of each document in a temp file *)
 type document = {
   temp_path: string;
 }
@@ -39,26 +38,27 @@ let open_document state uri content =
   { state with documents = UriMap.add uri document state.documents }
 
 let update_document state uri new_content =
-  match UriMap.find_opt uri state.documents with
-  | None -> state
-  | Some doc ->
-    (* overwrites the file if it exists *)
-    Out_channel.with_open_text doc.temp_path (fun oc ->
-      output_string oc new_content
-    ); state
+  (* Only open documents can be updated. If uri is not found then we want
+    to fail because it's more likely to be an error on our side. *)
+  let doc = UriMap.find uri state.documents in
+  (* overwrites the file if it exists *)
+  Out_channel.with_open_text doc.temp_path (fun oc ->
+    output_string oc new_content
+  ); state
 
 let close_document state uri =
-  match UriMap.find_opt uri state.documents with
-  | None -> state
-  | Some doc ->
-    Sys.remove doc.temp_path;
-    { state with documents = UriMap.remove uri state.documents }
+  (* Same as above. *)
+  let doc = UriMap.find uri state.documents in
+  Sys.remove doc.temp_path;
+  { state with documents = UriMap.remove uri state.documents }
 
 let close_all_documents state =
   UriMap.iter (fun _ doc -> Sys.remove doc.temp_path) state.documents;
   { state with documents = UriMap.empty }
 
 let get_document_path state uri =
+  (* The client might send requests involving closed files, so we don't fail.
+    See State.mli for details. *)
   match UriMap.find_opt uri state.documents with
   | None -> Uri.path uri
   | Some doc -> doc.temp_path

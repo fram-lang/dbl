@@ -4,9 +4,17 @@
 
 (** Server state *)
 
-(** The LSP client sends a notification when the user opens, updates
-  and closes a file. The server keeps the latest version of each file
-  in a temporary location and performs type checks on those.
+(** The LSP client claims ownership of files edited by the user (by sending
+  a `textDocument/didOpen` notification). That means the content of the file
+  is managed by the client and shouldn't be read from disk because the user
+  might not have saved it yet. The client informs us of the changes in the file
+  with a `textDocument/didChange` notification. We keep our own copy of
+  the file in a temporary location and update it based on those notifications.
+  The file is closed with a `textDocument/didClose` notification.
+
+  Note from the spec: a server’s ability to fulfill requests is independent
+    of whether a text document is open or closed.
+  Spec: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_didOpen
 *)
 
 type t
@@ -30,9 +38,11 @@ val update_document : t -> Uri.t -> string -> t
   This removes the temporary file. *)
 val close_document : t -> Uri.t -> t
 
-(** Close all documents *)
+(** Close all documents.
+  This removes all of the temporary files. *)
 val close_all_documents : t -> t
 
-(** Get a path to the temporary file associated with the specified uri.
-  The temp file might contain changes that the user hasn't saved yet. *)
+(** Get a path to the file associated with the specified uri.
+  If the client has opened the file, this returns the path to the temp file;
+  otherwise, this returns the same path that the uri points to. *)
 val get_document_path : t -> Uri.t -> string
