@@ -14,7 +14,10 @@
             which are accessible from outside)
         * a smart constructor named make_lsp_type.
         * additional functions converting from other_type to lsp_type,
-          named lsp_type_of_other_type. *)
+          named lsp_type_of_other_type.
+
+  Spec: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/
+*)
 
 open Yojson.Safe.Util
 open Either
