@@ -62,7 +62,7 @@ let type_check path =
 (** Type-check given file and send the diagnostics to the client *)
 let process_program state uri =
   let real_path   = Uri.path uri                      in
-  let temp_path   = State.get_document_path state uri in
+  let temp_path   = State.get_document_path uri state in
   let diagnostics = ref []                            in
 
   InterpLib.Error.set_report_function (report temp_path real_path diagnostics);
@@ -81,18 +81,18 @@ let handle_notification state notification =
   | Exit ->
     exit 0
   | DidOpen { text_document = { uri; text; _ } } ->
-    let state = State.open_document state uri text in
+    let state = State.open_document uri text state in
     process_program state uri;
     state
   | DidChange { text_document = { uri; _ }; content_changes } ->
     let apply_content_change state change =
-      State.update_document state uri change.text in
+      State.update_document uri change.text state in
     let state =
       List.fold_left apply_content_change state content_changes in
     process_program state uri;
     state
   | DidClose { text_document = { uri } } ->
-    let state = State.close_document state uri in
+    let state = State.close_document uri state in
     state
 
 let handle_request state (request : request) =

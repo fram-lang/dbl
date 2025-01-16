@@ -28,15 +28,15 @@ val in_channel  : t -> in_channel
 
 (** Open a new document with the given content.
   This creates a new temporary file associated with the specified uri. *)
-val open_document : t -> Uri.t -> string -> t
+val open_document : Uri.t -> string -> t -> t
 
 (** Update an open document.
   This updates the temporary file. *)
-val update_document : t -> Uri.t -> string -> t
+val update_document : Uri.t -> string -> t -> t
 
 (** Close a document.
   This removes the temporary file. *)
-val close_document : t -> Uri.t -> t
+val close_document : Uri.t -> t -> t
 
 (** Close all documents.
   This removes all of the temporary files. *)
@@ -45,4 +45,4 @@ val close_all_documents : t -> t
 (** Get a path to the file associated with the specified uri.
   If the client has opened the file, this returns the path to the temp file;
   otherwise, this returns the same path that the uri points to. *)
-val get_document_path : t -> Uri.t -> string
+val get_document_path : Uri.t -> t -> string

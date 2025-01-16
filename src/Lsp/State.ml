@@ -29,7 +29,7 @@ let create ~in_channel ~out_channel =
 let out_channel { connection = { out_channel; _ }; _ } = out_channel
 let in_channel { connection = { in_channel; _ }; _ } = in_channel
 
-let open_document state uri content =
+let open_document uri content state =
   let temp_path = Filename.temp_file "" DblConfig.src_extension in
   Out_channel.with_open_text temp_path (fun oc ->
     output_string oc content
@@ -37,7 +37,7 @@ let open_document state uri content =
   let document = { temp_path } in
   { state with documents = UriMap.add uri document state.documents }
 
-let update_document state uri new_content =
+let update_document uri new_content state =
   (* Only open documents can be updated. If uri is not found then we want
     to fail because it's more likely to be an error on our side. *)
   let doc = UriMap.find uri state.documents in
@@ -46,7 +46,7 @@ let update_document state uri new_content =
     output_string oc new_content
   ); state
 
-let close_document state uri =
+let close_document uri state =
   (* Same as above. *)
   let doc = UriMap.find uri state.documents in
   Sys.remove doc.temp_path;
@@ -56,7 +56,7 @@ let close_all_documents state =
   UriMap.iter (fun _ doc -> Sys.remove doc.temp_path) state.documents;
   { state with documents = UriMap.empty }
 
-let get_document_path state uri =
+let get_document_path uri state =
   (* The client might send requests involving closed files, so we don't fail.
     See State.mli for details. *)
   match UriMap.find_opt uri state.documents with
