@@ -11,6 +11,11 @@ open Position
 
 (** Response for the Initialize request *)
 let initialize_params =
+  (* Maybe this should be handled more gracefully. Every capability supported
+    by us must be declared here and currently it's easy to forget about this.
+    Instead of the big match in handle_request and handle_notification,
+    each capability could be it's own module defining a part of this json
+    which would then be registered somehow but that might be an overkill. *)
   Yojson.Safe.from_string
     {|
       {
