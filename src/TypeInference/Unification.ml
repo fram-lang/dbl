@@ -20,7 +20,7 @@ type label =
   | L_Label of T.typ
 
 type error_info =
-  | TVarEscapesScope of Env.t * T.tvar
+  | TVarEscapesScope of PPTree.t * T.tvar
 
 type result =
   | Unify_Success
@@ -28,7 +28,7 @@ type result =
 
 (** Internal exception *)
 exception Error
-exception Escapes_scope of Env.t * T.tvar
+exception Escapes_scope of PPTree.t * T.tvar
 
 let unify_with_kuvar x k =
   if T.Kind.contains_uvar x k then
@@ -76,7 +76,7 @@ let set_uvar env p u tp =
     let scope = T.UVar.raw_set p u tp in
     match T.Type.try_shrink_scope ~scope tp with
     | Ok   () -> ()
-    | Error e -> raise (Escapes_scope (env, e))
+    | Error e -> raise (Escapes_scope (Env.pp_tree env, e))
 
 let rec unify_named_type_args env sub1 sub2 args1 args2 =
   match args1, args2 with

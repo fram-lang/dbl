@@ -32,16 +32,37 @@ let rec string_of_path (p : string S.path) =
   | NPName x    -> x
   | NPSel(p, n) -> Printf.sprintf "%s.%s" (string_of_path p) n
 
-let string_of_name ?(cap=false) (name : T.name) =
+let string_of_method_owner ~pp_ctx ~pp ?(cap=false) (own : Name.method_owner) =
+  match own with
+  | MO_Arrow   -> if cap then "The arrow scope" else "the arrow scope"
+  | MO_Handler -> if cap then "The handler scope" else "the handler scope"
+  | MO_Label   -> if cap then "The label scope" else "the label scope"
+  | MO_TVar x  ->
+    Printf.sprintf "%cype %s"
+      (if cap then 'T' else 't')
+      (Pretty.tvar_to_string pp_ctx pp x)
+
+let string_of_name ~pp ~pp_ctx ?(cap=false) (name : Name.t) =
   match name with
-  | NImplicit n    ->
-    Printf.sprintf "%cmplicit parameter %s" (if cap then 'I' else 'i') n
   | NVar x         ->
     Printf.sprintf "%camed parameter %s" (if cap then 'N' else 'n') x
   | NOptionalVar x ->
     Printf.sprintf "%cptional parameter %s" (if cap then 'O' else 'o') x
-  | NMethod n      ->
-    Printf.sprintf "%cethod %s" (if cap then 'M' else 'm') n
+  | NImplicit n    ->
+    Printf.sprintf "%cmplicit parameter %s" (if cap then 'I' else 'i') n
+  | NMethod(own, n)      ->
+    Printf.sprintf "%cethod %s associated with %s"
+      (if cap then 'M' else 'm') n (string_of_method_owner ~pp ~pp_ctx own)
+
+let string_of_val_name ~pp ~pp_ctx ?(cap=false) (name : Name.t) =
+  match name with
+  | NVar x | NOptionalVar x ->
+    Printf.sprintf "%cariable %s" (if cap then 'V' else 'v') x
+  | NImplicit n ->
+    Printf.sprintf "%cmplicit %s" (if cap then 'I' else 'i') n
+  | NMethod(own, n) ->
+    Printf.sprintf "%cethod %s associated with %s"
+      (if cap then 'M' else 'm') n (string_of_method_owner ~pp ~pp_ctx own)
 
 let escaping_tvar_message ~env x =
   let pp_ctx = Pretty.empty_context () in
@@ -113,60 +134,54 @@ let unbound_module (path : S.module_name S.path) =
 let unbound_the_label ~pos =
   (pos, Printf.sprintf "There is no default label in this context", [])
 
-let unbound_method ~pos ~env x name =
+let unbound_method ~pos ~pp owner name =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
-    "Type %s has no method named %s"
-    (Pretty.tvar_to_string pp_ctx env x)
+    "%s has no method named %s"
+    (string_of_method_owner ~pp_ctx ~pp ~cap:true owner)
     name
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let method_fn_without_arg ~pos x name =
-  (pos, Printf.sprintf
-    ("Variable %s is registered as method %s"
-    ^^ " and cannot be used without argument")
-    (string_of_path x) name, [])
-
-let expr_type_mismatch ~pos ~env tp1 tp2 =
+let expr_type_mismatch ~pos ~pp tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression has type %s, but an expression was expected of type %s"
-    (Pretty.type_to_string pp_ctx env tp1)
-    (Pretty.type_to_string pp_ctx env tp2)
+    (Pretty.type_to_string pp_ctx pp tp1)
+    (Pretty.type_to_string pp_ctx pp tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let pattern_type_mismatch ~pos ~env tp1 tp2 =
+let pattern_type_mismatch ~pos ~pp tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     ("This pattern matches values of type %s,"
     ^^ " but it was expected to match values of type %s")
-    (Pretty.type_to_string pp_ctx env tp1)
-    (Pretty.type_to_string pp_ctx env tp2)
+    (Pretty.type_to_string pp_ctx pp tp1)
+    (Pretty.type_to_string pp_ctx pp tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let pattern_annot_mismatch ~pos ~env sch1 sch2 =
+let pattern_annot_mismatch ~pos ~pp sch1 sch2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     ("Annotating pattern with type %s, but"
     ^^ " it was expected to match values of type %s")
-    (Pretty.scheme_to_string pp_ctx env sch2)
-    (Pretty.scheme_to_string pp_ctx env sch1)
+    (Pretty.scheme_to_string pp_ctx pp sch2)
+    (Pretty.scheme_to_string pp_ctx pp sch1)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let return_type_mismatch ~pos ~env tp1 tp2 =
+let return_type_mismatch ~pos ~pp tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Return clause has type %s, but was expected to have type %s"
-    (Pretty.type_to_string pp_ctx env tp1)
-    (Pretty.type_to_string pp_ctx env tp2)
+    (Pretty.type_to_string pp_ctx pp tp1)
+    (Pretty.type_to_string pp_ctx pp tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let finally_type_mismatch ~pos ~env tp1 tp2 =
+let finally_type_mismatch ~pos ~pp tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Finally clause has type %s, but was expected to have type %s"
-    (Pretty.type_to_string pp_ctx env tp1)
-    (Pretty.type_to_string pp_ctx env tp2)
+    (Pretty.type_to_string pp_ctx pp tp1)
+    (Pretty.type_to_string pp_ctx pp tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let func_not_pure ~pos =
@@ -183,122 +198,107 @@ let invalid_rec_def ~pos =
 let non_productive_rec_def ~pos =
   (pos, "Non-productive recursive definition", [])
 *)
-let expr_not_function ~pos ~env tp =
+let expr_not_function ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression has type %s. It is not a function and cannot be applied"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let expr_not_function_ctx ~pos ~env tp =
+let expr_not_function_ctx ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression should not be a function, the expected type is %s"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let expr_not_handler ~pos ~env tp =
+let expr_not_handler ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression has type %s. It cannot be used as a handler"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let expr_not_handler_ctx ~pos ~env tp =
+let expr_not_handler_ctx ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression should not be a handler, the expected type is %s"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let expr_not_label ~pos ~env tp =
+let expr_not_label ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This expression has type %s. It cannot be used as a label"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let wrong_label_type ~pos ~env tp =
+let wrong_label_type ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "The implicit label has type %s. It cannot be used as a label"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let method_call_on_invalid_type ~pos ~env tp =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "This expression has type %s. This type cannot have any methods"
-    (Pretty.type_to_string pp_ctx env tp)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
-let method_of_bound_tvar ~pos ~env sch =
+let method_of_bound_tvar ~pos ~pp sch =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Cannot define a method of type %s. Self type is not free"
-    (Pretty.scheme_to_string pp_ctx env sch)
+    (Pretty.scheme_to_string pp_ctx pp sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let method_of_unknown_type ~pos ~env sch =
+let method_of_unknown_type ~pos ~pp sch =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Cannot define a method of type %s. Self type is unknown here"
-    (Pretty.scheme_to_string pp_ctx env sch)
+    (Pretty.scheme_to_string pp_ctx pp sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let method_of_invalid_type ~pos ~env sch tp =
-  let pp_ctx = Pretty.empty_context () in
-  let msg = Printf.sprintf
-    "Cannot define a method of type %s. Type %s cannot have any methods"
-    (Pretty.scheme_to_string pp_ctx env sch)
-    (Pretty.type_to_string pp_ctx env tp)
-  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
-
-let method_of_polymorphic_type ~pos ~env sch =
+let method_of_polymorphic_type ~pos ~pp sch =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Cannot define a method of type %s. Self cannot be polymorphic"
-    (Pretty.scheme_to_string pp_ctx env sch)
+    (Pretty.scheme_to_string pp_ctx pp sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let non_arrow_method ~pos ~env sch =
+let non_arrow_method ~pos ~pp sch =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "Cannot define a method of type %s. This type is not an arrow"
-    (Pretty.scheme_to_string pp_ctx env sch)
+    (Pretty.scheme_to_string pp_ctx pp sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let ctor_pattern_on_non_adt ~pos ~env tp =
+let ctor_pattern_on_non_adt ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This pattern matches values of type %s, which is not an ADT"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let empty_match_on_non_adt ~pos ~env tp =
+let empty_match_on_non_adt ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "This pattern matching matches values of type %s, which is not an ADT"
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let empty_match_on_nonempty_adt ~pos ~env tp =
+let empty_match_on_nonempty_adt ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     ("This pattern matching matches values of type %s,"
     ^^ " which is not an empty ADT")
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let ctor_not_in_type ~pos ~env name tp =
+let ctor_not_in_type ~pos ~pp name tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     "There is no constructor named %s in type %s"
     name
-    (Pretty.type_to_string pp_ctx env tp)
+    (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let ungeneralizable_type_param ~pos ~def_pos (name : T.tname) =
+let ungeneralizable_type_param ~pos ~decl_pos (name : T.tname) =
   let name =
     match name with
     | TNAnon  -> "Anonymous type parameter"
@@ -308,16 +308,18 @@ let ungeneralizable_type_param ~pos ~def_pos (name : T.tname) =
     Printf.sprintf
       "%s is used, but cannot be generalized"
       name,
-    [ def_pos, "Here is the declaration of this type parameter" ])
+    [ decl_pos, "Here is the declaration of this type parameter" ])
 
-let ungeneralizable_named_param ~pos ~def_pos (name : T.name) =
-  (pos,
-    Printf.sprintf
-      "%s is used, but cannot be generalized"
-      (string_of_name ~cap:true name),
-    [ def_pos, "Here is the declaration of this parameter" ])
+let ungeneralizable_named_param ~pos ~decl_pos ~pp (name : Name.t) =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "%s is used, but cannot be generalized"
+    (string_of_name ~pp ~pp_ctx ~cap:true name)
+  in
+  (pos, msg ^ Pretty.additional_info pp_ctx,
+    [ decl_pos, "Here is the declaration of this parameter" ])
 
-let rejected_type_param_used ~pos ~def_pos (name : T.tname) =
+let rejected_type_param_used ~pos ~decl_pos (name : T.tname) =
   let name =
     match name with
     | TNAnon  -> "Anonymous type parameter"
@@ -327,17 +329,15 @@ let rejected_type_param_used ~pos ~def_pos (name : T.tname) =
     Printf.sprintf
       "%s was not generalized, but later used during constraint solving"
       name,
-    [ def_pos, "Here is the declaration of this type parameter" ])
+    [ decl_pos, "Here is the declaration of this type parameter" ])
 
-let rejected_named_param_used ~pos ~def_pos (name : T.name) =
-  (pos,
-    Printf.sprintf
-      "%s was not generalized, but later used during constraint solving"
-      (string_of_name ~cap:true name),
-    [ def_pos, "Here is the declaration of this parameter" ])
-
-let method_owner_not_declared ~pos =
-  (pos, "Method can be declared only for declared types", [])
+let rejected_named_param_used ~pos ~decl_pos ~pp (name : Name.t) =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "%s was not generalized, but later used during constraint solving"
+    (string_of_name ~pp ~pp_ctx ~cap:true name)
+  in (pos, msg ^ Pretty.additional_info pp_ctx,
+    [ decl_pos, "Here is the declaration of this parameter" ])
 
 let non_polymorphic_pattern ~pos =
   (pos, Printf.sprintf "This pattern cannot match polymorphic values", [])
@@ -348,20 +348,21 @@ let polymorphic_optional_parameter ~pos =
 let anonymous_type_pattern ~pos =
   (pos, "Anonymous types patterns cannot be used in scheme-checking mode", [])
 
-let looping_named_param ~pos name =
-  (pos,
-    Printf.sprintf "Resolving of %s leads to an infinite loop"
-      (string_of_name name),
-    [])
+let looping_named_param ~pos ~pp (name : Name.t) =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Resolving of %s leads to an infinite loop"
+    (string_of_name ~pp ~pp_ctx name)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let named_param_type_mismatch ~pos ~env name tp1 tp2 =
+let named_param_type_mismatch ~pos ~pp name tp1 tp2 =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
     ("Type error during resolving of named "
     ^^ "parameters: %s has type %s, but the expected type is %s")
-    (string_of_name name)
-    (Pretty.type_to_string pp_ctx env tp1)
-    (Pretty.type_to_string pp_ctx env tp2)
+    (string_of_name ~pp ~pp_ctx name)
+    (Pretty.type_to_string pp_ctx pp tp1)
+    (Pretty.type_to_string pp_ctx pp tp2)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let ctor_redefinition ~pos ~ppos name =
@@ -374,12 +375,12 @@ let cannot_resolve_named_param ~pos x =
 let cannot_resolve_implicit ~pos name =
   (pos, Printf.sprintf "Cannot resolve an implicit parameter %s" name, [])
 
-let cannot_resolve_method ~pos env owner name =
+let cannot_resolve_method ~pos ~pp owner name =
   let pp_ctx = Pretty.empty_context () in
   let msg =
     Printf.sprintf
-      "Cannot resolve a method %s that belongs to %s" name
-      (Pretty.tvar_to_string pp_ctx env owner)
+      "Cannot resolve a method %s associated with %s" name
+      (string_of_method_owner ~pp ~pp_ctx owner)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let type_already_provided ~pos ~npos name =
@@ -387,9 +388,12 @@ let type_already_provided ~pos ~npos name =
     Printf.sprintf "Type %s is provided more than once" name,
     [ npos, "Here is the last definition" ])
 
-let named_param_already_provided ~pos ~npos (name : T.name) =
-  let nn = string_of_name ~cap:true name in
-  (pos, Printf.sprintf "%s is provided more than once" nn,
+let named_param_already_provided ~pos ~npos ~pp (name : Name.t) =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "%s is provided more than once"
+    (string_of_name ~pp ~pp_ctx ~cap:true name)
+  in (pos, msg ^ Pretty.additional_info pp_ctx,
     [ npos, "Here is the last definition" ])
 
 let named_param_provided_as_optional ~pos name =
@@ -401,15 +405,20 @@ let method_instantiation_not_allowed ~pos =
 let unknown_named_type_pattern ~pos name =
   (pos, Printf.sprintf "Type %s was not expected here" name, [])
 
-let unknown_named_pattern ~pos name =
-  (pos,
-    Printf.sprintf "A pattern for %s was not expected here"
-      (string_of_name name),
-    [])
+let unknown_named_pattern ~pos ~pp name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "A pattern for %s was not expected here"
+    (string_of_name ~pp ~pp_ctx name)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
-let multiple_named_patterns ~pos ~ppos name =
-  (pos,
-    Printf.sprintf "Multiple patterns for %s" (string_of_name name),
+let multiple_named_patterns ~pos ~ppos ~pp name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg =
+    Printf.sprintf "Multiple patterns for %s"
+      (string_of_name ~pp ~pp_ctx name)
+  in
+  (pos, msg ^ Pretty.additional_info pp_ctx,
     [ ppos, "Here is a previous pattern" ])
 
 let method_pattern_not_allowed ~pos =
@@ -421,56 +430,36 @@ let open_pattern_not_allowed ~pos =
 let duplicate_type_in_pattern ~pos ~ppos name =
   (pos,
     Printf.sprintf "Type %s is bound more than once in the same pattern" name,
-    [ ppos, "Here is a previous binding" ])
+    [ ppos, "Here is the previous binding" ])
 
-let duplicate_var_in_pattern ~pos ~ppos name =
-  (pos,
-    Printf.sprintf "Variable %s is bound more than once in the same pattern"
-      name,
-    [ ppos, "Here is a previous binding" ])
-
-let duplicate_implicit_in_pattern ~pos ~ppos name =
-  (pos,
-    Printf.sprintf "Implicit %s is bound more than once in the same pattern"
-      name,
-    [ ppos, "Here is a previous binding" ])
-
-let duplicate_method_in_pattern ~pos ~ppos ~env owner name =
+let duplicate_val_in_pattern ~pos ~ppos ~pp name =
   let pp_ctx = Pretty.empty_context () in
   let msg =
-    Printf.sprintf
-      "Method %s that belongs to type %s is bound more than once in the same pattern"
-      name
-      (Pretty.tvar_to_string pp_ctx env owner)
-  in (pos, msg ^ Pretty.additional_info pp_ctx,
-    [ ppos, "Here is a previous binding" ])
+    Printf.sprintf "%s is bound more than once in the same pattern"
+      (string_of_val_name ~pp ~pp_ctx ~cap:true name)
+  in
+  (pos, msg ^ Pretty.additional_info pp_ctx,
+    [ ppos, "Here is the previous binding" ])
 
 let duplicate_module_in_pattern ~pos ~ppos name =
   (pos,
     Printf.sprintf "Module %s is bound more than once in the same pattern"
       name,
-    [ ppos, "Here is a previous binding" ])
+    [ ppos, "Here is the previous binding" ])
 
 let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is bound more than once in single definition"
       name,
-    [ ppos, "Here is a previous type binder with this name" ])
+    [ ppos, "Here is the previous type binder with this name" ])
 
-let multiple_named_args ~pos ~ppos (name : T.name) =
-  let nn = string_of_name ~cap:true name in
-  (pos, Printf.sprintf "%s is bound more than once" nn,
-    [ ppos, "Here is a previous parameter with this name" ])
-
-let multiple_method_args ~env ~pos ~ppos owner name =
+let multiple_named_args ~pos ~ppos ~pp (name : Name.t) =
   let pp_ctx = Pretty.empty_context () in
   let msg =
-    Printf.sprintf
-      "Method %s that belongs to type %s is bound more than once"
-      name
-      (Pretty.tvar_to_string pp_ctx env owner)
-  in (pos, msg ^ Pretty.additional_info pp_ctx,
-    [ ppos, "Here is a previous method with this name" ])
+    Printf.sprintf "%s is bound more than once"
+      (string_of_name ~pp ~pp_ctx ~cap:true name) in
+  (pos, msg ^ Pretty.additional_info pp_ctx,
+    [ ppos, "Here is the previous parameter with this name" ])
 
 let generalized_type_clash ~pos name =
   (pos,
@@ -478,19 +467,12 @@ let generalized_type_clash ~pos name =
       "Implicitly generalized type %s clashes with other named type parameters"
         name, [])
 
-let generalized_name_clash ~pos name =
-  (pos,
+let generalized_name_clash ~pos ~pp name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = 
     Printf.sprintf
       "Implicitly generalized %s clashes with other named parameters"
-        (string_of_name name), [])
-
-let generalized_method_clash ~pos ~env owner name =
-  let pp_ctx = Pretty.empty_context () in
-  let msg =
-    Printf.sprintf
-      "Implicitly generalized method %s that belongs to %s clashes with other named parameters"
-        name
-        (Pretty.tvar_to_string pp_ctx env owner)
+      (string_of_name ~pp ~pp_ctx name)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
 let ctor_type_arg_same_as_data_arg ~pos (name : S.tvar) =
@@ -509,8 +491,9 @@ let redundant_named_type ~pos name =
   (pos, Printf.sprintf
       "Providing type %s to a function that do not expect it" name, [])
 
-let redundant_named_parameter ~pos name =
-  (pos,
+let redundant_named_parameter ~pos ~pp name =
+  let pp_ctx = Pretty.empty_context () in
+  let msg =
     Printf.sprintf "Providing %s to a function that do not expect it"
-      (string_of_name name),
-    [])
+      (string_of_name ~pp ~pp_ctx name) in
+  (pos, msg, [])

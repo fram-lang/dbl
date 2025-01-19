@@ -30,9 +30,9 @@ let expr_result_type (er : infer expr_result) : T.typ =
 (** Type of continuation used to type-checking of definitions. It is defined
   as record, in order to allow it to be polymorphic in a direction of type
   checking. *)
-type def_cont =
+type 'st def_cont =
   { run : 'dir.
-      Env.t -> ParameterEnv.t -> (T.typ, 'dir) request -> 'dir expr_result
+      ('st, sec) opn Env.t -> (T.typ, 'dir) request -> 'dir expr_result
   }
 
 (** Unfortunately, OCaml does not support mutually recursive modules defined
@@ -47,25 +47,25 @@ module type TCFix = sig
     arguments, the [?app_type] parameter, if provided, specifies the type of
     the application. *)
   val infer_expr_type :
-    ?app_type:T.typ -> Env.t -> S.expr -> infer expr_result
+    ?app_type:T.typ -> 'st Env.t -> S.expr -> infer expr_result
 
   (** Check the type of an expression. *)
   val check_expr_type :
-    Env.t -> S.expr -> T.typ -> check expr_result
+    'st Env.t -> S.expr -> T.typ -> check expr_result
 
   (** Check the type of a single definition. It uses bidirectional type
     checking, and passes the extended environment to the body-generating
     continuation. *)
   val check_def :
-    Env.t -> ParameterEnv.t -> S.def -> (T.typ, 'dir) request ->
-      def_cont -> 'dir expr_result
+    ('st, sec) opn Env.t -> S.def -> (T.typ, 'dir) request ->
+      'st def_cont -> 'dir expr_result
 
   (** Check the type of a block of definitions. It uses bidirectional type
     checking, and passes the extended environment to the body-generating
     continuation. *)
   val check_defs :
-    Env.t -> ParameterEnv.t -> S.def list -> (T.typ, 'dir) request ->
-      def_cont -> 'dir expr_result
+    ('st, sec) opn Env.t -> S.def list -> (T.typ, 'dir) request ->
+      'st def_cont -> 'dir expr_result
 end
 
 type tcfix = (module TCFix)

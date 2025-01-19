@@ -16,11 +16,11 @@ module rec TCFix : TCFix = struct
   let check_expr_type env e tp =
     Expr.check_expr_type ~tcfix:(module TCFix) env e tp
 
-  let check_def env ienv def tp_req cont =
-    Def.check_def ~tcfix:(module TCFix) env ienv def tp_req cont
+  let check_def env def tp_req cont =
+    Def.check_def ~tcfix:(module TCFix) env def tp_req cont
 
-  let check_defs env ienv defs tp_req cont =
-    Def.check_defs ~tcfix:(module TCFix) env ienv defs tp_req cont
+  let check_defs env defs tp_req cont =
+    Def.check_defs ~tcfix:(module TCFix) env defs tp_req cont
 end
 
 let tr_program p =

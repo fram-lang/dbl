@@ -71,9 +71,11 @@ let tr_opt_clauses (type dir) ~tcfix ~pos env tp_in cls
     in (x, er)
 
 let tr_return_clauses ~tcfix ~pos env tp_in cls rtp_req =
+  let pp = Env.pp_tree env in
   tr_opt_clauses ~tcfix ~pos env tp_in cls rtp_req
-    ~on_error:(Error.return_type_mismatch ~env)
+    ~on_error:(Error.return_type_mismatch ~pp)
 
 let tr_finally_clauses ~tcfix ~pos env tp_in cls rtp_req =
+  let pp = Env.pp_tree env in
   tr_opt_clauses ~tcfix ~pos env tp_in cls rtp_req
-    ~on_error:(Error.finally_type_mismatch ~env)
+    ~on_error:(Error.finally_type_mismatch ~pp)

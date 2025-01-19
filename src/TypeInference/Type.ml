@@ -97,12 +97,12 @@ and tr_scheme_args ?(data_targs=[]) env args =
   in
   let (env, targs, named) = loop env [] [] args in
   Uniqueness.check_unif_named_type_args targs;
-  Uniqueness.check_names ~env
+  Uniqueness.check_names ~pp:(Env.pp_tree env)
     (List.map (fun (pos, name, _) -> (pos, name)) named);
   let targs = List.map (fun (_, name, x) -> (name, x)) targs in
   let named =
     List.map
-      (fun (_, name, sch) -> (Uniqueness.tr_name name, sch))
+      (fun (_, name, sch) -> (Name.to_unif name, sch))
       named in
   (env, targs, named)
 
@@ -123,28 +123,28 @@ and tr_scheme_arg ~data_targs env (arg : S.scheme_arg) =
 
   | SA_Val(S.NVar name, sch) ->
     let sch = tr_scheme env sch in
-    (env, [], [(pos, Uniqueness.UNVar name, sch)])
+    (env, [], [(pos, Name.NVar name, sch)])
 
   | SA_Val(S.NOptionalVar name, sch) ->
     let sch = tr_scheme env sch in
     begin match T.SchemeExpr.to_type_expr sch with
     | Some tp ->
       let sch = BuiltinTypes.mk_option_scheme_expr tp in
-      (env, [], [(pos, Uniqueness.UNOptionalVar name, sch)])
+      (env, [], [(pos, Name.NOptionalVar name, sch)])
     | None ->
       Error.fatal (Error.polymorphic_optional_parameter ~pos)
     end
 
   | SA_Val(S.NImplicit name, sch) ->
     let sch = tr_scheme env sch in
-    (env, [], [(pos, Uniqueness.UNImplicit name, sch)])
+    (env, [], [(pos, Name.NImplicit name, sch)])
 
   | SA_Val(S.NMethod name, sch) ->
     let sch = tr_scheme env sch in
     let owner =
-      TypeUtils.method_owner_of_scheme ~pos ~env
+      NameUtils.method_owner_of_scheme ~pos ~pp:(Env.pp_tree env)
         (T.SchemeExpr.to_scheme sch) in
-    (env, [], [(pos, Uniqueness.UNMethod(owner, name), sch)])
+    (env, [], [(pos, Name.NMethod(owner, name), sch)])
 
 and tr_ttype env tp =
   check_kind env tp T.Kind.k_type

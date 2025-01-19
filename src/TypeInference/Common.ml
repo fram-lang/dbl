@@ -7,6 +7,23 @@
 module S = Lang.Surface
 module T = Lang.Unif
 
+let the_label_name = "~label"
+
+(** Dummy types for encoding the state of the module. They are used to index
+  module and environment types. They meaning can be summarized as below:
+  - [closed] -- the module is closed and cannot be extended with new
+    definitions. For environments, it means that the environment is top-level.
+  - [opn] -- the module/environment has open some additional scope. The kind
+    of the scope is specified by the second parameter: either [modl] for
+    modules or [sec] for sections.
+  - [exp] -- the environment is used for expression/definition type-checking,
+    and it is not possible to leave any module or section. *)
+type closed = Dummy_Closed
+type ('st, 'sc) opn = Dummy_Opn of 'st * 'sc
+type exp  = Dummy_Exp
+type modl = Dummy_Modl
+type sec  = Dummy_Sec
+
 (** Direction of type inference. We never use values of these types. They
   are only used for indexing [request] and [response] GADTs. *)
 type infer = Dummy_Infer

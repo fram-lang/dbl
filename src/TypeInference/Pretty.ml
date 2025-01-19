@@ -39,7 +39,7 @@ let empty_context () = {
 module PPEnv : sig
   type t
 
-  val create : ctx -> Env.t -> t
+  val create : ctx -> PPTree.t -> t
 
   val add_tvar : t -> string -> T.tvar -> t
 
@@ -57,9 +57,9 @@ end = struct
     context     : ctx
   }
 
-  let create ctx env = {
+  let create ctx pp_tree = {
     local_names = T.TVar.Map.empty;
-    pp_tree     = Env.pp_tree env;
+    pp_tree     = pp_tree;
     context     = ctx
   }
 
@@ -323,15 +323,15 @@ let kind_to_string ctx k =
   pp_kind ctx buf 0 k;
   Buffer.contents buf
 
-let tvar_to_string ctx env x =
-  pp_tvar (PPEnv.create ctx env) x
+let tvar_to_string ctx pp_tree x =
+  pp_tvar (PPEnv.create ctx pp_tree) x
 
-let type_to_string ctx env tp =
+let type_to_string ctx pp_tree tp =
   let buf = Buffer.create 80 in
-  pp_type buf (PPEnv.create ctx env) 0 tp;
+  pp_type buf (PPEnv.create ctx pp_tree) 0 tp;
   Buffer.contents buf
 
-let scheme_to_string ctx env sch =
+let scheme_to_string ctx pp_tree sch =
   let buf = Buffer.create 80 in
-  pp_scheme buf (PPEnv.create ctx env) 0 sch;
+  pp_scheme buf (PPEnv.create ctx pp_tree) 0 sch;
   Buffer.contents buf

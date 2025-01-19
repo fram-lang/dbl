@@ -10,5 +10,5 @@ open TypeCheckFix
 (** Instantiate polymorphic expression of given scheme by providing the
   explicit instantiation. *)
 val instantiate_poly_expr : tcfix:tcfix ->
-  pos:Position.t -> Env.t -> T.poly_expr -> T.scheme -> S.inst list ->
+  pos:Position.t -> 'st Env.t -> T.poly_expr -> T.scheme -> S.inst list ->
     infer expr_result

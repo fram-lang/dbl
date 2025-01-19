@@ -15,7 +15,7 @@ open TypeCheckFix
   - [cls]     -- list of clauses
   - [res_tp]  -- returned type *)
 val check_match_clauses : tcfix:tcfix ->
-  Env.t -> T.typ -> S.match_clause list -> T.typ ->
+  'st Env.t -> T.typ -> S.match_clause list -> T.typ ->
     T.match_clause list * T.effect * Constr.t list
 
 (** Check return clauses of the handler, taking default identity clause if
@@ -30,10 +30,10 @@ val check_match_clauses : tcfix:tcfix ->
   Returns a pair: a variable bound by this return clause, and the translated
   body of the clause. *)
 val tr_return_clauses : tcfix:tcfix -> pos:Position.t ->
-  Env.t -> T.typ -> S.match_clause list -> (T.typ, 'rd) request ->
+  'st Env.t -> T.typ -> S.match_clause list -> (T.typ, 'rd) request ->
     T.var * 'rd expr_result
 
 (** Same as [tr_return_clauses], but for finally clauses. *)
 val tr_finally_clauses : tcfix:tcfix -> pos:Position.t ->
-  Env.t -> T.typ -> S.match_clause list -> (T.typ, 'rd) request ->
+  'st Env.t -> T.typ -> S.match_clause list -> (T.typ, 'rd) request ->
     T.var * 'rd expr_result

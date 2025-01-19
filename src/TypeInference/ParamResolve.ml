@@ -81,7 +81,8 @@ let open_scheme_values ~pos ~sub env named =
       let (env, x) = Env.add_implicit env iname sch in
       ((env, rctx), (x, sch))
     | T.NMethod name ->
-      let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+      let pp = Env.pp_tree env in
+      let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
       let (env, x) = Env.add_method env owner name sch in
       ((env, rctx), (x, sch))
   in
@@ -103,7 +104,8 @@ let open_scheme_values_explicit ~pos ~sub env named =
       let x = Var.fresh ~name:x () in
       (env, (name, x, sch))
     | T.NMethod mname ->
-      let owner = TypeUtils.method_owner_of_scheme ~pos ~env sch in
+      let pp = Env.pp_tree env in
+      let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
       let (env, x) = Env.add_method env owner mname sch in
       (env, (name, x, sch))
   in
@@ -128,9 +130,9 @@ let guess_types ~pos env targs =
 
 (** Check for cyclic dependencies in the type parameters, and extend a set of
   restricted variables. *)
-let restrict_var ~vset ~pos x name =
+let restrict_var ~vset ~pos ~pp x name =
   if Var.Set.mem x vset then
-    Error.fatal (Error.looping_named_param ~pos name)
+    Error.fatal (Error.looping_named_param ~pos ~pp name)
   else
     Var.Set.add x vset
 
@@ -143,9 +145,10 @@ let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
     types in resolving of named parameters. *)
   let (sub, tps) = guess_types ~pos env sch_in.sch_targs in
   let tp_in = T.Type.subst sub sch_in.sch_body in
+  let pp = Env.pp_tree env in
   Error.check_unify_result ~pos
     (Unification.subtype env tp_in tp_out)
-    ~on_error:(Error.named_param_type_mismatch ~env name tp_in tp_out);
+    ~on_error:(Error.named_param_type_mismatch ~pp name tp_in tp_out);
   let (named, cs) =
     resolve_params ~sub ~vset ~pos env rctx sch_in.sch_named in
   let make data = { T.pos; T.data } in
@@ -166,9 +169,9 @@ and resolve_param ~vset ~pos env rctx name sch =
   | T.NVar x ->
     begin match Reinst.lookup_var rctx x with
     | Some (RReg(y, y_sch)) ->
-      let vset = restrict_var ~vset ~pos y name in
+      let vset = restrict_var ~vset ~pos ~pp:(Env.pp_tree env) y (NVar x) in
       let e = { T.pos; T.data = T.EVar y } in
-      coerce_scheme ~vset ~pos ~name env e y_sch sch
+      coerce_scheme ~vset ~pos ~name:(NVar x) env e y_sch sch
     | Some (ROpt _) | None ->
       Error.fatal (Error.cannot_resolve_named_param ~pos x)
     end
@@ -184,17 +187,18 @@ and resolve_param ~vset ~pos env rctx name sch =
 
 and resolve_optional ~vset ~pos env rctx x sch =
   let tp = BuiltinTypes.scheme_to_option_arg sch in
-  let name = T.NOptionalVar x in
+  let name = Name.NOptionalVar x in
+  let pp = Env.pp_tree env in
   begin match Reinst.lookup_var rctx x with
   | Some (ROpt(y, y_tp)) ->
     Error.check_unify_result ~pos
       (Unification.subtype env y_tp tp)
-      ~on_error:(Error.named_param_type_mismatch ~env name y_tp tp);
+      ~on_error:(Error.named_param_type_mismatch ~pp name y_tp tp);
     let e = { T.pos; T.data = T.EVar y } in
     (e, [])
 
   | Some (RReg(y, y_sch)) ->
-    let vset = restrict_var ~vset ~pos y name in
+    let vset = restrict_var ~vset ~pos ~pp y name in
     let e = { T.pos; T.data = T.EVar y } in
     let (e, cs) =
       coerce_scheme ~vset ~pos ~name env e y_sch (T.Scheme.of_type tp) in
@@ -209,16 +213,14 @@ and resolve_optional ~vset ~pos env rctx x sch =
   end
 
 and resolve_implicit ~vset ~pos env rctx iname sch =
-  let name = T.NImplicit iname in
-  match Env.lookup_implicit env iname with
-  | Some(x, x_sch, on_use) ->
-    on_use pos;
-    let vset = restrict_var ~vset ~pos x name in
-    let e = { T.pos; T.data = T.EVar x } in
-    coerce_scheme ~vset ~pos ~name env e x_sch sch
-
+  let name = Name.NImplicit iname in
+  match ModulePath.try_lookup_implicit ~pos env iname with
   | None ->
     Error.fatal (Error.cannot_resolve_implicit ~pos iname)
+  | Some(x, x_sch) ->
+    let vset = restrict_var ~vset ~pos ~pp:(Env.pp_tree env) x name in
+    let e = { T.pos; T.data = T.EVar x } in
+    coerce_scheme ~vset ~pos ~name env e x_sch sch
 
 and resolve_method ~vset ~pos env rctx mname (sch : T.scheme) =
   let self_tp =
@@ -228,28 +230,22 @@ and resolve_method ~vset ~pos env rctx mname (sch : T.scheme) =
       owner_sch.sch_body
     | _ -> assert false
   in
-  match T.Type.whnf self_tp with
-  | Whnf_Neutral(NH_Var owner, _) ->
-    begin match Env.lookup_method env owner mname with
-    | Some(x, x_sch, on_use) ->
-      on_use pos;
-      let vset = restrict_var ~vset ~pos x (T.NMethod mname) in
+  let pp = Env.pp_tree env in
+  match NameUtils.method_owner_of_self self_tp with
+  | Some owner ->
+    let name = Name.NMethod(owner, mname) in
+    begin match ModulePath.try_lookup_method ~pos env owner mname with
+    | Some(x, x_sch) ->
+      let vset = restrict_var ~vset ~pos ~pp x name in
       let e = { T.pos; T.data = T.EVar x } in
-      coerce_scheme ~vset ~pos ~name:(T.NMethod mname) env e x_sch sch
+      coerce_scheme ~vset ~pos ~name env e x_sch sch
 
     | None ->
-      Error.fatal (Error.cannot_resolve_method ~pos env owner mname)
+      Error.fatal (Error.cannot_resolve_method ~pos ~pp owner mname)
     end
-
-  | Whnf_Neutral(NH_UVar _, _) ->
+  | None ->
     (* TODO: create a method constraint *)
     failwith "Not implemented: method call on unknown type"
-
-  | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
-    Error.fatal (Error.method_call_on_invalid_type ~pos ~env self_tp)
-
-  | Whnf_Effect ->
-    failwith "Internal kind error"
 
 (* ========================================================================= *)
 let instantiate ~pos env rctx poly_expr (sch : T.scheme) =

@@ -9,10 +9,16 @@ open TypeCheckFix
 
 module StrMap = Map.Make(String)
 
-type 'a name_status =
-  | Provided    of Position.t
-  | ModProvided of Position.t
-  | NotProvided of 'a
+type type_name_status =
+  | TProvided    of Position.t
+  | TModProvided of Position.t
+  | TNotProvided of T.kind
+
+type val_name_status =
+  | VProvided    of Position.t
+  | VModProvided of Position.t
+  | VNotProvided of T.scheme
+  | VOptional    of T.typ
 
 (* ========================================================================= *)
 (** Create a map from names of type parameters to their status *)
@@ -22,7 +28,7 @@ let named_type_args sch_targs =
       (fun (name, tvar) ->
         match name with
         | T.TNAnon  -> None
-        | T.TNVar x -> Some (x, NotProvided (T.TVar.kind tvar)))
+        | T.TNVar x -> Some (x, TNotProvided (T.TVar.kind tvar)))
   |> StrMap.of_list
 
 (* ------------------------------------------------------------------------- *)
@@ -42,14 +48,12 @@ type type_inst =
 let preprocess_module_type_insts ~pos lookup insts tnames =
   let preprocess name status (insts, tnames) =
     match status with
-    | Provided _ | ModProvided _ -> (insts, tnames)
-    | NotProvided kind ->
+    | TProvided _ | TModProvided _ -> (insts, tnames)
+    | TNotProvided kind ->
       begin match lookup name with
       | None -> (insts, tnames)
-
-      | Some(tp, on_use) ->
-        on_use pos;
-        let tnames = StrMap.add name (ModProvided pos) tnames in
+      | Some tp ->
+        let tnames = StrMap.add name (TModProvided pos) tnames in
         (TI_ModProvided(name, tp, kind, pos) :: insts, tnames)
       end
   in
@@ -68,11 +72,11 @@ let rec preprocess_type_insts env (insts : S.inst list) tnames =
       Error.warn (Error.redundant_named_type ~pos name);
       (TI_Redundant tp :: insts, tnames)
 
-    | Some (NotProvided kind) ->
-      let tnames = StrMap.add name (Provided pos) tnames in
+    | Some (TNotProvided kind) ->
+      let tnames = StrMap.add name (TProvided pos) tnames in
       (TI_Provided(name, tp, kind) :: insts, tnames)
 
-    | Some (Provided npos | ModProvided npos) ->
+    | Some (TProvided npos | TModProvided npos) ->
       Error.report (Error.type_already_provided ~pos ~npos name);
       (TI_Redundant tp :: insts, tnames)
     end
@@ -82,12 +86,14 @@ let rec preprocess_type_insts env (insts : S.inst list) tnames =
 
   | { data = IOpen; pos } :: insts ->
     let (insts, tnames) = preprocess_type_insts env insts tnames in
-    preprocess_module_type_insts ~pos (Env.lookup_tvar env) insts tnames
+    let lookup = ModulePath.try_lookup_tvar ~pos env in
+    preprocess_module_type_insts ~pos lookup insts tnames
 
   | { data = IModule path; pos } :: insts ->
     let (insts, tnames) = preprocess_type_insts env insts tnames in
     let modl = ModulePath.lookup_module env path in
-    preprocess_module_type_insts ~pos (Module.lookup_tvar modl) insts tnames
+    let lookup = ModulePath.try_lookup_tvar_in_module ~pos env modl in
+    preprocess_module_type_insts ~pos lookup insts tnames
 
 (* ------------------------------------------------------------------------- *)
 (** Check the kind of a single preprocessed type parameter *)
@@ -144,18 +150,6 @@ let check_type_params ~pos env insts sch_targs =
   build_type_params ~pos ~env insts sch_targs
 
 (* ========================================================================= *)
-type regular_arg_status =
-  | Regular  of T.scheme name_status
-  | Optional of T.typ name_status
-
-(** Status of named parameters. *)
-type named_args_status = {
-  regular_args  : regular_arg_status StrMap.t;
-    (** Status of regular and optional arguments. *)
-  implicit_args : T.scheme name_status StrMap.t;
-    (** Status of implicit arguments. *)
-}
-
 (* TODO: explicit method instantiation is not allowed yet, because it is more
   complex than it seems. We have to be able to discover ambiguous
   instantiations like the following.
@@ -167,7 +161,7 @@ type named_args_status = {
     ... foo {T = Int, U = Int, method m = fn (x : Int) => x} ...
   ```
   Moreover, explicit method instantiations interact with module instantiations
-  in a wat that is not yet clear, for example:
+  in a way that is not yet clear, for example:
   ```
     module M
       pub method m = ...
@@ -178,31 +172,21 @@ type named_args_status = {
   on types? *)
 
 (* Create an initial status of named parameters. *)
-let named_args sch_named =
+let named_args ~pos ~pp sch_named =
   let add_named_arg status (name, sch) =
     match name with
     | T.NVar x ->
-      { status with regular_args =
-        StrMap.add x (Regular (NotProvided sch)) status.regular_args
-      }
+      Name.Map.add (NVar x) (VNotProvided sch) status
     | T.NOptionalVar x ->
       let tp = BuiltinTypes.scheme_to_option_arg sch in
-      { status with regular_args =
-        StrMap.add x (Optional (NotProvided tp)) status.regular_args
-      }
+      Name.Map.add (NOptionalVar x) (VOptional tp) status
     | T.NImplicit x ->
-      { status with implicit_args =
-        StrMap.add x (NotProvided sch) status.implicit_args
-      }
-    | T.NMethod _ ->
-      (* TODO: not implemented. See the comment above. *)
-      status
+      Name.Map.add (NImplicit x) (VNotProvided sch) status
+    | T.NMethod m ->
+      let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
+      Name.Map.add (NMethod(owner, m)) (VNotProvided sch) status
   in
-  let empty =
-    { regular_args  = StrMap.empty;
-      implicit_args = StrMap.empty;
-    } in
-  List.fold_left add_named_arg empty sch_named
+  List.fold_left add_named_arg Name.Map.empty sch_named
 
 (* ------------------------------------------------------------------------- *)
 (** Preprocessed value instantiations *)
@@ -211,18 +195,15 @@ type value_inst =
     (** This parameter is redundant. It should be type-checked, but it will
       not be used in the actual instantiation. *)
 
-  | VI_RegProvided of S.var * S.poly_expr_def * T.scheme
-    (** This regular parameter is provided and should have a given scheme.
+  | VI_Provided of Name.t * S.poly_expr_def * T.scheme
+    (** This parameter is provided and should have a given scheme.
       It is also used to provide "optional as Option" parameters, i.e.,
       [{?x = ...}]. *)
 
-  | VI_OptProvided of S.var * S.poly_expr_def * T.typ
+  | VI_OptProvided of Name.t * S.poly_expr_def * T.typ
     (** This optional parameter is provided and should have a given type. *)
 
-  | VI_ImplicitProvided of S.iname * S.poly_expr_def * T.scheme
-    (** This implicit parameter is provided and should have a given scheme. *)
-
-  | VI_ModProvided of T.name * T.poly_expr * T.scheme * T.scheme * Position.t
+  | VI_ModProvided of Name.t * T.poly_expr * T.scheme * T.scheme * Position.t
     (** This parameter is provided by a module or the environment. The first
       scheme is an actual scheme, and the second one is a scheme that is
       expected. *)
@@ -233,136 +214,102 @@ type value_inst =
       scheme, the expected type, and the position of the instantiation. *)
 
 (** Preprocess value instantiations taken from a module or the environment. *)
-let preprocess_module_val_insts
-    ~pos ~mk_path ~lookup_var ~lookup_implicit insts names =
-  let preprocess_regular name status (insts, names) =
-    match status with
-    | Regular (Provided _ | ModProvided _)
-    | Optional (Provided _ | ModProvided _) ->
+let preprocess_module_val_insts ~pos ~lookup insts names =
+  let preprocess_val (name : Name.t) status (insts, names) =
+    match name, status with
+    | _, (VProvided _ | VModProvided _) ->
       (insts, names)
 
-    | Regular (NotProvided sch) ->
-      begin match lookup_var name with
+    | (NVar _ | NImplicit _ | NMethod _), VNotProvided sch ->
+      begin match lookup name with
       | None -> (insts, names)
 
-      | Some(info, on_use) ->
-        on_use pos;
-        let names =
-          { names with regular_args =
-            StrMap.add name (Regular (ModProvided pos)) names.regular_args
-          } in
-        let (poly_expr, poly_sch) =
-          ExprUtils.tr_var_info ~pos ~path:(mk_path name) info in
+      | Some(poly_expr, poly_sch) ->
+        let names = Name.Map.add name (VModProvided pos) names in
         let insts =
-          VI_ModProvided(NVar name, poly_expr, poly_sch, sch, pos) :: insts in
+          VI_ModProvided(name, poly_expr, poly_sch, sch, pos) :: insts in
         (insts, names)
       end
 
-    | Optional (NotProvided tp) ->
-      begin match lookup_var name with
+    | NOptionalVar opt_name, VOptional tp ->
+      begin match lookup name with
       | None -> (insts, names)
 
-      | Some(info, on_use) ->
-        on_use pos;
-        let names =
-          { names with regular_args =
-            StrMap.add name (Optional (ModProvided pos)) names.regular_args
-          } in
-        let (poly_expr, poly_sch) =
-          ExprUtils.tr_var_info ~pos ~path:(mk_path name) info in
+      | Some(poly_expr, poly_sch) ->
+        let names = Name.Map.add name (VModProvided pos) names in
         let insts =
-          VI_OptModProvided(name, poly_expr, poly_sch, tp, pos) :: insts in
+          VI_OptModProvided(opt_name, poly_expr, poly_sch, tp, pos) :: insts in
         (insts, names)
       end
-  in
-  let preprocess_implicit name status (insts, names) =
-    match status with
-    | Provided _ | ModProvided _ -> (insts, names)
-    | NotProvided sch ->
-      begin match lookup_implicit name with
-      | None -> (insts, names)
 
-      | Some(x, x_sch, on_use) ->
-        on_use pos;
-        let names =
-          { names with implicit_args =
-            StrMap.add name (ModProvided pos) names.implicit_args
-          } in
-        let poly_expr = { T.pos; T.data = T.EVar x } in
-        let insts =
-          VI_ModProvided(NImplicit name, poly_expr, x_sch, sch, pos) :: insts in
-        (insts, names)
-      end
+    | (NVar _ | NImplicit _ | NMethod _), VOptional _ ->
+      (* [VOptional] status is possible only for optional parameters *)
+      assert false
+    | NOptionalVar _, VNotProvided _ ->
+      (* Optional parameters are treated in a special way. They use [VOptional]
+        constructor. *)
+      assert false
   in
   (insts, names)
-  |> StrMap.fold preprocess_regular names.regular_args
-  |> StrMap.fold preprocess_implicit names.implicit_args
+  |> Name.Map.fold preprocess_val names
 
 (** Preprocess value instantiations, i.e., decide which named parameters are
   provided. *)
 let rec preprocess_val_insts env (insts : S.inst list) names =
+  let pp = Env.pp_tree env in
   match insts with
   | [] -> ([], names)
 
   | { data = IType _; pos } :: insts -> preprocess_val_insts env insts names
 
-  | { data = IVal(NVar x, e); pos } :: insts ->
+  | { data = IVal((NVar _ | NImplicit _) as name, e); pos } :: insts ->
+    let name =
+      match name with
+      | NVar x      -> Name.NVar x
+      | NImplicit x -> Name.NImplicit x
+      | _ -> assert false
+    in
     let (insts, names) = preprocess_val_insts env insts names in
-    begin match StrMap.find_opt x names.regular_args with
+    begin match Name.Map.find_opt name names with
     | None ->
-      Error.warn (Error.redundant_named_parameter ~pos (NVar x));
+      Error.warn (Error.redundant_named_parameter ~pos ~pp name);
       (VI_Redundant e :: insts, names)
 
-    | Some (Regular (NotProvided sch)) ->
-      (VI_RegProvided(x, e, sch) :: insts, names)
+    | Some (VNotProvided sch) ->
+      let names = Name.Map.add name (VProvided pos) names in
+      (VI_Provided(name, e, sch) :: insts, names)
 
-    | Some (Optional (NotProvided tp)) ->
-      (VI_OptProvided(x, e, tp) :: insts, names)
+    | Some (VOptional tp) ->
+      let names = Name.Map.add name (VProvided pos) names in
+      (VI_OptProvided(name, e, tp) :: insts, names)
 
-    | Some (Regular (Provided npos | ModProvided npos)) ->
-      Error.report (Error.named_param_already_provided ~pos ~npos (NVar x));
-      (VI_Redundant e :: insts, names)
-
-    | Some (Optional (Provided npos | ModProvided npos)) ->
-      Error.report
-        (Error.named_param_already_provided ~pos ~npos (NOptionalVar x));
+    | Some (VProvided npos | VModProvided npos) ->
+      (* extract exact name, in order to distinguish between regular and
+        optional parameters *)
+      let name = fst (Name.Map.find_first (Name.equal name) names) in
+      Error.report (Error.named_param_already_provided ~pos ~npos ~pp name);
       (VI_Redundant e :: insts, names)
     end
 
   | { data = IVal(NOptionalVar x, e); pos } :: insts ->
     let (insts, names) = preprocess_val_insts env insts names in
-    begin match StrMap.find_opt x names.regular_args with
+    let name = Name.NOptionalVar x in
+    begin match Name.Map.find_opt name names with
     | None ->
-      Error.warn (Error.redundant_named_parameter ~pos (NOptionalVar x));
+      Error.warn (Error.redundant_named_parameter ~pos ~pp name);
       (VI_Redundant e :: insts, names)
 
-    | Some (Optional (NotProvided tp)) ->
+    | Some (VOptional tp) ->
       let sch = BuiltinTypes.mk_option_scheme tp in
-      (VI_RegProvided(x, e, sch) :: insts, names)
+      let names = Name.Map.add name (VProvided pos) names in
+      (VI_Provided(name, e, sch) :: insts, names)
 
-    | Some (Optional (Provided npos | ModProvided npos)) ->
-      Error.report
-        (Error.named_param_already_provided ~pos ~npos (NOptionalVar x));
+    | Some (VProvided npos | VModProvided npos) ->
+      Error.report (Error.named_param_already_provided ~pos ~npos ~pp name);
       (VI_Redundant e :: insts, names)
 
-    | Some (Regular _) ->
+    | Some (VNotProvided _) ->
       Error.report (Error.named_param_provided_as_optional ~pos x);
-      (VI_Redundant e :: insts, names)
-    end
-
-  | { data = IVal(NImplicit name, e); pos } :: insts ->
-    let (insts, names) = preprocess_val_insts env insts names in
-    begin match StrMap.find_opt name names.implicit_args with
-    | None ->
-      Error.warn (Error.redundant_named_parameter ~pos (NImplicit name));
-      (VI_Redundant e :: insts, names)
-
-    | Some (NotProvided sch) ->
-      (VI_ImplicitProvided(name, e, sch) :: insts, names)
-
-    | Some (Provided npos | ModProvided npos) ->
-      Error.report
-        (Error.named_param_already_provided ~pos ~npos (NImplicit name));
       (VI_Redundant e :: insts, names)
     end
 
@@ -375,28 +322,17 @@ let rec preprocess_val_insts env (insts : S.inst list) names =
   | { data = IOpen; pos } :: insts ->
     let (insts, names) = preprocess_val_insts env insts names in
     preprocess_module_val_insts ~pos
-      ~mk_path:(fun x -> { S.pos; S.data = S.NPName x })
-      ~lookup_var:(Env.lookup_var env)
-      ~lookup_implicit:(Env.lookup_implicit env)
+      ~lookup:(ModulePath.try_lookup_val ~pos env)
       insts names
 
   | { data = IModule path; pos } :: insts ->
     let (insts, names) = preprocess_val_insts env insts names in
     let modl = ModulePath.lookup_module env path in
     preprocess_module_val_insts ~pos
-      ~mk_path:(fun x -> { S.pos; S.data = S.NPSel(path, x) })
-      ~lookup_var:(Module.lookup_var modl)
-      ~lookup_implicit:(Module.lookup_implicit modl)
+      ~lookup:(ModulePath.try_lookup_val_in_module ~pos env modl)
       insts names
 
 (* ------------------------------------------------------------------------- *)
-(** Type-checked value instantiations *)
-type val_insts = {
-  vi_regular_args  : T.poly_expr StrMap.t;
-    (** Regular and optional arguments. *)
-  vi_implicit_args : T.poly_expr StrMap.t;
-    (** Implicit arguments. *)
-}
 
 (** Create a context with polymorphic let-definition. *)
 let let_poly_ctx e cs =
@@ -446,13 +382,10 @@ let check_type_of_val_param ~tcfix env inst val_insts =
       (i_ctx, val_insts)
     end
 
-  | VI_RegProvided(x, e, sch) ->
+  | VI_Provided(name, e, sch) ->
     let (i_ctx, e) =
       default_check_provided ~tcfix ~wrap:Fun.id env e sch in
-    let val_insts =
-      { val_insts with vi_regular_args =
-        StrMap.add x e val_insts.vi_regular_args
-      } in
+    let val_insts = Name.Map.add name e val_insts in
     (i_ctx, val_insts)
 
   | VI_OptProvided(x, e, tp) ->
@@ -463,35 +396,12 @@ let check_type_of_val_param ~tcfix env inst val_insts =
           make (T.EPolyFun([], [],
             BuiltinTypes.mk_some_poly ~pos:e.pos tp e)))
       env e (T.Scheme.of_type tp) in
-    let val_insts =
-      { val_insts with vi_regular_args =
-        StrMap.add x e val_insts.vi_regular_args
-      } in
-    (i_ctx, val_insts)
-
-  | VI_ImplicitProvided(name, e, sch) ->
-    let (i_ctx, e) =
-      default_check_provided ~tcfix ~wrap:Fun.id env e sch in
-    let val_insts =
-      { val_insts with vi_implicit_args =
-        StrMap.add name e val_insts.vi_implicit_args
-      } in
+    let val_insts = Name.Map.add x e val_insts in
     (i_ctx, val_insts)
 
   | VI_ModProvided(name, e, poly_sch, sch, pos) ->
     let (e, cs) = ParamResolve.coerce_scheme ~pos ~name env e poly_sch sch in
-    let val_insts =
-      match name with
-      | NVar x | NOptionalVar x ->
-        { val_insts with vi_regular_args =
-          StrMap.add x e val_insts.vi_regular_args
-        }
-      | NImplicit x ->
-        { val_insts with vi_implicit_args =
-          StrMap.add x e val_insts.vi_implicit_args
-        }
-      | NMethod _ -> assert false
-    in
+    let val_insts = Name.Map.add name e val_insts in
     (add_constr_ctx cs, val_insts)
 
   | VI_OptModProvided(x, e, poly_sch, tp, pos) ->
@@ -501,10 +411,7 @@ let check_type_of_val_param ~tcfix env inst val_insts =
       { T.pos = pos;
         T.data = (T.EPolyFun([], [], BuiltinTypes.mk_some_poly ~pos tp e))
       } in
-    let val_insts =
-      { val_insts with vi_regular_args =
-        StrMap.add x poly_expr val_insts.vi_regular_args
-      } in
+    let val_insts = Name.Map.add (NOptionalVar x) poly_expr val_insts in
     (add_constr_ctx cs, val_insts)
 
 (** Check types of all preprocessed value parameters in the order that appears
@@ -515,11 +422,7 @@ let check_types_of_val_params ~tcfix env insts =
       check_type_of_val_param ~tcfix env inst val_insts in
     (Fun.compose i_ctx1 i_ctx2, val_insts)
   in
-  let init =
-    { vi_regular_args  = StrMap.empty;
-      vi_implicit_args = StrMap.empty;
-    } in
-  List.fold_left check (Fun.id, init) insts
+  List.fold_left check (Fun.id, Name.Map.empty) insts
 
 (* ------------------------------------------------------------------------- *)
 (** Build a final list of named parameters *)
@@ -528,13 +431,13 @@ let build_named_params ~pos env insts sch_named =
   let build_named_param (name, sch) =
     match name with
     | T.NVar x ->
-      begin match StrMap.find_opt x insts.vi_regular_args with
+      begin match Name.Map.find_opt (NVar x) insts with
       | Some e -> (e, [])
       | None -> Error.fatal (Error.cannot_resolve_named_param ~pos x)
       end
 
     | T.NOptionalVar x ->
-      begin match StrMap.find_opt x insts.vi_regular_args with
+      begin match Name.Map.find_opt (NOptionalVar x) insts with
       | Some e -> (e, [])
       | None ->
         let e =
@@ -543,7 +446,7 @@ let build_named_params ~pos env insts sch_named =
       end
 
     | T.NImplicit iname ->
-      begin match StrMap.find_opt iname insts.vi_implicit_args with
+      begin match Name.Map.find_opt (NImplicit iname) insts with
       | Some e -> (e, [])
       | None   -> ParamResolve.resolve_implicit ~pos env iname sch
       end
@@ -561,7 +464,7 @@ let build_named_params ~pos env insts sch_named =
 
 (* ------------------------------------------------------------------------- *)
 let check_named_params ~tcfix ~pos env insts sch_named =
-  let names = named_args sch_named in
+  let names = named_args ~pos ~pp:(Env.pp_tree env) sch_named in
   let (insts, _) = preprocess_val_insts env insts names in
   let (i_ctx, insts) = check_types_of_val_params ~tcfix env insts in
   let (cs, params) = build_named_params ~pos env insts sch_named in

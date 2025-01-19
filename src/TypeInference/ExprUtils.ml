@@ -25,9 +25,9 @@ let annotate_named_args named body res_tp =
   in
   List.fold_right annotate named ([], body)
 
-let generalize ~pos ~env tvs named e (sch : T.scheme) =
+let generalize ~pos ~pp tvs named e (sch : Name.scheme) =
   Uniqueness.check_generalized_types ~pos tvs sch.sch_targs;
-  Uniqueness.check_generalized_names ~pos ~env named sch.sch_named;
+  Uniqueness.check_generalized_names ~pos ~pp named sch.sch_named;
   let inst_tps   =
     List.map (fun (_, x) -> make_nowhere (T.TE_Type (T.Type.t_var x)))
       sch.sch_targs in
@@ -44,7 +44,8 @@ let generalize ~pos ~env tvs named e (sch : T.scheme) =
     { e with T.data = T.EPolyFun(List.map snd tvs, poly_args, body) } in
   let sch = {
     T.sch_targs = tvs;
-    T.sch_named = List.map (fun (name, _, sch) -> (name, sch)) named;
+    T.sch_named =
+      List.map (fun (name, _, sch) -> (Name.to_unif name, sch)) named;
     T.sch_body  = sch.sch_body
   } in
   (poly_expr, sch)
@@ -73,23 +74,6 @@ let ctor_func ~pos idx (info : Module.adt_info) =
     List.map snd (info.adt_args @ ctor.ctor_targs),
     named_args @ args,
     body))
-
-let tr_var_info ~pos ~path (info : Module.var_info) =
-  match info with
-  | VI_Var(x, sch) ->
-    ({ T.pos; T.data = T.EVar x }, sch)
-
-  | VI_Ctor(idx, info) ->
-    let ctor = List.nth info.adt_ctors idx in
-    let sch = {
-        T.sch_targs = info.adt_args @ ctor.ctor_targs;
-        T.sch_named = ctor.ctor_named;
-        T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
-      } in
-    (ctor_func ~pos idx info, sch)
-
-  | VI_MethodFn name ->
-    Error.fatal (Error.method_fn_without_arg ~pos path name)
 
 (* ========================================================================= *)
 

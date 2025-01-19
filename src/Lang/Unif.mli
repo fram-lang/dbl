@@ -462,6 +462,9 @@ module TVar : sig
   (** Create fresh type variable of given kind *)
   val fresh : kind -> tvar
 
+  (** Compare two type variables *)
+  val compare : tvar -> tvar -> int
+
   (** Check type variables for equality *)
   val equal : tvar -> tvar -> bool
 

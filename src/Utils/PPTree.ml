@@ -12,15 +12,19 @@ and module_member =
   | MType   of string * UID.t
 
 type is_public = bool
+type visibility = Public | Private | Declared
 
 type member =
   | ModuleMarker
     (** Marker of a new module. *)
 
+  | SectionMarker
+    (** Marker of the beginning of a new section. *)
+
   | Module of is_public * string * pp_module
     (** A module. *)
 
-  | Type of is_public * string * UID.t
+  | Type of visibility * string * UID.t
     (** A type definition. *)
 
 type var_info =
@@ -66,17 +70,21 @@ let merge_opt opt1 opt2 =
   | None   -> opt2
   | Some _ -> opt1
 
-let add ~public ?pos pp_tree name uid =
+let add_named ~vis ?pos pp_tree name uid =
   let update info_opt =
     match info_opt with
     | None                     -> Some (INamed (name, pos))
     | Some (IAnon(_, old_pos)) -> Some (INamed (name, merge_opt pos old_pos))
     | Some (INamed _)          -> info_opt
   in
-  { env_stack = Type(public, name, uid) :: pp_tree.env_stack;
+  { env_stack = Type(vis, name, uid) :: pp_tree.env_stack;
     var_map   = UID.Map.update uid update pp_tree.var_map
   }
 
+let add ~public ?pos pp_tree name uid =
+  let vis = if public then Public else Private in
+  add_named ~vis ?pos pp_tree name uid
+  
 let add_anon ?pos ?name pp_tree uid =
   let update info_opt =
     match info_opt with
@@ -88,6 +96,23 @@ let add_anon ?pos ?name pp_tree uid =
   { env_stack = pp_tree.env_stack;
     var_map   = UID.Map.update uid update pp_tree.var_map
   }
+
+let declare ?pos pp_tree name uid =
+  add_named ~vis:Declared ?pos pp_tree name uid
+
+let enter_section pp_tree =
+  { pp_tree with env_stack = SectionMarker :: pp_tree.env_stack }
+
+let leave_section pp_tree =
+  let rec loop acc stack =
+    match stack with
+    | [] | ModuleMarker :: _ -> assert false
+    | SectionMarker :: stack -> List.rev_append acc stack
+    | (Module _ | Type((Public | Private), _, _)) as m :: stack ->
+      loop (m :: acc) stack
+    | Type(Declared, _, _) :: stack -> loop acc stack
+  in
+  { pp_tree with env_stack = loop [] pp_tree.env_stack }
 
 let enter_module pp_tree =
   { pp_tree with env_stack = ModuleMarker :: pp_tree.env_stack }
@@ -105,13 +130,13 @@ let leave_module ~public pp_tree name =
   in
   let rec loop acc stack =
     match stack with
-    | [] -> assert false
+    | [] | SectionMarker :: _ -> assert false
     | ModuleMarker :: stack -> (acc, stack)
     | Module(false, _, _) :: stack -> loop acc stack
     | Module(true, name, modl) :: stack ->
       loop (add_module name modl acc) stack
-    | Type(false, _, _) :: stack -> loop acc stack
-    | Type(true, name, uid) :: stack ->
+    | Type((Private | Declared), _, _) :: stack -> loop acc stack
+    | Type(Public, name, uid) :: stack ->
       loop (add_type name uid acc) stack
   in
   let (modl, stack) = loop [] pp_tree.env_stack in
@@ -120,10 +145,11 @@ let leave_module ~public pp_tree name =
   (pp_tree, modl)
 
 let open_module ~public pp_tree modl =
+  let vis = if public then Public else Private in
   let defs =
     modl |> List.map (function
       | MModule(name, modl') -> Module (public, name, modl')
-      | MType(name, uid)     -> Type (public, name, uid))
+      | MType(name, uid)     -> Type (vis, name, uid))
   in
   { pp_tree with env_stack = List.rev_append defs pp_tree.env_stack }
 
@@ -157,7 +183,7 @@ let rec lookup_on_stack uid stack mset tset =
   match stack with
   | [] -> None
 
-  | ModuleMarker :: stack ->
+  | (ModuleMarker | SectionMarker) :: stack ->
     lookup_on_stack uid stack mset tset
 
   | Module(_, name, _) :: stack when StrSet.mem name mset ->

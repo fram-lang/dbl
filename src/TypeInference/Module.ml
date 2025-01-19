@@ -8,14 +8,11 @@ open Common
 
 module StrMap = Map.Make(String)
 
-type opened = Dummy_Opened
-type closed = Dummy_Closed
+type top = (closed, modl) opn
 
 type ('a, _) on_closed =
   | SomeCl : 'a -> ('a, closed) on_closed
-  | NoneCl : ('a, opened) on_closed
-
-type on_use = Position.t -> unit
+  | NoneCl : ('a, (_, _) opn) on_closed
 
 (** Information about an ADT definition *)
 type adt_info = {
@@ -26,34 +23,45 @@ type adt_info = {
   adt_effect : T.effect
 }
 
-type var_info =
-  | VI_Var      of T.var * T.scheme
-  | VI_Ctor     of int * adt_info
-  | VI_MethodFn of S.method_name
+type type_info =
+  | TI_Type      of T.typ
+  | TI_Parameter of T.tvar
+
+type val_info =
+  | VI_Var       of T.var * T.scheme
+  | VI_Ctor      of int * adt_info
+  | VI_Parameter of UID.t
+
+type _ module_state =
+  | M_Closed  : closed module_state
+  | M_Top     : top module_state
+  | M_Section :
+    ('st, 'sc) opn module_state -> (('st, 'sc) opn, sec) opn module_state
 
 type ('a, _) ident_info =
-  | Public  : 'a -> ('a, 'st) ident_info
+  | Public : 'a -> ('a, closed) ident_info
     (** Definition is public *)
 
-  | Private : 'a -> ('a, opened) ident_info
+  | Private : 'a -> ('a, top) ident_info
     (** Definition is private *)
 
-  | Both    : { pub : 'a; priv : 'a } -> ('a, opened) ident_info
-    (** Definition is public and shadowed by a private definition *)
+  | NoDef  : ('a, ('st, _) opn) ident_info
+    (** There is no definition of this symbol. *)
+
+  | Skip   : ('a, 'st) ident_info -> ('a, ('st, _) opn) ident_info
+    (** There is no definition at this level, but it might be defined in a
+      more outer scope *)
+
+  | Local  : 'a * ('a, 'st) ident_info -> ('a, ('st, _) opn) ident_info
+    (** There is a local definition (private or a scope parameter) possibly
+      shadowing a more outer definition *)
 
 type 'st t = {
-  tvar_map : (T.typ * on_use, 'st) ident_info StrMap.t;
+  tvar_map : (type_info, 'st) ident_info StrMap.t;
     (** Information about named type variables *)
 
-  var_map  : (var_info * on_use, 'st) ident_info StrMap.t;
-    (** Information about regular variable names *)
-
-  implicit_map : (T.var * T.scheme * on_use, 'st) ident_info StrMap.t;
-    (** Information about named implicits *)
-
-  method_map :
-    (T.var * T.scheme * on_use, 'st) ident_info StrMap.t T.TVar.Map.t;
-    (** Information about named methods *)
+  val_map  : (val_info, 'st) ident_info Name.Map.t;
+    (** Information about named values *)
 
   ctor_map : (int * adt_info, 'st) ident_info StrMap.t;
     (** Information about ADT constructors *)
@@ -64,191 +72,202 @@ type 'st t = {
   mod_map : (closed t, 'st) ident_info StrMap.t;
     (** Information about defined modules *)
 
-  pp_module : (PPTree.pp_module, 'st) on_closed
+  pp_module : (PPTree.pp_module, 'st) on_closed;
     (** Pretty-printing information. Make sense only for closed modules *)
+
+  state : 'st module_state
+    (** Current state of the module *)
 }
 
 let empty =
   { tvar_map     = StrMap.empty;
-    var_map      = StrMap.empty;
-    implicit_map = StrMap.empty;
-    method_map   = T.TVar.Map.empty;
+    val_map      = Name.Map.empty;
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
     mod_map      = StrMap.empty;
-    pp_module    = NoneCl
+    pp_module    = NoneCl;
+    state        = M_Top
   }
 
 (* ========================================================================= *)
 
-let update_ident_info ~public map name data =
-  if public then
-    StrMap.add name (Public data) map
-  else
-    match StrMap.find_opt name map with
-    | None | Some (Private _) -> StrMap.add name (Private data) map
-    | Some (Public pub | Both { pub; _ }) ->
-      StrMap.add name (Both { pub; priv = data }) map
+let rec add_to_ident_info :
+    type st sc. public:_ ->
+      (st, sc) opn module_state ->
+      ('a, (st, sc) opn) ident_info -> 'a ->
+      ('a, (st, sc) opn) ident_info =
+  fun ~public state info x ->
+  match state, info, public with
+  | M_Top, _,                   true  -> Skip (Public x)
+  | M_Top, (Private _ | NoDef), false -> Private x
+  | M_Top, Skip (Public y),     false -> Local(x, Public y)
+  | M_Top, Local(_, p),         false -> Local(x, p)
+  | M_Section st, (Skip info | Local(_, info)), _ ->
+      Skip (add_to_ident_info ~public st info x)
+  | M_Section st, NoDef, _ ->
+      Skip (add_to_ident_info ~public st NoDef x)
 
-let add_type_alias ~public ~on_use m name tp =
+let update_add ~public state x info_opt =
+  let info = Option.value info_opt ~default:NoDef in
+  Some (add_to_ident_info ~public state info x)
+
+let add_type_alias ~public m name tp =
   { m with
     tvar_map =
-      update_ident_info ~public m.tvar_map name (tp, on_use)
+      StrMap.update name (update_add ~public m.state (TI_Type tp))
+        m.tvar_map
   }
 
-let add_var ~public ~on_use m name x sch =
+let add_val ~public m name x sch =
   { m with
-    var_map =
-      update_ident_info ~public m.var_map name (VI_Var(x, sch), on_use)
-  }
-
-let add_implicit ~public ~on_use m name x sch =
-  { m with
-    implicit_map =
-      update_ident_info ~public m.implicit_map name (x, sch, on_use)
-  }
-
-let add_method ~public ~on_use m owner name x sch =
-  let tab =
-    match T.TVar.Map.find_opt owner m.method_map with
-    | None -> StrMap.empty
-    | Some tab -> tab
-  in
-  let tab = update_ident_info ~public tab name (x, sch, on_use) in
-  { m with
-    method_map = T.TVar.Map.add owner tab m.method_map
-  }
-
-let add_method_fn ~public ~on_use m x name =
-  { m with
-    var_map =
-      update_ident_info ~public m.var_map x (VI_MethodFn name, on_use)
+    val_map =
+      Name.Map.update name (update_add ~public m.state (VI_Var(x, sch)))
+        m.val_map
   }
 
 let add_adt ~public m x info =
   assert (not (T.TVar.Map.mem x m.adt_map));
-  let info = if public then Public info else Private info in
   { m with
-    adt_map = T.TVar.Map.add x info m.adt_map
+    adt_map =
+      T.TVar.Map.update x (update_add ~public m.state info) m.adt_map
   }
 
 let add_ctor ~public m name idx info =
   { m with
-    var_map  =
-      update_ident_info ~public m.var_map name (VI_Ctor(idx, info), ignore);
+    val_map  =
+      Name.Map.update (NVar name)
+        (update_add ~public m.state (VI_Ctor(idx, info)))
+        m.val_map;
     ctor_map =
-      update_ident_info ~public m.ctor_map name (idx, info)
+      StrMap.update name (update_add ~public m.state (idx, info))
+        m.ctor_map
   }
 
 let add_module ~public m name modl =
   { m with
-    mod_map = update_ident_info ~public m.mod_map name modl
+    mod_map =
+      StrMap.update name (update_add ~public m.state modl) m.mod_map
   }
 
 (* ========================================================================= *)
 
-let import_ident_info ~public _ info (opened : (_, closed) ident_info option) =
-  match public, info, opened with
-  | _,     _, None -> info
-  | true,  _, Some (Public x) -> Some (Public x)
+let update_declare v info_opt =
+  match info_opt with
+  | None | Some NoDef -> Some (Local(v, NoDef))
+  | Some (Skip info | Local(_, info)) -> Some (Local(v, info))
 
-  | false, (None | Some (Private _)), Some (Public x) ->
-      Some (Private x)
+let declare_type (type st) (m : (st, sec) opn t) name kind :
+    (st, sec) opn t * T.tvar =
+  let (M_Section _) = m.state in
+  let tvar = T.TVar.fresh kind in
+  let m =
+    { m with
+      tvar_map =
+        StrMap.update name (update_declare (TI_Parameter tvar)) m.tvar_map
+    }
+  in (m, tvar)
 
-  | false, Some (Public pub | Both { pub; _}), Some (Public priv) ->
-      Some (Both { pub; priv })
+let declare_val (type st) (m : (st, sec) opn t) name :
+    (st, sec) opn t * UID.t =
+  let (M_Section _) = m.state in
+  let uid = UID.fresh () in
+  let m =
+    { m with
+      val_map =
+        Name.Map.update name (update_declare (VI_Parameter uid)) m.val_map
+    }
+  in (m, uid)
 
-let import_map ~public map opened =
-  StrMap.merge (import_ident_info ~public) map opened
+(* ========================================================================= *)
 
-let import_method_map ~public =
-  T.TVar.Map.merge
-    (fun _ tab1 tab2 ->
-      match tab1, tab2 with
-      | _,    None      -> tab1
-      | None, Some tab2 -> Some (import_map ~public StrMap.empty tab2)
-      | Some tab1, Some tab2 ->
-        Some (import_map ~public tab1 tab2))
+let merge_ident ~public state _ info_opt
+    (opened : (_, closed) ident_info option) =
+  match info_opt, opened with
+  | None, None -> None
+  | Some _, None -> info_opt
+  | None, Some (Public x) -> Some (add_to_ident_info ~public state NoDef x)
+  | Some info, Some (Public x) ->
+    Some (add_to_ident_info ~public state info x)
 
 let open_module ~public m opened =
-  { tvar_map     = import_map ~public m.tvar_map opened.tvar_map;
-    var_map      = import_map ~public m.var_map opened.var_map;
-    implicit_map = import_map ~public m.implicit_map opened.implicit_map;
-    method_map   = import_method_map ~public m.method_map opened.method_map;
-    ctor_map     = import_map ~public m.ctor_map opened.ctor_map;
-    adt_map      =
-      T.TVar.Map.merge (import_ident_info ~public) m.adt_map opened.adt_map;
-    mod_map      = import_map ~public m.mod_map opened.mod_map;
-    pp_module    = m.pp_module
+  let mrg name info1 info2 = merge_ident ~public m.state name info1 info2 in
+  { tvar_map     = StrMap.merge mrg m.tvar_map opened.tvar_map;
+    val_map      = Name.Map.merge mrg m.val_map opened.val_map;
+    ctor_map     = StrMap.merge mrg m.ctor_map opened.ctor_map;
+    adt_map      = T.TVar.Map.merge mrg m.adt_map opened.adt_map;
+    mod_map      = StrMap.merge mrg m.mod_map opened.mod_map;
+    pp_module    = m.pp_module;
+    state        = m.state
   }
 
-let filter_public_ident _ info : (_, closed) ident_info option =
+let close_ident _ info =
   match info with
-  | Public x | Both { pub = x; priv = _ } -> Some (Public x)
-  | Private _ -> None
-
-let filter_public map =
-  StrMap.filter_map filter_public_ident map
+  | Private _ | NoDef -> None
+  | Skip(Public x) | Local(_, Public x) -> Some (Public x)
 
 let leave m pp_module =
-  { tvar_map     = filter_public m.tvar_map;
-    var_map      = filter_public m.var_map;
-    implicit_map = filter_public m.implicit_map;
-    method_map   = T.TVar.Map.map filter_public m.method_map;
-    ctor_map     = filter_public m.ctor_map;
-    adt_map      = T.TVar.Map.filter_map filter_public_ident m.adt_map;
-    mod_map      = filter_public m.mod_map;
-    pp_module    = SomeCl pp_module
+  let M_Top = m.state in
+  { tvar_map  = StrMap.filter_map close_ident m.tvar_map;
+    val_map   = Name.Map.filter_map close_ident m.val_map;
+    ctor_map  = StrMap.filter_map close_ident m.ctor_map;
+    adt_map   = T.TVar.Map.filter_map close_ident m.adt_map;
+    mod_map   = StrMap.filter_map close_ident m.mod_map;
+    pp_module = SomeCl pp_module;
+    state     = M_Closed
   }
+
+let enter_section m =
+  let enter info = Skip info in
+  { tvar_map  = StrMap.map enter m.tvar_map;
+    val_map   = Name.Map.map enter m.val_map;
+    ctor_map  = StrMap.map enter m.ctor_map;
+    adt_map   = T.TVar.Map.map enter m.adt_map;
+    mod_map   = StrMap.map enter m.mod_map;
+    pp_module = NoneCl;
+    state     = M_Section m.state
+  }
+
+let leave_section m =
+  let M_Section st = m.state in
+  let leave _ (info : (_, (_, sec) opn) ident_info) =
+    match info with
+    | Skip info | Local(_, info) -> Some info
+    | NoDef -> None
+  in
+  { tvar_map  = StrMap.filter_map leave m.tvar_map;
+    val_map   = Name.Map.filter_map leave m.val_map;
+    ctor_map  = StrMap.filter_map leave m.ctor_map;
+    adt_map   = T.TVar.Map.filter_map leave m.adt_map;
+    mod_map   = StrMap.filter_map leave m.mod_map;
+    pp_module = NoneCl;
+    state     = st
+  } 
 
 (* ========================================================================= *)
 
-let get_ident_info (type st) (info : (_, st) ident_info) =
-  match info with
-  | Public x | Private x | Both { pub = _; priv = x } -> x
-
-let lookup m x =
-  Option.map get_ident_info (StrMap.find_opt x m)
+let rec get_ident_info : type st. ('a, st) ident_info -> 'a option =
+  function
+  | Public x | Private x | Local(x, _) -> Some x
+  | NoDef    -> None
+  | Skip info -> get_ident_info info
 
 let lookup_tvar m x =
-  lookup m.tvar_map x
+  Option.bind (StrMap.find_opt x m.tvar_map) get_ident_info
 
-let lookup_var m x =
-  lookup m.var_map x
-
-let lookup_implicit m x =
-  lookup m.implicit_map x
-
-let lookup_method m owner x =
-  match T.TVar.Map.find_opt owner m.method_map with
-  | None -> None
-  | Some tab -> lookup tab x
+let lookup_val m x =
+  Option.bind (Name.Map.find_opt x m.val_map) get_ident_info
 
 let lookup_ctor m name =
-  lookup m.ctor_map name
+  Option.bind (StrMap.find_opt name m.ctor_map) get_ident_info
 
 let lookup_adt m x =
-  Option.map get_ident_info (T.TVar.Map.find_opt x m.adt_map)
+  Option.bind (T.TVar.Map.find_opt x m.adt_map) get_ident_info
 
 let lookup_module m name =
-  lookup m.mod_map name
+  Option.bind (StrMap.find_opt name m.mod_map) get_ident_info
 
 (* ========================================================================= *)
 
 let pp_module m =
   match m.pp_module with
   | SomeCl pp_module -> pp_module
-
-let public_names (map : (_, closed) ident_info StrMap.t) =
-  map
-  |> StrMap.bindings
-  |> List.map (fun (name, _) -> name)
-
-let public_types m =
-  public_names m.tvar_map
-
-let public_vars m =
-  public_names m.var_map
-
-let public_implicits m =
-  public_names m.implicit_map

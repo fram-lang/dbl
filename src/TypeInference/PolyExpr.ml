@@ -12,7 +12,7 @@ type check_def_result =
   | Poly of T.poly_expr * Constr.t list
 
 type infer_def_result =
-  | PPure of T.poly_expr * T.scheme * Constr.t list
+  | PPure of T.poly_expr * Name.scheme * Constr.t list
   | PImpure of infer expr_result
 
 type inst_context =
@@ -35,9 +35,10 @@ let method_call_ctx pos env self =
     | TArrow(
         { sch_targs = []; sch_named = []; sch_body = self_tp' },
         res_tp, res_eff) ->
+      let pp = Env.pp_tree env in
       Error.check_unify_result ~pos:self.er_expr.pos
         (Unification.subtype env self_tp self_tp')
-        ~on_error:(Error.expr_type_mismatch ~env self_tp self_tp');
+        ~on_error:(Error.expr_type_mismatch ~pp self_tp self_tp');
       { er_expr   = result_expr;
         er_type   = Infered res_tp;
         er_effect = T.Effect.joins [ self.er_effect; expr.er_effect; res_eff ];
@@ -49,9 +50,21 @@ let method_call_ctx pos env self =
       InterpLib.InternalError.report ~reason:"invalid method type" ())
 
 (* ------------------------------------------------------------------------- *)
-(** Infer a scheme of regular variable *)
-let infer_var_scheme env (path : S.var S.path) =
-  ExprUtils.tr_var_info ~pos:path.pos ~path (ModulePath.lookup_var env path)
+let lookup_method ~pos env self_tp name =
+  match NameUtils.method_owner_of_self self_tp with
+  | Some own ->
+    begin match ModulePath.try_lookup_method ~pos env own name with
+    | Some(x, sch) ->
+      let poly_expr = { T.pos = pos; T.data = T.EVar x } in
+      (poly_expr, sch)
+    | None ->
+      let pp = Env.pp_tree env in
+      Error.fatal (Error.unbound_method ~pos ~pp own name)
+    end
+
+  | None ->
+    (* TODO: create a method constraint *)
+    failwith "Not implemented: method call on unknown type"
 
 (* ------------------------------------------------------------------------- *)
 let infer_use_scheme ~tcfix ?app_type env (e : S.poly_expr_use) =
@@ -59,41 +72,24 @@ let infer_use_scheme ~tcfix ?app_type env (e : S.poly_expr_use) =
   let pos = e.pos in
   match e.data with
   | EVar path ->
-    let (x, sch) = infer_var_scheme env path in
-    (Empty, x, sch)
+    let (poly_expr, sch) = ModulePath.lookup_var env path in
+    (Empty, poly_expr, sch)
 
   | EImplicit path ->
-    let (x, sch) = ModulePath.lookup_implicit env path in
-    (Empty, { path with data = T.EVar x }, sch)
+    let (poly_expr, sch) = ModulePath.lookup_implicit env path in
+    (Empty, poly_expr, sch)
 
   | EMethod(self, name) ->
     let self = infer_expr_type env self in
     let self_tp = expr_result_type self in
-    begin match T.Type.whnf self_tp with
-    | Whnf_Neutral(NH_Var a, _) ->
-      begin match Env.lookup_method env a name with
-      | Some(x, sch, on_use) ->
-        on_use pos;
-        let poly_expr = { T.pos = pos; T.data = T.EVar x } in
-        (method_call_ctx pos env self, poly_expr, sch)
-      | None ->
-        Error.fatal (Error.unbound_method ~pos ~env a name)
-      end
-
-    | Whnf_Neutral(NH_UVar _, _) ->
-      (* TODO: create a method constraint *)
-      failwith "Not implemented: method call on unknown type"
-
-    | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
-      Error.fatal (Error.method_call_on_invalid_type ~pos ~env self_tp)
-
-    | Whnf_Effect -> failwith "Internal kind error"
-    end
+    let (poly_expr, sch) = lookup_method ~pos env self_tp name in
+    (method_call_ctx pos env self, poly_expr, sch)
 
 (* ------------------------------------------------------------------------- *)
 let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
   let open (val tcfix : TCFix) in
   let pos = e.pos in
+  let pp = Env.pp_tree env in
   let make data = { T.data; T.pos } in
   match sch.sch_targs, sch.sch_named, e.data with
   | [], [], PE_Expr expr -> Mono (check_expr_type env expr sch.sch_body)
@@ -125,7 +121,7 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     let expr_tp = expr_result_type expr in
     Error.check_unify_result ~pos
       (Unification.subtype env expr_tp body_tp)
-      ~on_error:(Error.expr_type_mismatch ~env expr_tp body_tp);
+      ~on_error:(Error.expr_type_mismatch ~pp expr_tp body_tp);
     begin match targs, named with
     | [], [] -> Mono { expr with er_type = Checked }
     | _, _ ->
@@ -160,7 +156,7 @@ let infer_def_result_of_expr ~pos expr =
   match expr.er_effect with
   | Pure ->
     let poly_expr = make (T.EPolyFun([], [], expr.er_expr)) in
-    let sch = T.Scheme.of_type (expr_result_type expr) in
+    let sch = Name.scheme_of_type (expr_result_type expr) in
     PPure(poly_expr, sch, expr.er_constr)
 
   | Impure -> PImpure expr
@@ -176,7 +172,9 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
   | PE_Poly poly_expr ->
     let (ictx, poly_expr, sch) = infer_use_scheme ~tcfix env poly_expr in
     begin match ictx with
-    | Empty -> PPure(poly_expr, sch, [])
+    | Empty ->
+      let sch = NameUtils.tr_scheme ~pos ~pp:(Env.pp_tree env) sch in
+      PPure(poly_expr, sch, [])
     | InstCtx f ->
       let (expr, tp, cs) =
         ParamResolve.instantiate ~pos env ParamResolve.no_reinst
@@ -209,9 +207,9 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
     let body_expr =
       ExprUtils.match_args match_named body.er_expr body_tp eff in
     let sch =
-      { T.sch_targs = targs;
-        T.sch_named = sch_named;
-        T.sch_body  = body_tp
+      { Name.sch_targs = targs;
+        Name.sch_named = sch_named;
+        Name.sch_body  = body_tp
       } in
     let targs = List.map snd targs in
     let named = List.map (fun (_, x, _, sch) -> (x, sch)) named in

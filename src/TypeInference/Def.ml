@@ -16,27 +16,28 @@ let switch_to_check_mode (type dir) env (req : (T.typ, dir) request) :
   | Check tp -> (tp, Checked)
 
 (* ------------------------------------------------------------------------- *)
-let check_def : type dir. tcfix:tcfix ->
-  Env.t -> ParameterEnv.t -> S.def -> (T.typ, dir) request ->
-    def_cont -> dir expr_result =
-  fun ~tcfix env penv def req cont ->
+let check_def : type st dir. tcfix:tcfix ->
+  (st, sec) opn Env.t -> S.def -> (T.typ, dir) request ->
+    st def_cont -> dir expr_result =
+  fun ~tcfix env def req cont ->
   let open (val tcfix : TCFix) in
   let make (rest : _ expr_result) data =
     { T.pos  = Position.join def.pos rest.er_expr.pos;
       T.data = data
     } in
   let pos = def.pos in
+  let pp = Env.pp_tree env in
   match def.data with
   | DLetId(public, id, body) ->
-    let (body_env, params) = ParameterEnv.begin_generalize env penv in
+    let (body_env, params) = Env.begin_generalize env in
     begin match PolyExpr.infer_def_scheme ~tcfix body_env body with
     | PPure(body, sch, cs) ->
       let (targs, named, cs) =
-        ParameterEnv.end_generalize_pure params (T.Scheme.uvars sch) cs in
-      let (body, sch) = ExprUtils.generalize ~pos ~env targs named body sch in
-      let (env, penv, x) =
-        ParameterEnv.add_poly_id ~pos ~public env penv id sch in
-      let rest = cont.run env penv req in
+        ParamGen.end_generalize_pure params (Name.scheme_uvars sch) cs in
+      let (body, sch) = ExprUtils.generalize ~pos ~pp targs named body sch in
+      let name = NameUtils.tr_ident ~pos ~pp id sch in
+      let (env, x) = Env.add_val ~public env name sch in
+      let rest = cont.run env req in
       { er_expr   = make rest (T.ELetPoly(x, body, rest.er_expr));
         er_type   = rest.er_type;
         er_effect = rest.er_effect;
@@ -44,10 +45,11 @@ let check_def : type dir. tcfix:tcfix ->
       }
     | PImpure body ->
       let body_tp = expr_result_type body in
-      ParameterEnv.end_generalize_impure params (T.Type.uvars body_tp);
-      let (env, penv, x) =
-        ParameterEnv.add_mono_id ~pos ~public env penv id body_tp in
-      let rest = cont.run env penv req in
+      ParamGen.end_generalize_impure params (T.Type.uvars body_tp);
+      let sch = T.Scheme.of_type body_tp in
+      let name = NameUtils.tr_ident ~pos ~pp id sch in
+      let (env, x) = Env.add_val ~public env name sch in
+      let rest = cont.run env req in
       { er_expr   = make rest (T.ELetMono(x, body.er_expr, rest.er_expr));
         er_type   = rest.er_type;
         er_effect = T.Effect.join body.er_effect rest.er_effect;
@@ -59,12 +61,12 @@ let check_def : type dir. tcfix:tcfix ->
     (* Pattern may introduce type variables. We switch to check-mode in
       order to make sure that they don't escape their scope. *)
     let (tp, resp) = switch_to_check_mode env req in
-    let (body_env, params) = ParameterEnv.begin_generalize env penv in
+    let (body_env, params) = Env.begin_generalize env in
     let body = infer_expr_type body_env body in
     let body_tp = expr_result_type body in
-    let (pat_env, pat, pat_eff) = Pattern.check_type env pat body_tp in
-    let (env, penv) = ParameterEnv.add_partial_env env penv pat_env in
-    let rest = cont.run env penv (Check tp) in
+    let (penv, pat, pat_eff) = Pattern.check_type env pat body_tp in
+    let env = PartialEnv.extend env penv in
+    let rest = cont.run env (Check tp) in
     let eff = T.Effect.joins [ body.er_effect; pat_eff; rest.er_effect ] in
     let expr = make rest
       (T.EMatch(body.er_expr, [(pat, rest.er_expr)], tp, eff)) in
@@ -75,19 +77,16 @@ let check_def : type dir. tcfix:tcfix ->
     }
 
   | DMethodFn(public, x, method_name) ->
-    let (env, penv) =
-      ParameterEnv.add_method_fn ~public env penv x method_name in
-    cont.run env penv req
+    failwith "We are going to remove method functions"
 
   | DLabel(eff, pat) ->
     let (tp, resp) = switch_to_check_mode env req in
     let delim_tp = Env.fresh_uvar env T.Kind.k_type in
     let (env, name, x) = Type.check_type_arg env eff T.Kind.k_effect in
-    let penv = ParameterEnv.shadow_type penv name in
-    let (pat_env, pat, pat_eff) =
+    let (penv, pat, pat_eff) =
       Pattern.check_type env pat (T.Type.t_label delim_tp) in
-    let (env, penv) = ParameterEnv.add_partial_env env penv pat_env in
-    let rest = cont.run env penv (Check tp) in
+    let env = PartialEnv.extend env penv in
+    let rest = cont.run env (Check tp) in
     let rest_eff = T.Effect.join pat_eff rest.er_effect in
     let lx = Var.fresh ~name:"lbl" () in
     let dd = T.DD_Label { tvar = x; var = lx; delim_tp = delim_tp } in
@@ -104,21 +103,20 @@ let check_def : type dir. tcfix:tcfix ->
 
   | DHandlePat(pat, heff, hexp) ->
     let env0 = env in
-    let (hexp_env, params) = ParameterEnv.begin_generalize env penv in
+    let (hexp_env, params) = Env.begin_generalize env in
     let hexp = infer_expr_type hexp_env hexp in
     let hexp_tp = expr_result_type hexp in
-    ParameterEnv.end_generalize_impure params (T.Type.uvars hexp_tp);
+    ParamGen.end_generalize_impure params (T.Type.uvars hexp_tp);
     begin match Unification.to_handler env hexp_tp with
     | H_Handler(a, cap_tp, tp_in, tp_out) ->
       let (env, name, eff_tvar) =
         Type.check_type_arg env heff T.Kind.k_effect in
-      let penv = ParameterEnv.shadow_type penv name in
       let sub = T.Subst.rename_to_fresh T.Subst.empty a eff_tvar in
       let cap_tp = T.Type.subst sub cap_tp in
       let tp_in  = T.Type.subst sub tp_in in
-      let (pat_env, pat, _) = Pattern.check_type env pat cap_tp in
-      let (env, penv) = ParameterEnv.add_partial_env env penv pat_env in
-      let rest = cont.run env penv (Check tp_in) in
+      let (penv, pat, _) = Pattern.check_type env pat cap_tp in
+      let env = PartialEnv.extend env penv in
+      let rest = cont.run env (Check tp_in) in
       let hx = Var.fresh ~name:"cap" () in
       let expr =
         make rest (T.EHandle(eff_tvar, hx, hexp.er_expr,
@@ -129,9 +127,10 @@ let check_def : type dir. tcfix:tcfix ->
         match req with
         | Infer    -> Infered tp_out
         | Check tp ->
+          let pp = Env.pp_tree env0 in
           Error.check_unify_result ~pos
             (Unification.subtype env0 tp_out tp)
-            ~on_error:(Error.expr_type_mismatch ~env:env0 tp_out tp);
+            ~on_error:(Error.expr_type_mismatch ~pp tp_out tp);
           Checked
       in
       { er_expr   = expr;
@@ -140,16 +139,17 @@ let check_def : type dir. tcfix:tcfix ->
         er_constr = hexp.er_constr @ rest.er_constr
       }
     | H_No ->
-      Error.fatal (Error.expr_not_handler ~pos:hexp.er_expr.pos ~env hexp_tp)
+      Error.fatal (Error.expr_not_handler ~pos:hexp.er_expr.pos ~pp hexp_tp)
     end
 
   | DTypeParam(name, x, kind) ->
     let kind = Type.tr_kind kind in
-    let penv = ParameterEnv.declare_type ~pos penv name x kind in
-    cont.run env penv req
+    let name = tr_tname name in
+    let env = Env.declare_type ~pos env name x kind in
+    cont.run env req
 
   | DValParam(name, x, sch) ->
-    let (sch_env, params) = ParameterEnv.begin_generalize env penv in
+    let (sch_env, params) = Env.begin_generalize env in
     let sch =
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
@@ -160,24 +160,20 @@ let check_def : type dir. tcfix:tcfix ->
         in
         T.SchemeExpr.of_type_expr tp
     in
-    let penv =
-      ParameterEnv.end_generalize_declare ~pos params penv name x sch in
-    cont.run env penv req
+    let env = ParamGen.end_generalize_declare ~pos params env name x sch in
+    cont.run env req
 
   | DData { public_tp; public_ctors; tvar=name; args; ctors } ->
     let (tp, resp) = switch_to_check_mode env req in
     let nonrec_scope = Env.scope env in
-    let (data_env, params) = ParameterEnv.begin_generalize env penv in
-    let (data_env, args) = Type.tr_named_type_args data_env args in
+    let (data_env, args) = Type.tr_named_type_args env args in
     let kind = DataType.kind args in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
-    ParameterEnv.end_generalize_impure params (DataType.uvars ctors);
-    let (env, penv, x) =
-      ParameterEnv.add_tvar ~pos ~public:public_tp env penv name kind in
-    let (env, penv, dd) =
+    let (env, x) = Env.add_tvar ~pos ~public:public_tp env name kind in
+    let (env, dd) =
       DataType.finalize_check ~nonrec_scope ~public:public_ctors
-        env penv x ~name args ctors in
-    let rest = cont.run env penv (Check tp) in
+        env x ~name args ctors in
+    let rest = cont.run env (Check tp) in
     { er_expr   = make rest (T.EData([dd], rest.er_expr));
       er_type   = resp;
       er_effect = rest.er_effect;
@@ -185,8 +181,10 @@ let check_def : type dir. tcfix:tcfix ->
     }
 
   | DBlock defs ->
-    check_defs env penv defs req
-      { run = fun env _ req -> cont.run env penv req }
+    let env = Env.enter_section env in
+    check_defs env defs req
+      { run = fun env req ->
+        cont.run (Env.leave_section env) req }
 
   | DRec _ ->
     failwith "DRec not implemented"
@@ -202,19 +200,24 @@ let check_def : type dir. tcfix:tcfix ->
 *)
   | DModule(public, name, defs) ->
     let env = Env.enter_module env in
-    check_defs env penv defs req
-      { run = fun env _ req ->
+    let env = Env.enter_section env in
+    check_defs env defs req
+      { run = fun env req ->
+        let env = Env.leave_section env in
         let env = Env.leave_module env ~public name in
-        cont.run env penv req }
+        cont.run env req }
 
   | DOpen(public, path) ->
     let m = ModulePath.lookup_module env path in
-    let (env, penv) = ParameterEnv.open_module ~public env penv m in
-    cont.run env penv req
+    let env = Env.open_module ~public env m in
+    cont.run env req
 
   | DReplExpr e ->
-    let expr = infer_expr_type env e in
-    let rest = cont.run env penv req in
+    let (body_env, params) = Env.begin_generalize env in
+    let expr = infer_expr_type body_env e in
+    let tp = expr_result_type expr in
+    ParamGen.end_generalize_impure params (T.Type.uvars tp);
+    let rest = cont.run env req in
     { er_expr   = make rest (T.EReplExpr(expr.er_expr, rest.er_expr));
       er_type   = rest.er_type;
       er_effect = T.Effect.join expr.er_effect rest.er_effect;
@@ -222,13 +225,13 @@ let check_def : type dir. tcfix:tcfix ->
     }
 
 (* ------------------------------------------------------------------------- *)
-let check_defs : type dir. tcfix:tcfix ->
-  Env.t -> ParameterEnv.t -> S.def list -> (T.typ, dir) request ->
-    def_cont -> dir expr_result =
-  fun ~tcfix env penv defs req cont ->
+let check_defs : type st dir. tcfix:tcfix ->
+  (st, sec) opn Env.t -> S.def list -> (T.typ, dir) request ->
+    st def_cont -> dir expr_result =
+  fun ~tcfix env defs req cont ->
   let open (val tcfix : TCFix) in
   match defs with
-  | [] -> cont.run env penv req
+  | [] -> cont.run env req
   | def :: defs ->
-    check_def env penv def req
-      { run = fun env penv req -> check_defs env penv defs req cont }
+    check_def env def req
+      { run = fun env req -> check_defs env defs req cont }

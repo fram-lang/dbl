@@ -30,6 +30,15 @@ val add : public:bool -> ?pos:Position.t -> t -> string -> UID.t -> t
 (** Add anonymous type to the current module. *)
 val add_anon : ?pos:Position.t -> ?name:string -> t -> UID.t -> t
 
+(** Add the declaration of a type of given UID to the current module. *)
+val declare : ?pos:Position.t -> t -> string -> UID.t -> t
+
+(** Enter a section of declarations. *)
+val enter_section : t -> t
+
+(** Leave a section of declarations, making declared typed unavailable. *)
+val leave_section : t -> t
+
 (** Create a new module on top of the module stack. *)
 val enter_module : t -> t
 

@@ -8,18 +8,13 @@ open Common
 
 (** Generalize additional parameters of polymorphic expression of given
   scheme. *)
-val generalize : pos:Position.t -> env:Env.t ->
-  T.named_tvar list -> (T.name * T.var * T.scheme_expr) list ->
-    T.poly_expr -> T.scheme -> T.poly_expr * T.scheme
+val generalize : pos:Position.t -> pp:PPTree.t ->
+  T.named_tvar list -> (Name.t * T.var * T.scheme_expr) list ->
+    T.poly_expr -> Name.scheme -> T.poly_expr * T.scheme
 
 (** Create a function that represents ADT constructor of given index,
   not applied to any parameters yet, even the type parameters of the ADT. *)
 val ctor_func : pos:Position.t -> int -> Module.adt_info -> T.poly_expr
-
-(** Translate a module's representation of variable to a polymorphic
-  expression and its scheme. *)
-val tr_var_info : pos:Position.t -> path:S.var S.path ->
-  Module.var_info -> T.poly_expr * T.scheme
 
 (** Extend an expression with pattern-matching on argument or other form
   of binder. In call [arg_match pat body tp eff] the meaning of the parameters

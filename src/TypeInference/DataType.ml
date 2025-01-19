@@ -36,17 +36,16 @@ let check_ctor_decls ~data_targs env ctors =
   Uniqueness.check_ctor_uniqueness ctors;
   List.map (check_ctor_decl ~data_targs env) ctors
 
-let open_data_ctor ~public adt (env, penv, n) (ctor : T.ctor_decl) =
-  let (env, penv) =
-    ParameterEnv.add_ctor ~public env penv ctor.ctor_name n adt in
-  (env, penv, n + 1)
+let open_data_ctor ~public adt (env, n) (ctor : T.ctor_decl) =
+  let env = Env.add_ctor ~public env ctor.ctor_name n adt in
+  (env, n + 1)
 
-let open_data ~public env penv adt ctors =
-  let (env, penv, _) =
-    List.fold_left (open_data_ctor ~public adt) (env, penv, 0) ctors in
-  (env, penv)
+let open_data ~public env adt ctors =
+  let (env, _) =
+    List.fold_left (open_data_ctor ~public adt) (env, 0) ctors in
+  env
 
-let finalize_check ~nonrec_scope ~public env penv x ~name args ctors =
+let finalize_check ~nonrec_scope ~public env x ~name args ctors =
   let px = Var.fresh ~name () in
   let adt_ctors = List.map T.CtorDeclExpr.to_ctor_decl ctors in
   let adt_effect =
@@ -63,7 +62,7 @@ let finalize_check ~nonrec_scope ~public env penv x ~name args ctors =
     Module.adt_effect = adt_effect
   } in
   let env = Env.add_adt ~public env x info in
-  let (env, penv) = open_data ~public env penv info adt_ctors in
+  let env = open_data ~public env info adt_ctors in
   let dd =
     T.DD_Data {
       tvar   = x;
@@ -72,13 +71,4 @@ let finalize_check ~nonrec_scope ~public env penv x ~name args ctors =
       ctors  = ctors;
       effect = adt_effect
     } in
-  (env, penv, dd)
-
-(* ========================================================================= *)
-
-let uvars ctors =
-  List.fold_left
-    (fun acc ctor ->
-      T.CtorDecl.collect_uvars (T.CtorDeclExpr.to_ctor_decl ctor) acc)
-    T.UVar.Set.empty
-    ctors
+  (env, dd)

@@ -37,7 +37,7 @@ type label =
 (** Extra information that can be attached to error occurred during
   unification. *)
 type error_info =
-  | TVarEscapesScope of Env.t * T.tvar
+  | TVarEscapesScope of PPTree.t * T.tvar
 
 (** Result of unification *)
 type result =
@@ -56,33 +56,33 @@ val kind_to_arrow : T.kind -> (T.kind * T.kind) option
 
 (** Check if two types (of the same kind) are equivalent.
   It performs some unifications when necessary. *)
-val unify_type : Env.t -> T.typ -> T.typ -> result
+val unify_type : 'st Env.t -> T.typ -> T.typ -> result
 
 (** Check if one type is a subtype of another.
   It performs some unifications when necessary. *)
-val subtype : Env.t -> T.typ -> T.typ -> result
+val subtype : 'st Env.t -> T.typ -> T.typ -> result
 
 (** Check if one scheme is a subscheme of another.
   It performs some unifications when necessary. *)
-val subscheme : Env.t -> T.scheme -> T.scheme -> result
+val subscheme : 'st Env.t -> T.scheme -> T.scheme -> result
 
 (** Coerce given type to an arrow.
   It performs some unifications when necessary. Never returns [Arr_UVar]. *)
-val to_arrow : Env.t -> T.typ -> arrow
+val to_arrow : 'st Env.t -> T.typ -> arrow
 
 (** Coerce given type from an arrow.
   It performs some unifications when necessary. Returns [Arr_UVar], when given
   type is an unification variable. *)
-val from_arrow : Env.t -> T.typ -> arrow 
+val from_arrow : 'st Env.t -> T.typ -> arrow 
 
 (** Coerce given type to a handler.
   It performs some unification when necessary. *)
-val to_handler : Env.t -> T.typ -> handler
+val to_handler : 'st Env.t -> T.typ -> handler
 
 (** Coerce given type from a handler.
   It performs some unification when necessary. *)
-val from_handler : Env.t -> T.typ -> handler
+val from_handler : 'st Env.t -> T.typ -> handler
 
 (** Coerce given type to a label type.
   It performs some unification when necessary. *)
-val to_label : Env.t -> T.typ -> label
+val to_label : 'st Env.t -> T.typ -> label

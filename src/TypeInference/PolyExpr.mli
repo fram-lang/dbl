@@ -17,7 +17,7 @@ type check_def_result =
 
 (** Result of scheme-inference of a polymorphic expression definition. *)
 type infer_def_result =
-  | PPure of T.poly_expr * T.scheme * Constr.t list
+  | PPure of T.poly_expr * Name.scheme * Constr.t list
     (** Pure polymorphic expression *)
 
   | PImpure of infer expr_result
@@ -38,12 +38,12 @@ val plug_inst_context : inst_context -> infer expr_result -> infer expr_result
   expression may have some effects, that should be performed before explicit
   instantiation), the translated polymorphic expression, and its scheme. *)
 val infer_use_scheme : tcfix:tcfix -> ?app_type:T.typ ->
-  Env.t -> S.poly_expr_use -> inst_context * T.poly_expr * T.scheme
+  'st Env.t -> S.poly_expr_use -> inst_context * T.poly_expr * T.scheme
 
 (** Check the scheme of a polymorphic expression definition. *)
 val check_def_scheme : tcfix:tcfix ->
-  Env.t -> S.poly_expr_def -> T.scheme -> check_def_result
+  'st Env.t -> S.poly_expr_def -> T.scheme -> check_def_result
 
 (** Infer scheme of a polymorphic expression definition. *)
 val infer_def_scheme : tcfix:tcfix ->
-  Env.t -> S.poly_expr_def -> infer_def_result
+  'st Env.t -> S.poly_expr_def -> infer_def_result

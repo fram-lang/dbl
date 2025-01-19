@@ -11,8 +11,8 @@ open TypeCheckFix
   arguments, the [?app_type] parameter, if provided, specifies the type of
   the application. *)
 val infer_expr_type : tcfix:tcfix -> ?app_type:T.typ ->
-  Env.t -> S.expr -> infer expr_result
+  'st Env.t -> S.expr -> infer expr_result
 
 (** Check the type of an expression. *)
 val check_expr_type : tcfix:tcfix ->
-  Env.t -> S.expr -> T.typ -> check expr_result
+  'st Env.t -> S.expr -> T.typ -> check expr_result

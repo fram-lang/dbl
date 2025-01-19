@@ -10,7 +10,7 @@ open TypeCheckFix
 (* ------------------------------------------------------------------------- *)
 (** Bidirectional type-checker of expressions *)
 let tr_expr : type dir. tcfix:tcfix ->
-  Env.t -> S.expr -> (T.typ, dir) request -> dir expr_result =
+  _ Env.t -> S.expr -> (T.typ, dir) request -> dir expr_result =
   fun ~tcfix env e tp_req ->
   let open (val tcfix : TCFix) in
   match tp_req with
@@ -22,6 +22,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   let open (val tcfix : TCFix) in
   let make data = { e with data = data } in
   let pos = e.pos in
+  let pp = Env.pp_tree env in
   match e.data with
   | EMatch _ | EEffect _ | EExtern _ | ERepl _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
@@ -101,12 +102,16 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
         }
       end
     | Arr_No ->
-      Error.fatal (Error.expr_not_function ~pos:e1.pos ~env ftp)
+      Error.fatal (Error.expr_not_function ~pos:e1.pos ~pp ftp)
     end
 
   | EDefs(defs, e) ->
-    check_defs env ParameterEnv.empty defs Infer
-      { run = fun env _ req -> tr_expr ~tcfix env e req }
+    let env = Env.enter_section env in
+    check_defs env defs Infer
+      { run = fun env req ->
+          let env = Env.leave_section env in
+          tr_expr ~tcfix env e req
+      }
 
   | EHandler(cap, rcs, fcs) ->
     let fin_tp = Env.fresh_uvar env T.Kind.k_type in
@@ -163,10 +168,9 @@ let check_label ~tcfix ~pos env lbl_opt =
       let er = infer_expr_type ~tcfix env lbl in
       (er.er_expr, expr_result_type er, er.er_constr)
     | None ->
-      begin match Env.lookup_the_label env with
+      begin match ModulePath.try_lookup_the_label ~pos env with
       | None -> Error.fatal (Error.unbound_the_label ~pos)
-      | Some(x, sch, on_use) ->
-        on_use pos;
+      | Some(x, sch) ->
         let lbl = { T.pos = pos; T.data = T.EVar x } in
         ParamResolve.instantiate ~pos env ParamResolve.no_reinst lbl sch
       end
@@ -175,11 +179,12 @@ let check_label ~tcfix ~pos env lbl_opt =
     match Unification.to_label env lbl_tp with
     | L_Label delim_tp -> delim_tp
     | L_No ->
+      let pp = Env.pp_tree env in
       begin match lbl_opt with
       | Some _ ->
-        Error.report (Error.expr_not_label ~pos:lbl.pos ~env lbl_tp)
+        Error.report (Error.expr_not_label ~pos:lbl.pos ~pp lbl_tp)
       | None ->
-        Error.report (Error.wrong_label_type ~pos ~env lbl_tp)
+        Error.report (Error.wrong_label_type ~pos ~pp lbl_tp)
       end;
       Env.fresh_uvar env T.Kind.k_type
   in
@@ -188,13 +193,13 @@ let check_label ~tcfix ~pos env lbl_opt =
 (* ------------------------------------------------------------------------- *)
 (** Check the sequence of REPL definitions, provided by a user. Always
   in type-check mode. *)
-let rec check_repl_def_seq ~tcfix env penv def_seq tp =
+let rec check_repl_def_seq ~tcfix env def_seq tp =
   let open (val tcfix : TCFix) in
   let func () =
     match def_seq () with
     | Seq.Nil -> assert false
     | Seq.Cons(defs, def_seq) ->
-      let cont (type dir) env penv (tp_req : (_, dir) request) :
+      let cont (type dir) env (tp_req : (_, dir) request) :
           dir expr_result =
         let (tp, tp_resp) : _ * (_, dir) response =
           match tp_req with
@@ -203,13 +208,13 @@ let rec check_repl_def_seq ~tcfix env penv def_seq tp =
             let tp = Env.fresh_uvar env T.Kind.k_type in
             (tp, Infered tp)
         in
-        { er_expr   = check_repl_def_seq ~tcfix env penv def_seq tp;
+        { er_expr   = check_repl_def_seq ~tcfix env def_seq tp;
           er_type   = tp_resp;
           er_effect = Impure;
           er_constr = []
         }
       in
-      let er = check_defs env penv defs (Check tp) { run = cont } in
+      let er = check_defs env defs (Check tp) { run = cont } in
       Constr.solve_all er.er_constr;
       er.er_expr
   in
@@ -224,7 +229,7 @@ let check_expr_type_default ~tcfix env (e : S.expr) tp =
   let tp' = expr_result_type er in
   Error.check_unify_result ~pos:e.pos
     (Unification.subtype env tp' tp)
-    ~on_error:(Error.expr_type_mismatch ~env tp' tp);
+    ~on_error:(Error.expr_type_mismatch ~pp:(Env.pp_tree env) tp' tp);
   { er with er_type = Checked }
 
 (* ------------------------------------------------------------------------- *)
@@ -232,6 +237,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
   let open (val tcfix : TCFix) in
   let make data = { e with data = data } in
   let pos = e.pos in
+  let pp = Env.pp_tree env in
   match e.data with
   | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _
   | EAnnot _ ->
@@ -256,14 +262,17 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
         er_constr = er_body.er_constr
       }
     | Arr_No ->
-      Error.report (Error.expr_not_function_ctx ~pos ~env tp);
+      Error.report (Error.expr_not_function_ctx ~pos ~pp tp);
       let er = infer_expr_type env e in
       { er with er_type = Checked }
     end
 
   | EDefs(defs, e) ->
-    check_defs env ParameterEnv.empty defs (Check tp)
-      { run = fun env _ req -> tr_expr ~tcfix env e req }
+    let env = Env.enter_section env in
+    check_defs env defs (Check tp)
+      { run = fun env req ->
+          let env = Env.leave_section env in
+          tr_expr ~tcfix env e req }
 
   | EMatch(me, []) ->
     let er = infer_expr_type env me in
@@ -283,14 +292,14 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
         }
 
       | Some { adt_ctors = _ :: _; _ } ->
-        Error.fatal (Error.empty_match_on_nonempty_adt ~pos ~env mtp)
+        Error.fatal (Error.empty_match_on_nonempty_adt ~pos ~pp mtp)
       | None ->
-        Error.fatal (Error.empty_match_on_non_adt ~pos ~env mtp)
+        Error.fatal (Error.empty_match_on_non_adt ~pos ~pp mtp)
       end
 
     | Whnf_Neutral(NH_UVar _, _) | Whnf_Arrow _ | Whnf_Handler _
     | Whnf_Label _ ->
-      Error.fatal (Error.empty_match_on_non_adt ~pos ~env mtp)
+      Error.fatal (Error.empty_match_on_non_adt ~pos ~pp mtp)
 
     | Whnf_Effect ->
       failwith "Internal kind error"
@@ -346,7 +355,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
         er_constr = er_cap.er_constr @ er_ret.er_constr @ er_fin.er_constr
       }
     | H_No ->
-      Error.fatal (Error.expr_not_handler_ctx ~pos ~env tp)
+      Error.fatal (Error.expr_not_handler_ctx ~pos ~pp tp)
     end
 
   | EEffect(lbl_opt, cont_pat, body) ->
@@ -370,7 +379,8 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
     }
 
   | ERepl def_seq ->
-    { er_expr   = check_repl_def_seq ~tcfix env ParameterEnv.empty def_seq tp;
+    let env = Env.enter_section env in
+    { er_expr   = check_repl_def_seq ~tcfix env def_seq tp;
       er_type   = Checked;
       er_effect = Impure;
       er_constr = []

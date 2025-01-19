@@ -17,6 +17,8 @@ val fresh : kind -> t
 
 val clone : t -> t
 
+val compare : t -> t -> int
+
 val equal : t -> t -> bool
 
 val uid : t -> UID.t
