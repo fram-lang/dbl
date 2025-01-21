@@ -3,8 +3,8 @@
 
 (rule
  (deps YaccParser.mly)
- (target YaccParser.ml)
- (action (run cpspg --compat -o %{target} %{deps})))
+ (targets YaccParser.ml YaccParser.mli)
+ (action (chdir %{workspace_root} (run cpspg --compat %{deps} %{targets}))))
 
 (library
   (name dblParser)
