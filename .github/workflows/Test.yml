@@ -9,11 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ocaml/setup-ocaml@v2
-        with:
-          ocaml-compiler: 5.1.1
-      - run: opam install dune
-      - run: opam exec -- dune build
-      - run: opam exec -- dune install
-      - run: eval $(opam env) && ./test.sh dbl ./test/test_suite
-
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+      - run: nix shell . --command ./test.sh dbl ./test/test_suite

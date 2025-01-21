@@ -1,5 +1,10 @@
-(ocamlyacc (modules YaccParser))
 (ocamllex  (modules Lexer))
+;(ocamlyacc (modules YaccParser));
+
+(rule
+ (deps YaccParser.mly)
+ (targets YaccParser.ml YaccParser.mli)
+ (action (chdir %{workspace_root} (run cpspg --compat %{deps} %{targets}))))
 
 (library
   (name dblParser)

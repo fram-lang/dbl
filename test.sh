@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 if ! [ -n "$1" ] || ! [ -n "$2" ]; then
-	echo "USAGE: ./test.sh PROGRAM TEST_SUITE"
+	echo "USAGE: ./test.sh BINARY TEST_SUITE"
 	exit 1
 fi
 
-if ! dune build; then
-	exit 1
-fi
+# if ! dune build; then
+# 	exit 1
+# fi
 
 export DBL_LIB="lib/"
 
 TIMEOUT=1.0
 
-binary="_build/default/src/$1.exe"
+binary=$1
 flags=""
 
 RED='\033[0;31m'
