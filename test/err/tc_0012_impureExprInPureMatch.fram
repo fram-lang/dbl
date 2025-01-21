@@ -5,4 +5,4 @@ let checkPure (f : _ -> _) = ()
 
 let _ = checkPure foo
 
-// @stderr::6:19-21: error:
+# @stderr::6:19-21: error:

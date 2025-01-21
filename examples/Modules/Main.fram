@@ -1,4 +1,4 @@
-(** This example serves to showcase the files-as-modules feature.
+{## This example serves to showcase the files-as-modules feature.
 
     The module hierarchy is as follows.
     ```
@@ -21,16 +21,16 @@
     Relative imports refer to the module which is the closest to the importing
     module, working upwards through the hierarchy. In this example the module
     `/Main/B/C/D` imports the relative path `A`, and the nearest matching
-    module is `/Main/B/A`. *)
+    module is `/Main/B/A`. ##}
 
 import List
 
 import A
 import B/C/D as X
-import /Main/B/C/D as Y (* The same import, but as an absolute path. *)
+import /Main/B/C/D as Y {# The same import, but as an absolute path. #}
 import B/A as A2
 
-(* Rather than binding a module name, import the module's contents *)
+{# Rather than binding a module name, import the module's contents #}
 import open C
 
 let _ =

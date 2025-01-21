@@ -1,0 +1,351 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+## # Mutable values and arrays
+
+{##
+Mutable values and arrays in Fram are not a part of the language, but they are
+defined as a library. This means that programming with mutability requires
+a small but reasonable syntactic overhead. The following example shows how to
+use mutability in Fram.
+```
+import open Mutable
+
+{# Create an immutable array filled with the first n primes. #}
+pub let primes n =
+  {# In order to use mutability, we need a `Mut` capability. There is a
+    predefined `ioMut` capability, but using it performs the `IO` effect.
+    Mutability can be handled locally, by introducing a local capability,
+    but the computation that uses it must be pure, as in this example. #}
+  hMutArray (fn mut =>
+    {# New mutable entities are created by calling methods on the `Mut`
+      capability. #}
+    let arr = mut.makeArray n 2
+    let lastPrime = mut.ref 1
+    let isPrime k =
+      {# The whole computation must be pure, but it can use other effects
+        locally. #}
+      handle ret = effect b => b
+        return () => False
+      let checkPrime (p : Int) =
+        if p * p > k then ret True
+        else if k % p == 0 then ret False
+      in
+      arr.iter checkPrime
+    let rec nextPrime () =
+      {# Mutable entities can be accessed by the `get` method, #}
+      let p = lastPrime.get + 1 in
+      {# or modified using the `:=` operator. #}
+      lastPrime := p;
+      if isPrime p then p
+      else nextPrime ()
+    in
+    arr.iteri (fn i _ =>
+      {# To modify an array, we also use the `:=` operator, but on a special
+        write-only element that can be obtained with the `at` method. To read
+        an array, we use the `get` method. #}
+      arr.at i := nextPrime ());
+    arr)
+```
+##}
+
+import List
+
+{# ========================================================================= #}
+## ## General definitions
+
+data RefEx = RefEx of
+  { Ref        : effect -> type -> type
+  , Array      : effect -> type -> type
+  , ConstArray : type -> type
+  }
+
+pub let RefEx { Ref, Array, ConstArray } =
+  (extern dbl_abstrType : Unit ->[IO] RefEx) ()
+
+{## Infix operator for setting mutable values. ##}
+pub method fn (:=) = set
+
+{## Abstract capability of mutability. ##}
+abstr data Mut (effect E) = Mut
+
+{## IO capability of mutability.
+
+  The IO effect is rich enough to describe computations that use mutability.
+  Therefore, this capability is always available. ##}
+pub let ioMut = Mut {effect=IO}
+
+{## Local handler of state.
+
+  The mutability effect can be handled locally, provided that the handled
+  computation has no other effects. ##}
+pub let hMut (f : {E : effect} -> Mut E ->[E] _) =
+  handle {effect=E} _ = () in
+  f {E} Mut
+
+{## Local handler of state, translated to IO.
+
+  This function is similar to `hMut`, but it allows the handled expression to
+  have other effects. However, this function is not pure: it has the `IO`
+  effect. ##}
+pub let hMutIO (f : {E : effect} -> Mut E ->[E|_] _) =
+  f {E=IO} ioMut
+
+{# ========================================================================= #}
+## ## Mutable references
+
+{## @type Ref
+  Mutable references, annotated with the effect of reading and writing. ##}
+
+{## Get the contents of a mutable value. ##}
+pub method get {E, type T, self : Ref E T} =
+  (extern dbl_refGet : Ref E T ->[E] T) self
+
+{## Set the contents of a mutable value. ##}
+pub method set {E, type T, self : Ref E T} =
+  (extern dbl_refSet : Ref E T -> T ->[E] Unit) self
+
+{## Create a new mutable cell. ##}
+pub method ref {E, type T, self : Mut E} =
+  extern dbl_ref : T ->[E] Ref E T
+
+{# ========================================================================= #}
+## ## Mutable arrays
+
+{## @type Array
+  Mutable arrays, annotated with the effect of reading and writing. ##}
+
+{## Write-only elements of an array.
+
+  See the `at` method of the `Array` type for details. ##}
+pub data ArrayElem E T = { set : T ->[E] Unit }
+
+let unsafeGetArray {E, type T} =
+  extern dbl_arrayGet : Array E T -> Int ->[E] T
+
+let unsafeSetArray {E, type T} =
+  extern dbl_arraySet : Array E T -> Int -> T ->[E] Unit
+
+let unsafeMakeArray {E, type T} =
+  extern dbl_mkArray : Int ->[E] Array E T
+
+{## Get the length of an array. ##}
+pub method length {E, self : Array E _} =
+  (extern dbl_arrayLength : Array E _ -> Int) self
+
+{## Get the nth element of an array.
+
+  This function assumes that the given index is within array bounds. ##}
+pub method get {E, type T, self : Array E T} (n : Int) =
+  assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
+  unsafeGetArray {E} self n
+
+{## Set the nth element of an array.
+
+  This function assumes that the given index is within array bounds. ##}
+pub method setAt {E, type T, self : Array E T} (n : Int) v =
+  assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
+  unsafeSetArray {E} self n v
+
+{## Get the nth element of an array in order to write to it.
+
+  This method provides a convenient way of writing to an array, as in the
+  following example.
+  ```
+  let foo {E} (arr : Array E String) =
+    arr.at 42 := "example string"
+  ```
+##}
+pub method at {E, self : Array E _} n =
+  ArrayElem { E, set = self.setAt n }
+
+{## Convert an array to a list. ##}
+pub method toList {E, self : Array E _} =
+  let rec loop (n : Int) acc =
+    if n == 0 then acc
+    else (
+      let n = n - 1 in
+      let acc = unsafeGetArray {E} self n :: acc in
+      loop n acc)
+  in loop self.length []
+
+{# ------------------------------------------------------------------------- #}
+## ### Creating new arrays
+
+let unsafeInitArray {E} n (f : _ ->[E] _) =
+  let arr = unsafeMakeArray {E} n
+  let rec loop (i : Int) =
+    if i < n then (
+      unsafeSetArray {E} arr i (f i);
+      loop (i + 1))
+  in
+  loop 0;
+  arr
+
+{## Convert a list to an array. ##}
+pub method toArray {E, ~mut : Mut E, self : List _} =
+  let arr = unsafeMakeArray {E} self.length in
+  self.iteri (unsafeSetArray {E} arr);
+  arr
+
+{## Create a new array initialized with the results of a pure function.
+
+  A call `mut.pureInitArray n f` creates an array built from elements `f 0`,
+  ..., `f (n-1)`, calling this function from left to right. The function `f`
+  cannot have effects other than the effect of the `mut` capability. This
+  function can be used for initializing matrices, e.g.,
+  ```
+    let delta i j = if i == j then 1 else 0 in
+    mut.pureInitArray n (fn i => mut.pureInitArray n (fn j => delta i j))
+  ```
+  If you need to perform other effects in the function `f`, see the `initArray`
+  method of type `Mut`.
+
+  The size of the array provided to this method must be non-negative.
+##}
+pub method pureInitArray {E, self : Mut E} (n : Int) (f : _ ->[E] _) =
+  assert {msg="Array of negative size"} (n >= 0);
+  unsafeInitArray {E} n f
+
+{## Same as `pureInitArray`, but it allows the function `f` to be impure. ##}
+pub method initArray {E, self : Mut E} n f =
+  (List.init n f).toArray {~mut=self}
+
+{## Create an array initialized with the default element.
+
+  A call `mut.makeArray n v` is equivalent to `mut.initArray n (fn _ => v)`.
+##}
+pub method makeArray {E, self : Mut E} n v =
+  self.pureInitArray n (fn _ => v)
+
+{## Create a copy of a given array.
+
+  This method returns a shallow copy, i.e., elements are shared between arrays.
+##}
+pub method clone {E, type T, self : Array E T} =
+  unsafeInitArray {E} self.length (unsafeGetArray {E} self)
+
+{# ------------------------------------------------------------------------- #}
+## ### Higher order functions on arrays 
+
+{## Iterate over all elements of an array and their indices.
+
+  In `arr.iteri f` for each element of array `arr` function `f` is applied to
+  the index of the element (counting from 0) and the element itself. The array
+  can be modified by the function `f`, but next calls of `f` will be performed
+  on modified elements. In order to avoid such an odd behavior, the function
+  can be called on the cloned array: `arr.clone.iteri f`. ##}
+pub method iteri {E, self : Array E _} f =
+  let rec loop (i : Int) =
+    if i >= self.length then ()
+    else (
+      f i (unsafeGetArray {E} self i);
+      loop (i + 1))
+  in
+  loop 0
+
+{## Iterate function over all elements of an array.
+
+  Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
+pub method iter {E, self : Array E _} f =
+  self.iteri (fn _ => f)
+
+{# ========================================================================= #}
+## ## Immutable arrays
+
+{## @type ConstArray
+  Immutable arrays.
+
+  Immutable arrays cannot be modified, but accessing their elements is pure.
+  Immutable arrays are not parametrized by an effect.
+##}
+
+let unsafeGetConstArray {type T} =
+  extern dbl_arrayGet : ConstArray T -> Int ->[] T
+
+{## Get the length of an immutable array ##}
+pub method length {self : ConstArray _} =
+  (extern dbl_arrayLength : ConstArray _ -> Int) self
+
+{## Get the nth element of an immutable array.
+
+  This function assumes that the given index is within array bounds. ##}
+pub method get {type T, self : ConstArray T} (n : Int) =
+  assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
+  unsafeGetConstArray self n
+
+{## Convert an immutable array to a list ##}
+pub method toList {self : ConstArray _} =
+  let rec loop (n : Int) acc =
+    if n == 0 then acc
+    else (
+      let n = n - 1 in
+      let acc = unsafeGetConstArray self n :: acc in
+      loop n acc)
+  in loop self.length []
+
+{# ------------------------------------------------------------------------- #}
+## ### Creating new immutable arrays
+
+let unsafeFreeze {E, type T} (arr : Array E T) =
+  (extern dbl_magic : Array E T -> ConstArray T) arr
+
+{## Freeze the contents of mutable array.
+
+  This method returns a new immutable array that is a (shallow) copy of given
+  mutable array. ##}
+pub method freeze {E, self : Array E _} =
+  unsafeFreeze {E} self.clone
+
+{## A handler of mutability, that returns an immutable array.
+
+  With this handler it is possible to create an immutable array by a
+  computation that returns a mutable array and doesn't perform any effects
+  other than mutability. In such a case the result can be safely frozen
+  without copying the whole array. The call `hMutArray f` is equivalent
+  to `hMut (fn mut => f mut >.freeze)`, but faster. ##}
+pub let hMutArray (f : {E : effect} -> Mut E ->[E] Array E _) =
+  handle {effect=E} _ = () in
+  unsafeFreeze {E} (f {E} Mut)
+
+{## Convert a list to an immutable array. ##}
+pub method toConstArray {self : List _} =
+  hMutArray (fn ~mut => self.toArray)
+
+{## Create a new immutable array initialized with results of a pure function.
+
+  A call `mut.pureInitConstArray n f` creates an immutable array built from
+  elements `f 0`, ..., `f (n-1)`, calling this function from left to right.
+  The function `f` must be pure. The size of an array provided to this method
+  must be non-negative.
+##}
+pub let pureInitConstArray n (f : _ ->[] _) =
+  hMutArray (fn mut => mut.pureInitArray n f)
+
+{## Same as `pureInitConstArray`, but it allows function `f` to be impure. ##}
+pub let initConstArray n f =
+  (List.init n f).toConstArray
+
+{# ------------------------------------------------------------------------- #}
+## ### Higher order functions on immutable arrays 
+
+{## Iterate over all elements of an immutable array and their indices.
+
+  In `arr.iteri f` for each element of the array `arr` the function `f` is
+  applied to the index of the element (counting from 0) and the element itself.
+##}
+pub method iteri {self : ConstArray _} f =
+  let rec loop (i : Int) =
+    if i >= self.length then ()
+    else (
+      f i (unsafeGetConstArray self i);
+      loop (i + 1))
+  in
+  loop 0
+
+{## Iterate function over all elements of an immutable array.
+
+  Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
+pub method iter {self : ConstArray _} f =
+  self.iteri (fn _ => f)

@@ -41,7 +41,7 @@ function print_status {
 
 function check_output {
 	IFS=$'\n'
-	for exp in $(cat $2 | grep "^// @$1:" | sed "s/^\/\/ @$1://"); do
+	for exp in $(cat $2 | grep "^# @$1:" | sed "s/^# @$1://"); do
 		if ! grep $exp $3 > /dev/null; then
 			echo -e "${RED}$1 does not contain phrase: $exp${NC}"
 			unset IFS

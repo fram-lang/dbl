@@ -4,29 +4,50 @@
 
 open Value
 
+exception Runtime_error
+
 (** External functions *)
 (* ========================================================================= *)
+
+let runtime_error msg =
+  Printf.eprintf "Runtime error: %s\n%!" msg;
+  raise Runtime_error
+
+let pure_fun f = VFn (fun v cont -> cont (f v))
 
 let unit_fun f = VFn (fun v cont -> cont (f ()))
 
 let int_fun f = VFn (fun v cont ->
   match v with
   | VNum n -> cont (f n)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not an integer")
 
 let str_fun f = VFn (fun v cont ->
   match v with
   | VStr s -> cont (f s)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not a string")
 
 let list_chr_fun f = VFn (fun v cont ->
   let rec parse_list = function
   | VCtor(0, []) -> []
   | VCtor(1, [VNum x; xs]) -> Char.chr x :: parse_list xs 
-  | _ -> failwith "Runtime error!" in
+  | _ -> runtime_error "Not a list" in
   cont (f @@ parse_list v))
 
+let ref_fun f = VFn (fun v cont ->
+  match v with
+  | VRef r -> cont (f r)
+  | _ -> runtime_error "Not a reference")
+
+let array_fun f = VFn (fun v cont ->
+  match v with
+  | VArray a -> cont (f a)
+  | _ -> runtime_error "Not an array")
+
 let v_unit = VCtor(0, [])
+
+(** Empty constructor with some abstract types *)
+let v_abstr = VCtor(0, [])
 
 let of_bool b =
   VCtor((if b then 1 else 0), [])
@@ -44,7 +65,7 @@ let int_cmpop op = int_fun2 (fun x y -> of_bool (op x y))
 let int64_fun f = VFn (fun v cont ->
   match v with
   | VNum64 n -> cont (f n)
-  | _ -> failwith "Runtime error!")
+  | _ -> runtime_error "Not a 64-bit integer")
 
 let int64_fun2 f = int64_fun (fun x -> int64_fun (f x))
 
@@ -56,7 +77,9 @@ let int64_cmpop op = int64_fun2 (fun x y -> of_bool (op x y))
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
 
 let extern_map =
-  [ "dbl_negInt",      int_unop ( ~- );
+  [ "dbl_runtimeError", str_fun runtime_error;
+    "dbl_magic",       pure_fun Fun.id;
+    "dbl_negInt",      int_unop ( ~- );
     "dbl_addInt",      int_binop ( + );
     "dbl_subInt",      int_binop ( - );
     "dbl_mulInt",      int_binop ( * );
@@ -114,6 +137,13 @@ let extern_map =
     "dbl_intToInt64",    int_fun (fun n -> VNum64 (Int64.of_int n));
     "dbl_int64ToInt",    int64_fun (fun n -> VNum (Int64.to_int n));
     "dbl_int64ToString", int64_fun (fun n -> VStr (Int64.to_string n));
+    "dbl_abstrType",  unit_fun (fun () -> v_abstr);
+    "dbl_ref",        pure_fun (fun x -> VRef (ref x));
+    "dbl_refGet",     ref_fun (!);
+    "dbl_refSet",     ref_fun (fun r -> pure_fun (fun v -> r := v; v_unit));
+    "dbl_mkArray",    int_fun (fun n -> VArray(Array.make n v_unit));
+    "dbl_arrayGet",   array_fun (fun a -> int_fun (fun n -> a.(n)));
+    "dbl_arraySet",   array_fun (fun a -> int_fun (fun n -> pure_fun (fun v ->
+                        a.(n) <- v; v_unit)));
+    "dbl_arrayLength", array_fun (fun a -> VNum (Array.length a));
   ] |> List.to_seq |> Hashtbl.of_seq
-
-
