@@ -166,23 +166,23 @@ let check_type_arg env (arg : S.type_arg) kind =
     let (env, x) = Env.add_anon_tvar ~pos env kind in
     (env, T.TNAnon, x)
 
-let tr_named_type_arg env (arg : S.named_type_arg) =
+let tr_named_type_arg penv (arg : S.named_type_arg) =
   let pos = arg.pos in
   let (name, arg) = arg.data in
   let name = tr_tname name in
   match arg.data with
   | TA_Var(x, k) ->
     let kind = tr_kind k in
-    let (env, x) = Env.add_tvar ~pos:arg.pos env x kind in
-    (env, (pos, name, x))
+    let tvar = T.TVar.fresh kind in
+    let penv = PartialEnv.add_anon_tvar ~pos penv tvar in
+    let penv = PartialEnv.add_tvar_alias ~public:false ~pos penv x tvar in
+    (penv, (name, tvar))
 
   | TA_Wildcard ->
     let kind = T.Kind.fresh_uvar () in
-    let (env, x) = Env.add_anon_tvar ~pos env kind in
-    (env, (pos, name, x))
+    let tvar = T.TVar.fresh kind in
+    let penv = PartialEnv.add_anon_tvar ~pos penv tvar in
+    (penv, (name, tvar))
 
-let tr_named_type_args env args =
-  let (env, args) = List.fold_left_map tr_named_type_arg env args in
-  Uniqueness.check_unif_named_type_args args;
-  let args = List.map (fun (_, name, x) -> (name, x)) args in
-  (env, args)
+let tr_named_type_args args =
+  List.fold_left_map tr_named_type_arg PartialEnv.empty args

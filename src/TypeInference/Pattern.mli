@@ -11,6 +11,19 @@ open Common
 val check_type : 'st Env.t -> S.pattern -> T.typ ->
   PartialEnv.t * T.pattern * T.effect
 
+(** Infer type-scheme of given pattern. Returns partial-environment (variables
+  bound by this pattern), translated pattern, its scheme, and the effect of
+  pattern-matching *)
+val infer_scheme : 'st Env.t -> S.pattern ->
+  PartialEnv.t * T.pattern * T.scheme * T.effect
+
+(** Translate a list of named patterns. The returned environment contains
+  type parameters, but not the type variables bound by value patterns. *)
+val infer_named_patterns :
+  'st Env.t -> S.named_pattern list ->
+    'st Env.t * PartialEnv.t *
+      T.named_tvar list * (Name.t * T.pattern * T.scheme) list * T.effect
+
 (** Infer type-scheme of given pattern. Returns extended environment,
   translated pattern, its scheme, and the effect of pattern-matching *)
 val infer_scheme_ext :

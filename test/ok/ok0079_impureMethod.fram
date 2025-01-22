@@ -1,5 +1,5 @@
 data rec U = I of (U -> U)
 
-method foo {self = I f} = f (I f)
+method foo (I f) = f (I f)
 
 let baz (I _) (x : U) = x.foo

@@ -191,13 +191,13 @@ let impure_handler ~pos =
   (pos,
     "Cannot ensure that this handler expression is pure and always terminates",
     [])
-(*
+
 let invalid_rec_def ~pos =
   (pos, "This kind of definition cannot be recursive", [])
 
 let non_productive_rec_def ~pos =
   (pos, "Non-productive recursive definition", [])
-*)
+
 let expr_not_function ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -239,6 +239,9 @@ let wrong_label_type ~pos ~pp tp =
     "The implicit label has type %s. It cannot be used as a label"
     (Pretty.type_to_string pp_ctx pp tp)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
+let polymorphic_label ~pos =
+  (pos, "Labels cannot be polymorphic", [])
 
 let method_of_bound_tvar ~pos ~pp sch =
   let pp_ctx = Pretty.empty_context () in

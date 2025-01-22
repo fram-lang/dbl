@@ -35,6 +35,6 @@ val tr_ttype : 'st Env.t -> S.type_expr -> T.type_expr
 val check_type_arg : 'st Env.t -> S.type_arg -> T.kind ->
   'st Env.t * T.tname * T.tvar
 
-(** Translate formal type parameters and extend the environment *)
+(** Translate formal type parameters. *)
 val tr_named_type_args :
-  'st Env.t -> S.named_type_arg list -> 'st Env.t * T.named_tvar list
+  S.named_type_arg list -> PartialEnv.t * T.named_tvar list

@@ -59,7 +59,8 @@ type data_def =
   | DD_Label of
     { tvar      : tvar;
       var       : var;
-      delim_tp  : typ
+      delim_tp  : typ;
+      annot     : type_expr;
     }
 
 type pattern = pattern_data node

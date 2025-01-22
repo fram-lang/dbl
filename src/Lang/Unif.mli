@@ -225,8 +225,11 @@ type data_def =
       var       : var;
         (** Regular variable that would store the label *)
 
-      delim_tp  : typ
+      delim_tp  : typ;
         (** Type of the delimiter *)
+
+      annot     : type_expr;
+        (** Annotation of the label *)
     }
 
 (* ========================================================================= *)

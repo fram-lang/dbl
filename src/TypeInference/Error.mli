@@ -54,10 +54,10 @@ val finally_type_mismatch :
 
 val func_not_pure : pos:Position.t -> t
 val impure_handler : pos:Position.t -> t
-(*
+
 val invalid_rec_def : pos:Position.t -> t
 val non_productive_rec_def : pos:Position.t -> t
-*)
+
 val expr_not_function     : pos:Position.t -> pp:PPTree.t -> T.typ -> t
 val expr_not_function_ctx : pos:Position.t -> pp:PPTree.t -> T.typ -> t
 
@@ -66,6 +66,8 @@ val expr_not_handler_ctx : pos:Position.t -> pp:PPTree.t -> T.typ -> t
 
 val expr_not_label : pos:Position.t -> pp:PPTree.t -> T.typ -> t
 val wrong_label_type : pos:Position.t -> pp:PPTree.t -> T.typ -> t
+
+val polymorphic_label : pos:Position.t -> t
 
 val method_of_bound_tvar : pos:Position.t -> pp:PPTree.t -> T.scheme -> t
 val method_of_unknown_type : pos:Position.t -> pp:PPTree.t -> T.scheme -> t

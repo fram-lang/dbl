@@ -89,7 +89,12 @@ let check_def : type st dir. tcfix:tcfix ->
     let rest = cont.run env (Check tp) in
     let rest_eff = T.Effect.join pat_eff rest.er_effect in
     let lx = Var.fresh ~name:"lbl" () in
-    let dd = T.DD_Label { tvar = x; var = lx; delim_tp = delim_tp } in
+    let dd = T.DD_Label
+      { tvar     = x;
+        var      = lx;
+        delim_tp = delim_tp;
+        annot    = { def with data = T.TE_Type delim_tp }
+      } in
     let expr =
       make rest (T.EData([dd],
         make rest (T.EMatch(
@@ -166,7 +171,8 @@ let check_def : type st dir. tcfix:tcfix ->
   | DData { public_tp; public_ctors; tvar=name; args; ctors } ->
     let (tp, resp) = switch_to_check_mode env req in
     let nonrec_scope = Env.scope env in
-    let (data_env, args) = Type.tr_named_type_args env args in
+    let (penv, args) = Type.tr_named_type_args args in
+    let data_env = PartialEnv.extend env penv in
     let kind = DataType.kind args in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
     let (env, x) = Env.add_tvar ~pos ~public:public_tp env name kind in
@@ -186,18 +192,20 @@ let check_def : type st dir. tcfix:tcfix ->
       { run = fun env req ->
         cont.run (Env.leave_section env) req }
 
-  | DRec _ ->
-    failwith "DRec not implemented"
-(*
   | DRec defs ->
-    let scope = Env.scope env in
-    let (env, dds, fds, r_eff1) =
-      RecDefs.check_rec_defs ~tcfix env ienv defs in
-    let (e2, resp, r_eff2) = cont.run env ienv req eff in
-    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
-    let r_eff = ret_effect_join r_eff1 r_eff2 in
-    (make e2 (T.EData(dds, make e2 (T.ELetRec(fds, e2)))), resp, r_eff)
-*)
+    let env = Env.enter_section env in
+    let (tp, resp) = switch_to_check_mode env req in
+    let result = RecDefs.check_rec_defs ~tcfix env defs in
+    let env = Env.leave_section result.rec_env in
+    let rest = cont.run env (Check tp) in
+    { er_expr   =
+        make rest (T.EData(result.rec_dds,
+          make rest (T.ELetRec(result.rec_fds, rest.er_expr))));
+      er_type   = resp;
+      er_effect = T.Effect.join result.rec_effect rest.er_effect;
+      er_constr = result.rec_constr @ rest.er_constr
+    }
+
   | DModule(public, name, defs) ->
     let env = Env.enter_module env in
     let env = Env.enter_section env in
