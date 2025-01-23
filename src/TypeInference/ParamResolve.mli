@@ -55,7 +55,10 @@ val resolve_implicit :
   pos:Position.t -> 'st Env.t -> S.iname -> T.scheme ->
     T.poly_expr * Constr.t list
 
-(** Resolve a method parameter of given scheme in given environment. *)
+(** Resolve a method parameter of given scheme in given environment. If the
+  [~method_env] argument is provided, the method is searched in the
+  [~method_env] environment, but its parameters are resolved in the given
+  environment. *)
 val resolve_method :
-  pos:Position.t -> 'st Env.t -> S.method_name -> T.scheme ->
-    T.poly_expr * Constr.t list
+  pos:Position.t -> 'st Env.t -> ?method_env:'st Env.t ->
+    S.method_name -> T.scheme -> T.poly_expr * Constr.t list

@@ -222,7 +222,8 @@ and resolve_implicit ~vset ~pos env rctx iname sch =
     let e = { T.pos; T.data = T.EVar x } in
     coerce_scheme ~vset ~pos ~name env e x_sch sch
 
-and resolve_method ~vset ~pos env rctx mname (sch : T.scheme) =
+and resolve_method
+    ~vset ~pos env ?(method_env=env) rctx mname (sch : T.scheme) =
   let self_tp =
     match T.Type.view sch.sch_body with
     | TArrow(owner_sch, _, _) ->
@@ -234,7 +235,7 @@ and resolve_method ~vset ~pos env rctx mname (sch : T.scheme) =
   match NameUtils.method_owner_of_self self_tp with
   | Some owner ->
     let name = Name.NMethod(owner, mname) in
-    begin match ModulePath.try_lookup_method ~pos env owner mname with
+    begin match ModulePath.try_lookup_method ~pos method_env owner mname with
     | Some(x, x_sch) ->
       let vset = restrict_var ~vset ~pos ~pp x name in
       let e = { T.pos; T.data = T.EVar x } in
@@ -263,6 +264,6 @@ let resolve_implicit ~pos env iname sch =
   let vset = Var.Set.empty in
   resolve_implicit ~vset ~pos env no_reinst iname sch
 
-let resolve_method ~pos env mname sch =
+let resolve_method ~pos env ?method_env mname sch =
   let vset = Var.Set.empty in
-  resolve_method ~vset ~pos env no_reinst mname sch
+  resolve_method ~vset ~pos env ?method_env no_reinst mname sch

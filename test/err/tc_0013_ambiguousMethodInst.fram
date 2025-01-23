@@ -1,0 +1,5 @@
+let foo {A, B, method m : A -> A, method m : B -> B} (x : A) = x.m
+
+let _ = foo {method m = fn x => x}
+# @stderr::3:14-33: error:
+# @stderr:There are more than one method named m

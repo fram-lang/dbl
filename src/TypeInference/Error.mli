@@ -113,8 +113,11 @@ val cannot_resolve_method :
 val type_already_provided : pos:Position.t -> npos:Position.t -> S.tvar -> t
 val named_param_already_provided :
   pos:Position.t -> npos:Position.t -> pp:PPTree.t -> Name.t -> t
+val method_already_provided :
+  pos:Position.t -> npos:Position.t -> S.method_name -> t
 val named_param_provided_as_optional : pos:Position.t -> S.var -> t
-val method_instantiation_not_allowed : pos:Position.t -> t
+val ambiguous_method_inst : pos:Position.t -> S.method_name -> t
+val module_inst_after_method_inst : pos:Position.t -> t
 
 val unknown_named_type_pattern : pos:Position.t -> S.tvar -> t
 val unknown_named_pattern : pos:Position.t -> pp:PPTree.t -> Name.t -> t
@@ -147,3 +150,4 @@ val ctor_arity_mismatch :
 val redundant_named_type : pos:Position.t -> S.tvar -> t
 val redundant_named_parameter :
   pos:Position.t -> pp:PPTree.t -> Name.t -> t
+val redundant_method_parameter : pos:Position.t -> S.method_name -> t

@@ -1,0 +1,9 @@
+module M
+  pub module N
+    pub data T = C of Int
+  end
+end
+
+let foo (M.C x : M.N.T) = x
+
+# @stderr:7:

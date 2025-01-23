@@ -399,11 +399,21 @@ let named_param_already_provided ~pos ~npos ~pp (name : Name.t) =
   in (pos, msg ^ Pretty.additional_info pp_ctx,
     [ npos, "Here is the last definition" ])
 
+let method_already_provided ~pos ~npos name =
+  (pos, Printf.sprintf "Method %s is provided more than once" name,
+    [ npos, "Here is the last definition" ])
+
 let named_param_provided_as_optional ~pos name =
   (pos, Printf.sprintf "Named parameter %s is provided as optional" name, [])
 
-let method_instantiation_not_allowed ~pos =
-  (pos, "Method instantiation is not allowed", [])
+let ambiguous_method_inst ~pos name =
+  (pos, 
+    Printf.sprintf 
+      ("There are more than one method named %s expected by this function. " ^^
+       "They cannot be provided explicitly.") name, [])
+
+let module_inst_after_method_inst ~pos =
+  (pos, "Cannot instantiate with a module after explicit method instantiation", [])
 
 let unknown_named_type_pattern ~pos name =
   (pos, Printf.sprintf "Type %s was not expected here" name, [])
@@ -500,3 +510,7 @@ let redundant_named_parameter ~pos ~pp name =
     Printf.sprintf "Providing %s to a function that do not expect it"
       (string_of_name ~pp ~pp_ctx name) in
   (pos, msg, [])
+
+let redundant_method_parameter ~pos name =
+  (pos, Printf.sprintf
+      "Providing method %s to a function that do not expect it" name, [])
