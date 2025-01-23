@@ -88,6 +88,11 @@ val declare_val :
 val open_module : public:bool ->
   ('st, 'sc) opn t -> closed t -> ('st, 'sc) opn t
 
+(** Introduce the given module's ADTs and exported methods into scope. If
+  the [~public] flag is set, then introduced definitions will be re-exported *)
+val import_adts_and_methods : public:bool ->
+  ('st, 'sc) opn t -> closed t -> ('st, 'sc) opn t
+
 (** Finalize module definition: remove all private members and set
   pretty-printing information. *)
 val leave : top t -> PPTree.pp_module -> closed t

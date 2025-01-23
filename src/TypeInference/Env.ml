@@ -191,10 +191,11 @@ let leave_module (type st) ~public (Env env : (st, modl) opn t) name : st t =
   match env.mod_stack with
   | MStack(StModule, Cons(new_top, mod_stack)) ->
     let (pp_tree, ppm) = PPTree.leave_module ~public env.pp_tree name in
+    let m = Module.leave env.cur_module ppm in
+    let cur_module = Module.add_module ~public new_top name m in
+    let cur_module = Module.import_adts_and_methods ~public cur_module m in
     Env { env with
-      cur_module =
-        Module.add_module ~public new_top name
-          (Module.leave env.cur_module ppm);
+      cur_module = cur_module;
       mod_stack  = mod_stack;
       pp_tree    = pp_tree
     }
