@@ -346,8 +346,13 @@ let rec tr_pattern ~public (p : Raw.expr) =
 (** Translate a pattern, separating out its annotation [Some sch] if present
     or returning [None] otherwise. *)
 and tr_annot_pattern ~public (p : Raw.expr) =
+  let pos = p.pos in
   match p.data with
-  | EParen p       -> tr_annot_pattern ~public p
+  | EParen p       ->
+    begin match tr_annot_pattern ~public p with
+    | pat, None -> { pat with pos }, None
+    | (_, Some _) as res -> res
+    end
   | EAnnot(p, sch) -> tr_pattern ~public p, Some (tr_scheme_expr sch)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
@@ -444,16 +449,13 @@ let rec tr_function args body =
     }
 
 (** Translate a polymorphic function *)
-let rec tr_poly_function all_args body =
+let rec tr_poly_function ~pos all_args body =
   let (flds, _, args) = collect_fields ~ppos:Position.nowhere all_args in
   let named = List.map (tr_named_pattern ~public:false) flds in
   let body = tr_function args body in
   match named with
-  | [] -> { body with data = PE_Expr body }
-  | _ :: _ ->
-    { pos  = Position.join (List.hd all_args).pos body.pos;
-      data = PE_Fn(named, body)
-    }
+  | []     -> { pos; data = PE_Expr { body with pos } }
+  | _ :: _ -> { pos; data = PE_Fn(named, body) }
 
 (* ========================================================================= *)
 
@@ -506,10 +508,11 @@ let rec tr_poly_expr (e : Raw.expr) =
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_poly_expr_def (e : Raw.expr) =
+  let pos = e.pos in
   let make data = { e with data = data } in
   match e.data with
   | EParen e -> make (tr_poly_expr_def e).data
-  | EFn(es, e) -> make (tr_poly_function es (tr_expr e)).data
+  | EFn(es, e) -> make (tr_poly_function ~pos es (tr_expr e)).data
 
   | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (PE_Poly (tr_poly_expr e))
@@ -655,6 +658,7 @@ and tr_explicit_inst (fld : Raw.field) =
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_def ?(public=false) (def : Raw.def) =
+  let pos = def.pos in
   let make data = { def with data = data } in
   match def.data with
   | DLet(pub, p, e) ->
@@ -663,7 +667,7 @@ and tr_def ?(public=false) (def : Raw.def) =
       | LP_Id id ->
         make (DLetId(public, id, tr_poly_expr_def e))
       | LP_Fun(id, args) ->
-        make (DLetId(public, id, tr_poly_function args (tr_expr e)))
+        make (DLetId(public, id, tr_poly_function ~pos args (tr_expr e)))
       | LP_Pat p ->
         make (DLetPat(p, tr_expr e))
     ]
@@ -673,7 +677,8 @@ and tr_def ?(public=false) (def : Raw.def) =
       | LP_Id (IdVar x) ->
         make (DLetId(public, IdMethod x, tr_poly_expr_def e))
       | LP_Fun(IdVar x, args) ->
-        make (DLetId(public, IdMethod x, tr_poly_function args (tr_expr e)))
+        make (DLetId(public,
+          IdMethod x, tr_poly_function ~pos args (tr_expr e)))
       | LP_Id (IdImplicit _ | IdMethod _)
       | LP_Fun((IdImplicit _ | IdMethod _), _)
       | LP_Pat _ ->
