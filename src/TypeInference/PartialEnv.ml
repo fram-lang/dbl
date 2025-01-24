@@ -237,7 +237,7 @@ let introduce_val name info env =
 
 let introduce_module_types ~pos types env =
   List.fold_left
-    (fun env (name, x) -> Env.add_existing_tvar ~pos ~public:true env name x)
+    (fun env (name, x) -> Env.add_tvar_alias ~pos ~public:true env name x)
     env types
 
 let introduce_module_vals vals env =
