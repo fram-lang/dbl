@@ -150,7 +150,7 @@ let rec finalize_rec_data ~nonrec_scope env (def : def1 T.node) =
     let sch = T.Scheme.of_type l_tp in
     let id =
       NameUtils.tr_ident ~pos:def.pos ~pp:(Env.pp_tree env) id sch in
-    let (env, x) = Env.add_val env id sch in
+    let (env, x) = Env.add_val ~public env id sch in
     let dd = T.DD_Label
       { tvar     = tvar;
         var      = x;
@@ -479,7 +479,7 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
           d.scheme.sch_named;
         T.sch_body  = d.scheme.sch_body
       } in
-    let (env, y) = Env.add_val env d.name y_sch in
+    let (env, y) = Env.add_val ~public:d.public env d.name y_sch in
     let named2 =
       List.map (fun (pat, sch) -> (Var.fresh (), pat, sch)) d.named in
     let mono_body =

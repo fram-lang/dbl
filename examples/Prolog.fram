@@ -131,7 +131,7 @@ method rename self sub =
     end
   in rename self
 
-method rename (self = Cl t ts) sub =
+method rename (Cl t ts) sub =
   Cl (t.rename sub) (List.map (fn (t : Term) => t.rename sub) ts)
 
 {# ========================================================================= #}
