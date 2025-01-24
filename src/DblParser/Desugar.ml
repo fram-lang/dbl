@@ -679,9 +679,6 @@ and tr_def ?(public=false) (def : Raw.def) =
       | LP_Pat _ ->
         Error.fatal (Error.desugar_error p.pos)
     ]
-  | DMethodFn(pub, id1, id2) ->
-    let public = public || pub in
-    [ make (DMethodFn(public, tr_var_id (make id1), tr_var_id (make id2))) ]
   | DParam fld ->
     [ match tr_param_decl fld with
       | Either.Left (x, y, k)    -> make (DTypeParam(x, y, k))

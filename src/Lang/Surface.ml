@@ -306,9 +306,6 @@ and def_data =
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DMethodFn of is_public * var * method_name
-    (** Declaration of function that should be interpreted as a method *)
-
   | DLabel   of type_arg * pattern
     (** Creating a new label. *)
 

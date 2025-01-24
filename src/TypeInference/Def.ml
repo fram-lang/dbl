@@ -77,9 +77,6 @@ let check_def : type st dir. tcfix:tcfix ->
       er_constr = body.er_constr @ rest.er_constr
     }
 
-  | DMethodFn(public, x, method_name) ->
-    failwith "We are going to remove method functions"
-
   | DLabel(eff, pat) ->
     let (tp, resp) = switch_to_check_mode env req in
     let delim_tp = Env.fresh_uvar env T.Kind.k_type in

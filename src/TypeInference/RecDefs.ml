@@ -48,9 +48,6 @@ let rec prepare_rec_data env (def : S.def) =
   | DLetPat _ ->
     Error.fatal (Error.invalid_rec_def ~pos:def.pos)
 
-  | DMethodFn _ ->
-    failwith "We are going to remove method functions"
-
   | DLabel(eff, pat) ->
     let (env, _, x) = Type.check_type_arg env eff T.Kind.k_effect in
     begin match pat.data with

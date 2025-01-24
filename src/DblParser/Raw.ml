@@ -266,9 +266,6 @@ and def_data =
   | DMethod of is_public * expr * expr
     (** Method definition *)
 
-  | DMethodFn of is_public * var_id * var_id
-    (** Declaration of function that should be interpreted as a method *)
-
   | DModule of is_public * module_name * def list
     (** Definition of a module *)
 

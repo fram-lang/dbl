@@ -516,8 +516,6 @@ def
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr
     { make_def $3 (DHandleWith($1, $4, $5, $7)) }
 | pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
-| pub KW_METHOD KW_FN var_id { make (DMethodFn($1, $4, $4)) }
-| pub KW_METHOD KW_FN var_id EQ var_id { make (DMethodFn($1, $4, $6)) }
 | pub KW_MODULE rec_opt UID def_list KW_END
     { make_def $3 (DModule($1, $4, $5)) }
 | pub KW_REC def_list KW_END { make (DRec($1, $3)) }
