@@ -67,15 +67,19 @@ type 'st t = {
     (** Information about ADT constructors *)
 
   adt_map  : (adt_info, 'st) ident_info T.TVar.Map.t;
-    (** Information about ADT definitions. It also contains ADTs defined in
-      submodules on which the [import_adts_and_methods] has been called. *)
+    (** Information about ADT definitions. *)
 
   mod_map : (closed t, 'st) ident_info StrMap.t;
     (** Information about defined modules *)
 
-  method_map : (val_info, 'st) ident_info Name.Map.t;
+  exp_methods : (val_info, 'st) ident_info Name.Map.t;
     (** Information about exported methods. It may contain more method than
       the val_map, as it includes methods of the submodules on which the
+      [import_adts_and_methods] has been called. *)
+
+  exp_adts : (adt_info, 'st) ident_info T.TVar.Map.t;
+    (** Information about exported ADTs. It may contain more ADTs than the
+      adt_map, as it includes ADTs of the submodules on which the
       [import_adts_and_methods] has been called. *)
 
   pp_module : (PPTree.pp_module, 'st) on_closed;
@@ -91,7 +95,8 @@ let empty =
     ctor_map     = StrMap.empty;
     adt_map      = T.TVar.Map.empty;
     mod_map      = StrMap.empty;
-    method_map   = Name.Map.empty;
+    exp_methods  = Name.Map.empty;
+    exp_adts     = T.TVar.Map.empty;
     pp_module    = NoneCl;
     state        = M_Top
   }
@@ -130,19 +135,21 @@ let add_val ~public m name x sch =
     val_map =
       Name.Map.update name (update_add ~public m.state (VI_Var(x, sch)))
         m.val_map;
-    method_map =
+    exp_methods =
       match name with
       | NMethod _ ->
         Name.Map.update name
-          (update_add ~public m.state (VI_Var(x, sch))) m.method_map
-      | _ -> m.method_map
+          (update_add ~public m.state (VI_Var(x, sch))) m.exp_methods
+      | _ -> m.exp_methods
   }
 
 let add_adt ~public m x info =
   assert (not (T.TVar.Map.mem x m.adt_map));
   { m with
-    adt_map =
-      T.TVar.Map.update x (update_add ~public m.state info) m.adt_map
+    adt_map  =
+      T.TVar.Map.update x (update_add ~public m.state info) m.adt_map;
+    exp_adts =
+      T.TVar.Map.update x (update_add ~public m.state info) m.exp_adts
   }
 
 let add_ctor ~public m name idx info =
@@ -209,24 +216,26 @@ let open_module ~public m opened =
     ctor_map     = StrMap.merge mrg m.ctor_map opened.ctor_map;
     adt_map      = T.TVar.Map.merge mrg m.adt_map opened.adt_map;
     mod_map      = StrMap.merge mrg m.mod_map opened.mod_map;
-    method_map   = Name.Map.merge mrg m.method_map opened.method_map;
+    exp_methods  = Name.Map.merge mrg m.exp_methods opened.exp_methods;
+    exp_adts     = T.TVar.Map.merge mrg m.exp_adts opened.exp_adts;
     pp_module    = m.pp_module;
     state        = m.state
   }
 
 let import_adts_and_methods ~public m opened =
   let mrg name info1 info2 = merge_ident ~public m.state name info1 info2 in
-  (* Imported methods are added to the current scope as private. By doing so,
-      the set of public identifiers of the module doesn't contain things that
-      are not defined in the module itself. *)
-  let mrg_method info1 info2 =
+  (* Imported methods and ADTs are added to the current scope as private. By
+      doing so, the set of public identifiers of the module doesn't contain
+      things that are not defined in the module itself. *)
+  let mrg_exp info1 info2 =
     merge_ident ~public:false m.state info1 info2 in
   { m with
-    val_map      = Name.Map.merge mrg_method m.val_map opened.method_map;
-    adt_map      = T.TVar.Map.merge mrg m.adt_map opened.adt_map;
-    (* But they are added with correct visibility to the method_map, so they
+    val_map      = Name.Map.merge mrg_exp m.val_map opened.exp_methods;
+    adt_map      = T.TVar.Map.merge mrg_exp m.adt_map opened.exp_adts;
+    (* But they are added with correct visibility to the "exp" maps, so they
       can be reexported. *)
-    method_map   = Name.Map.merge mrg m.method_map opened.method_map
+    exp_methods  = Name.Map.merge mrg m.exp_methods opened.exp_methods;
+    exp_adts     = T.TVar.Map.merge mrg m.exp_adts opened.exp_adts
   }
 
 let close_ident _ info =
@@ -236,26 +245,28 @@ let close_ident _ info =
 
 let leave m pp_module =
   let M_Top = m.state in
-  { tvar_map   = StrMap.filter_map close_ident m.tvar_map;
-    val_map    = Name.Map.filter_map close_ident m.val_map;
-    ctor_map   = StrMap.filter_map close_ident m.ctor_map;
-    adt_map    = T.TVar.Map.filter_map close_ident m.adt_map;
-    mod_map    = StrMap.filter_map close_ident m.mod_map;
-    method_map = Name.Map.filter_map close_ident m.method_map;
-    pp_module  = SomeCl pp_module;
-    state      = M_Closed
+  { tvar_map    = StrMap.filter_map close_ident m.tvar_map;
+    val_map     = Name.Map.filter_map close_ident m.val_map;
+    ctor_map    = StrMap.filter_map close_ident m.ctor_map;
+    adt_map     = T.TVar.Map.filter_map close_ident m.adt_map;
+    mod_map     = StrMap.filter_map close_ident m.mod_map;
+    exp_methods = Name.Map.filter_map close_ident m.exp_methods;
+    exp_adts    = T.TVar.Map.filter_map close_ident m.exp_adts;
+    pp_module   = SomeCl pp_module;
+    state       = M_Closed
   }
 
 let enter_section m =
   let enter info = Skip info in
-  { tvar_map   = StrMap.map enter m.tvar_map;
-    val_map    = Name.Map.map enter m.val_map;
-    ctor_map   = StrMap.map enter m.ctor_map;
-    adt_map    = T.TVar.Map.map enter m.adt_map;
-    mod_map    = StrMap.map enter m.mod_map;
-    method_map = Name.Map.map enter m.method_map;
-    pp_module  = NoneCl;
-    state      = M_Section m.state
+  { tvar_map    = StrMap.map enter m.tvar_map;
+    val_map     = Name.Map.map enter m.val_map;
+    ctor_map    = StrMap.map enter m.ctor_map;
+    adt_map     = T.TVar.Map.map enter m.adt_map;
+    mod_map     = StrMap.map enter m.mod_map;
+    exp_methods = Name.Map.map enter m.exp_methods;
+    exp_adts    = T.TVar.Map.map enter m.exp_adts;
+    pp_module   = NoneCl;
+    state       = M_Section m.state
   }
 
 let leave_section m =
@@ -265,14 +276,15 @@ let leave_section m =
     | Skip info | Local(_, info) -> Some info
     | NoDef -> None
   in
-  { tvar_map   = StrMap.filter_map leave m.tvar_map;
-    val_map    = Name.Map.filter_map leave m.val_map;
-    ctor_map   = StrMap.filter_map leave m.ctor_map;
-    adt_map    = T.TVar.Map.filter_map leave m.adt_map;
-    mod_map    = StrMap.filter_map leave m.mod_map;
-    method_map = Name.Map.filter_map leave m.method_map;
-    pp_module  = NoneCl;
-    state      = st
+  { tvar_map    = StrMap.filter_map leave m.tvar_map;
+    val_map     = Name.Map.filter_map leave m.val_map;
+    ctor_map    = StrMap.filter_map leave m.ctor_map;
+    adt_map     = T.TVar.Map.filter_map leave m.adt_map;
+    mod_map     = StrMap.filter_map leave m.mod_map;
+    exp_methods = Name.Map.filter_map leave m.exp_methods;
+    exp_adts    = T.TVar.Map.filter_map leave m.exp_adts;
+    pp_module   = NoneCl;
+    state       = st
   } 
 
 (* ========================================================================= *)
