@@ -16,7 +16,7 @@ data Clause = Cl of Term, List Term
 data Reader E X = Reader of (Unit ->[E] X)
 
 {# We expose the `ask` operation of `Reader` as a method. #}
-method ask {E, self = Reader ask : Reader E _} = ask
+method ask {E} (Reader ask : Reader E _) = ask
 
 {# The standard state effect, with its accompanying methods. #}
 data State E X = State of
@@ -24,10 +24,10 @@ data State E X = State of
   , put : X ->[E] Unit
   }
 
-method get {E, self = State { get } : State E _} = get
-method put {E, self = State { put } : State E _} = put
+method get {E} (State { get } : State E _) = get
+method put {E} (State { put } : State E _) = put
 
-method update {E, self : State E _} f = self.put (f (self.get ()))
+method update {E} (self : State E _) f = self.put (f (self.get ()))
 
 {# The standard backtracking effect. #}
 data BT E = BT of
@@ -35,12 +35,12 @@ data BT E = BT of
   , fail : {type X} -> Unit ->[E] X
   }
 
-method flip {E, self = BT { flip } : BT E} = flip
-method fail {E, self = BT { fail } : BT E} = fail
+method flip {E} (BT { flip } : BT E) = flip
+method fail {E} (BT { fail } : BT E) = fail
 
 {# The method `choose` on `BT` non-deterministically selects an element
   from a list. #}
-method choose {E, self : BT E} =
+method choose {E} (self : BT E) =
   let rec choose xs =
     match xs with
     | []      => self.fail ()
@@ -52,7 +52,7 @@ method choose {E, self : BT E} =
   identifiers in the evaluator. #}
 data Fresh E X = Fresh of (Unit ->[E] X)
 
-method fresh {E, self = Fresh fresh : Fresh E _} = fresh
+method fresh {E} (Fresh fresh : Fresh E _) = fresh
 
 {# ========================================================================= #}
 
@@ -105,7 +105,7 @@ let rec assoc x xs =
 {# Methods on terms and clauses that are useful for implementing variable
   refreshing. #}
 
-method vars =
+method vars self =
   let ~eq (x : Int) = x.equal in
   let rec vars t =
     match t with
@@ -114,11 +114,11 @@ method vars =
     end
   in vars self
 
-method vars { self = Cl t ts } =
+method vars (Cl t ts) =
   let ~eq (x : Int) = x.equal in
   union t.vars (unions (List.map (fn (t : Term) => t.vars) ts))
 
-method rename sub =
+method rename self sub =
   let ~eq (x : Int) = x.equal in
   let rec rename t =
     match t with
@@ -131,7 +131,7 @@ method rename sub =
     end
   in rename self
 
-method rename { self = Cl t ts } sub =
+method rename (self = Cl t ts) sub =
   Cl (t.rename sub) (List.map (fn (t : Term) => t.rename sub) ts)
 
 {# ========================================================================= #}
@@ -155,7 +155,7 @@ let getVar x =
   term, accounting for the instantiation of unification variables.
   In a realistic implementation we would keep terms that haven't been viewed
   abstract to prevent accidentally pattern-matching on them. #}
-method rec view {self : Term} =
+method rec view (self : Term) =
   match self with
   | TVar x    =>
     match getVar x with
@@ -180,10 +180,10 @@ let fresh () = ~fresh.fresh ()
 {# We attach additional `refresh` methods to terms and clauses, which replace
   all the variables in terms with fresh unification variables. #}
 
-method refresh {self : Term} =
+method refresh (self : Term) =
   self.rename (List.map (fn x => (x, fresh ())) self.vars)
 
-method refresh {self : Clause} =
+method refresh (self : Clause) =
   self.rename (List.map (fn x => (x, fresh ())) self.vars)
 
 {# ========================================================================= #}
@@ -199,7 +199,7 @@ parameter ~bt : BT E_bt
 let fail () = ~bt.fail ()
 
 {# Check whether a variable occurs in a term. #}
-method occurs (x : Int) =
+method occurs self (x : Int) =
   let rec occurs (t : Term) =
     match t.view with
     | TVar y    => x == y

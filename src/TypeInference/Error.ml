@@ -386,6 +386,13 @@ let cannot_resolve_method ~pos ~pp owner name =
       (string_of_method_owner ~pp ~pp_ctx owner)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let cannot_resolve_method_constr ~pos ~pp name sch =
+  let pp_ctx = Pretty.empty_context () in
+  let msg = Printf.sprintf
+    "Cannot resolve a method %s of type %s"
+    name (Pretty.scheme_to_string pp_ctx pp sch)
+  in (pos, msg ^ Pretty.additional_info pp_ctx, [])
+
 let type_already_provided ~pos ~npos name =
   (pos,
     Printf.sprintf "Type %s is provided more than once" name,

@@ -32,8 +32,9 @@ let check_def : type st dir. tcfix:tcfix ->
     let (body_env, params) = Env.begin_generalize env in
     begin match PolyExpr.infer_def_scheme ~tcfix body_env body with
     | PPure(body, sch, cs) ->
+      let cs = ConstrSolve.solve_partial cs in
       let (targs, named, cs) =
-        ParamGen.end_generalize_pure params (Name.scheme_uvars sch) cs in
+        ParamGen.end_generalize_pure ~pos params (Name.scheme_uvars sch) cs in
       let (body, sch) = ExprUtils.generalize ~pos ~pp targs named body sch in
       let name = NameUtils.tr_ident ~pos ~pp id sch in
       let (env, x) = Env.add_val ~public env name sch in
@@ -195,7 +196,7 @@ let check_def : type st dir. tcfix:tcfix ->
   | DRec defs ->
     let env = Env.enter_section env in
     let (tp, resp) = switch_to_check_mode env req in
-    let result = RecDefs.check_rec_defs ~tcfix env defs in
+    let result = RecDefs.check_rec_defs ~tcfix ~pos env defs in
     let env = Env.leave_section result.rec_env in
     let rest = cont.run env (Check tp) in
     { er_expr   =

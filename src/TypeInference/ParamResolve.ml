@@ -183,7 +183,7 @@ and resolve_param ~vset ~pos env rctx name sch =
     resolve_implicit ~vset ~pos env rctx iname sch
 
   | T.NMethod mname ->
-    resolve_method ~vset ~pos env rctx mname sch
+    resolve_method ~vset ~pos env mname sch
 
 and resolve_optional ~vset ~pos env rctx x sch =
   let tp = BuiltinTypes.scheme_to_option_arg sch in
@@ -223,7 +223,7 @@ and resolve_implicit ~vset ~pos env rctx iname sch =
     coerce_scheme ~vset ~pos ~name env e x_sch sch
 
 and resolve_method
-    ~vset ~pos env ?(method_env=env) rctx mname (sch : T.scheme) =
+    ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
   let self_tp =
     match T.Type.view sch.sch_body with
     | TArrow(owner_sch, _, _) ->
@@ -245,8 +245,12 @@ and resolve_method
       Error.fatal (Error.cannot_resolve_method ~pos ~pp owner mname)
     end
   | None ->
-    (* TODO: create a method constraint *)
-    failwith "Not implemented: method call on unknown type"
+    let hole = BRef.create None in
+    let e = { T.pos; T.data = T.EHole hole } in
+    let constr =
+      Constr.ResolveMethod
+        { hole; vset; pos; env; method_env; self_tp; mname; sch } in
+    (e, [constr])
 
 (* ========================================================================= *)
 let instantiate ~pos env rctx poly_expr (sch : T.scheme) =
@@ -264,6 +268,5 @@ let resolve_implicit ~pos env iname sch =
   let vset = Var.Set.empty in
   resolve_implicit ~vset ~pos env no_reinst iname sch
 
-let resolve_method ~pos env ?method_env mname sch =
-  let vset = Var.Set.empty in
-  resolve_method ~vset ~pos env ?method_env no_reinst mname sch
+let resolve_method ?(vset=Var.Set.empty) ~pos env ?method_env mname sch =
+  resolve_method ~vset ~pos env ?method_env mname sch

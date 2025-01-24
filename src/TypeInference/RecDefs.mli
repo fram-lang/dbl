@@ -27,5 +27,5 @@ type 'st rec_result =
   }
 
 (** Check a block of mutually-recursive definitions. *)
-val check_rec_defs : tcfix:tcfix ->
+val check_rec_defs : tcfix:tcfix -> pos:Position.t ->
   ('st, sec) opn Env.t -> S.def list -> 'st rec_result

@@ -215,7 +215,7 @@ let rec check_repl_def_seq ~tcfix env def_seq tp =
         }
       in
       let er = check_defs env defs (Check tp) { run = cont } in
-      Constr.solve_all er.er_constr;
+      ConstrSolve.solve_all er.er_constr;
       er.er_expr
   in
   { T.pos  = Position.nowhere;

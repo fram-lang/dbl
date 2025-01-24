@@ -694,15 +694,17 @@ type 'st rec_result =
     rec_constr : Constr.t list
   }
 
-let check_rec_defs ~tcfix env defs =
+let check_rec_defs ~tcfix ~pos env defs =
   let nonrec_scope = Env.scope env in
   let (env, defs) = List.fold_left_map prepare_rec_data env defs in
   let (env, dds, eff) = finalize_rec_data_defs ~nonrec_scope env defs in
   let (rec_env, params) = Env.begin_generalize env in
   let (rec_env, fds) = prepare_rec_funs rec_env defs in
   let (cs, fds) = check_rec_funs ~tcfix rec_env fds in
+  let cs = ConstrSolve.solve_partial cs in
   let uvars = List.fold_left collect_rec_fun_uvars T.UVar.Set.empty fds in
-  let (targs, named, cs) = ParamGen.end_generalize_pure params uvars cs in
+  let (targs, named, cs) =
+    ParamGen.end_generalize_pure ~pos params uvars cs in
   let (env, fds) = add_rec_funs env targs named fds in
   let fds = List.map (finalize_rec_fun fds) fds in
   { rec_env    = env;

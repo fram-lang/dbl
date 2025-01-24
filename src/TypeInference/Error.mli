@@ -109,6 +109,8 @@ val cannot_resolve_named_param : pos:Position.t -> S.var -> t
 val cannot_resolve_implicit : pos:Position.t -> S.iname -> t
 val cannot_resolve_method :
   pos:Position.t -> pp:PPTree.t -> Name.method_owner -> S.method_name -> t
+val cannot_resolve_method_constr :
+  pos:Position.t -> pp:PPTree.t -> S.method_name -> T.scheme -> t
 
 val type_already_provided : pos:Position.t -> npos:Position.t -> S.tvar -> t
 val named_param_already_provided :

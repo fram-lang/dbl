@@ -58,7 +58,10 @@ val resolve_implicit :
 (** Resolve a method parameter of given scheme in given environment. If the
   [~method_env] argument is provided, the method is searched in the
   [~method_env] environment, but its parameters are resolved in the given
-  environment. *)
+  environment. The [~vset] argument is for the internal use only, but it is
+  visible in the interface because it is used by the constraint solver.
+  Do not use it directly. *)
 val resolve_method :
+  ?vset:Var.Set.t ->
   pos:Position.t -> 'st Env.t -> ?method_env:'st Env.t ->
     S.method_name -> T.scheme -> T.poly_expr * Constr.t list

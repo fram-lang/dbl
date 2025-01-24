@@ -7,8 +7,7 @@
 
 open Common
 
-let end_generalize_pure params uvs cs =
-  let cs = Constr.solve_partial cs in
+let end_generalize_pure ~pos params uvs cs =
   (* Collect all used parameters *)
   let (targs2, named) = ParamEnv.end_generalize_pure params in
   (* Collect all unification variables from generalized named parameters *)
@@ -24,7 +23,7 @@ let end_generalize_pure params uvs cs =
     |> List.map (fun x -> (T.TNAnon, T.UVar.fix x)) in
   (* Fix scopes of constraints *)
   let new_tvars = List.map snd targs1 |> T.TVar.Set.of_list in
-  let cs = Constr.fix_scopes new_tvars cs in
+  let cs = Constr.fix_scopes ~pos new_tvars cs in
   (targs1 @ targs2, named, cs)
 
 (* ========================================================================== *)

@@ -4,8 +4,6 @@
 
 pub data Bool = False | True
 
-pub data Option A = None | Some of A
-
 pub data rec List A = [] | (::) of A, List A
 
 pub data Pair X Y = (,) of X, Y

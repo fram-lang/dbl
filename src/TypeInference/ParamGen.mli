@@ -11,10 +11,15 @@ open Common
   generalized. The second parameter is a set of unification variables that
   appears in the type/scheme of the generalized entity. Additionally, the
   function modifies list of constraints generated in the generalized entity:
-  it partially solve them, and for the reamining, it extends their scope with
-  unification variables promoted to type variables. This function tries to
-  generalize only those parameters that were used. *)
-val end_generalize_pure :
+  it extends their scope with unification variables promoted to type
+  variables. This function tries to generalize only those parameters that were
+  used.
+
+  The [ConstrSolve.solve_partial] function should be called before collecting
+  unification variables passed to this function. Otherwise we could generalize
+  unification variables that could be set during constraint solving, and
+  therefore we could end up with unsolvable constraints. *)
+val end_generalize_pure : pos:Position.t ->
   ParamEnv.param_list -> T.UVar.Set.t -> Constr.t list ->
     T.named_tvar list * (Name.t * T.var * T.scheme_expr) list * Constr.t list
 
