@@ -271,6 +271,9 @@ let non_arrow_method ~pos ~pp sch =
     (Pretty.scheme_to_string pp_ctx pp sch)
   in (pos, msg ^ Pretty.additional_info pp_ctx, [])
 
+let method_call_on_unknown_type ~pos =
+  (pos, "Cannot call a method on an unknown type", [])
+
 let ctor_pattern_on_non_adt ~pos ~pp tp =
   let pp_ctx = Pretty.empty_context () in
   let msg = Printf.sprintf

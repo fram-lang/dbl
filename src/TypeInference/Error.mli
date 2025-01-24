@@ -74,6 +74,8 @@ val method_of_unknown_type : pos:Position.t -> pp:PPTree.t -> T.scheme -> t
 val method_of_polymorphic_type : pos:Position.t -> pp:PPTree.t -> T.scheme -> t
 val non_arrow_method : pos:Position.t -> pp:PPTree.t -> T.scheme -> t
 
+val method_call_on_unknown_type : pos:Position.t -> t
+
 val ctor_pattern_on_non_adt : pos:Position.t -> pp:PPTree.t -> T.typ -> t
 val empty_match_on_non_adt : pos:Position.t -> pp:PPTree.t -> T.typ -> t
 val empty_match_on_nonempty_adt : pos:Position.t -> pp:PPTree.t -> T.typ -> t

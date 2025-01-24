@@ -63,8 +63,9 @@ let lookup_method ~pos env self_tp name =
     end
 
   | None ->
-    (* TODO: create a method constraint *)
-    failwith "Not implemented: method call on unknown type"
+    (* We could create a method constraint here, but such a situation occurs
+      very rarely in well-typed programs. Therefore, we raise an error. *)
+    Error.fatal (Error.method_call_on_unknown_type ~pos)
 
 (* ------------------------------------------------------------------------- *)
 let infer_use_scheme ~tcfix ?app_type env (e : S.poly_expr_use) =
