@@ -245,6 +245,14 @@ pub method iteri {E, self : Array E _} f =
   in
   loop 0
 
+pub method fold_right {E, self : Array E _} f init =
+  let res = init in
+  let rec loop (i : Int) =
+    if i >= self.length then init
+    else f (loop (i + 1)) (unsafeGetArray {E} self i)
+   in 
+  loop 0
+  
 {## Iterate function over all elements of an array.
 
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
