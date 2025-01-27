@@ -17,7 +17,7 @@ let annotate_named_args named body res_tp =
         T.data = T.EMatchPoly(
           make_nowhere (T.EVar x),
           make_nowhere (T.PAnnot(
-            make_nowhere (T.PAs(make_nowhere (T.PWildcard sch), x, sch)),
+            make_nowhere (T.PAs(make_nowhere T.PWildcard, x)),
             sch_expr)),
           body, res_tp, T.Pure)
       } in

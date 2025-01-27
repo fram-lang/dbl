@@ -494,11 +494,8 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
     let named_pats =
       List.map
         (fun (_, x, sch_expr) ->
-          let sch = T.SchemeExpr.to_scheme sch_expr in
           let pat =
-            make (T.PAnnot(
-              make (T.PAs(make(T.PWildcard sch), x, sch)),
-              sch_expr)) in
+            make (T.PAnnot(make (T.PAs(make T.PWildcard, x)), sch_expr)) in
           (x, pat))
         named1 @
       List.map (fun (x, pat, _) -> (x, pat)) named2

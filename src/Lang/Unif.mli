@@ -237,12 +237,11 @@ type data_def =
 (** Pattern *)
 type pattern = pattern_data node
 and pattern_data =
-  | PWildcard of scheme
+  | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
-  | PAs of pattern * var * scheme
-    (** Pattern that binds a variable of given scheme, and continues with
-      a subpattern *)
+  | PAs of pattern * var
+    (** Pattern that binds a variable and continues with a subpattern *)
 
   | PCtor of string * int * expr * tvar list * pattern list * pattern list
     (** ADT constructor pattern. It stores a name, constructor index,

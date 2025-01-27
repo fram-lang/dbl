@@ -65,8 +65,8 @@ type data_def =
 
 type pattern = pattern_data node
 and pattern_data =
-  | PWildcard of scheme
-  | PAs       of pattern * var * scheme
+  | PWildcard
+  | PAs       of pattern * var
   | PCtor     of string * int * expr * tvar list * pattern list * pattern list
   | PAnnot    of pattern * scheme_expr
 

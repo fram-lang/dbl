@@ -29,10 +29,10 @@ let select_named_pattern name named =
 let make_pattern ~pos np =
   let pat =
     match np.pat with
-    | None     -> { T.pos; T.data = T.PWildcard np.sch }
+    | None     -> { T.pos; T.data = T.PWildcard }
     | Some pat -> pat
   in
-  { pat with data = T.PAs(pat, np.var, np.sch) }
+  { pat with data = T.PAs(pat, np.var) }
 
 let make_arg_pattern np =
   Option.map (fun pat -> (np.var, pat)) np.pat
@@ -196,12 +196,12 @@ let rec check_scheme env (pat : S.pattern) sch =
   let pp = Env.pp_tree env in
   match pat.data with
   | PWildcard ->
-    (PartialEnv.empty, make (T.PWildcard sch), T.Pure)
+    (PartialEnv.empty, make T.PWildcard, T.Pure)
 
   | PId(public, id) ->
     let name = NameUtils.tr_ident ~pos ~pp id sch in
     let (penv, x) = PartialEnv.singleton_val ~public ~pos name sch in
-    (penv, make (T.PAs(make (T.PWildcard sch), x, sch)), T.Pure)
+    (penv, make (T.PAs(make T.PWildcard, x)), T.Pure)
 
   | PCtor _ ->
     begin match T.Scheme.to_type sch with
