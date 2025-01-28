@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ocaml/setup-ocaml@v2
+      - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 5.1.1
       - run: opam install dune
