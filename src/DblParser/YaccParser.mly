@@ -61,12 +61,6 @@ lid
 : LID { make $1 }
 ;
 
-var_id
-: LID                  { VIdVar $1 }
-| BR_OPN op BR_CLS     { VIdBOp ($2).data }
-| BR_OPN op DOT BR_CLS { VIdUOp ($2).data }
-;
-
 name
 : LID       { NVar $1      }
 | QLID      { NOptionalVar $1 }

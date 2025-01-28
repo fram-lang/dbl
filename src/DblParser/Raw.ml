@@ -22,12 +22,6 @@ type method_name = string
 (** Names of operators *)
 type op_name = string
 
-(** Variable-like identifier *)
-type var_id =
-  | VIdVar of var
-  | VIdBOp of op_name
-  | VIdUOp of op_name
-
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
   | NVar         of var

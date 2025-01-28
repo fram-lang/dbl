@@ -23,12 +23,6 @@ let tr_uop_to_expr (op : string node) =
   let make data = { op with data = data } in
   make (EPoly (make (EVar (make (NPName (make_uop_id op.data)))), []))
 
-let tr_var_id (var : Raw.var_id node) =
-  match var.data with
-  | VIdVar x  -> x
-  | VIdBOp op -> tr_bop_id { var with data = op }
-  | VIdUOp op -> make_uop_id op
-
 let tr_ctor_name (cname : Raw.ctor_name node) =
   match cname.data with
   | CNUnit   -> "()"
