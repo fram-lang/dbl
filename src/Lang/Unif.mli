@@ -261,7 +261,7 @@ and poly_expr_data =
   | EVar of var
     (** Variable *)
 
-  | EPolyFun of tvar list * (var * scheme) list * expr
+  | EPolyFun of named_tvar list * (name * var * scheme) list * expr
     (** Polymorphic lambda abstraction. Always pure *)
 
   | EHole of poly_expr option BRef.t

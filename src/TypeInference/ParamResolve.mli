@@ -17,14 +17,15 @@ val no_reinst : reinst_list
   that could be reinstantiated, list of type variables, list of introduced
   named parameters, and the body of the scheme. *)
 val open_scheme : pos:Position.t -> 'st Env.t -> T.scheme ->
-  'st Env.t * reinst_list * T.tvar list * (T.var * T.scheme) list * T.typ
+  'st Env.t * reinst_list *
+    T.named_tvar list * (T.name * T.var * T.scheme) list * T.typ
 
 (** Implicitly introduce all variables and named parameters in case of
   explicit binding of named parameters. Returns extended environment, list of
   type variables, list of introduced named parameters, and the body of the
   scheme. *)
 val open_scheme_explicit : pos:Position.t -> 'st Env.t -> T.scheme ->
-  'st Env.t * (T.tname * T.tvar) list * (T.name * T.var * T.scheme) list * T.typ
+  'st Env.t * T.named_tvar list * (T.name * T.var * T.scheme) list * T.typ
 
 (** Create a substitution that replaces type variables with fresh unification
   variables. *)

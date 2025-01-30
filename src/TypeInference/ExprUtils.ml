@@ -39,9 +39,10 @@ let generalize ~pos ~pp tvs named e (sch : Name.scheme) =
   let (named, body) = annotate_named_args named body sch.sch_body in
   let tvs = tvs @ sch.sch_targs in
   let named = named @ named_args in
-  let poly_args = List.map (fun (_, x, sch) -> (x, sch)) named in
+  let poly_args =
+    List.map (fun (name, x, sch) -> (Name.to_unif name, x, sch)) named in
   let poly_expr =
-    { e with T.data = T.EPolyFun(List.map snd tvs, poly_args, body) } in
+    { e with T.data = T.EPolyFun(tvs, poly_args, body) } in
   let sch = {
     T.sch_targs = tvs;
     T.sch_named =
@@ -51,6 +52,11 @@ let generalize ~pos ~pp tvs named e (sch : Name.scheme) =
   (poly_expr, sch)
 
 (* ========================================================================= *)
+
+let mk_pure_fun ~pos (x, sch) body =
+  { T.pos  = pos;
+    T.data = T.EFn(x, sch, body, Pure)
+  }
 
 let ctor_func ~pos idx (info : Module.adt_info) =
   let make data = { T.pos; T.data } in
@@ -62,18 +68,18 @@ let ctor_func ~pos idx (info : Module.adt_info) =
         info.adt_args,
       [])) in
   let named_args =
-    List.map (fun (name, sch) -> (Var.fresh (), sch)) ctor.ctor_named in
+    List.map (fun (name, sch) -> (name, Var.fresh (), sch)) ctor.ctor_named in
   let args =
     List.map (fun sch -> (Var.fresh (), sch)) ctor.ctor_arg_schemes in
   let body =
     make (T.ECtor(proof, idx,
       List.map (fun (_, x) -> T.Type.t_var x)  ctor.ctor_targs,
-      List.map (fun (x, _) -> make (T.EVar x)) named_args,
+      List.map (fun (_, x, _) -> make (T.EVar x)) named_args,
       List.map (fun (x, _) -> make (T.EVar x)) args)) in
   make (T.EPolyFun(
-    List.map snd (info.adt_args @ ctor.ctor_targs),
-    named_args @ args,
-    body))
+    info.adt_args @ ctor.ctor_targs,
+    named_args,
+    List.fold_right (mk_pure_fun ~pos) args body))
 
 (* ========================================================================= *)
 

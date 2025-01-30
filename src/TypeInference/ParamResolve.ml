@@ -69,22 +69,25 @@ let open_scheme_types ~pos env targs =
 let open_scheme_values ~pos ~sub env named =
   let open_named (env, rctx) (name, sch) =
     let sch = T.Scheme.subst sub sch in
-    match name with
-    | T.NVar name ->
-      let (rctx, x) = Reinst.add_var rctx name sch in
-      ((env, rctx), (x, sch))
-    | T.NOptionalVar name ->
-      let tp = BuiltinTypes.scheme_to_option_arg sch in
-      let (rctx, x) = Reinst.add_optional rctx name tp in
-      ((env, rctx), (x, sch))
-    | T.NImplicit iname ->
-      let (env, x) = Env.add_implicit env iname sch in
-      ((env, rctx), (x, sch))
-    | T.NMethod name ->
-      let pp = Env.pp_tree env in
-      let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
-      let (env, x) = Env.add_method env owner name sch in
-      ((env, rctx), (x, sch))
+    let (env, rctx, x) =
+      match name with
+      | T.NVar name ->
+        let (rctx, x) = Reinst.add_var rctx name sch in
+        (env, rctx, x)
+      | T.NOptionalVar name ->
+        let tp = BuiltinTypes.scheme_to_option_arg sch in
+        let (rctx, x) = Reinst.add_optional rctx name tp in
+        (env, rctx, x)
+      | T.NImplicit iname ->
+        let (env, x) = Env.add_implicit env iname sch in
+        (env, rctx, x)
+      | T.NMethod name ->
+        let pp = Env.pp_tree env in
+        let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
+        let (env, x) = Env.add_method env owner name sch in
+        (env, rctx, x)
+    in
+    ((env, rctx), (name, x, sch))
   in
   let ((env, rctx), xs) =
     List.fold_left_map open_named (env, Reinst.empty) named in
@@ -94,7 +97,7 @@ let open_scheme ~pos env (sch : T.scheme) =
   let (env, tvs, sub) = open_scheme_types ~pos env sch.sch_targs in
   let (env, rctx, xs) = open_scheme_values ~pos ~sub env sch.sch_named in
   let body = T.Type.subst sub sch.sch_body in
-  (env, rctx, List.map snd tvs, xs, body)
+  (env, rctx, tvs, xs, body)
 
 let open_scheme_values_explicit ~pos ~sub env named =
   let open_named env (name, sch) =

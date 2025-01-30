@@ -196,7 +196,7 @@ type rec_fun3 =
     rf3_targs    : T.named_tvar list;
       (** Explicit formal type parameters *)
 
-    rf3_named    : (T.pattern * T.scheme) list;
+    rf3_named    : (T.name * T.pattern * T.scheme) list;
       (** Explicit named formal parameters *)
 
     rf3_args     : (Position.t * T.pattern * T.scheme * T.effect) list;
@@ -313,7 +313,8 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     let pp = Env.pp_tree env in
     { rf3_scheme  = sch;
       rf3_targs   = tvars;
-      rf3_named   = List.map (fun (_, pat, sch) -> (pat, sch)) named;
+      rf3_named   =
+        List.map (fun (name, pat, sch) -> (Name.to_unif name, pat, sch)) named;
       rf3_args    = rfb.rfb_args;
       rf3_penv    = PartialEnv.join ~pp penv rfb.rfb_penv;
       rf3_body    = rfb.rfb_body;
@@ -361,7 +362,7 @@ type def4 =
       var     : T.var;
       scheme  : T.scheme;
       targs   : T.named_tvar list;
-      named   : (T.pattern * T.scheme) list;
+      named   : (T.name * T.pattern * T.scheme) list;
       args    : (Position.t * T.pattern * T.scheme * T.effect) list;
       body    : T.expr;
       body_tp : T.typ
@@ -439,11 +440,11 @@ type def6 = {
   d6_mono_body   : T.poly_expr;
     (** Less general form of the recursive value *)
 
-  d6_targs       : T.tvar list;
+  d6_targs       : T.named_tvar list;
     (** Type parameters of the recursive value, including section-declared
       parameters. *)
 
-  d6_named       : (T.var * T.scheme) list;
+  d6_named       : (T.name * T.var * T.scheme) list;
     (** Named arguments of the recursive value, including section-declared
       parameters. *)
 
@@ -478,18 +479,20 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
       } in
     let (env, y) = Env.add_val ~public:d.public env d.name y_sch in
     let named2 =
-      List.map (fun (pat, sch) -> (Var.fresh (), pat, sch)) d.named in
+      List.map
+        (fun (name, pat, sch) -> (name, Var.fresh (), pat, sch))
+        d.named in
     let mono_body =
       make (T.EPolyFun(
-        List.map snd d.targs,
-        List.map (fun (x, _, sch) -> (x, sch)) named2,
+        d.targs,
+        List.map (fun (name, x, _, sch) -> (name, x, sch)) named2,
         make (T.EInst(
           make (T.EVar y),
           List.map
             (fun (_, x) -> make (T.TE_Type (T.Type.t_var x)))
             (targs1 @ d.targs),
           List.map (fun (_, x, _) -> make (T.EVar x)) named1 @
-          List.map (fun (x, _, _) -> make (T.EVar x)) named2))))
+          List.map (fun (_, x, _, _) -> make (T.EVar x)) named2))))
     in
     let named_pats =
       List.map
@@ -498,7 +501,7 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
             make (T.PAnnot(make (T.PAs(make T.PWildcard, x)), sch_expr)) in
           (x, pat))
         named1 @
-      List.map (fun (x, pat, _) -> (x, pat)) named2
+      List.map (fun (_, x, pat, _) -> (x, pat)) named2
     in
     let def =
       { d6_pos         = def.pos;
@@ -506,10 +509,13 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
         d6_poly_scheme = y_sch;
         d6_mono_var    = d.var;
         d6_mono_body   = mono_body;
-        d6_targs       = List.map snd (targs1 @ d.targs);
+        d6_targs       = targs1 @ d.targs;
         d6_named       =
-          List.map (fun (_, x, sch) -> (x, T.SchemeExpr.to_scheme sch)) named1
-          @ List.map (fun (x, _, sch) -> (x, sch)) named2;
+          List.map
+            (fun (name, x, sch) ->
+              (Name.to_unif name, x, T.SchemeExpr.to_scheme sch))
+            named1 @
+          List.map (fun (name, x, _, sch) -> (name, x, sch)) named2;
         d6_named_pats  = named_pats;
         d6_args        = d.args;
         d6_body        = d.body;

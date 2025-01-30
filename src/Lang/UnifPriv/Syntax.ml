@@ -74,7 +74,7 @@ and poly_expr = poly_expr_data node
 and poly_expr_data =
   | EOptionPrf
   | EVar     of var
-  | EPolyFun of tvar list * (var * scheme) list * expr
+  | EPolyFun of named_tvar list * (name * var * scheme) list * expr
   | EHole    of poly_expr option BRef.t
 
 and expr = expr_data node

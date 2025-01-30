@@ -146,8 +146,6 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     | Impure -> Error.report (Error.func_not_pure ~pos)
     end;
     let body_expr = ExprUtils.match_args pats body.er_expr body_tp eff in
-    let targs = List.map snd targs in
-    let named = List.map (fun (_, x, sch) -> (x, sch)) named in
     let poly_expr = make (T.EPolyFun(targs, named, body_expr)) in
     Poly(poly_expr, body.er_constr)
 
@@ -212,7 +210,7 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
         Name.sch_named = sch_named;
         Name.sch_body  = body_tp
       } in
-    let targs = List.map snd targs in
-    let named = List.map (fun (_, x, _, sch) -> (x, sch)) named in
+    let named =
+      List.map (fun (name, x, _, sch) -> (Name.to_unif name, x, sch)) named in
     let poly_expr = { T.pos; T.data = T.EPolyFun(targs, named, body_expr) } in
     PPure(poly_expr, sch, body.er_constr)
