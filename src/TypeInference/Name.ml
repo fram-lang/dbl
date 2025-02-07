@@ -25,6 +25,8 @@ type scheme =
     sch_body  : T.typ
   }
 
+type pattern = t * T.pattern * T.scheme
+
 let to_unif name =
   match name with
   | NVar x         -> T.NVar x

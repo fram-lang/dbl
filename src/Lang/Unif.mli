@@ -21,9 +21,6 @@ type uvar
 (** Type variables *)
 type tvar
 
-(** Scope of a type *)
-type scope
-
 (** Name of a named type parameter *)
 type tname =
   | TNAnon
@@ -56,7 +53,7 @@ type name =
   There are two effects in Unif. We only distinguish pure and impure
   computations. Pure computations doesn't use any control-effects and
   recursion, therefore they always terminate. *)
-type effect = Pure | Impure
+type effct = Pure | Impure
 
 (** Types.
 
@@ -119,7 +116,7 @@ and type_expr_data =
     (** Impure arrow. The last parameter is an effect *)
 
   | TE_Handler of (** First-class handler *)
-    { effect   : tvar;
+    { eff_var  : tvar;
         (** Effect variable bound by this handler (it bound in [cap_type],
           [in_type], and [in_eff] *)
 
@@ -142,7 +139,7 @@ and type_expr_data =
     }
 
   | TE_Label of (** First-class label *)
-    { effect    : type_expr;
+    { eff       : type_expr;
         (** Effect of this label *)
 
       delim_tp  : type_expr;
@@ -212,7 +209,7 @@ type data_def =
       ctors  : ctor_decl_expr list;
         (** List of constructors. *)
 
-      effect : effect
+      eff    : effct
         (** An effect indicating if the type is strictly positively recursive
           (in particular, not recursive at all). Strictly positively recursive
           types can be deconstructed in a pure way. *)
@@ -289,7 +286,7 @@ and expr_data =
   | EChr of char
     (** String literal *)
 
-  | EFn of var * scheme * expr * effect
+  | EFn of var * scheme * expr * effct
     (** Effect-annotated lambda-abstraction *)
 
   | EAppPoly of expr * poly_expr
@@ -320,17 +317,17 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
-  | EMatchEmpty of expr * expr * typ * effect
+  | EMatchEmpty of expr * expr * typ * effct
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression, that is a witness that the type of the second
       parameter is an empty ADT. The last parameter is an effect of the whole
       expression. *)
 
-  | EMatch of expr * match_clause list * typ * effect
+  | EMatch of expr * match_clause list * typ * effct
     (** Pattern-matching. It stores type and effect of the whole expression.
       *)
 
-  | EMatchPoly of poly_expr * pattern * expr * typ * effect
+  | EMatchPoly of poly_expr * pattern * expr * typ * effct
     (** Pattern-matching of polymorphic expression with a single match-clause.
       *)
 
@@ -346,7 +343,7 @@ and expr_data =
     { label     : var;
       (** Variable, that binds the runtime-label *)
 
-      effect    : tvar;
+      eff_var   : tvar;
       (** Effect variable *)
 
       delim_tp  : typ;
@@ -461,8 +458,11 @@ module TVar : sig
   (** Kind of a type variable *)
   val kind : tvar -> kind
 
-  (** Create fresh type variable of given kind *)
-  val fresh : kind -> tvar
+  (** Create fresh type variable of given kind. Optionally, a unique
+    identifier used by the pretty-printer can be provided. If omitted, it
+    will be the same as the freshly generated unique identifier of the
+    variable. *)
+  val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> tvar
 
   (** Compare two type variables *)
   val compare : tvar -> tvar -> int
@@ -473,39 +473,17 @@ module TVar : sig
   (** Get the unique identifier *)
   val uid : tvar -> UID.t
 
+  (** Get the unique identifier for pretty-printing *)
+  val pp_uid : tvar -> PPTree.uid
+
+  (** Get the scope of a type variable *)
+  val scope : tvar -> Scope.t
+
   (** Finite sets of type variables *)
   module Set : Set.S with type elt = tvar
 
   (** Finite map from type variables *)
   module Map : Map.S with type key = tvar
-
-  (** Finite partial permutations of type variables *)
-  module Perm : Perm.S with type key = tvar and module KeySet = Set
-end
-
-(* ========================================================================= *)
-(** Operations on scopes of types *)
-module Scope : sig
-  (** Initial scope *)
-  val initial : scope
-
-  (** Extend scope with a variable *)
-  val add : scope -> tvar -> scope
-
-  (** Extend scope with a named type variable *)
-  val add_named : scope -> named_tvar -> scope
-
-  (** Check if a variable is a member of a scope *)
-  val mem : scope -> tvar -> bool
-
-  (** Apply permutation to a scope *)
-  val perm : TVar.Perm.t -> scope -> scope
-
-  (** Increase a level of given scope *)
-  val incr_level : scope -> scope
-
-  (** Get a level of given scope *)
-  val level : scope -> int
 end
 
 (* ========================================================================= *)
@@ -520,22 +498,18 @@ module UVar : sig
   val uid : t -> UID.t
 
   (** Get a scope of a unification variable *)
-  val scope : t -> scope
-
-  (** Get a level of an unification variable *)
-  val level : t -> int
+  val scope : t -> Scope.t
 
   (** Set a unification variable, without checking any constraints. It returns
-    expected scope of set type. The first parameter is a permutation attached
-    to the unification variable. *)
-  val raw_set : TVar.Perm.t -> t -> typ -> scope
+    expected scope of set type. *) 
+  val raw_set : t -> typ -> Scope.t
 
   (** Promote unification variable to fresh type variable *)
   val fix : t -> tvar
 
-  (** Shrink scope of given unification variable to given level, leaving only
-    those variables which satisfy given predicate. *)
-  val filter_scope : t -> int -> (tvar -> bool) -> unit
+  (** Update the scope of a unification variable. Its scope is set to the
+    intersection of its current scope and the given scope. *)
+  val shrink_scope : t -> Scope.t -> unit
 
   (** Set of unification variables *)
   module Set : Set.S with type elt = t
@@ -564,10 +538,10 @@ end
 (** Operations on effects *)
 module Effect : sig
   (** Join of two effects *)
-  val join : effect -> effect -> effect
+  val join : effct -> effct -> effct
 
   (** Join of multiple effects *)
-  val joins : effect list -> effect
+  val joins : effct list -> effct
 end
 
 (* ========================================================================= *)
@@ -578,15 +552,13 @@ module Type : sig
     | TEffect
       (** Something of effect kind. In Unif all effects are equal *)
 
-    | TUVar of TVar.Perm.t * uvar
-      (** Unification variable, associated with a delayed partial permutation,
-      of type variables. Mappings of variables not in scope of the
-      unification variable might be not present in the permutation. *)
+    | TUVar of uvar
+      (** Unification variable *)
 
     | TVar of tvar
       (** Regular type variable *)
 
-    | TArrow of scheme * typ * effect
+    | TArrow of scheme * typ * effct
       (** Effect annotated arrow *)
 
     | THandler of tvar * typ * typ * typ
@@ -604,7 +576,7 @@ module Type : sig
 
   (** Head of a neutral type *)
   type neutral_head =
-    | NH_UVar of TVar.Perm.t * uvar
+    | NH_UVar of uvar
       (** Unification variable *)
 
     | NH_Var  of tvar
@@ -618,7 +590,7 @@ module Type : sig
     | Whnf_Neutral of neutral_head * typ list
       (** Neutral type. Its parameters are in reversed order. *)
 
-    | Whnf_Arrow of scheme * typ * effect
+    | Whnf_Arrow of scheme * typ * effct
       (** Effect annotated arrow *)
   
     | Whnf_Handler   of tvar * typ * typ * typ
@@ -637,7 +609,7 @@ module Type : sig
   val t_option : typ -> typ
 
   (** Unification variable *)
-  val t_uvar : TVar.Perm.t -> uvar -> typ
+  val t_uvar : uvar -> typ
 
   (** Regular type variable *)
   val t_var : tvar -> typ
@@ -649,7 +621,7 @@ module Type : sig
   val t_pure_arrows : scheme list -> typ -> typ
 
   (** Arrow type *)
-  val t_arrow : scheme -> typ -> effect -> typ
+  val t_arrow : scheme -> typ -> effct -> typ
 
   (** Type of first-class handlers *)
   val t_handler : tvar -> typ -> typ -> typ -> typ
@@ -664,7 +636,7 @@ module Type : sig
   val t_apps : typ -> typ list -> typ
 
   (** Fresh unification variable (packed as type) *)
-  val fresh_uvar : scope:scope -> kind -> typ
+  val fresh_uvar : scope:Scope.t -> kind -> typ
 
   (** Reveal a top-most constructor of a type *)
   val view : typ -> type_view
@@ -692,7 +664,7 @@ module Type : sig
   (** Ensure that given type fits given scope. It changes scope constraints
     of unification variables accordingly. On error, it returns escaping type
     variable. *)
-  val try_shrink_scope : scope:scope -> typ -> (unit, tvar) result
+  val try_shrink_scope : scope:Scope.t -> typ -> (unit, tvar) result
 end
 
 (* ========================================================================= *)
@@ -714,9 +686,6 @@ module Scheme : sig
   (** Extend given set of unification variables by unification variables
     from given scheme. Equivalent to [uvars sch UVar.Set.empty] *)
   val collect_uvars : scheme -> UVar.Set.t -> UVar.Set.t
-
-  (** Make sure that type variables bound by this scheme are fresh *)
-  val refresh : scheme -> scheme
 
   (** Apply substitution to a scheme *)
   val subst : subst -> scheme -> scheme
@@ -742,24 +711,28 @@ module CtorDecl : sig
   (** Get the index of a constructor with a given name *)
   val find_index : ctor_decl list -> string -> int option
 
-  (** Check if given constructor is strictly positive, i.e., if all type
-    variables on non-strictly positive positions and all scopes of unification
-    variables fit in [nonrec_scope]. *)
-  val strictly_positive : nonrec_scope:scope -> ctor_decl -> bool
+  (** Check if given constructor is positive, i.e., if all type variables on
+    non positive positions and all scopes of unification variables fit in
+    [nonrec_scope], assuming that the constructor fits in [scope]. The [args]
+    parameter is a list of arguments of the datatype. *)
+  val is_positive :
+    scope:Scope.t -> args:named_tvar list -> nonrec_scope:Scope.t ->
+      ctor_decl -> bool
 end
 
 (* ========================================================================= *)
 (** Type substitutions *)
 module Subst : sig
-  (** Empty substitution *)
-  val empty : subst
-
-  (** Extend substitution with a renaming. The new version of a variable
-    must be fresh enough. *)
-  val rename_to_fresh : subst -> tvar -> tvar -> subst
+  (** Empty substitution. The [scope] argument should be the scope of the types
+    that will be substituted. *)
+  val empty : scope:Scope.t -> subst
 
   (** Extend substitution. It is rather parallel extension than composition *)
   val add_type : subst -> tvar -> typ -> subst
+
+  (** Extend substitution with a renaming of type variable. Equivalent to
+    [add_type sub x (Type.t_var y)] *)
+  val rename_tvar : subst -> tvar -> tvar -> subst
 end
 
 (* ========================================================================= *)
@@ -826,4 +799,37 @@ end
 module CtorDeclExpr : sig
   (** Convert to constructor declarations *)
   val to_ctor_decl : ctor_decl_expr -> ctor_decl
+end
+
+(* ========================================================================= *)
+(** Renaming of variables *)
+module Ren : sig
+  type t
+
+  (** Empty renaming *)
+  val empty : scope:Scope.t -> t
+
+  (** Extend renaming with a renaming of a type variable *)
+  val add_tvar : t -> tvar -> tvar -> t
+
+  (** Extend renaming with a renaming of a regular variable *)
+  val add_var : t -> var -> var -> t
+
+  (** Rename type variable binder *)
+  val rename_tvar : t -> tvar -> tvar
+
+  (** Rename named type variable binder *)
+  val rename_named_tvar : t -> named_tvar -> named_tvar
+
+  (** Rename named type variable binders *)
+  val rename_named_tvars : t -> named_tvar list -> named_tvar list
+
+  (** Rename type *)
+  val rename_type : t -> typ -> typ
+
+  (** Rename type scheme *)
+  val rename_scheme : t -> scheme -> scheme
+
+  (** Rename variables in pattern *)
+  val rename_pattern : t -> pattern -> pattern
 end

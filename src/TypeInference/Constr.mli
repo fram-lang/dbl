@@ -34,8 +34,3 @@ type t =
       sch : T.scheme;
         (** Scheme of the method to be resolved *)
     } -> t
-
-(** Extend environment scopes with given set of type variables for each
-  constraint. The position should point to the place where these variables
-  are introduced. *)
-val fix_scopes : pos:Position.t -> T.TVar.Set.t -> t list -> t list

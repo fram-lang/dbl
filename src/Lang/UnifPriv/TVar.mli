@@ -7,15 +7,17 @@
 open KindBase
 
 type t = private {
-  uid  : UID.t;
-  kind : kind
+  uid    : UID.t;
+  pp_uid : PPTree.uid;
+  kind   : kind;
+  scope  : Scope.t
 }
 
 val kind : t -> kind
 
-val fresh : kind -> t
+val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> t
 
-val clone : t -> t
+val clone : scope:Scope.t -> t -> t
 
 val compare : t -> t -> int
 
@@ -23,6 +25,9 @@ val equal : t -> t -> bool
 
 val uid : t -> UID.t
 
-module Set  : Set.S with  type elt = t
-module Map  : Map.S with  type key = t
-module Perm : Perm.S with type key = t and module KeySet = Set
+val pp_uid : t -> PPTree.uid
+
+val scope : t -> Scope.t
+
+module Set : Set.S with  type elt = t
+module Map : Map.S with  type key = t

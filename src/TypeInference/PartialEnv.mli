@@ -11,11 +11,6 @@ type t
 (** Empty environment *)
 val empty : t
 
-(** Singleton environment with a single type variable. Provided Unif type
-  variable should be fresh enough. *)
-val singleton_tvar :
-  public:S.is_public -> pos:Position.t -> S.tvar -> T.tvar -> t
-
 (** Singleton environment with a single alias for a type variable. In contrast
   to [singleton_tvar], given type variable should already exist in the
   environment. *)
@@ -24,7 +19,7 @@ val singleton_tvar_alias :
 
 (** Singleton environment with a single value. *)
 val singleton_val :
-  public:S.is_public -> pos:Position.t -> Name.t -> T.scheme -> t * T.var
+  public:S.is_public -> pos:Position.t -> Name.t -> T.var -> T.scheme -> t
 
 (** Singleton environment with a single module. Provided type variables should
   already exist in the environment. *)
@@ -64,5 +59,15 @@ val add_method :
   be bound in both environments. *)
 val join : pp:PPTree.t -> t -> t -> t
 
-(** Add all members of a partial environment to the environment. *)
-val extend : 'st Env.t -> t -> 'st Env.t
+(** Enter a new scope (twice) and add all members of the partial environment
+  to the environment. The second parameter is a list of type parameters bound
+  when the partial environment was created. Type aliases to these parameters
+  may apper in the partial envrionment, so these type parameters are added to
+  the environment. Returns tuple containing the following:
+  - the new environment
+  - the scope that contains type parameters, but does not contain other types
+    introduced by the partial environment
+  - refresh version of type parameters (the second argument)
+  - the renaming of variables introduced by the partial environment. *)
+val extend : 'st Env.t -> type_param list -> t -> 
+  'st Env.t * Scope.t * T.named_tvar list * T.Ren.t

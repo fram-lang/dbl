@@ -18,9 +18,9 @@ val check_kind : 'st Env.t -> S.type_expr -> T.kind -> T.type_expr
 (** Check and translate a type-scheme expression *)
 val tr_scheme : 'st Env.t -> S.scheme_expr -> T.scheme_expr
 
-(** Translate scheme named parameters and split it into type and value
-  parameters. The optional [data_targs] parameter is a list of type
-  parameters of a datatype in case of translation of named parameters of
+(** Enter a new scope, translate scheme named parameters, and split them into
+  type and value parameters. The optional [data_targs] parameter is a list of
+  type parameters of a datatype in case of translation of named parameters of
   the constructor: named types introduced by a datatype cannot be the same
   as names introduce by a constructor. *)
 val tr_scheme_args : ?data_targs: T.named_tvar list ->
@@ -35,6 +35,6 @@ val tr_ttype : 'st Env.t -> S.type_expr -> T.type_expr
 val check_type_arg : 'st Env.t -> S.type_arg -> T.kind ->
   'st Env.t * T.tname * T.tvar
 
-(** Translate formal type parameters. *)
-val tr_named_type_args :
-  S.named_type_arg list -> PartialEnv.t * T.named_tvar list
+(** Translate formal type parameters. The returned type variables should be provided
+  to [PartialEnv.extend] function in order to add them to the environment. *)
+val tr_named_type_args : S.named_type_arg list -> PartialEnv.t * type_param list

@@ -15,22 +15,6 @@ val initial : closed t
 
 (* ========================================================================= *)
 
-(** Extend the environment with a named type variable. In opposite to
-  [add_tvar], this function does not create a fresh variable, but uses
-  an existing one. Provided type variable must be fresh enough, i.e., it
-  should not be present in the environment's scope. *)
-val add_existing_tvar :
-  ?pos:Position.t -> ?public:bool ->
-    'st t -> S.tvar -> T.tvar -> 'st t
-
-(** Extend the environment with an anonymous type variable. In opposite to
-  [add_anon_tvar], this function does not create a fresh variable, but uses
-  an existing one. Provided type variable must be fresh enough, i.e., it
-  should not be present in the environment's scope. *)
-val add_existing_anon_tvar :
-  ?pos:Position.t -> ?name:string ->
-    'st t -> T.tvar -> 'st t
-
 (** Extend the environment with a named type variable. The optional position
   should point to the place of binding in the source code. *)
 val add_tvar :
@@ -50,18 +34,10 @@ val add_tvar_alias :
   ?pos:Position.t -> ?public:bool ->
     'st t -> S.tvar -> T.tvar -> 'st t
 
-(** Extend the environment with an existing value of given scheme *)
-val add_existing_val :
-  ?public:bool -> 'st t -> Name.t -> T.var -> T.scheme -> 'st t
-
 (** Extend the environment with a polymorphic value *)
 val add_val :
   ?public:bool -> 'st t -> Name.t -> T.scheme -> 'st t * T.var
-(*
-(** Extend the environment with a polymorphic variable *)
-val add_var :
-  ?public:bool -> 'st t -> S.var -> T.scheme -> 'st t * T.var
-*)
+
 (** Extend the environment with a polymorphic named implicit. *)
 val add_implicit :
   ?public:bool -> 'st t -> S.iname -> T.scheme -> 'st t * T.var
@@ -88,6 +64,9 @@ val add_ctor :
 
 (* ========================================================================= *)
 
+(** Enter a new scope *)
+val enter_scope : 'st t -> 'st t * Scope.t
+
 (** Enter a new section of parameter declarations. *)
 val enter_section : 'st t -> ('st, sec) opn t
 
@@ -102,13 +81,13 @@ val declare_type : pos:Position.t ->
   parameters is the following.
   - [free_types] -- type variables that occurs freely in the scheme of this
     parameter, and should be separately instantiated for each use.
-  - [used_types] -- previously declared types, used in the scheme of this
-    parameter.
+  - [used_types] -- previously declared type UIDs, together with the type
+    variables used as them in the scheme of this parameter.
   - [name] -- the name of the parameter, that will be visible in the
     generalized scheme.
   - [local_name] -- then name of the parameter used in the environment. *)
-val declare_val : pos:Position.t ->
-  ('st, sec) opn t -> free_types:T.tvar list -> used_types:T.tvar list ->
+val declare_val : pos:Position.t -> ('st, sec) opn t ->
+  free_types:T.tvar list -> used_types:(UID.t * T.tvar) list ->
     name:Name.t -> local_name:Name.t -> T.scheme_expr -> ('st, sec) opn t
 
 (** Enter the scope where declared parameters are visible. Returns a list of
@@ -118,7 +97,7 @@ val begin_generalize : ('st, sec) opn t -> exp t * ParamEnv.param_list
 
 (** Try to access type parameter and return its status. *)
 val check_type_param : pos:Position.t ->
-  'st t -> T.tvar -> (T.tname, T.tvar) ParamEnv.param_status
+  'st t -> UID.t -> (T.tname, T.tvar) ParamEnv.param_status
 
 (** Try to access value parameter and return its status. *)
 val check_val_param : pos:Position.t ->
@@ -172,10 +151,7 @@ val lookup_module : 'st t -> S.module_name -> closed Module.t option
 (* ========================================================================= *)
 
 (** Get the current scope *)
-val scope : 'st t -> T.scope
-
-(** Get the level of the environment *)
-val level : 'st t -> int
+val scope : 'st t -> Scope.t
 
 (** Get the type pretty-printing tree *)
 val pp_tree : 'st t -> PPTree.t

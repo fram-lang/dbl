@@ -80,7 +80,7 @@ end = struct
     match T.TVar.Map.find_opt x env.local_names with
     | Some name -> PPTree.Found name
     | None ->
-      begin match PPTree.lookup env.pp_tree (T.TVar.uid x) with
+      begin match PPTree.lookup env.pp_tree (T.TVar.pp_uid x) with
       | Found name -> PPTree.Found name
       | _ as result ->
         begin match T.TVar.Map.find_opt x env.context.tvar_map with
@@ -212,7 +212,7 @@ and fresh_for_scheme env name { T.sch_targs = _; sch_named; sch_body } =
 let rec pp_type buf env prec tp =
   match T.Type.view tp with
   | TEffect -> Buffer.add_string buf "[_]"
-  | TUVar(_, u) -> Buffer.add_string buf (pp_uvar env u)
+  | TUVar u -> Buffer.add_string buf (pp_uvar env u)
   | TVar x -> Buffer.add_string buf (pp_tvar env x)
   | TArrow(sch, tp, eff) ->
     paren buf prec 0 (fun () ->

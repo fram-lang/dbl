@@ -53,6 +53,7 @@ let no_reinst = Reinst.empty
 
 (* ========================================================================= *)
 let open_scheme_types ~pos env targs =
+  let (env, scope) = Env.enter_scope env in
   let open_type (env, sub) (tname, x) =
     let name =
       match tname with
@@ -60,10 +61,11 @@ let open_scheme_types ~pos env targs =
       | T.TNVar x -> Some x
     in
     let (env, y) = Env.add_anon_tvar ~pos ?name env (T.TVar.kind x) in
-    ((env, T.Subst.rename_to_fresh sub x y), (tname, y))
+    let sub = T.Subst.rename_tvar sub x y in
+    ((env, sub), (tname, y))
   in
   let ((env, sub), tvs) =
-    List.fold_left_map open_type (env, T.Subst.empty) targs in
+    List.fold_left_map open_type (env, T.Subst.empty ~scope) targs in
   (env, tvs, sub)
 
 let open_scheme_values ~pos ~sub env named =
@@ -129,7 +131,8 @@ let guess_types ~pos env targs =
     let tp = Env.fresh_uvar env (T.TVar.kind x) in
     (T.Subst.add_type sub x tp, { T.pos; T.data = T.TE_Type tp })
   in
-  List.fold_left_map guess_type T.Subst.empty targs
+  let scope = Env.scope env in
+  List.fold_left_map guess_type (T.Subst.empty ~scope) targs
 
 (** Check for cyclic dependencies in the type parameters, and extend a set of
   restricted variables. *)
@@ -225,8 +228,7 @@ and resolve_implicit ~vset ~pos env rctx iname sch =
     let e = { T.pos; T.data = T.EVar x } in
     coerce_scheme ~vset ~pos ~name env e x_sch sch
 
-and resolve_method
-    ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
+and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
   let self_tp =
     match T.Type.view sch.sch_body with
     | TArrow(owner_sch, _, _) ->

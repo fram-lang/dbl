@@ -116,6 +116,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   | EHandler(cap, rcs, fcs) ->
     let fin_tp = Env.fresh_uvar env T.Kind.k_type in
     (* TODO: effect and label could be named here *)
+    let (env, _) = Env.enter_scope env in
     let (env, a) = Env.add_anon_tvar ~pos ~name:"E" env T.Kind.k_effect in
     let delim_tp = Env.fresh_uvar env T.Kind.k_type in
     let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
@@ -134,7 +135,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
         (Check fin_tp) in
     { er_expr   = make (T.EHandler {
           label    = lx;
-          effect   = a;
+          eff_var  = a;
           delim_tp = delim_tp;
           cap_type = cap_tp;
           cap_body = er_cap.er_expr;
@@ -159,6 +160,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
       er_effect = er.er_effect;
       er_constr = er.er_constr
     }
+
 (* ------------------------------------------------------------------------- *)
 (** Infer the type of optional label *)
 let check_label ~tcfix ~pos env lbl_opt =
@@ -189,7 +191,7 @@ let check_label ~tcfix ~pos env lbl_opt =
       Env.fresh_uvar env T.Kind.k_type
   in
   (lbl, delim_tp, cs)
-      
+
 (* ------------------------------------------------------------------------- *)
 (** Check the sequence of REPL definitions, provided by a user. Always
   in type-check mode. *)
@@ -321,8 +323,9 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
     begin match Unification.from_handler env tp with
     | H_Handler(b, cap_tp, tp_in, tp_out) ->
       (* TODO: effect and label could be named here *)
+      let (env, scope) = Env.enter_scope env in
       let (env, a) = Env.add_anon_tvar ~pos ~name:"E" env T.Kind.k_effect in
-      let sub    = T.Subst.rename_to_fresh T.Subst.empty b a in
+      let sub = T.Subst.rename_tvar (T.Subst.empty ~scope) b a in
       let cap_tp = T.Type.subst sub cap_tp in
       let tp_in  = T.Type.subst sub tp_in in
       let delim_tp = Env.fresh_uvar env T.Kind.k_type in
@@ -340,7 +343,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
           (Check tp_out) in
       { er_expr   = make (T.EHandler {
             label    = lx;
-            effect   = a;
+            eff_var  = a;
             delim_tp = delim_tp;
             cap_type = cap_tp;
             cap_body = er_cap.er_expr;

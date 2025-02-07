@@ -14,7 +14,7 @@ and type_expr_data =
   | TE_PureArrow of scheme_expr * type_expr
   | TE_Arrow     of scheme_expr * type_expr * type_expr
   | TE_Handler   of
-    { effect   : tvar;
+    { eff_var  : tvar;
       cap_type : type_expr;
       in_type  : type_expr;
       in_eff   : type_expr;
@@ -22,7 +22,7 @@ and type_expr_data =
       out_eff  : type_expr
     }
   | TE_Label of
-    { effect    : type_expr;
+    { eff       : type_expr;
       delim_tp  : type_expr;
       delim_eff : type_expr
     }
@@ -54,7 +54,7 @@ type data_def =
       proof  : var;
       args   : named_tvar list;
       ctors  : ctor_decl_expr list;
-      effect : effect
+      eff    : effct
     }
   | DD_Label of
     { tvar      : tvar;
@@ -85,7 +85,7 @@ and expr_data =
   | ENum64      of int64
   | EStr        of string
   | EChr        of char
-  | EFn         of var * scheme * expr * effect
+  | EFn         of var * scheme * expr * effct
   | EAppPoly    of expr * poly_expr
   | EAppMono    of expr * expr
   | ELetPoly    of var * poly_expr * expr
@@ -93,13 +93,13 @@ and expr_data =
   | ELetRec     of rec_def list * expr
   | ECtor       of expr * int * typ list * poly_expr list * poly_expr list
   | EData       of data_def list * expr
-  | EMatchEmpty of expr * expr * typ * effect
-  | EMatch      of expr * match_clause list * typ * effect
-  | EMatchPoly  of poly_expr * pattern * expr * typ * effect
+  | EMatchEmpty of expr * expr * typ * effct
+  | EMatch      of expr * match_clause list * typ * effct
+  | EMatchPoly  of poly_expr * pattern * expr * typ * effct
   | EHandle     of tvar * var * expr * expr
   | EHandler    of
     { label     : var;
-      effect    : tvar;
+      eff_var   : tvar;
       delim_tp  : typ;
       cap_type  : typ;
       cap_body  : expr;

@@ -6,6 +6,9 @@
 
 type t
 
+(** A unique identifier for a type. *)
+type uid = PP_UID of UID.t
+
 (** Representation of a module containing types and other modules. *)
 type pp_module
 
@@ -25,13 +28,13 @@ type pp_result =
 val empty : t
 
 (** Add the type of given UID to the current module. *)
-val add : public:bool -> ?pos:Position.t -> t -> string -> UID.t -> t
+val add : public:bool -> ?pos:Position.t -> t -> string -> uid -> t
 
 (** Add anonymous type to the current module. *)
-val add_anon : ?pos:Position.t -> ?name:string -> t -> UID.t -> t
+val add_anon : ?pos:Position.t -> ?name:string -> t -> uid -> t
 
 (** Add the declaration of a type of given UID to the current module. *)
-val declare : ?pos:Position.t -> t -> string -> UID.t -> t
+val declare : ?pos:Position.t -> t -> string -> uid -> t
 
 (** Enter a section of declarations. *)
 val enter_section : t -> t
@@ -51,4 +54,4 @@ val leave_module : public:bool -> t -> string -> t * pp_module
 val open_module : public:bool -> t -> pp_module -> t
 
 (** Lookup for a unique name of the type of given UID. *)
-val lookup : t -> UID.t -> pp_result
+val lookup : t -> uid -> pp_result

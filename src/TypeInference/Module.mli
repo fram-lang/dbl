@@ -26,7 +26,7 @@ type adt_info = {
   adt_type   : T.typ;
     (** The type that is an ADT, already applied to [adt_args] *)
 
-  adt_effect : T.effect
+  adt_effect : T.effct
     (** An effect of pattern-matching on this type. Generally it is [Pure]
       for strictly poisitively recursive types. *)
 }
@@ -36,7 +36,7 @@ type type_info =
   | TI_Type of T.typ
     (** The type is defined and has given Unif representation *)
 
-  | TI_Parameter of T.tvar
+  | TI_Parameter of UID.t
     (** Declared type parameter. Extra lookup is needed to get the actual
       type *)
 
@@ -77,7 +77,7 @@ val add_module : public:bool ->
 
 (** Extend the module with the declaration of a type *)
 val declare_type :
-  ('st, sec) opn t -> S.tvar -> T.kind -> ('st, sec) opn t * T.tvar
+  ('st, sec) opn t -> S.tvar -> ('st, sec) opn t * UID.t
 
 (** Extend the module with the declaration of a value parameter *)
 val declare_val :

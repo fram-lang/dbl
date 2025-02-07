@@ -23,8 +23,8 @@ let rec lookup_module env (path : S.module_name S.path) =
 let tr_type_info ~pos env (info : Module.type_info) =
   match info with
   | TI_Type tp -> tp
-  | TI_Parameter x ->
-    begin match Env.check_type_param ~pos env x with
+  | TI_Parameter uid ->
+    begin match Env.check_type_param ~pos env uid with
     | StValid x -> T.Type.t_var x
     | StNotGeneralized(name, decl_pos) ->
       Error.fatal

@@ -17,8 +17,8 @@ let rec to_type (tp : type_expr) =
   | TE_Arrow(sch, tp, _) ->
     t_arrow (to_scheme sch) (to_type tp) Impure
   | TE_Handler
-    { effect; cap_type; in_type; in_eff = _; out_type; out_eff = _ } ->
-    t_handler effect (to_type cap_type) (to_type in_type) (to_type out_type)
+    { eff_var; cap_type; in_type; in_eff = _; out_type; out_eff = _ } ->
+    t_handler eff_var (to_type cap_type) (to_type in_type) (to_type out_type)
   | TE_Label lbl ->
     t_label (to_type lbl.delim_tp)
   | TE_App(tp1, tp2) ->
@@ -63,18 +63,18 @@ let rec subst sub (tp : type_expr) =
       TE_PureArrow(subst_in_scheme sub sch, subst sub tp)
     | TE_Arrow(sch, tp, eff) ->
       TE_Arrow(subst_in_scheme sub sch, subst sub tp, subst sub eff)
-    | TE_Handler{ effect; cap_type; in_type; in_eff; out_type; out_eff } ->
+    | TE_Handler{ eff_var; cap_type; in_type; in_eff; out_type; out_eff } ->
       let out_type = subst sub out_type in
       let out_eff = subst sub out_eff in
-      let (sub, effect) = Subst.add_tvar sub effect in
-      TE_Handler { effect; out_type; out_eff;
+      let (sub, eff_var) = Subst.add_tvar (Subst.enter_scope sub) eff_var in
+      TE_Handler { eff_var; out_type; out_eff;
         cap_type = subst sub cap_type;
         in_type = subst sub in_type;
         in_eff = subst sub in_eff
       }
-    | TE_Label { effect; delim_tp; delim_eff } ->
+    | TE_Label { eff; delim_tp; delim_eff } ->
       TE_Label {
-        effect    = subst sub effect;
+        eff       = subst sub eff;
         delim_tp  = subst sub delim_tp;
         delim_eff = subst sub delim_eff
       }
@@ -85,7 +85,8 @@ let rec subst sub (tp : type_expr) =
   }
 
 and subst_in_scheme sub (sch : scheme_expr) =
-  let (sub, targs) = Subst.add_named_tvars sub sch.se_targs in
+  let (sub, targs) =
+    Subst.add_named_tvars (Subst.enter_scope sub) sch.se_targs in
   { se_pos   = sch.se_pos;
     se_targs = targs;
     se_named = List.map (subst_in_named_scheme sub) sch.se_named;

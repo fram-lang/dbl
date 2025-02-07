@@ -16,7 +16,7 @@ open TypeCheckFix
   - [res_tp]  -- returned type *)
 val check_match_clauses : tcfix:tcfix ->
   'st Env.t -> T.typ -> S.match_clause list -> T.typ ->
-    T.match_clause list * T.effect * Constr.t list
+    T.match_clause list * T.effct * Constr.t list
 
 (** Check return clauses of the handler, taking default identity clause if
   given clause list is empty.

@@ -34,8 +34,8 @@ let make_pattern ~pos np =
   in
   { pat with data = T.PAs(pat, np.var) }
 
-let make_arg_pattern np =
-  Option.map (fun pat -> (np.var, pat)) np.pat
+let make_arg_pattern ren np =
+  Option.map (fun pat -> (np.var, T.Ren.rename_pattern ren pat)) np.pat
 
 (* ========================================================================= *)
 
@@ -86,20 +86,22 @@ let make_open_penv ~pos ~public ~pp tvars named =
 
 (* ========================================================================= *)
 
-(** Introduce all existential types as anonymous type variables to the
-  environment and freshly created partial environment. Returns both
-  environments, list of refreshed named type variables, and a renaming
-  substitution that can be used to refresh the types in the constructor. *)
+(** Enter a new scope and introduce all existential types as anonymous type
+  variables to the environment and freshly created partial environment.
+  Returns both environments, list of refreshed named type variables, and a
+  renaming substitution that can be used to refresh the types in the
+  constructor. *)
 let open_ctor_types ~pos env targs =
+  let (env, scope) = Env.enter_scope env in
   let open_ctor_type (env, penv, sub) (tname, x) =
     let (env, y) = Env.add_anon_tvar ~pos env (T.TVar.kind x) in
     let penv = PartialEnv.add_anon_tvar ~pos penv y in
-    let sub = T.Subst.rename_to_fresh sub x y in
+    let sub = T.Subst.rename_tvar sub x y in
     ((env, penv, sub), (tname, y))
   in
   let ((env, penv, sub), tvars) =
     List.fold_left_map open_ctor_type
-      (env, PartialEnv.empty, T.Subst.empty)
+      (env, PartialEnv.empty, T.Subst.empty ~scope)
       targs
   in
   (env, penv, tvars, sub)
@@ -122,13 +124,15 @@ let open_ctor_named_args ~pos ~env penv named =
   in
   List.fold_left_map open_named_arg penv named
 
-(** Open a constructor: introduce all existential types as anonymous type
-  variables to the environment, create a partial environment that contains
-  all implicitly bound variables, and return a list of named type variables,
-  initial list of named arguments, and refreshed list of arguments' schemes.
+(** Open a constructor: enter a new scope, introduce all existential types as
+  anonymous type variables to the environment, create a partial environment
+  that contains all implicitly bound variables, and return a list of named
+  type variables, initial list of named arguments, and refreshed list of
+  arguments' schemes.
   *)
 let open_ctor ~pos env (ctor : T.ctor_decl) =
-  let (env, penv, tvars, sub) = open_ctor_types ~pos env ctor.ctor_targs in
+  let (env, penv, tvars, sub) =
+    open_ctor_types ~pos env ctor.ctor_targs in
   let named = List.map (T.NamedScheme.subst sub) ctor.ctor_named in
   let (penv, named) = open_ctor_named_args ~pos ~env penv named in
   let arg_schemes = List.map (T.Scheme.subst sub) ctor.ctor_arg_schemes in
@@ -146,7 +150,8 @@ let get_ctor_info ~pos env (cpath : S.ctor_name S.path) tp =
     | Some info ->
       let tps = List.rev rev_tps in
       let sub_add sub (_, tv) tp = T.Subst.add_type sub tv tp in
-      let sub = List.fold_left2 sub_add T.Subst.empty info.adt_args tps in
+      let sub = T.Subst.empty ~scope:(Env.scope env) in
+      let sub = List.fold_left2 sub_add sub info.adt_args tps in
       let cname = S.path_name cpath in
       begin match T.CtorDecl.find_index info.adt_ctors cname with
       | Some idx ->
@@ -200,7 +205,8 @@ let rec check_scheme env (pat : S.pattern) sch =
 
   | PId(public, id) ->
     let name = NameUtils.tr_ident ~pos ~pp id sch in
-    let (penv, x) = PartialEnv.singleton_val ~public ~pos name sch in
+    let x = Var.fresh ~name:(Name.to_string name) () in
+    let penv = PartialEnv.singleton_val ~public ~pos name x sch in
     (penv, make (T.PAs(make T.PWildcard, x)), T.Pure)
 
   | PCtor _ ->
@@ -393,13 +399,12 @@ let infer_named_pattern env (np : S.named_pattern) =
       | TA_Wildcard ->
         let (env, x) =
           Env.add_anon_tvar ~pos:arg.pos env (T.Kind.fresh_uvar ()) in
-        let penv = PartialEnv.add_anon_tvar ~pos PartialEnv.empty x in
-        (env, penv, x)
+        (env, PartialEnv.empty, x)
 
       | TA_Var(xname, kind) ->
         let kind = Type.tr_kind kind in
         let (env, x) = Env.add_tvar ~pos env xname kind in
-        let penv = PartialEnv.singleton_tvar ~public ~pos xname x in
+        let penv = PartialEnv.singleton_tvar_alias ~public ~pos xname x in
         (env, penv, x)
     in
     let tvars = [(np.pos, tr_tname name, x)] in
@@ -449,6 +454,7 @@ let infer_named_pattern env (np : S.named_pattern) =
     Error.fatal (Error.open_pattern_not_allowed ~pos:np.pos)
 
 let infer_named_patterns env named_pats =
+  let (env, _) = Env.enter_scope env in
   let rec loop env penv named_pats tvars_acc named_acc eff =
     match named_pats with
     | [] ->
@@ -467,7 +473,6 @@ let infer_named_patterns env named_pats =
   Uniqueness.check_unif_named_type_args tvars;
   Uniqueness.check_names ~pp:(Env.pp_tree env)
     (List.map (fun (pos, name, _, _) -> (pos, name)) named);
-  let tvars = List.map (fun (_, name, x) -> (name, x)) tvars in
   let named =
     named |> List.map (fun (_, name, x, sch) -> (name, x, sch)) in
   (env, penv, tvars, named, eff)
@@ -476,29 +481,29 @@ let infer_named_patterns env named_pats =
 
 let infer_scheme_ext env (pat : S.pattern) =
   let (penv, pat, sch, eff) = infer_scheme env pat in
-  let env = PartialEnv.extend env penv in
-  (env, pat, sch, eff)
+  let (env, _, _, ren) = PartialEnv.extend env [] penv in
+  (env, T.Ren.rename_pattern ren pat, sch, eff)
 
 let check_scheme_ext env (pat : S.pattern) sch =
   let (penv, pat, eff) = check_scheme env pat sch in
-  let env = PartialEnv.extend env penv in
-  (env, pat, eff)
+  let (env, _, _, ren) = PartialEnv.extend env [] penv in
+  (env, T.Ren.rename_pattern ren pat, eff)
 
 let check_type_ext env (pat : S.pattern) tp =
   let (penv, pat, eff) = check_type env pat tp in
-  let env = PartialEnv.extend env penv in
-  (env, pat, eff)
+  let (env, _, _, ren) = PartialEnv.extend env [] penv in
+  (env, T.Ren.rename_pattern ren pat, eff)
 
 let check_named_patterns_ext
     ~pos env (nps : S.named_pattern list) tvars named =
   let (env, penv, named, eff) =
     check_named_patterns ~pos env PartialEnv.empty nps tvars named in
-  let arg_pats = List.filter_map make_arg_pattern named in
-  let env = PartialEnv.extend env penv in
+  let (env, _, _, ren) = PartialEnv.extend env [] penv in
+  let arg_pats = List.filter_map (make_arg_pattern ren) named in
   (env, arg_pats, eff)
 
 let infer_named_patterns_ext env (nps : S.named_pattern list) =
-  let (env2, penv, tvars, named, eff) = infer_named_patterns env nps in
-  let scope = Env.scope env2 in
-  let env = PartialEnv.extend env penv in
+  let (_, penv, tvars, named, eff) = infer_named_patterns env nps in
+  let (env, scope, tvars, ren) = PartialEnv.extend env tvars penv in
+  let named = List.map (NameUtils.rename_pattern ren) named in
   (env, scope, tvars, named, eff)

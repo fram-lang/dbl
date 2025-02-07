@@ -71,17 +71,6 @@ let empty =
     module_map   = StrMap.empty
   }
 
-let singleton_tvar ~public ~pos name x =
-  let info =
-    { ti_public = public;
-      ti_pos    = pos;
-      ti_tvar   = x
-    } in
-  { empty with
-    tvar_map = StrMap.singleton name info;
-    tvar_tab = T.TVar.Map.singleton x (false, pos)
-  }
-
 let singleton_tvar_alias ~public ~pos name x =
   let info =
     { ti_public = public;
@@ -92,15 +81,14 @@ let singleton_tvar_alias ~public ~pos name x =
     tvar_map = StrMap.singleton name info
   }
 
-let singleton_val ~public ~pos name sch =
-  let x = Var.fresh ~name:(Name.to_string name) () in
+let singleton_val ~public ~pos name x sch =
   let info =
     { vi_public = public;
       vi_pos    = pos;
       vi_var    = x;
       vi_scheme = sch
     } in
-  ({ empty with val_map = Name.Map.singleton name info }, x)
+  { empty with val_map = Name.Map.singleton name info }
 
 let singleton_module ~public ~pos ~types ~vals modname =
   let info =
@@ -224,39 +212,67 @@ let join ~pp penv1 penv2 =
 
 (* ========================================================================= *)
 
-let introduce_anon_tvar x (_, pos) env =
-  Env.add_existing_anon_tvar ~pos env x
+let introduce_type_param (env, ren) (pos, _, x) =
+  let (env, y) = Env.add_anon_tvar ~pos env (T.TVar.kind x) in
+  (env, T.Ren.add_tvar ren x y)
 
-let introdce_tvar_alias name info env =
-  Env.add_tvar_alias ~public:info.ti_public ~pos:info.ti_pos
-    env name info.ti_tvar
+let introduce_anon_tvar x (_, pos) (env, ren) =
+  let (env, y) = Env.add_anon_tvar ~pos env (T.TVar.kind x) in
+  (env, T.Ren.add_tvar ren x y)
 
-let introduce_val name info env =
-  Env.add_existing_val ~public:info.vi_public
-    env name info.vi_var info.vi_scheme
+let introdce_tvar_alias name info (env, ren) =
+  let x = T.Ren.rename_tvar ren info.ti_tvar in
+  let env = Env.add_tvar_alias
+    ~public:info.ti_public ~pos:info.ti_pos env name x in
+  (env, ren)
 
-let introduce_module_types ~pos types env =
+let introduce_val name info (env, ren) =
+  let sch = T.Ren.rename_scheme ren info.vi_scheme in
+  let name = NameUtils.rename ren name in
+  let (env, x) = Env.add_val ~public:info.vi_public env name sch in
+  (env, T.Ren.add_var ren info.vi_var x)
+
+let introduce_module_types ~pos types (env, ren) =
+  let env =
+    List.fold_left
+      (fun env (name, x) ->
+        let x = T.Ren.rename_tvar ren x in
+        Env.add_tvar_alias ~pos ~public:true env name x)
+      env types
+  in (env, ren)
+
+let introduce_module_vals vals (env, ren) =
   List.fold_left
-    (fun env (name, x) -> Env.add_tvar_alias ~pos ~public:true env name x)
-    env types
+    (fun (env, ren) (name, x, sch) ->
+      let sch = T.Ren.rename_scheme ren sch in
+      let name = NameUtils.rename ren name in
+      let (env, y) = Env.add_val ~public:true env name sch in
+      (env, T.Ren.add_var ren x y))
+    (env, ren) vals
 
-let introduce_module_vals vals env =
-  List.fold_left
-    (fun env (name, x, sch) ->
-      Env.add_existing_val ~public:true env name x sch)
-    env vals
-
-let introduce_module name info env =
+let introduce_module name info (env, ren) =
   let pos = info.mi_pos in
-  env
-  |> Env.enter_module
-  |> introduce_module_types ~pos info.mi_types
-  |> introduce_module_vals info.mi_vals
-  |> (fun env -> Env.leave_module ~public:info.mi_public env name)
+  let env = Env.enter_module env in
+  let (env, ren) =
+    (env, ren)
+    |> introduce_module_types ~pos info.mi_types
+    |> introduce_module_vals info.mi_vals
+  in
+  let env = Env.leave_module ~public:info.mi_public env name in
+  (env, ren)
 
-let extend env penv =
-  env
-  |> T.TVar.Map.fold introduce_anon_tvar penv.tvar_tab
-  |> StrMap.fold introdce_tvar_alias penv.tvar_map
-  |> Name.Map.fold introduce_val penv.val_map
-  |> StrMap.fold introduce_module penv.module_map
+let extend env tvars penv =
+  let (env, scope) = Env.enter_scope env in
+  let (env, ren) =
+    List.fold_left introduce_type_param (env, T.Ren.empty ~scope) tvars in
+  let (env, _) = Env.enter_scope env in
+  let (env, ren) =
+    (env, ren)
+    |> T.TVar.Map.fold introduce_anon_tvar penv.tvar_tab
+    |> StrMap.fold introdce_tvar_alias penv.tvar_map
+    |> Name.Map.fold introduce_val penv.val_map
+    |> StrMap.fold introduce_module penv.module_map
+  in
+  let tvars =
+    List.map (fun (_, name, x) -> (name, T.Ren.rename_tvar ren x)) tvars in
+  (env, scope, tvars, ren)

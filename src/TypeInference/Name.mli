@@ -35,6 +35,9 @@ type scheme =
     sch_body  : T.typ
   }
 
+(** Named pattern that uses more precise names *)
+type pattern = t * T.pattern * T.scheme
+
 (** Translate a name to Unif representation. *)
 val to_unif : t -> T.name
 

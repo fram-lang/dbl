@@ -27,10 +27,10 @@ val ctor_func : pos:Position.t -> int -> Module.adt_info -> T.poly_expr
   It returns a variable that should be bound instead of pattern together with
   an extended expression. *)
 val match_var :
-  T.pattern -> T.expr -> T.typ -> T.effect -> T.var * T.expr
+  T.pattern -> T.expr -> T.typ -> T.effct -> T.var * T.expr
 
 (** Extend an expression with pattern-matching on a list of arguments. The
   function is similar to [match_var], but it requires that variables are
   already generated and provided together with patterns. *)
 val match_args :
-  (T.var * T.pattern) list -> T.expr -> T.typ -> T.effect -> T.expr
+  (T.var * T.pattern) list -> T.expr -> T.typ -> T.effct -> T.expr

@@ -15,7 +15,7 @@ type arrow =
     (** Type is a unification variable. It will never be returned by
       [to_arrow] *)
 
-  | Arr_Arrow of T.scheme * T.typ * T.effect
+  | Arr_Arrow of T.scheme * T.typ * T.effct
     (** Effect-annotated arrow *)
 
 (** Handler type *)

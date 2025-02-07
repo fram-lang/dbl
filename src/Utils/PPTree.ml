@@ -39,6 +39,8 @@ type t = {
     (** Additional information about variables. *)
 }
 
+type uid = PP_UID of UID.t
+
 type pp_result =
   | Found   of string
   | Anon    of string * Position.t option
@@ -70,7 +72,7 @@ let merge_opt opt1 opt2 =
   | None   -> opt2
   | Some _ -> opt1
 
-let add_named ~vis ?pos pp_tree name uid =
+let add_named ~vis ?pos pp_tree name (PP_UID uid) =
   let update info_opt =
     match info_opt with
     | None                     -> Some (INamed (name, pos))
@@ -85,7 +87,7 @@ let add ~public ?pos pp_tree name uid =
   let vis = if public then Public else Private in
   add_named ~vis ?pos pp_tree name uid
   
-let add_anon ?pos ?name pp_tree uid =
+let add_anon ?pos ?name pp_tree (PP_UID uid) =
   let update info_opt =
     match info_opt with
     | None -> Some (IAnon (name, pos))
@@ -207,7 +209,7 @@ let rec lookup_on_stack uid stack mset tset =
     let tset = StrSet.add name tset in
     lookup_on_stack uid stack mset tset
 
-let lookup pp_tree uid =
+let lookup pp_tree (PP_UID uid) =
   let path = lookup_on_stack uid pp_tree.env_stack StrSet.empty StrSet.empty in
   match path with
   | Some path -> Found (String.concat "." path)

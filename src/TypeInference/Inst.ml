@@ -150,7 +150,8 @@ let build_type_params ~pos ~env insts sch_targs =
         (T.Subst.add_type sub x (T.TypeExpr.to_type tp), tp)
       end
   in
-  List.fold_left_map build_type_param T.Subst.empty sch_targs
+  let scope = Env.scope env in
+  List.fold_left_map build_type_param (T.Subst.empty ~scope) sch_targs
 
 (* ------------------------------------------------------------------------- *)
 let check_type_params ~pos env insts sch_targs =

@@ -20,12 +20,12 @@ type adt_info = {
   adt_args   : T.named_tvar list;
   adt_ctors  : T.ctor_decl list;
   adt_type   : T.typ;
-  adt_effect : T.effect
+  adt_effect : T.effct
 }
 
 type type_info =
   | TI_Type      of T.typ
-  | TI_Parameter of T.tvar
+  | TI_Parameter of UID.t
 
 type val_info =
   | VI_Var       of T.var * T.scheme
@@ -176,16 +176,16 @@ let update_declare v info_opt =
   | None | Some NoDef -> Some (Local(v, NoDef))
   | Some (Skip info | Local(_, info)) -> Some (Local(v, info))
 
-let declare_type (type st) (m : (st, sec) opn t) name kind :
-    (st, sec) opn t * T.tvar =
+let declare_type (type st) (m : (st, sec) opn t) name :
+    (st, sec) opn t * UID.t =
   let (M_Section _) = m.state in
-  let tvar = T.TVar.fresh kind in
+  let uid = UID.fresh () in
   let m =
     { m with
       tvar_map =
-        StrMap.update name (update_declare (TI_Parameter tvar)) m.tvar_map
+        StrMap.update name (update_declare (TI_Parameter uid)) m.tvar_map
     }
-  in (m, tvar)
+  in (m, uid)
 
 let declare_val (type st) (m : (st, sec) opn t) name :
     (st, sec) opn t * UID.t =

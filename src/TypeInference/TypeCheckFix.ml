@@ -15,7 +15,7 @@ type 'dir expr_result =
     er_type   : (T.typ, 'dir) response;
       (** Type of the expression. *)
 
-    er_effect : T.effect;
+    er_effect : T.effct;
       (** Effect of the expression. *)
 
     er_constr : Constr.t list;

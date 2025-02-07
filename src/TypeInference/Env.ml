@@ -41,7 +41,7 @@ type 'st t =
     pp_tree        : PPTree.t;
       (** Pretty-printing information for types *)
 
-    scope          : T.scope;
+    scope          : Scope.t;
       (** Scope of type variables *)
 
     param_env      : ParamEnv.t
@@ -53,56 +53,54 @@ let empty =
     cur_module     = Module.empty;
     mod_stack      = MStack (StModule, Nil);
     pp_tree        = PPTree.empty;
-    scope          = T.Scope.initial;
+    scope          = Scope.root;
     param_env      = ParamEnv.empty
   }
 
 (* ========================================================================= *)
 
 let add_existing_tvar ?pos ?(public=false) (Env env) name x =
-  assert (not (T.Scope.mem env.scope x));
+  assert (Scope.mem (T.TVar.scope x) env.scope);
   Env { env with
     cur_module =
       Module.add_type_alias ~public env.cur_module name
         (T.Type.t_var x);
-    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.uid x);
-    scope      = T.Scope.add env.scope x
+    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.pp_uid x)
   }
 
-let add_existing_anon_tvar ?pos ?name (Env env) x =
-  assert (not (T.Scope.mem env.scope x));
-  Env { env with
-    pp_tree    = PPTree.add_anon ?pos ?name env.pp_tree (T.TVar.uid x);
-    scope      = T.Scope.add env.scope x
-  }
-
-let add_tvar ?pos ?public env name kind =
-  let x = T.TVar.fresh kind in
-  let env = add_existing_tvar ?pos ?public env name x in
+let add_tvar ?pos ?(public=false) (Env env) name kind =
+  let x = T.TVar.fresh ~scope:env.scope kind in
+  let env =
+    Env { env with
+      cur_module =
+        Module.add_type_alias ~public env.cur_module name (T.Type.t_var x);
+      pp_tree = PPTree.add ?pos ~public env.pp_tree name (T.TVar.pp_uid x)
+    } in
   (env, x)
 
-let add_anon_tvar ?pos ?name env kind =
-  let x = T.TVar.fresh kind in
-  let env = add_existing_anon_tvar ?pos ?name env x in
+let add_anon_tvar ?pos ?name (Env env) kind =
+  let x = T.TVar.fresh ~scope:env.scope kind in
+  let env =
+    Env { env with
+      pp_tree = PPTree.add_anon ?pos ?name env.pp_tree (T.TVar.pp_uid x)
+    } in
   (env, x)
 
 let add_tvar_alias ?pos ?(public=false) (Env env) name x =
   Env { env with
     cur_module =
       Module.add_type_alias ~public env.cur_module name (T.Type.t_var x);
-    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.uid x)
+    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.pp_uid x)
   }
 
 (* ========================================================================= *)
 
-let add_existing_val ?(public=false) (Env env) name x sch =
-  Env { env with
-    cur_module = Module.add_val ~public env.cur_module name x sch
-  }
-
-let add_val ?public env name sch =
+let add_val ?(public=false) (Env env) name sch =
   let x = Var.fresh ~name:(Name.to_string name) () in
-  let env = add_existing_val ?public env name x sch in
+  let env =
+    Env { env with
+      cur_module = Module.add_val ~public env.cur_module name x sch
+    } in
   (env, x)
 
 let add_implicit ?public env name sch =
@@ -126,6 +124,10 @@ let add_ctor ?(public=false) (Env env) name idx info =
 
 (* ========================================================================= *)
 
+let enter_scope (Env env) =
+  let scope = Scope.enter env.scope in
+  (Env { env with scope = scope }, scope)
+
 let enter_section (Env env) =
   let (MStack(st, stack)) = env.mod_stack in
   Env { env with
@@ -145,11 +147,11 @@ let leave_section (type st) (Env env : (st, sec) opn t) : st t =
 
 let declare_type ~pos (Env env) name local_name kind =
   let (MStack(StSection _, _)) = env.mod_stack in
-  let (cur_module, x) = Module.declare_type env.cur_module local_name kind in
+  let (cur_module, uid) = Module.declare_type env.cur_module local_name in
   Env { env with
     cur_module = cur_module;
-    pp_tree    = PPTree.declare ~pos env.pp_tree local_name (T.TVar.uid x);
-    param_env  = ParamEnv.declare_type ~pos env.param_env name x
+    pp_tree    = PPTree.declare ~pos env.pp_tree local_name (PP_UID uid);
+    param_env  = ParamEnv.declare_type ~pos env.param_env name uid kind
   }
 
 let declare_val ~pos (Env env) ~free_types ~used_types ~name ~local_name sch =
@@ -172,8 +174,8 @@ let begin_generalize (Env env) =
     param_env = param_env
   }, params
 
-let check_type_param ~pos (Env env) x =
-  ParamEnv.check_type_param ~pos env.param_env x
+let check_type_param ~pos (Env env) uid =
+  ParamEnv.check_type_param ~pos env.param_env uid
 
 let check_val_param ~pos (Env env) uid =
   ParamEnv.check_val_param ~pos env.param_env uid
@@ -223,7 +225,7 @@ let unit_adt =
   }
 
 let option_adt =
-  let a = T.TVar.fresh T.Kind.k_type in
+  let a = T.TVar.fresh ~scope:(Scope.enter Scope.root) T.Kind.k_type in
   { Module.adt_proof = make_nowhere T.EOptionPrf;
     Module.adt_args  = [T.TNAnon, a];
     Module.adt_ctors =
@@ -302,8 +304,6 @@ let lookup_module env name =
 
 (* ========================================================================= *)
 let scope (Env env) = env.scope
-
-let level (Env env) = T.Scope.level env.scope
 
 let pp_tree (Env env) = env.pp_tree
 

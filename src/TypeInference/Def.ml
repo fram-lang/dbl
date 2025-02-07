@@ -66,7 +66,8 @@ let check_def : type st dir. tcfix:tcfix ->
     let body = infer_expr_type body_env body in
     let body_tp = expr_result_type body in
     let (penv, pat, pat_eff) = Pattern.check_type env pat body_tp in
-    let env = PartialEnv.extend env penv in
+    let (env, _, _, ren) = PartialEnv.extend env [] penv in
+    let pat = T.Ren.rename_pattern ren pat in
     let rest = cont.run env (Check tp) in
     let eff = T.Effect.joins [ body.er_effect; pat_eff; rest.er_effect ] in
     let expr = make rest
@@ -80,10 +81,10 @@ let check_def : type st dir. tcfix:tcfix ->
   | DLabel(eff, pat) ->
     let (tp, resp) = switch_to_check_mode env req in
     let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+    let (env, _) = Env.enter_scope env in
     let (env, name, x) = Type.check_type_arg env eff T.Kind.k_effect in
-    let (penv, pat, pat_eff) =
-      Pattern.check_type env pat (T.Type.t_label delim_tp) in
-    let env = PartialEnv.extend env penv in
+    let (env, pat, pat_eff) =
+      Pattern.check_type_ext env pat (T.Type.t_label delim_tp) in
     let rest = cont.run env (Check tp) in
     let rest_eff = T.Effect.join pat_eff rest.er_effect in
     let lx = Var.fresh ~name:"lbl" () in
@@ -112,13 +113,13 @@ let check_def : type st dir. tcfix:tcfix ->
     ParamGen.end_generalize_impure params (T.Type.uvars hexp_tp);
     begin match Unification.to_handler env hexp_tp with
     | H_Handler(a, cap_tp, tp_in, tp_out) ->
+      let (env, scope) = Env.enter_scope env in
       let (env, name, eff_tvar) =
         Type.check_type_arg env heff T.Kind.k_effect in
-      let sub = T.Subst.rename_to_fresh T.Subst.empty a eff_tvar in
+      let sub = T.Subst.rename_tvar (T.Subst.empty ~scope) a eff_tvar in
       let cap_tp = T.Type.subst sub cap_tp in
       let tp_in  = T.Type.subst sub tp_in in
-      let (penv, pat, _) = Pattern.check_type env pat cap_tp in
-      let env = PartialEnv.extend env penv in
+      let (env, pat, _) = Pattern.check_type_ext env pat cap_tp in
       let rest = cont.run env (Check tp_in) in
       let hx = Var.fresh ~name:"cap" () in
       let expr =
@@ -170,9 +171,10 @@ let check_def : type st dir. tcfix:tcfix ->
     let (tp, resp) = switch_to_check_mode env req in
     let nonrec_scope = Env.scope env in
     let (penv, args) = Type.tr_named_type_args args in
-    let data_env = PartialEnv.extend env penv in
     let kind = DataType.kind args in
+    let (data_env, _, args, _) = PartialEnv.extend env args penv in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
+    let (env, _) = Env.enter_scope env in
     let (env, x) = Env.add_tvar ~pos ~public:public_tp env name kind in
     let (env, dd) =
       DataType.finalize_check ~nonrec_scope ~public:public_ctors
@@ -200,7 +202,7 @@ let check_def : type st dir. tcfix:tcfix ->
         make rest (T.EData(result.rec_dds,
           make rest (T.ELetRec(result.rec_fds, rest.er_expr))));
       er_type   = resp;
-      er_effect = T.Effect.join result.rec_effect rest.er_effect;
+      er_effect = T.Effect.join result.rec_eff rest.er_effect;
       er_constr = result.rec_constr @ rest.er_constr
     }
 

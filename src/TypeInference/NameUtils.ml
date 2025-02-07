@@ -67,3 +67,17 @@ let tr_scheme ~pos ~pp (sch : T.scheme) =
         sch.sch_named;
     Name.sch_body = sch.sch_body
   }
+
+let rename_method_owner ren (owner : Name.method_owner) =
+  match owner with
+  | MO_Arrow | MO_Handler | MO_Label -> owner
+  | MO_TVar x  -> Name.MO_TVar (T.Ren.rename_tvar ren x)
+
+let rename ren (name : Name.t) =
+  match name with
+  | NVar _ | NOptionalVar _ | NImplicit _ -> name
+  | NMethod(owner, m) ->
+    Name.NMethod(rename_method_owner ren owner, m)
+
+let rename_pattern ren (name, pat, sch) =
+  (rename ren name, T.Ren.rename_pattern ren pat, T.Ren.rename_scheme ren sch)

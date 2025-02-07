@@ -18,7 +18,7 @@ type 'st rec_result =
     rec_fds    : T.rec_def list;
     (** The recursive definitions in the block. *)
 
-    rec_effect : T.effect;
+    rec_eff    : T.effct;
     (** The effect of the definitions. It might be impure, because of
       generating fresh labels. *)
 

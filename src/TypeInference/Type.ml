@@ -43,21 +43,22 @@ let rec infer_kind env (tp : S.type_expr) =
     (make (T.TE_Arrow(sch, tp, eff)), T.Kind.k_type)
 
   | THandler { effect; cap_type; in_type; in_eff; out_type; out_eff } ->
-    let (in_env, effect) = Env.add_tvar ~pos env effect T.Kind.k_effect in
+    let (in_env, _) = Env.enter_scope env in
+    let (in_env, eff_var) = Env.add_tvar ~pos in_env effect T.Kind.k_effect in
     let cap_type = tr_ttype  in_env cap_type in
     let in_type  = tr_ttype  in_env in_type in
     let in_eff   = tr_effect in_env in_eff in
     let out_type = tr_ttype  env out_type in
     let out_eff  = tr_effect env out_eff in
     let tp = make (T.TE_Handler
-      { effect; cap_type; in_type; in_eff; out_type; out_eff }) in
+      { eff_var; cap_type; in_type; in_eff; out_type; out_eff }) in
     (tp, T.Kind.k_type)
 
   | TLabel { effect; delim_tp; delim_eff } ->
-    let effect    = tr_effect env effect in
+    let eff       = tr_effect env effect in
     let delim_tp  = tr_ttype  env delim_tp in
     let delim_eff = tr_effect env delim_eff in
-    let tp = make (T.TE_Label { effect; delim_tp; delim_eff }) in
+    let tp = make (T.TE_Label { eff; delim_tp; delim_eff }) in
     (tp, T.Kind.k_type)
 
   | TApp(tp1, tp2) ->
@@ -70,7 +71,7 @@ let rec infer_kind env (tp : S.type_expr) =
     | None ->
       Error.fatal (Error.type_not_function ~pos:pos1 k1)
     end
-    
+
 and check_kind env (tp : S.type_expr) k =
   let (tp, k') = infer_kind env tp in
   if Unification.unify_kind k k' then tp
@@ -95,6 +96,7 @@ and tr_scheme_args ?(data_targs=[]) env args =
       let named = List.rev_append named1 named in
       loop env targs named args
   in
+  let (env, _) = Env.enter_scope env in
   let (env, targs, named) = loop env [] [] args in
   Uniqueness.check_unif_named_type_args targs;
   Uniqueness.check_names ~pp:(Env.pp_tree env)
@@ -173,16 +175,18 @@ let tr_named_type_arg penv (arg : S.named_type_arg) =
   match arg.data with
   | TA_Var(x, k) ->
     let kind = tr_kind k in
-    let tvar = T.TVar.fresh kind in
+    (* It will be sustituted, so the scope is not important *)
+    let tvar = T.TVar.fresh ~scope:Scope.root kind in
     let penv = PartialEnv.add_anon_tvar ~pos penv tvar in
     let penv = PartialEnv.add_tvar_alias ~public:false ~pos penv x tvar in
-    (penv, (name, tvar))
+    (penv, (pos, name, tvar))
 
   | TA_Wildcard ->
     let kind = T.Kind.fresh_uvar () in
-    let tvar = T.TVar.fresh kind in
+    (* It will be sustituted, so the scope is not important *)
+    let tvar = T.TVar.fresh ~scope:Scope.root kind in
     let penv = PartialEnv.add_anon_tvar ~pos penv tvar in
-    (penv, (name, tvar))
+    (penv, (pos, name, tvar))
 
 let tr_named_type_args args =
   List.fold_left_map tr_named_type_arg PartialEnv.empty args

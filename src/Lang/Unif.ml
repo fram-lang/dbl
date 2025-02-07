@@ -15,9 +15,7 @@ module Kind = struct
   include UnifPriv.KindBase
 end
 
-module TVar  = UnifPriv.TVar
-module Scope = UnifPriv.Scope
-
+module TVar = UnifPriv.TVar
 module Name = UnifPriv.Name
 
 module Effect = UnifPriv.Effect
@@ -36,7 +34,6 @@ module Scheme = struct
   let is_monomorphic = UnifPriv.Type.scheme_is_monomorphic
   let uvars          = UnifPriv.Type.scheme_uvars
   let collect_uvars  = UnifPriv.Type.collect_scheme_uvars
-  let refresh        = UnifPriv.Type.refresh_scheme
   let subst          = UnifPriv.Subst.in_scheme
 end
 
@@ -51,7 +48,7 @@ module CtorDecl = struct
 
   let find_index cs name = List.find_index (fun c -> c.ctor_name = name) cs
 
-  let strictly_positive = UnifPriv.Type.ctor_strictly_positive
+  let is_positive = UnifPriv.Type.ctor_is_positive
 end
 
 module Subst = UnifPriv.Subst
@@ -77,3 +74,5 @@ end
 module CtorDeclExpr = struct
   let to_ctor_decl = UnifPriv.TypeExpr.to_ctor_decl
 end
+
+module Ren = UnifPriv.Ren

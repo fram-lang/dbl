@@ -22,3 +22,9 @@ val tr_ident : pos:Position.t -> pp:PPTree.t -> S.ident -> T.scheme -> Name.t
 
 (** Translate a scheme to an internal representation. *)
 val tr_scheme : pos:Position.t -> pp:PPTree.t -> T.scheme -> Name.scheme
+
+(** Apply renaming to a name *)
+val rename : T.Ren.t -> Name.t -> Name.t
+
+(** Apply renaming to a named pattern *)
+val rename_pattern : T.Ren.t -> Name.pattern -> Name.pattern

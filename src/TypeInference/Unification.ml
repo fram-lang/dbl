@@ -9,7 +9,7 @@ open Common
 type arrow =
   | Arr_No
   | Arr_UVar
-  | Arr_Arrow of T.scheme * T.typ * T.effect
+  | Arr_Arrow of T.scheme * T.typ * T.effct
 
 type handler =
   | H_No
@@ -69,11 +69,11 @@ let kind_to_arrow k =
 
   | KType | KEffect -> None
 
-let set_uvar env p u tp =
+let set_uvar env u tp =
   if T.Type.contains_uvar u tp then
     raise Error
   else
-    let scope = T.UVar.raw_set p u tp in
+    let scope = T.UVar.raw_set u tp in
     match T.Type.try_shrink_scope ~scope tp with
     | Ok   () -> ()
     | Error e -> raise (Escapes_scope (Env.pp_tree env, e))
@@ -86,8 +86,8 @@ let rec unify_named_type_args env sub1 sub2 args1 args2 =
     let kind = T.TVar.kind x1 in
     check_kind_equal kind (T.TVar.kind x2);
     let (env, x) = Env.add_anon_tvar env kind in
-    let sub1 = T.Subst.rename_to_fresh sub1 x1 x in
-    let sub2 = T.Subst.rename_to_fresh sub2 x2 x in
+    let sub1 = T.Subst.rename_tvar sub1 x1 x in
+    let sub2 = T.Subst.rename_tvar sub2 x2 x in
     unify_named_type_args env sub1 sub2 args1 args2
   | [], _ :: _ | _ :: _, [] -> raise Error
 
@@ -105,10 +105,9 @@ and unify env tp1 tp2 =
       function. *)
     assert false
 
-  | TUVar(p1, u1), TUVar(p2, u2) when T.UVar.equal u1 u2 ->
-    T.UVar.filter_scope u1 (T.UVar.level u2) (T.TVar.Perm.agree_on p1 p2)
-  | TUVar(p, u), _ -> set_uvar env p u tp2
-  | _, TUVar(p, u) -> set_uvar env p u tp1
+  | TUVar u1, TUVar u2 when T.UVar.equal u1 u2 -> ()
+  | TUVar u, _ -> set_uvar env u tp2
+  | _, TUVar u -> set_uvar env u tp1
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
@@ -123,9 +122,10 @@ and unify env tp1 tp2 =
   | THandler(a1, cap_tp1, tp_in1, tp_out1),
     THandler(a2, cap_tp2, tp_in2, tp_out2) ->
     unify env tp_out1 tp_out2;
+    let (env, scope) = Env.enter_scope env in
     let (env, a) = Env.add_anon_tvar env T.Kind.k_effect in
-    let sub1 = T.Subst.rename_to_fresh T.Subst.empty a1 a in
-    let sub2 = T.Subst.rename_to_fresh T.Subst.empty a2 a in
+    let sub1 = T.Subst.rename_tvar (T.Subst.empty ~scope) a1 a in
+    let sub2 = T.Subst.rename_tvar (T.Subst.empty ~scope) a2 a in
     unify env (T.Type.subst sub1 cap_tp1) (T.Type.subst sub2 cap_tp2);
     unify env (T.Type.subst sub1 tp_in1) (T.Type.subst sub2 tp_in2)
   | THandler _, _ -> raise Error
@@ -145,8 +145,9 @@ and unify env tp1 tp2 =
 and unify_scheme env sch1 sch2 =
   if List.length sch1.sch_named <> List.length sch2.sch_named then
     raise Error;
+  let (env, scope) = Env.enter_scope env in
   let (env, sub1, sub2) =
-    unify_named_type_args env T.Subst.empty T.Subst.empty
+    unify_named_type_args env (T.Subst.empty ~scope) (T.Subst.empty ~scope)
       sch1.sch_targs sch2.sch_targs in
   List.iter2
     (fun (name1, isch1) (name2, isch2) ->
@@ -162,11 +163,10 @@ let rec check_subtype env tp1 tp2 =
   | TEffect, _ | _, TEffect ->
     failwith "Internal kind error"
 
-  | TUVar(p1, u1), TUVar(p2, u2) when T.UVar.equal u1 u2 ->
-    T.UVar.filter_scope u1 (T.UVar.level u2) (T.TVar.Perm.agree_on p1 p2)
+  | TUVar u1, TUVar u2 when T.UVar.equal u1 u2 -> ()
 
-  | TUVar(p, u), _ -> set_uvar env p u tp2
-  | _, TUVar(p, u) -> set_uvar env p u tp1
+  | TUVar u, _ -> set_uvar env u tp2
+  | _, TUVar u -> set_uvar env u tp1
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
@@ -186,9 +186,10 @@ let rec check_subtype env tp1 tp2 =
   | THandler(a1, cap_tp1, tp_in1, tp_out1),
     THandler(a2, cap_tp2, tp_in2, tp_out2) ->
     check_subtype env tp_out1 tp_out2;
+    let (env, scope) = Env.enter_scope env in
     let (env, a) = Env.add_anon_tvar env T.Kind.k_effect in
-    let sub1 = T.Subst.rename_to_fresh T.Subst.empty a1 a in
-    let sub2 = T.Subst.rename_to_fresh T.Subst.empty a2 a in
+    let sub1 = T.Subst.rename_tvar (T.Subst.empty ~scope) a1 a in
+    let sub2 = T.Subst.rename_tvar (T.Subst.empty ~scope) a2 a in
     check_subtype env (T.Type.subst sub1 cap_tp1) (T.Type.subst sub2 cap_tp2);
     (* contravariant *)
     check_subtype env (T.Type.subst sub1 tp_in2) (T.Type.subst sub2 tp_in1)
@@ -204,8 +205,9 @@ let rec check_subtype env tp1 tp2 =
 and check_subscheme env (sch1 : T.scheme) (sch2 : T.scheme) =
   if List.length sch1.sch_named <> List.length sch2.sch_named then
     raise Error;
+  let (env, scope) = Env.enter_scope env in
   let (env, sub1, sub2) =
-    unify_named_type_args env T.Subst.empty T.Subst.empty
+    unify_named_type_args env (T.Subst.empty ~scope) (T.Subst.empty ~scope)
       sch1.sch_targs sch2.sch_targs in
   List.iter2
     (fun (name1, isch1) (name2, isch2) ->
@@ -238,10 +240,10 @@ let subscheme env sch1 sch2 =
 
 let to_arrow env tp =
   match T.Type.view tp with
-  | TUVar(p, u) ->
+  | TUVar u ->
     let sch = T.Scheme.of_type (Env.fresh_uvar env T.Kind.k_type) in
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
-    set_uvar env p u (T.Type.t_arrow sch tp2 Impure);
+    set_uvar env u (T.Type.t_arrow sch tp2 Impure);
     Arr_Arrow(sch, tp2, Impure)
 
   | TArrow(tp1, tp2, eff) -> Arr_Arrow(tp1, tp2, eff)
@@ -263,12 +265,13 @@ let from_arrow env tp =
 
 let to_handler env tp =
   match T.Type.view tp with
-  | TUVar(p, u) ->
-    let (env1, a) = Env.add_anon_tvar env T.Kind.k_effect in
-    let cap_tp = Env.fresh_uvar env1 T.Kind.k_type in
-    let tp_in  = Env.fresh_uvar env1 T.Kind.k_type in
-    let tp_out = Env.fresh_uvar env  T.Kind.k_type in
-    set_uvar env p u (T.Type.t_handler a cap_tp tp_in tp_out);
+  | TUVar u ->
+    let (env1, _) = Env.enter_scope env in
+    let (_, a) = Env.add_anon_tvar env1 T.Kind.k_effect in
+    let cap_tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp_in  = Env.fresh_uvar env T.Kind.k_type in
+    let tp_out = Env.fresh_uvar env T.Kind.k_type in
+    set_uvar env u (T.Type.t_handler a cap_tp tp_in tp_out);
     H_Handler(a, cap_tp, tp_in, tp_out)
 
   | THandler(a, tp, tp_in, tp_out) ->
@@ -281,12 +284,13 @@ let to_handler env tp =
 
 let from_handler env tp =
   match T.Type.view tp with
-  | TUVar(p, u) ->
-    let (env1, a) = Env.add_anon_tvar env T.Kind.k_effect in
-    let cap_tp = Env.fresh_uvar env1 T.Kind.k_type in
-    let tp_in  = Env.fresh_uvar env1 T.Kind.k_type in
+  | TUVar u ->
+    let (env1, _) = Env.enter_scope env in
+    let (_, a) = Env.add_anon_tvar env1 T.Kind.k_effect in
+    let cap_tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp_in  = Env.fresh_uvar env T.Kind.k_type in
     let tp_out = Env.fresh_uvar env T.Kind.k_type in
-    set_uvar env p u (T.Type.t_handler a cap_tp tp_in tp_out);
+    set_uvar env u (T.Type.t_handler a cap_tp tp_in tp_out);
     H_Handler(a, cap_tp, tp_in, tp_out)
 
   | THandler(a, tp, tp_in, tp_out) ->
@@ -299,9 +303,9 @@ let from_handler env tp =
 
 let to_label env tp =
   match T.Type.view tp with
-  | TUVar(p, u) ->
+  | TUVar u ->
     let tp0 = Env.fresh_uvar env T.Kind.k_type in
-    set_uvar env p u (T.Type.t_label tp0);
+    set_uvar env u (T.Type.t_label tp0);
     L_Label tp0
 
   | TLabel delim_tp -> L_Label delim_tp

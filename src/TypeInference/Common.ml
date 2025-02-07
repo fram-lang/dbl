@@ -71,3 +71,7 @@ let tr_name (name : S.name) : T.name =
   | S.NOptionalVar x -> T.NOptionalVar x
   | S.NImplicit x    -> T.NImplicit x
   | S.NMethod x      -> T.NMethod x
+
+(** Named type parameter. It should not be used directly, but passed to
+  [PartialEnv.extend] or [DataType.kind] functions. *)
+type type_param = Position.t * T.tname * T.tvar

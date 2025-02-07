@@ -30,7 +30,7 @@ type def1 =
     { public_ctors : bool;
       tvar         : T.tvar;
       name         : S.tvar;
-      args         : T.named_tvar list;
+      args         : type_param list;
       args_env     : PartialEnv.t;
       ctors        : S.ctor_decl list
     }
@@ -157,15 +157,16 @@ let rec finalize_rec_data ~nonrec_scope env (def : def1 T.node) =
     (env, [dd], T.Impure)
 
   | D1_Data def ->
-    let data_env = PartialEnv.extend env def.args_env in
+    let (data_env, _, args, _) =
+      PartialEnv.extend env def.args def.args_env in
     let ctors =
-      DataType.check_ctor_decls ~data_targs:def.args data_env def.ctors in
+      DataType.check_ctor_decls ~data_targs:args data_env def.ctors in
     let (env, dd) =
       DataType.finalize_check
         ~public:def.public_ctors
         ~nonrec_scope env def.tvar
         ~name:def.name
-        def.args ctors
+        args ctors
     in
     (env, [dd], T.Pure)
 
@@ -193,13 +194,13 @@ type rec_fun3 =
   { rf3_scheme   : T.scheme;
       (** Type scheme of a recursive value *)
 
-    rf3_targs    : T.named_tvar list;
+    rf3_targs    : type_param list;
       (** Explicit formal type parameters *)
 
-    rf3_named    : (T.name * T.pattern * T.scheme) list;
+    rf3_named    : Name.pattern list;
       (** Explicit named formal parameters *)
 
-    rf3_args     : (Position.t * T.pattern * T.scheme * T.effect) list;
+    rf3_args     : (Position.t * T.pattern * T.scheme * T.effct) list;
       (** Formal parameters of the function, together with position and effect
         of the lambda abstractions. *)
 
@@ -215,12 +216,11 @@ type rec_fun3 =
 
 (** Representation of recursive definition after the third pass *)
 type def3 =
-  | D3_LetFun  of S.is_public * Name.t * T.var * rec_fun3
-  | D3_Section of def3 T.node list
+  | D3_LetFun  of S.is_public * Name.t * T.var * rec_fun3| D3_Section of def3 T.node list
 
 (** Information gathered by guessing the type of a recursive function *)
 type rec_fun_body =
-  { rfb_args     : (Position.t * T.pattern * T.scheme * T.effect) list;
+  { rfb_args     : (Position.t * T.pattern * T.scheme * T.effct) list;
       (** Formal parameters of the function, together with position and effect
         of the lambda abstractions. *)
 
@@ -242,7 +242,10 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
   match e.data with
   | EFn(pat, body) ->
     let (penv, pat, sch, eff1) = Pattern.infer_scheme env pat in
-    let env = PartialEnv.extend env penv in
+    (* we ignore renaming, because guessed type cannot contain variables bound
+      in the pattern. However, we need to extend the environment in order to
+      handle shadowing correctly *)
+    let (env, _, _, _) = PartialEnv.extend env [] penv in
     let body_tp = Env.fresh_uvar env T.Kind.k_type in
     let (rfb, eff2) = guess_rec_fun_type env body body_tp in
     let eff = T.Effect.join eff1 eff2 in
@@ -295,17 +298,21 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     Error.fatal (Error.invalid_rec_def ~pos)
 
   | PE_Fn(nps, body) ->
-    let (env2, penv, tvars, named, eff1) =
+    let (env, penv, tvars, named, eff1) =
       Pattern.infer_named_patterns env nps in
     begin match eff1 with
     | Pure -> ()
     | Impure -> Error.report (Error.func_not_pure ~pos)
     end;
-    let body_tp = Env.fresh_uvar env2 T.Kind.k_type in
-    let env = PartialEnv.extend env penv in
+    let body_tp = Env.fresh_uvar env T.Kind.k_type in
+    (* we ignore renaming, because guessed scheme cannot contain variables
+      bound in patterns, except for type parameters. Moreover, we provide
+      empty type parameter list, in order to avoid renaming of type parameters
+      in the type of the body. Renaming will be handled in the next pass. *)
+    let (env, _, _, _) = PartialEnv.extend env [] penv in
     let (rfb, _) = guess_rec_fun_type env body body_tp in
     let sch =
-      { T.sch_targs = tvars;
+      { T.sch_targs = List.map (fun (_, name, x) -> (name, x)) tvars;
         T.sch_named =
           List.map (fun (name, _, sch) -> (Name.to_unif name, sch)) named;
         T.sch_body  = body_tp
@@ -313,8 +320,7 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     let pp = Env.pp_tree env in
     { rf3_scheme  = sch;
       rf3_targs   = tvars;
-      rf3_named   =
-        List.map (fun (name, pat, sch) -> (Name.to_unif name, pat, sch)) named;
+      rf3_named   = named;
       rf3_args    = rfb.rfb_args;
       rf3_penv    = PartialEnv.join ~pp penv rfb.rfb_penv;
       rf3_body    = rfb.rfb_body;
@@ -362,8 +368,8 @@ type def4 =
       var     : T.var;
       scheme  : T.scheme;
       targs   : T.named_tvar list;
-      named   : (T.name * T.pattern * T.scheme) list;
-      args    : (Position.t * T.pattern * T.scheme * T.effect) list;
+      named   : Name.pattern list;
+      args    : (Position.t * T.pattern * T.scheme * T.effct) list;
       body    : T.expr;
       body_tp : T.typ
     }
@@ -375,9 +381,15 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
   let open (val tcfix : TCFix) in
   match def.data with
   | D3_LetFun(public, name, x, rf3) ->
-    let body_env = PartialEnv.extend env rf3.rf3_penv in
-    let er = check_expr_type body_env rf3.rf3_body rf3.rf3_body_tp in
-    begin match rf3.rf3_args, er.er_effect with
+    let (body_env, _, targs, ren) =
+      PartialEnv.extend env rf3.rf3_targs rf3.rf3_penv in
+    let rename_arg (pos, pat, sch, eff) =
+      (pos, T.Ren.rename_pattern ren pat, T.Ren.rename_scheme ren sch, eff) in
+    let named = List.map (NameUtils.rename_pattern ren) rf3.rf3_named in
+    let args = List.map rename_arg rf3.rf3_args in
+    let body_tp = T.Ren.rename_type ren rf3.rf3_body_tp in
+    let er = check_expr_type body_env rf3.rf3_body body_tp in
+    begin match args, er.er_effect with
     | _ :: _, _ | _, Pure -> ()
     | [], Impure -> Error.report (Error.func_not_pure ~pos:def.pos)
     end;
@@ -388,11 +400,11 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
             name    = name;
             var     = x;
             scheme  = rf3.rf3_scheme;
-            targs   = rf3.rf3_targs;
-            named   = rf3.rf3_named;
-            args    = rf3.rf3_args;
+            targs   = targs;
+            named   = named;
+            args    = args;
             body    = er.er_expr;
-            body_tp = rf3.rf3_body_tp
+            body_tp = body_tp
           }
       } in
     (er.er_constr, def)
@@ -444,14 +456,14 @@ type def6 = {
     (** Type parameters of the recursive value, including section-declared
       parameters. *)
 
-  d6_named       : (T.name * T.var * T.scheme) list;
+  d6_named       : (Name.t * T.var * T.scheme) list;
     (** Named arguments of the recursive value, including section-declared
       parameters. *)
 
   d6_named_pats  : (T.var * T.pattern) list;
     (** Patterns of named arguments. *)
 
-  d6_args        : (Position.t * T.pattern * T.scheme * T.effect) list;
+  d6_args        : (Position.t * T.pattern * T.scheme * T.effct) list;
     (** Formal parameters of the function, together with position and effect
       of the lambda abstractions. *)
 
@@ -485,7 +497,8 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
     let mono_body =
       make (T.EPolyFun(
         d.targs,
-        List.map (fun (name, x, _, sch) -> (name, x, sch)) named2,
+        List.map (fun (name, x, _, sch) -> (Name.to_unif name, x, sch))
+          named2,
         make (T.EInst(
           make (T.EVar y),
           List.map
@@ -512,8 +525,7 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
         d6_targs       = targs1 @ d.targs;
         d6_named       =
           List.map
-            (fun (name, x, sch) ->
-              (Name.to_unif name, x, T.SchemeExpr.to_scheme sch))
+            (fun (name, x, sch) -> (name, x, T.SchemeExpr.to_scheme sch))
             named1 @
           List.map (fun (name, x, _, sch) -> (name, x, sch)) named2;
         d6_named_pats  = named_pats;
@@ -595,7 +607,7 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
     | EHandler h ->
       make (T.EHandler {
         label    = h.label;
-        effect   = h.effect;
+        eff_var  = h.eff_var;
         delim_tp = h.delim_tp;
         cap_type = h.cap_type;
         cap_body = update_expr h.cap_body;
@@ -677,10 +689,13 @@ let finalize_rec_fun (fds : def6 list) (fd : def6) =
         T.data = T.EFn(x, sch, body, T.Impure)
       }
   in
+  let named =
+    List.map (fun (name, x, sch) -> (Name.to_unif name, x, sch))
+      fd.d6_named in
   let body = abstract_args fd.d6_named_pats fd.d6_args in
   let poly_expr =
     { T.pos  = fd.d6_pos;
-      T.data = T.EPolyFun(fd.d6_targs, fd.d6_named, body)
+      T.data = T.EPolyFun(fd.d6_targs, named, body)
     } in
   (fd.d6_poly_var, fd.d6_poly_scheme, poly_expr)
 
@@ -690,12 +705,13 @@ type 'st rec_result =
   { rec_env    : ('st, sec) opn Env.t;
     rec_dds    : T.data_def list;
     rec_fds    : T.rec_def list;
-    rec_effect : T.effect;
+    rec_eff    : T.effct;
     rec_constr : Constr.t list
   }
 
 let check_rec_defs ~tcfix ~pos env defs =
   let nonrec_scope = Env.scope env in
+  let (env, _) = Env.enter_scope env in
   let (env, defs) = List.fold_left_map prepare_rec_data env defs in
   let (env, dds, eff) = finalize_rec_data_defs ~nonrec_scope env defs in
   let (rec_env, params) = Env.begin_generalize env in
@@ -710,6 +726,6 @@ let check_rec_defs ~tcfix ~pos env defs =
   { rec_env    = env;
     rec_dds    = dds;
     rec_fds    = fds;
-    rec_effect = eff;
+    rec_eff    = eff;
     rec_constr = cs
   }

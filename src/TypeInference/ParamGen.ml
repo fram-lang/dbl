@@ -10,6 +10,7 @@ open Common
 let end_generalize_pure ~pos params uvs cs =
   (* Collect all used parameters *)
   let (targs2, named) = ParamEnv.end_generalize_pure params in
+  let targs2 = List.map (fun (name, _, x) -> (name, x)) targs2 in
   (* Collect all unification variables from generalized named parameters *)
   let uvs =
     List.fold_left
@@ -17,13 +18,18 @@ let end_generalize_pure ~pos params uvs cs =
         T.Scheme.collect_uvars (T.SchemeExpr.to_scheme sch) uvs)
       uvs named in
   (* Generalize all unification variables *)
+  let scope = ParamEnv.scope params in
+  let can_be_generalized u =
+    if Scope.mem (T.UVar.scope u) scope then false
+    else begin
+      T.UVar.shrink_scope u scope;
+      true
+    end in
   let targs1 =
-    T.UVar.Set.filter (fun x -> T.UVar.level x > ParamEnv.level params) uvs
+    T.UVar.Set.filter can_be_generalized uvs
     |> T.UVar.Set.elements
     |> List.map (fun x -> (T.TNAnon, T.UVar.fix x)) in
   (* Fix scopes of constraints *)
-  let new_tvars = List.map snd targs1 |> T.TVar.Set.of_list in
-  let cs = Constr.fix_scopes ~pos new_tvars cs in
   (targs1 @ targs2, named, cs)
 
 (* ========================================================================== *)
@@ -45,7 +51,7 @@ let report_used_val ~pp (use : Name.t ParamEnv.use) =
 
 let end_generalize_impure params uvs =
   T.UVar.Set.iter
-    (fun u -> T.UVar.filter_scope u (ParamEnv.level params) (fun _ -> true))
+    (fun u -> T.UVar.shrink_scope u (ParamEnv.scope params))
     uvs;
   let (used_tps, used_vals) = ParamEnv.end_generalize_impure params in
   List.iter report_used_type used_tps;
@@ -56,7 +62,7 @@ let end_generalize_impure params uvs =
 let end_generalize_declare ~pos params env (name : S.name) id sch_expr =
   let (used_types, named) = ParamEnv.end_generalize_pure params in
   assert (List.is_empty named);
-  let used_types = List.map snd used_types in
+  let used_types = List.map (fun (_, uid, x) -> (uid, x)) used_types in
   let sch = T.SchemeExpr.to_scheme sch_expr in
   let free_types =
     T.Scheme.uvars sch
