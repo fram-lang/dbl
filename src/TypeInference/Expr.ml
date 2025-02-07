@@ -30,7 +30,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
     { er with er_type = Infered tp }
 
   | EUnit ->
-    { er_expr   = make (T.ECtor(make T.EUnitPrf, 0, [], [], []));
+    { er_expr   = make (T.EInst(make (T.ECtor([], T.PE_Unit, 0)), [], []));
       er_type   = Infered T.Type.t_unit;
       er_effect = Pure;
       er_constr = []
@@ -282,10 +282,13 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
     begin match T.Type.whnf mtp with
     | Whnf_Neutral(NH_Var x, targs_rev) ->
       begin match Env.lookup_adt env x with
-      | Some { adt_ctors = []; adt_proof; adt_effect; _ } ->
-        let targs =
-          List.rev_map (fun tp -> make_nowhere (T.TE_Type tp)) targs_rev in
-        let proof = make_nowhere (T.EInst(adt_proof, targs, [])) in
+      | Some { adt_ctors = []; adt_args; adt_proof; adt_effect; _ } ->
+        assert (List.length adt_args = List.length targs_rev);
+        let sub = List.fold_left2
+          (fun sub (_, x) tp -> T.Subst.add_type sub x tp)
+          (T.Subst.empty ~scope:(Env.scope env))
+          adt_args (List.rev targs_rev) in
+        let proof = T.ProofExpr.subst sub adt_proof in
         let eff = T.Effect.join er.er_effect adt_effect in
         { er_expr   = make (T.EMatchEmpty(proof, er.er_expr, tp, eff));
           er_type   = Checked;

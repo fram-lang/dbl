@@ -559,7 +559,7 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
   let rec update_expr (e : T.expr) =
     let make data = { body with data = data } in
     match e.data with
-    | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EExtern _ -> e
+    | ENum _ | ENum64 _ | EStr _ | EChr _ | EExtern _ -> e
     
     | EFn(x, sch, body, Impure) ->
       ctx e
@@ -587,15 +587,11 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
         List.map (fun (x, sch, e) -> (x, sch, update_poly_expr e)) fds in
       make (T.ELetRec(fds, update_expr e))
 
-    | ECtor(prf, n, tps, nargs, args) ->
-      make (T.ECtor(update_expr prf, n, tps,
-        List.map update_poly_expr nargs, List.map update_poly_expr args))
-
     | EData(dds, e) ->
       make (T.EData(dds, update_expr e))
 
     | EMatchEmpty(prf, e, tp, Pure) ->
-      make (T.EMatchEmpty(update_expr prf, update_expr e, tp, Pure))
+      make (T.EMatchEmpty(prf, update_expr e, tp, Pure))
 
     | EMatch(e, cls, tp, Pure) ->
       let cls = List.map (fun (pat, e) -> (pat, update_expr e)) cls in
@@ -631,13 +627,16 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
   and update_poly_expr (e : T.poly_expr) =
     let make data = { body with data = data } in
     match e.T.data with
-    | T.EOptionPrf -> e
     | T.EVar x ->
       if List.exists (fun fd -> Var.equal x fd.d6_mono_var) fds then
         Error.report (Error.non_productive_rec_def ~pos);
       e
+
     | T.EPolyFun(targs, named, body) ->
       make (T.EPolyFun(targs, named, update_expr body))
+
+    | ECtor _ -> e
+
     | T.EHole _ ->
       (* we have no means to check if the hole is productive *)
       Error.report (Error.non_productive_rec_def ~pos);

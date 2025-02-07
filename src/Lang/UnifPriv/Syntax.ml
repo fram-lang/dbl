@@ -63,23 +63,28 @@ type data_def =
       annot     : type_expr;
     }
 
+type proof_expr =
+  | PE_Unit
+  | PE_Option of typ
+  | PE_Var    of var * typ list
+
 type pattern = pattern_data node
 and pattern_data =
   | PWildcard
   | PAs       of pattern * var
-  | PCtor     of string * int * expr * tvar list * pattern list * pattern list
+  | PCtor     of
+    string * int * proof_expr * tvar list * pattern list * pattern list
   | PAnnot    of pattern * scheme_expr
 
-and poly_expr = poly_expr_data node
+type poly_expr = poly_expr_data node
 and poly_expr_data =
-  | EOptionPrf
   | EVar     of var
   | EPolyFun of named_tvar list * (name * var * scheme) list * expr
+  | ECtor    of named_tvar list * proof_expr * int
   | EHole    of poly_expr option BRef.t
 
 and expr = expr_data node
 and expr_data =
-  | EUnitPrf
   | EInst       of poly_expr * type_expr list * poly_expr list
   | ENum        of int
   | ENum64      of int64
@@ -91,9 +96,8 @@ and expr_data =
   | ELetPoly    of var * poly_expr * expr
   | ELetMono    of var * expr * expr
   | ELetRec     of rec_def list * expr
-  | ECtor       of expr * int * typ list * poly_expr list * poly_expr list
   | EData       of data_def list * expr
-  | EMatchEmpty of expr * expr * typ * effct
+  | EMatchEmpty of proof_expr * expr * typ * effct
   | EMatch      of expr * match_clause list * typ * effct
   | EMatchPoly  of poly_expr * pattern * expr * typ * effct
   | EHandle     of tvar * var * expr * expr

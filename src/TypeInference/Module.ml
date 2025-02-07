@@ -16,8 +16,8 @@ type ('a, _) on_closed =
 
 (** Information about an ADT definition *)
 type adt_info = {
-  adt_proof  : T.poly_expr;
   adt_args   : T.named_tvar list;
+  adt_proof  : T.proof_expr;
   adt_ctors  : T.ctor_decl list;
   adt_type   : T.typ;
   adt_effect : T.effct

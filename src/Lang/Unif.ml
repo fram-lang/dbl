@@ -75,4 +75,5 @@ module CtorDeclExpr = struct
   let to_ctor_decl = UnifPriv.TypeExpr.to_ctor_decl
 end
 
+module ProofExpr = UnifPriv.ProofExpr
 module Ren = UnifPriv.Ren

@@ -52,13 +52,12 @@ let finalize_check ~nonrec_scope ~public env x ~name args ctors =
     if adt_positive ~scope ~nonrec_scope args adt_ctors then T.Pure
     else T.Impure
   in
+  let arg_tps = List.map (fun (_, x) -> T.Type.t_var x) args in
   let info = {
-    Module.adt_proof  = { T.pos = Position.nowhere; T.data = T.EVar px };
     Module.adt_args   = args;
+    Module.adt_proof  = PE_Var(px, arg_tps);
     Module.adt_ctors  = adt_ctors;
-    Module.adt_type   =
-      T.Type.t_apps (T.Type.t_var x)
-        (List.map (fun (_, x) -> T.Type.t_var x) args);
+    Module.adt_type   = T.Type.t_apps (T.Type.t_var x) arg_tps;
     Module.adt_effect = adt_effect
   } in
   let env = Env.add_adt ~public env x info in

@@ -53,33 +53,9 @@ let generalize ~pos ~pp tvs named e (sch : Name.scheme) =
 
 (* ========================================================================= *)
 
-let mk_pure_fun ~pos (x, sch) body =
-  { T.pos  = pos;
-    T.data = T.EFn(x, sch, body, Pure)
-  }
-
 let ctor_func ~pos idx (info : Module.adt_info) =
   let make data = { T.pos; T.data } in
-  let ctor = List.nth info.adt_ctors idx in
-  let proof =
-    make (T.EInst(
-      info.adt_proof,
-      List.map (fun (_, x) -> make (T.TE_Type (T.Type.t_var x)))
-        info.adt_args,
-      [])) in
-  let named_args =
-    List.map (fun (name, sch) -> (name, Var.fresh (), sch)) ctor.ctor_named in
-  let args =
-    List.map (fun sch -> (Var.fresh (), sch)) ctor.ctor_arg_schemes in
-  let body =
-    make (T.ECtor(proof, idx,
-      List.map (fun (_, x) -> T.Type.t_var x)  ctor.ctor_targs,
-      List.map (fun (_, x, _) -> make (T.EVar x)) named_args,
-      List.map (fun (x, _) -> make (T.EVar x)) args)) in
-  make (T.EPolyFun(
-    info.adt_args @ ctor.ctor_targs,
-    named_args,
-    List.fold_right (mk_pure_fun ~pos) args body))
+  make (T.ECtor(info.adt_args, info.adt_proof, idx))
 
 (* ========================================================================= *)
 

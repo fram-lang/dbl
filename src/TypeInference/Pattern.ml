@@ -142,7 +142,6 @@ let open_ctor ~pos env (ctor : T.ctor_decl) =
     the type, the constructor index, proof that it is an ADT, and the needed
     substitution for the type parameters *)
 let get_ctor_info ~pos env (cpath : S.ctor_name S.path) tp =
-  let make data = { cpath with T.data = data } in
   let pp = Env.pp_tree env in
   match T.Type.whnf tp with
   | Whnf_Neutral(NH_Var x, rev_tps) ->
@@ -155,8 +154,7 @@ let get_ctor_info ~pos env (cpath : S.ctor_name S.path) tp =
       let cname = S.path_name cpath in
       begin match T.CtorDecl.find_index info.adt_ctors cname with
       | Some idx ->
-        let tps = List.map (fun tp -> make (T.TE_Type tp)) tps in
-        let proof = make (T.EInst(info.adt_proof, tps, [])) in
+        let proof = T.ProofExpr.subst sub info.adt_proof in
         (info, idx, proof, sub)
       | None ->
         Error.fatal (Error.ctor_not_in_type ~pos:cpath.pos ~pp cname tp)
@@ -168,7 +166,7 @@ let get_ctor_info ~pos env (cpath : S.ctor_name S.path) tp =
   | Whnf_Neutral(NH_UVar _, _) ->
     let (idx, info) = ModulePath.lookup_ctor env cpath in
     let (sub, tps) = ParamResolve.guess_types ~pos env info.adt_args in
-    let proof = make (T.EInst(info.adt_proof, tps, [])) in
+    let proof = T.ProofExpr.subst sub info.adt_proof in
     (info, idx, proof, sub)
 
   | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->

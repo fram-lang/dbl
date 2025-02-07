@@ -13,12 +13,12 @@ type top = (closed, modl) opn
 
 (** Information about an ADT definition *)
 type adt_info = {
-  adt_proof  : T.poly_expr;
-    (** A computationally irrelevant expression that give a proof that given
-      type is an ADT. It is polymorphic in the type parameters of an ADT. *)
-
   adt_args   : T.named_tvar list;
     (** Type parameter of an ADT *)
+
+  adt_proof  : T.proof_expr;
+    (** A computationally irrelevant expression that give a proof that given
+      type is an ADT. Already applied to [adt_args]. *)
 
   adt_ctors  : T.ctor_decl list;
     (** List of constructors of an ADT *)

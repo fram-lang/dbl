@@ -211,9 +211,8 @@ let open_module ~public (Env env) m =
 (* ========================================================================= *)
 
 let unit_adt =
-  { Module.adt_proof =
-      make_nowhere (T.EPolyFun([], [], make_nowhere T.EUnitPrf));
-    Module.adt_args  = [];
+  { Module.adt_args  = [];
+    Module.adt_proof = T.PE_Unit;
     Module.adt_ctors =
       [ { ctor_name        = "()";
           ctor_targs       = [];
@@ -226,8 +225,8 @@ let unit_adt =
 
 let option_adt =
   let a = T.TVar.fresh ~scope:(Scope.enter Scope.root) T.Kind.k_type in
-  { Module.adt_proof = make_nowhere T.EOptionPrf;
-    Module.adt_args  = [T.TNAnon, a];
+  { Module.adt_args  = [T.TNAnon, a];
+    Module.adt_proof = T.PE_Option (T.Type.t_var a);
     Module.adt_ctors =
       [ { ctor_name        = "None";
           ctor_targs       = [];

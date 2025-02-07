@@ -24,16 +24,12 @@ let scheme_to_option_arg (sch : T.scheme) =
   | Whnf_Neutral(_, [arg]) -> arg
   | _ -> assert false
 
-let option_proof tp =
-  let tp_expr = make_nowhere (T.TE_Type tp) in
-  make_nowhere (T.EInst(make_nowhere T.EOptionPrf, [tp_expr], []))
-
 let mk_none ~pos tp =
-  { T.pos  = pos;
-    T.data = T.ECtor(option_proof tp, 0, [], [], [])
-  }
+  let make data = { T.pos = pos; T.data = data } in
+  make (T.EInst(make (T.ECtor([], PE_Option tp, 0)), [], []))
 
 let mk_some_poly ~pos tp e =
-  { T.pos  = pos;
-    T.data = T.ECtor(option_proof tp, 1, [], [], [e])
-  }
+  let make data = { T.pos = pos; T.data = data } in
+  make (T.EAppPoly(
+    make (T.EInst(make (T.ECtor([], PE_Option tp, 1)), [], [])),
+    e))
