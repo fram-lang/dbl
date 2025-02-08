@@ -36,7 +36,7 @@ type scheme =
   }
 
 (** Named pattern that uses more precise names *)
-type pattern = t * T.pattern * T.scheme
+type pattern = t * T.pattern * T.scheme_expr
 
 (** Translate a name to Unif representation. *)
 val to_unif : t -> T.name

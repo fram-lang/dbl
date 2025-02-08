@@ -25,7 +25,7 @@ type scheme =
     sch_body  : T.typ
   }
 
-type pattern = t * T.pattern * T.scheme
+type pattern = t * T.pattern * T.scheme_expr
 
 let to_unif name =
   match name with

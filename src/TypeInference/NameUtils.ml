@@ -79,5 +79,7 @@ let rename ren (name : Name.t) =
   | NMethod(owner, m) ->
     Name.NMethod(rename_method_owner ren owner, m)
 
-let rename_pattern ren (name, pat, sch) =
-  (rename ren name, T.Ren.rename_pattern ren pat, T.Ren.rename_scheme ren sch)
+let rename_pattern ren (name, pat, sch_expr) =
+  ( rename ren name,
+    T.Ren.rename_pattern ren pat,
+    T.Ren.rename_scheme_expr ren sch_expr )

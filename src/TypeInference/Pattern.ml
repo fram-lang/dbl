@@ -371,7 +371,7 @@ let infer_scheme env (pat : S.pattern) =
   match pat.data with
   | PWildcard | PId _ | PCtor _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
-    let sch = T.Scheme.of_type tp in
+    let sch = T.SchemeExpr.of_type_expr { pat with data = T.TE_Type tp } in
     let (penv, pat, eff) = check_type env pat tp in
     (penv, pat, sch, eff)
 
@@ -379,8 +379,7 @@ let infer_scheme env (pat : S.pattern) =
     let sch_expr = Type.tr_scheme env sch in
     let sch = T.SchemeExpr.to_scheme sch_expr in
     let (penv, pat, eff) = check_scheme env pat sch in
-    let pat = { pat with T.data = T.PAnnot(pat, sch_expr) } in
-    (penv, pat, sch, eff)
+    (penv, pat, sch_expr, eff)
 
 (** Translate a named pattern. Returns the tuple of the following:
   - environment extended with type parameters, but not with existential types
@@ -409,42 +408,46 @@ let infer_named_pattern env (np : S.named_pattern) =
     (env, penv, tvars, [], T.Pure)
 
   | NP_Val(NOptionalVar x, pat, sch_expr) ->
-    let tp =
+    let tp_expr =
       match sch_expr with
       | Some sch_expr ->
-        let sch = T.SchemeExpr.to_scheme (Type.tr_scheme env sch_expr) in
-        begin match T.Scheme.to_type sch with
-        | Some tp -> tp
+        let sch_expr = Type.tr_scheme env sch_expr in
+        begin match T.SchemeExpr.to_type_expr sch_expr with
+        | Some tp_expr -> tp_expr
         | None    ->
           Error.fatal
-            (Error.polymorphic_optional_parameter ~pos:sch_expr.sch_pos)
+            (Error.polymorphic_optional_parameter ~pos:sch_expr.se_pos)
         end
-      | None -> Env.fresh_uvar env T.Kind.k_type
+      | None ->
+        { np with data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type) }
     in
-    let sch = BuiltinTypes.mk_option_scheme tp in
-    let (penv, pat, eff) = check_scheme env pat sch in
-    let arg = (np.pos, Name.NOptionalVar x, pat, sch) in
+    let sch_expr = BuiltinTypes.mk_option_scheme_expr tp_expr in
+    let (penv, pat, eff) =
+      check_scheme env pat (T.SchemeExpr.to_scheme sch_expr) in
+    let arg = (np.pos, Name.NOptionalVar x, pat, sch_expr) in
     (env, penv, [], [arg], eff)
 
   | NP_Val(name, pat, sch_expr) ->
-    let (penv, pat, sch, eff) =
+    let (penv, pat, sch_expr, eff) =
       match sch_expr with
       | Some sch_expr ->
-        let sch = T.SchemeExpr.to_scheme (Type.tr_scheme env sch_expr) in
-        let (penv, pat, eff) = check_scheme env pat sch in
-        (penv, pat, sch, eff)
+        let sch_expr = Type.tr_scheme env sch_expr in
+        let (penv, pat, eff) =
+          check_scheme env pat (T.SchemeExpr.to_scheme sch_expr) in
+        (penv, pat, sch_expr, eff)
       | None ->
         infer_scheme env pat
     in
     let arg =
       match name with
-      | NVar x -> (np.pos, Name.NVar x, pat, sch)
+      | NVar x -> (np.pos, Name.NVar x, pat, sch_expr)
       | NOptionalVar _ -> assert false
-      | NImplicit n -> (np.pos, Name.NImplicit n, pat, sch)
+      | NImplicit n -> (np.pos, Name.NImplicit n, pat, sch_expr)
       | NMethod mname ->
         let pp = Env.pp_tree env in
+        let sch = T.SchemeExpr.to_scheme sch_expr in
         let owner = NameUtils.method_owner_of_scheme ~pos:np.pos ~pp sch in
-        (np.pos, Name.NMethod(owner, mname), pat, sch)
+        (np.pos, Name.NMethod(owner, mname), pat, sch_expr)
     in
     (env, penv, [], [arg], eff)
 

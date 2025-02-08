@@ -72,6 +72,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   | EFn(pat, body) ->
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
     let (env, pat, sch, eff1) = Pattern.infer_scheme_ext env pat in
+    let sch = T.SchemeExpr.to_scheme sch in
     let er_body = check_expr_type env body tp2 in
     let eff = T.Effect.join eff1 er_body.er_effect in
     let (x, body) = ExprUtils.match_var pat er_body.er_expr tp2 eff in

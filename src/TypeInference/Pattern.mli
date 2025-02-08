@@ -11,11 +11,11 @@ open Common
 val check_type : 'st Env.t -> S.pattern -> T.typ ->
   PartialEnv.t * T.pattern * T.effct
 
-(** Infer type-scheme of given pattern. Returns partial-environment (variables
-  bound by this pattern), translated pattern, its scheme, and the effect of
-  pattern-matching *)
+(** Infer scheme expression of given pattern. Returns partial-environment
+  (variables bound by this pattern), translated pattern, its scheme
+  expression, and the effect of pattern-matching *)
 val infer_scheme : 'st Env.t -> S.pattern ->
-  PartialEnv.t * T.pattern * T.scheme * T.effct
+  PartialEnv.t * T.pattern * T.scheme_expr * T.effct
 
 (** Enter a new scope and translate a list of named patterns. The returned
   environment contains type parameters, but not the type variables bound by
@@ -30,7 +30,7 @@ val infer_named_patterns :
   environment, translated pattern, its scheme, and the effect of
   pattern-matching *)
 val infer_scheme_ext :
-  'st Env.t -> S.pattern -> 'st Env.t * T.pattern * T.scheme * T.effct
+  'st Env.t -> S.pattern -> 'st Env.t * T.pattern * T.scheme_expr * T.effct
 
 (** Check if given pattern has given type scheme. Returns extended
   environment, translated pattern, and the effect of pattern-matching *)

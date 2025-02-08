@@ -15,6 +15,12 @@ type 'st rec_result =
     rec_dds    : T.data_def list;
     (** The data definitions in the block. *)
 
+    rec_targs  : T.named_tvar list;
+    (** Type parameters common to all definitions. *)
+
+    rec_named  : (T.name * T.var * T.scheme_expr) list;
+    (** Named parameters common to all definitions. *)
+
     rec_fds    : T.rec_def list;
     (** The recursive definitions in the block. *)
 

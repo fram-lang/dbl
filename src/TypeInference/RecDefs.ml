@@ -191,7 +191,7 @@ and finalize_rec_data_defs ~nonrec_scope env defs =
 
 (** Information gathered by guessing the scheme of a recursive value *)
 type rec_fun3 =
-  { rf3_scheme   : T.scheme;
+  { rf3_scheme   : T.scheme_expr;
       (** Type scheme of a recursive value *)
 
     rf3_targs    : type_param list;
@@ -200,7 +200,7 @@ type rec_fun3 =
     rf3_named    : Name.pattern list;
       (** Explicit named formal parameters *)
 
-    rf3_args     : (Position.t * T.pattern * T.scheme * T.effct) list;
+    rf3_args     : (Position.t * T.pattern * T.scheme_expr * T.effct) list;
       (** Formal parameters of the function, together with position and effect
         of the lambda abstractions. *)
 
@@ -216,11 +216,15 @@ type rec_fun3 =
 
 (** Representation of recursive definition after the third pass *)
 type def3 =
-  | D3_LetFun  of S.is_public * Name.t * T.var * rec_fun3| D3_Section of def3 T.node list
+  | D3_LetFun  of S.is_public * Name.t * T.var * rec_fun3
+  | D3_Section of def3 T.node list
 
 (** Information gathered by guessing the type of a recursive function *)
 type rec_fun_body =
-  { rfb_args     : (Position.t * T.pattern * T.scheme * T.effct) list;
+  { rfb_type     : T.type_expr;
+      (** Type of the recursive function *)
+
+    rfb_args     : (Position.t * T.pattern * T.scheme_expr * T.effct) list;
       (** Formal parameters of the function, together with position and effect
         of the lambda abstractions. *)
 
@@ -232,6 +236,19 @@ type rec_fun_body =
 
     rfb_body_tp : T.typ;
       (** Guessed type of the body *)
+  }
+
+let mk_arrow_type_expr ~pos sch tp eff =
+  { T.pos  = pos;
+    T.data =
+      match eff with
+      | T.Pure   -> T.TE_PureArrow(sch, tp)
+      | T.Impure ->
+        let eff =
+          { T.pos  = pos;
+            T.data = T.TE_Type T.Type.t_effect
+          } in
+        T.TE_Arrow(sch, tp, eff)
   }
 
 (** Check formal parameters and guess the type of a recursive value.
@@ -249,23 +266,27 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
     let body_tp = Env.fresh_uvar env T.Kind.k_type in
     let (rfb, eff2) = guess_rec_fun_type env body body_tp in
     let eff = T.Effect.join eff1 eff2 in
-    let fun_tp = T.Type.t_arrow sch body_tp eff in
+    let fun_tp_expr = mk_arrow_type_expr ~pos sch rfb.rfb_type eff in
+    let fun_tp = T.TypeExpr.to_type fun_tp_expr in
     let pp = Env.pp_tree env in
     Error.check_unify_result ~pos
       (Unification.subtype env fun_tp tp)
       ~on_error:(Error.expr_type_mismatch ~pp fun_tp tp);
-    { rfb_args    = (pos, pat, sch, eff) :: rfb.rfb_args;
+    { rfb_type    = fun_tp_expr;
+      rfb_args    = (pos, pat, sch, eff) :: rfb.rfb_args;
       rfb_penv    = PartialEnv.join ~pp penv rfb.rfb_penv;
       rfb_body    = rfb.rfb_body;
       rfb_body_tp = rfb.rfb_body_tp
     }, T.Pure
 
   | EAnnot(_, tp_expr) ->
-    let tp' = Type.tr_ttype env tp_expr |> T.TypeExpr.to_type in
+    let tp_expr = Type.tr_ttype env tp_expr in
+    let tp' = T.TypeExpr.to_type tp_expr in
     Error.check_unify_result ~pos
       (Unification.subtype env tp' tp)
       ~on_error:(Error.expr_type_mismatch ~pp:(Env.pp_tree env) tp' tp);
-    { rfb_args    = [];
+    { rfb_type    = tp_expr;
+      rfb_args    = [];
       rfb_penv    = PartialEnv.empty;
       rfb_body    = e;
       rfb_body_tp = tp
@@ -273,7 +294,8 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
 
   | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _
   | EMatch _ | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
-    { rfb_args    = [];
+    { rfb_type    = { T.pos = pos; T.data = T.TE_Type tp };
+      rfb_args    = [];
       rfb_penv    = PartialEnv.empty;
       rfb_body    = e;
       rfb_body_tp = tp
@@ -285,7 +307,7 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
   | PE_Expr e ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
     let (rfb, _) = guess_rec_fun_type env e tp in
-    { rf3_scheme  = T.Scheme.of_type tp;
+    { rf3_scheme  = T.SchemeExpr.of_type_expr rfb.rfb_type;
       rf3_targs   = [];
       rf3_named   = [];
       rf3_args    = rfb.rfb_args;
@@ -312,10 +334,11 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     let (env, _, _, _) = PartialEnv.extend env [] penv in
     let (rfb, _) = guess_rec_fun_type env body body_tp in
     let sch =
-      { T.sch_targs = List.map (fun (_, name, x) -> (name, x)) tvars;
-        T.sch_named =
+      { T.se_pos   = pos;
+        T.se_targs = List.map (fun (_, name, x) -> (name, x)) tvars;
+        T.se_named =
           List.map (fun (name, _, sch) -> (Name.to_unif name, sch)) named;
-        T.sch_body  = body_tp
+        T.se_body  = rfb.rfb_type
       } in
     let pp = Env.pp_tree env in
     { rf3_scheme  = sch;
@@ -336,7 +359,7 @@ let rec prepare_rec_fun env (def : def1 T.node) =
 
   | D1_LetId(public, name, body) ->
     let rf3 = rec_def_scheme ~pos env body in
-    let sch = rf3.rf3_scheme in
+    let sch = T.SchemeExpr.to_scheme rf3.rf3_scheme in
     let name = NameUtils.tr_ident ~pos ~pp:(Env.pp_tree env) name sch in
     let (env, x) = Env.add_val env name sch in
     let def = { def with data = D3_LetFun(public, name, x, rf3) } in
@@ -366,15 +389,26 @@ type def4 =
     { public  : S.is_public;
       name    : Name.t;
       var     : T.var;
-      scheme  : T.scheme;
+      scheme  : T.scheme_expr;
       targs   : T.named_tvar list;
       named   : Name.pattern list;
-      args    : (Position.t * T.pattern * T.scheme * T.effct) list;
       body    : T.expr;
       body_tp : T.typ
     }
 
   | D4_Section of def4 T.node list
+
+(** Build a function from a list of arguments and a body. *)
+let mk_function args body body_tp =
+  let mk_fn (pos, pat, sch, eff) (body, body_tp) =
+    let sch = T.SchemeExpr.to_scheme sch in
+    let (x, body) = ExprUtils.match_var pat body body_tp eff in
+    let body_tp = T.Type.t_arrow sch body_tp eff in
+    { T.pos  = pos;
+      T.data = T.EFn(x, sch, body, eff)
+    }, body_tp
+  in
+  List.fold_right mk_fn args (body, body_tp)
 
 (** The main function of the fourth pass. *)
 let rec check_rec_fun ~tcfix env (def : def3 T.node) =
@@ -384,7 +418,8 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
     let (body_env, _, targs, ren) =
       PartialEnv.extend env rf3.rf3_targs rf3.rf3_penv in
     let rename_arg (pos, pat, sch, eff) =
-      (pos, T.Ren.rename_pattern ren pat, T.Ren.rename_scheme ren sch, eff) in
+      (pos, T.Ren.rename_pattern ren pat,
+        T.Ren.rename_scheme_expr ren sch, eff) in
     let named = List.map (NameUtils.rename_pattern ren) rf3.rf3_named in
     let args = List.map rename_arg rf3.rf3_args in
     let body_tp = T.Ren.rename_type ren rf3.rf3_body_tp in
@@ -393,6 +428,7 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
     | _ :: _, _ | _, Pure -> ()
     | [], Impure -> Error.report (Error.func_not_pure ~pos:def.pos)
     end;
+    let (body, body_tp) = mk_function args er.er_expr body_tp in
     let def =
       { def with
         data = D4_LetFun
@@ -402,8 +438,7 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
             scheme  = rf3.rf3_scheme;
             targs   = targs;
             named   = named;
-            args    = args;
-            body    = er.er_expr;
+            body    = body;
             body_tp = body_tp
           }
       } in
@@ -427,7 +462,7 @@ and check_rec_funs ~tcfix env fds =
 let rec collect_rec_fun_uvars uvs (def : def4 T.node) =
   match def.data with
   | D4_LetFun { scheme; _ } ->
-    T.Scheme.collect_uvars scheme uvs
+    T.Scheme.collect_uvars (T.SchemeExpr.to_scheme scheme) uvs
 
   | D4_Section defs ->
     List.fold_left collect_rec_fun_uvars uvs defs
@@ -435,103 +470,37 @@ let rec collect_rec_fun_uvars uvs (def : def4 T.node) =
 (* ========================================================================= *)
 (** The sixth pass: building final environment *)
 
-(** Representation of recursive definition after the sixth pass *)
-type def6 = {
-  d6_pos         : Position.t;
-    (** Position of the definition *)
-
-  d6_poly_var    : T.var;
-    (** Variable that represents more general form of the recursive value *)
-
-  d6_poly_scheme : T.scheme;
-    (** More general scheme of the recursive value *)
-
-  d6_mono_var    : T.var;
-    (** Variable that represents less general form of the recursive value *)
-
-  d6_mono_body   : T.poly_expr;
-    (** Less general form of the recursive value *)
-
-  d6_targs       : T.named_tvar list;
-    (** Type parameters of the recursive value, including section-declared
-      parameters. *)
-
-  d6_named       : (Name.t * T.var * T.scheme) list;
-    (** Named arguments of the recursive value, including section-declared
-      parameters. *)
-
-  d6_named_pats  : (T.var * T.pattern) list;
-    (** Patterns of named arguments. *)
-
-  d6_args        : (Position.t * T.pattern * T.scheme * T.effct) list;
-    (** Formal parameters of the function, together with position and effect
-      of the lambda abstractions. *)
-
-  d6_body        : T.expr;
-    (** Body of the recursive value *)
-
-  d6_body_tp     : T.typ;
-    (** Type of the body *)
-}
-
 (** The sixth pass for a single definition *)
 let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
-  let make data = { def with data = data } in
   match def.data with
   | D4_LetFun d ->
+    let y_sch = T.SchemeExpr.to_scheme d.scheme in
     let y_sch =
-      { T.sch_targs = targs1 @ d.scheme.sch_targs;
-        T.sch_named =
-          List.map
-            (fun (name, _, sch) ->
-              (Name.to_unif name, T.SchemeExpr.to_scheme sch))
-            named1 @
-          d.scheme.sch_named;
-        T.sch_body  = d.scheme.sch_body
+      { T.sch_targs = targs1 @ y_sch.sch_targs;
+        T.sch_named = named1 @ y_sch.sch_named;
+        T.sch_body  = y_sch.sch_body
       } in
     let (env, y) = Env.add_val ~public:d.public env d.name y_sch in
-    let named2 =
+    let named =
       List.map
-        (fun (name, pat, sch) -> (name, Var.fresh (), pat, sch))
+        (fun (name, pat, sch) -> (Name.to_unif name, Var.fresh (), pat, sch))
         d.named in
-    let mono_body =
-      make (T.EPolyFun(
-        d.targs,
-        List.map (fun (name, x, _, sch) -> (Name.to_unif name, x, sch))
-          named2,
-        make (T.EInst(
-          make (T.EVar y),
-          List.map
-            (fun (_, x) -> make (T.TE_Type (T.Type.t_var x)))
-            (targs1 @ d.targs),
-          List.map (fun (_, x, _) -> make (T.EVar x)) named1 @
-          List.map (fun (_, x, _, _) -> make (T.EVar x)) named2))))
-    in
-    let named_pats =
+    let named_args =
       List.map
-        (fun (_, x, sch_expr) ->
-          let pat =
-            make (T.PAnnot(make (T.PAs(make T.PWildcard, x)), sch_expr)) in
-          (x, pat))
-        named1 @
-      List.map (fun (_, x, pat, _) -> (x, pat)) named2
-    in
+        (fun (name, x, _, sch) -> (name, x, T.SchemeExpr.to_scheme sch))
+        named in
+    let named_pats = List.map (fun (_, x, pat, _) -> (x, pat)) named in
+    let body = ExprUtils.match_args named_pats d.body d.body_tp Pure in
+    let body =
+      { T.pos  = def.pos;
+        T.data = T.EPolyFun(d.targs, named_args, body)
+      } in
     let def =
-      { d6_pos         = def.pos;
-        d6_poly_var    = y;
-        d6_poly_scheme = y_sch;
-        d6_mono_var    = d.var;
-        d6_mono_body   = mono_body;
-        d6_targs       = targs1 @ d.targs;
-        d6_named       =
-          List.map
-            (fun (name, x, sch) -> (name, x, T.SchemeExpr.to_scheme sch))
-            named1 @
-          List.map (fun (name, x, _, sch) -> (name, x, sch)) named2;
-        d6_named_pats  = named_pats;
-        d6_args        = d.args;
-        d6_body        = d.body;
-        d6_body_tp     = d.body_tp
+      { T.rd_pos      = def.pos;
+        T.rd_poly_var = y;
+        T.rd_var      = d.var;
+        T.rd_scheme   = d.scheme;
+        T.rd_body     = body
       }
     in
     (env, [def])
@@ -549,20 +518,20 @@ and add_rec_funs env targs named defs =
     (env, defs1 @ defs2)
 
 (* ========================================================================= *)
-(** The seventh pass: update bodies of recursive definitions with local
-  definitions of less-generalized functions *)
+(** The seventh pass: checking productivity of recursive definitions *)
 
 (** Update the body of a recursive definition, adding local definitions of
   less-generalized functions after the first impure function. This function
   also checks if the recursive definition is productive. *)
-let update_rec_body ~pos ~ctx fds (body : T.expr) =
+let update_rec_body ~pos fds (body : T.poly_expr) =
   let rec update_expr (e : T.expr) =
     let make data = { body with data = data } in
     match e.data with
+
     | ENum _ | ENum64 _ | EStr _ | EChr _ | EExtern _ -> e
-    
+
     | EFn(x, sch, body, Impure) ->
-      ctx e
+      make (T.EFn(x, sch, make (T.ERecCtx body), Impure))
 
     | EFn(x, sch, body, Pure) ->
       make (T.EFn(x, sch, update_expr body, Pure))
@@ -581,11 +550,6 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
 
     | ELetMono(x, e1, e2) ->
       make (T.ELetMono(x, update_expr e1, update_expr e2))
-
-    | ELetRec(fds, e) ->
-      let fds =
-        List.map (fun (x, sch, e) -> (x, sch, update_poly_expr e)) fds in
-      make (T.ELetRec(fds, update_expr e))
 
     | EData(dds, e) ->
       make (T.EData(dds, update_expr e))
@@ -617,8 +581,9 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
     | EAnnot(e, tp, eff) ->
       make (T.EAnnot(update_expr e, tp, eff))
 
-    | EMatchEmpty(_, _, _, Impure) | EMatch(_, _, _, Impure)
-    | EMatchPoly(_, _, _, _, Impure) | EHandle _ | EEffect _ ->
+    | ELetRec _ | ERecCtx _ | EMatchEmpty(_, _, _, Impure)
+    | EMatch(_, _, _, Impure) | EMatchPoly(_, _, _, _, Impure) | EHandle _
+    | EEffect _ ->
       Error.report (Error.non_productive_rec_def ~pos);
       e
 
@@ -628,7 +593,7 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
     let make data = { body with data = data } in
     match e.T.data with
     | T.EVar x ->
-      if List.exists (fun fd -> Var.equal x fd.d6_mono_var) fds then
+      if List.exists (fun fd -> Var.equal x fd.T.rd_var) fds then
         Error.report (Error.non_productive_rec_def ~pos);
       e
 
@@ -642,67 +607,19 @@ let update_rec_body ~pos ~ctx fds (body : T.expr) =
       Error.report (Error.non_productive_rec_def ~pos);
       e
   in
-  update_expr body
-
-(** Build a function from a list of arguments and a body. *)
-let mk_function args body body_tp =
-  let mk_fn (pos, pat, sch, eff) (body, body_tp) =
-    let (x, body) = ExprUtils.match_var pat body body_tp eff in
-    let body_tp = T.Type.t_arrow sch body_tp eff in
-    { T.pos  = pos;
-      T.data = T.EFn(x, sch, body, eff)
-    }, body_tp
-  in
-  List.fold_right mk_fn args (body, body_tp)
+  update_poly_expr body
 
 (** The main function of the seventh pass *)
-let finalize_rec_fun (fds : def6 list) (fd : def6) =
-  (* Build a local context that provides less-generalized functions *)
-  let build_local_inst fd' body =
-    { T.pos  = fd.d6_pos;
-      T.data = T.ELetPoly(fd'.d6_mono_var, fd'.d6_mono_body, body)
-    } in
-  let build_local_ctx body =
-    List.fold_right build_local_inst fds body in
-  (* Build a body of the definition, by moving matching of arguments to the
-    first impure function, or to the other place, where it is possible. *)
-  let rec abstract_args pats args =
-    match args with
-    | [] ->
-      let ctx = build_local_ctx in
-      let body = update_rec_body ~pos:fd.d6_pos ~ctx fds fd.d6_body in
-      ExprUtils.match_args pats body fd.d6_body_tp Pure
-    | (pos, pat, sch, T.Pure) :: args ->
-      let x = Var.fresh () in
-      let body = abstract_args ((x, pat) :: pats) args in
-      { T.pos  = pos;
-        T.data = T.EFn(x, sch, body, T.Pure)
-      }
-    | (pos, pat, sch, T.Impure) :: args ->
-      let x = Var.fresh () in
-      let pats = List.rev ((x, pat) :: pats) in
-      let (body, body_tp) = mk_function args fd.d6_body fd.d6_body_tp in
-      let body = ExprUtils.match_args pats body body_tp Impure in
-      let body = build_local_ctx body in
-      { T.pos  = pos;
-        T.data = T.EFn(x, sch, body, T.Impure)
-      }
-  in
-  let named =
-    List.map (fun (name, x, sch) -> (Name.to_unif name, x, sch))
-      fd.d6_named in
-  let body = abstract_args fd.d6_named_pats fd.d6_args in
-  let poly_expr =
-    { T.pos  = fd.d6_pos;
-      T.data = T.EPolyFun(fd.d6_targs, named, body)
-    } in
-  (fd.d6_poly_var, fd.d6_poly_scheme, poly_expr)
+let finalize_rec_fun (fds : T.rec_def list) (fd : T.rec_def) =
+  { fd with rd_body = update_rec_body ~pos:fd.rd_pos fds fd.rd_body }
 
 (* ========================================================================= *)
 
 type 'st rec_result =
   { rec_env    : ('st, sec) opn Env.t;
     rec_dds    : T.data_def list;
+    rec_targs  : T.named_tvar list;
+    rec_named  : (T.name * T.var * T.scheme_expr) list;
     rec_fds    : T.rec_def list;
     rec_eff    : T.effct;
     rec_constr : Constr.t list
@@ -720,10 +637,18 @@ let check_rec_defs ~tcfix ~pos env defs =
   let uvars = List.fold_left collect_rec_fun_uvars T.UVar.Set.empty fds in
   let (targs, named, cs) =
     ParamGen.end_generalize_pure ~pos params uvars cs in
-  let (env, fds) = add_rec_funs env targs named fds in
+  let named' =
+    List.map
+      (fun (name, x, sch) -> (Name.to_unif name, T.SchemeExpr.to_scheme sch))
+      named in
+  let (env, fds) = add_rec_funs env targs named' fds in
   let fds = List.map (finalize_rec_fun fds) fds in
+  let named =
+    List.map (fun (name, x, sch) -> (Name.to_unif name, x, sch)) named in
   { rec_env    = env;
     rec_dds    = dds;
+    rec_targs  = targs;
+    rec_named  = named;
     rec_fds    = fds;
     rec_eff    = eff;
     rec_constr = cs

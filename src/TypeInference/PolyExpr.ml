@@ -201,7 +201,9 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
       List.map (fun (name, pat, sch) ->
         let x = Var.fresh () in
         (name, x, pat, sch)) in
-    let sch_named = List.map (fun (name, _, _, sch) -> (name, sch)) named in
+    let sch_named =
+      List.map (fun (name, _, _, sch) -> (name, T.SchemeExpr.to_scheme sch))
+        named in
     let match_named = List.map (fun (_, x, pat, _) -> (x, pat)) named in
     let body_expr =
       ExprUtils.match_args match_named body.er_expr body_tp eff in
@@ -211,6 +213,9 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
         Name.sch_body  = body_tp
       } in
     let named =
-      List.map (fun (name, x, _, sch) -> (Name.to_unif name, x, sch)) named in
+      List.map
+        (fun (name, x, _, sch) ->
+          (Name.to_unif name, x, T.SchemeExpr.to_scheme sch))
+      named in
     let poly_expr = { T.pos; T.data = T.EPolyFun(targs, named, body_expr) } in
     PPure(poly_expr, sch, body.er_constr)

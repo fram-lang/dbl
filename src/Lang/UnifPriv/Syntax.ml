@@ -95,7 +95,13 @@ and expr_data =
   | EAppMono    of expr * expr
   | ELetPoly    of var * poly_expr * expr
   | ELetMono    of var * expr * expr
-  | ELetRec     of rec_def list * expr
+  | ELetRec     of
+    { targs : named_tvar list;
+      named : (name * var * scheme_expr) list;
+      defs  : rec_def list;
+      body  : expr
+    }
+  | ERecCtx     of expr
   | EData       of data_def list * expr
   | EMatchEmpty of proof_expr * expr * typ * effct
   | EMatch      of expr * match_clause list * typ * effct
@@ -119,7 +125,13 @@ and expr_data =
   | ERepl       of (unit -> expr) * typ
   | EReplExpr   of expr * expr
 
-and rec_def = var * scheme * poly_expr
+and rec_def =
+  { rd_pos      : Position.t;
+    rd_poly_var : var;
+    rd_var      : var;
+    rd_scheme   : scheme_expr;
+    rd_body     : poly_expr;
+  }
 
 and match_clause = pattern * expr
 

@@ -33,5 +33,8 @@ val rename_type : t -> typ -> typ
 (** Rename type scheme *)
 val rename_scheme : t -> scheme -> scheme
 
+(** Rename type scheme expression *)
+val rename_scheme_expr : t -> scheme_expr -> scheme_expr
+
 (** Rename variables in pattern *)
 val rename_pattern : t -> pattern -> pattern

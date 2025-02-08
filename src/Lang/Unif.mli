@@ -318,8 +318,25 @@ and expr_data =
   | ELetMono of var * expr * expr
     (** Monomorphic let-definition *)
 
-  | ELetRec of rec_def list * expr
-    (** Mutually recursive let-definitions *)
+  | ELetRec of (** Mutually recursive let-definitions *)
+    { targs : named_tvar list;
+      (** Type parameters common to all definitions *)
+
+      named : (name * var * scheme_expr) list;
+      (** Named parameters common to all definitions *)
+
+      defs  : rec_def list;
+      (** Mutually recursive definitions *)
+
+      body  : expr
+      (** Body of the let-rec *)
+    }
+
+  | ERecCtx of expr
+    (** Context for mutually recursive definitions. It is used to bind
+      less polymorphic variables in mutually recursive definitions.
+      It should appear only in the recursive definitions under some impure
+      function. *)
 
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
@@ -401,7 +418,26 @@ and expr_data =
       expression, then continue to the second expression. *)
 
 (** Definition of recursive value *)
-and rec_def = var * scheme * poly_expr
+and rec_def =
+  { rd_pos      : Position.t;
+    (** Position of the definition *)
+
+    rd_poly_var : var;
+    (** More polymorphic variable that represents the definition. It is bound
+      in the body of let-rec. *)
+
+    rd_var      : var;
+    (** Less polymorphic variable that represents the definition. It is bound
+      locally by the nearest [ERecCtx] in the mutually recursive definitions.
+      *)
+
+    rd_scheme   : scheme_expr;
+    (** Scheme of the definition, or more precisely, the scheme of [rd_var].
+      It doesn't contain common parameters. *)
+
+    rd_body     : poly_expr;
+    (** Body of the definition *)
+  }
 
 (** Clause of a pattern matching *)
 and match_clause = pattern * expr
@@ -842,6 +878,9 @@ module Ren : sig
 
   (** Rename type scheme *)
   val rename_scheme : t -> scheme -> scheme
+
+  (** Rename scheme expression *)
+  val rename_scheme_expr : t -> scheme_expr -> scheme_expr
 
   (** Rename variables in pattern *)
   val rename_pattern : t -> pattern -> pattern

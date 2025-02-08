@@ -200,7 +200,12 @@ let check_def : type st dir. tcfix:tcfix ->
     let rest = cont.run env (Check tp) in
     { er_expr   =
         make rest (T.EData(result.rec_dds,
-          make rest (T.ELetRec(result.rec_fds, rest.er_expr))));
+          make rest (T.ELetRec
+            { targs = result.rec_targs;
+              named = result.rec_named;
+              defs  = result.rec_fds;
+              body  = rest.er_expr
+            })));
       er_type   = resp;
       er_effect = T.Effect.join result.rec_eff rest.er_effect;
       er_constr = result.rec_constr @ rest.er_constr
