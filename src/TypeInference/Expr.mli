@@ -5,6 +5,7 @@
 (** Type-inference for expressions and related syntactic categories *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 (** Infer the type of an expression. When the expression is applied to some

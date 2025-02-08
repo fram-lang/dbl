@@ -5,6 +5,7 @@
 (** Scheme-inference for polymorphic expressions *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 type check_def_result =

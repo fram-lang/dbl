@@ -5,6 +5,7 @@
 (** Type-inference for definitions *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 (** Check the type of a single definition. It uses bidirectional type

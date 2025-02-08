@@ -5,6 +5,7 @@
 (** Type-checking of explicit instantiations *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 (** Instantiate polymorphic expression of given scheme by providing the

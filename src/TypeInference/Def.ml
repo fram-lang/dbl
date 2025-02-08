@@ -5,6 +5,7 @@
 (** Type-inference for definitions *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 let switch_to_check_mode (type dir) env (req : (T.typ, dir) request) :

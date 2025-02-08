@@ -5,6 +5,7 @@
 (** Scheme-inference for polymorphic expressions *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 (** Result of scheme-checking of a polymorphic expression definition. *)

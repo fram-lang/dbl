@@ -5,6 +5,7 @@
 (** Type-inference for match clauses and related constructs *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 let check_match_clause ~tcfix env tp (cl : S.match_clause) res_tp =

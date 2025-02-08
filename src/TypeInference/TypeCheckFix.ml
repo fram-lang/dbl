@@ -6,6 +6,7 @@
   modules. *)
 
 open Common
+open BiDirectional
 
 (** Result of bidirectional type checking of expressions. *)
 type 'dir expr_result =

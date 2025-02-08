@@ -5,6 +5,7 @@
 (** Type-inference for expressions and related syntactic categories *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 (* ------------------------------------------------------------------------- *)

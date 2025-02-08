@@ -5,6 +5,7 @@
 (** Type-inference for match clauses and related constructs *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
 (** Check pattern-matching clauses
