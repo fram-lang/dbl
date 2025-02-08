@@ -25,7 +25,7 @@ val add_tvar :
   position should point to the place of binding in the source code. The
   optional name is used for pretty-printing purposes. *)
 val add_anon_tvar :
-  ?pos:Position.t -> ?name:string ->
+  ?pos:Position.t -> ?pp_uid:PPTree.uid -> ?name:string ->
     'st t -> T.kind -> 'st t * T.tvar
 
 (** Extend the environment with an alias for an existing type variable.

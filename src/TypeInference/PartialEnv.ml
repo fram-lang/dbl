@@ -213,11 +213,13 @@ let join ~pp penv1 penv2 =
 (* ========================================================================= *)
 
 let introduce_type_param (env, ren) (pos, _, x) =
-  let (env, y) = Env.add_anon_tvar ~pos env (T.TVar.kind x) in
+  let (env, y) =
+    Env.add_anon_tvar ~pos ~pp_uid:(T.TVar.pp_uid x) env (T.TVar.kind x) in
   (env, T.Ren.add_tvar ren x y)
 
 let introduce_anon_tvar x (_, pos) (env, ren) =
-  let (env, y) = Env.add_anon_tvar ~pos env (T.TVar.kind x) in
+  let (env, y) =
+    Env.add_anon_tvar ~pos ~pp_uid:(T.TVar.pp_uid x) env (T.TVar.kind x) in
   (env, T.Ren.add_tvar ren x y)
 
 let introdce_tvar_alias name info (env, ren) =

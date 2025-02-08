@@ -78,8 +78,8 @@ let add_tvar ?pos ?(public=false) (Env env) name kind =
     } in
   (env, x)
 
-let add_anon_tvar ?pos ?name (Env env) kind =
-  let x = T.TVar.fresh ~scope:env.scope kind in
+let add_anon_tvar ?pos ?pp_uid ?name (Env env) kind =
+  let x = T.TVar.fresh ?pp_uid ~scope:env.scope kind in
   let env =
     Env { env with
       pp_tree = PPTree.add_anon ?pos ?name env.pp_tree (T.TVar.pp_uid x)
