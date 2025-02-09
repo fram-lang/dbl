@@ -17,8 +17,7 @@ val no_reinst : reinst_list
   that could be reinstantiated, list of type variables, list of introduced
   named parameters, and the body of the scheme. *)
 val open_scheme : pos:Position.t -> 'st Env.t -> T.scheme ->
-  'st Env.t * reinst_list *
-    T.named_tvar list * (T.name * T.var * T.scheme) list * T.typ
+  'st Env.t * reinst_list * T.tvar list * T.var list * T.typ
 
 (** Implicitly introduce all variables and named parameters in case of
   explicit binding of named parameters. Returns extended environment, list of
@@ -43,18 +42,18 @@ val instantiate :
     T.expr * T.typ * Constr.t list
 
 (** Coerce a named parameter (polymorphic expression) of given scheme to an
-  another scheme. Returns coerced expression and the list of generated
+  another scheme. Returns coerced function and the list of generated
   constraints. This function is basically a combination of [open_scheme]
   followed by [instantiate]. *)
 val coerce_scheme :
   pos:Position.t -> name:Name.t ->
   'st Env.t -> T.poly_expr -> T.scheme -> T.scheme ->
-    T.poly_expr * Constr.t list
+    T.poly_fun * Constr.t list
 
 (** Resolve an implicit parameter of given scheme in given environment. *)
 val resolve_implicit :
   pos:Position.t -> 'st Env.t -> S.iname -> T.scheme ->
-    T.poly_expr * Constr.t list
+    T.poly_fun * Constr.t list
 
 (** Resolve a method parameter of given scheme in given environment. If the
   [~method_env] argument is provided, the method is searched in the
@@ -65,4 +64,4 @@ val resolve_implicit :
 val resolve_method :
   ?vset:Var.Set.t ->
   pos:Position.t -> 'st Env.t -> ?method_env:'st Env.t ->
-    S.method_name -> T.scheme -> T.poly_expr * Constr.t list
+    S.method_name -> T.scheme -> T.poly_fun * Constr.t list

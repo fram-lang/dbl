@@ -405,8 +405,8 @@ let rec preprocess_val_insts env (insts : S.inst list) (names : Names.t) =
 (** Maps that represents values of named parameters *)
 module Insts = struct
   type t =
-    { val_insts    : T.poly_expr Name.Map.t;
-      method_insts : T.poly_expr StrMap.t
+    { val_insts    : T.poly_fun Name.Map.t;
+      method_insts : T.poly_fun StrMap.t
     }
 
   let empty =
@@ -451,7 +451,10 @@ let default_check_provided ~tcfix ~wrap env e sch =
   match PolyExpr.check_def_scheme ~tcfix env e sch with
   | Mono er ->
     let (x_var, i_ctx) = let_mono_ctx er in
-    (i_ctx, wrap { T.pos = e.pos; T.data = T.EVar x_var })
+    let make data = { T.pos = e.pos; T.data } in
+    let e =
+      make (T.PF_Fun([], [], make (T.EInst(make (T.EVar x_var), [], [])))) in
+    (i_ctx, wrap e)
 
   | Poly(e, cs) ->
     (add_constr_ctx cs, wrap e)
@@ -480,8 +483,7 @@ let check_type_of_val_param ~tcfix env inst insts =
     let (i_ctx, e) =
       default_check_provided ~tcfix
         ~wrap:(fun e ->
-          make (T.EPolyFun([], [],
-            BuiltinTypes.mk_some_poly ~pos:e.pos tp e)))
+          make (T.PF_Fun([], [], BuiltinTypes.mk_some_poly ~pos:e.pos tp e)))
       env e (T.Scheme.of_type tp) in
     let insts = Insts.add_val name e insts in
     (i_ctx, insts)
@@ -496,7 +498,7 @@ let check_type_of_val_param ~tcfix env inst insts =
       env e poly_sch (T.Scheme.of_type tp) in
     let poly_expr =
       { T.pos = pos;
-        T.data = (T.EPolyFun([], [], BuiltinTypes.mk_some_poly ~pos tp e))
+        T.data = (T.PF_Fun([], [], BuiltinTypes.mk_some_poly ~pos tp e))
       } in
     let insts = Insts.add_val (NOptionalVar x) poly_expr insts in
     (add_constr_ctx cs, insts)
@@ -554,7 +556,7 @@ let build_named_params ~pos ~env ~method_env (insts : Insts.t) sch_named =
       | None ->
         let e =
           BuiltinTypes.mk_none ~pos (BuiltinTypes.scheme_to_option_arg sch) in
-        (make (T.EPolyFun([], [], e)), [])
+        (make (T.PF_Fun([], [], e)), [])
       end
 
     | T.NImplicit iname ->

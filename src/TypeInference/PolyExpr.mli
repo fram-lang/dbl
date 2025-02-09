@@ -13,7 +13,7 @@ type check_def_result =
   | Mono of check expr_result
     (** The definition is a monomorphic expression. *)
 
-  | Poly of T.poly_expr * Constr.t list
+  | Poly of T.poly_fun * Constr.t list
     (** The definition is a polymorphic expression. *)
 
 (** Result of scheme-inference of a polymorphic expression definition. *)

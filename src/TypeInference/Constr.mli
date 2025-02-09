@@ -8,7 +8,7 @@ open Common
 
 type t =
   | ResolveMethod : { (** Unknown implictly provided method *)
-      hole : T.poly_expr option BRef.t;
+      hole : T.poly_fun option BRef.t;
         (** Hole to be filled with method implementation *)
 
       vset : Var.Set.t;

@@ -10,7 +10,7 @@ open TypeCheckFix
 
 type check_def_result =
   | Mono of check expr_result
-  | Poly of T.poly_expr * Constr.t list
+  | Poly of T.poly_fun * Constr.t list
 
 type infer_def_result =
   | PPure of T.poly_expr * Name.scheme * Constr.t list
@@ -97,18 +97,18 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
   | [], [], PE_Expr expr -> Mono (check_expr_type env expr sch.sch_body)
 
   | _, _, PE_Expr expr ->
-    let (env, _, targs, named, body_tp) =
+    let (env, _, tvs, xs, body_tp) =
       ParamResolve.open_scheme ~pos env sch in
     let expr = check_expr_type env expr body_tp in
     begin match expr.er_effect with
     | Pure   -> ()
     | Impure -> Error.report (Error.func_not_pure ~pos)
     end;
-    let poly_expr = make (T.EPolyFun(targs, named, expr.er_expr)) in
-    Poly(poly_expr, expr.er_constr)
+    let poly_fun = make (T.PF_Fun(tvs, xs, expr.er_expr)) in
+    Poly(poly_fun, expr.er_constr)
 
   | _, _, PE_Poly poly_expr ->
-    let (env, rctx, targs, named, body_tp) =
+    let (env, rctx, tvs, xs, body_tp) =
       ParamResolve.open_scheme ~pos env sch in
     let (ictx, poly_expr, sch') =
       infer_use_scheme ~tcfix ~app_type:body_tp env poly_expr in
@@ -124,15 +124,15 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     Error.check_unify_result ~pos
       (Unification.subtype env expr_tp body_tp)
       ~on_error:(Error.expr_type_mismatch ~pp expr_tp body_tp);
-    begin match targs, named with
+    begin match tvs, xs with
     | [], [] -> Mono { expr with er_type = Checked }
     | _, _ ->
       begin match expr.er_effect with
       | Pure   -> ()
       | Impure -> Error.report (Error.func_not_pure ~pos)
       end;
-      let poly_expr = make (T.EPolyFun(targs, named, expr.er_expr)) in
-      Poly(poly_expr, expr.er_constr)
+      let poly_fun = make (T.PF_Fun(tvs, xs, expr.er_expr)) in
+      Poly(poly_fun, expr.er_constr)
     end
 
   | _, _, PE_Fn(pats, body) ->
@@ -140,6 +140,8 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
       ParamResolve.open_scheme_explicit ~pos env sch in
     let (env, pats, pat_eff) =
       Pattern.check_named_patterns_ext ~pos env pats targs named in
+    let tvs  = List.map snd targs in
+    let xs   = List.map (fun (_, x, _) -> x) named in
     let body = check_expr_type env body body_tp in
     let eff = T.Effect.join pat_eff body.er_effect in
     begin match eff with
@@ -147,8 +149,8 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     | Impure -> Error.report (Error.func_not_pure ~pos)
     end;
     let body_expr = ExprUtils.match_args pats body.er_expr body_tp eff in
-    let poly_expr = make (T.EPolyFun(targs, named, body_expr)) in
-    Poly(poly_expr, body.er_constr)
+    let poly_fun = make (T.PF_Fun(tvs, xs, body_expr)) in
+    Poly(poly_fun, body.er_constr)
 
 (* ------------------------------------------------------------------------- *)
 let infer_def_result_of_expr ~pos expr =
@@ -214,9 +216,6 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
         Name.sch_body  = body_tp
       } in
     let named =
-      List.map
-        (fun (name, x, _, sch) ->
-          (Name.to_unif name, x, T.SchemeExpr.to_scheme sch))
-      named in
+      List.map (fun (name, x, _, sch) -> (Name.to_unif name, x, sch)) named in
     let poly_expr = { T.pos; T.data = T.EPolyFun(targs, named, body_expr) } in
     PPure(poly_expr, sch, body.er_constr)

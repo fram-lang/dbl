@@ -79,19 +79,24 @@ and pattern_data =
 type poly_expr = poly_expr_data node
 and poly_expr_data =
   | EVar     of var
-  | EPolyFun of named_tvar list * (name * var * scheme) list * expr
   | ECtor    of named_tvar list * proof_expr * int
-  | EHole    of poly_expr option BRef.t
+  | EPolyFun of named_tvar list * (name * var * scheme_expr) list * expr
+  | EGen     of named_tvar list * (name * var * scheme_expr) list * poly_expr
+
+and poly_fun = poly_fun_data node
+and poly_fun_data =
+  | PF_Fun  of tvar list * var list * expr
+  | PF_Hole of poly_fun option BRef.t
 
 and expr = expr_data node
 and expr_data =
-  | EInst       of poly_expr * type_expr list * poly_expr list
+  | EInst       of poly_expr * type_expr list * poly_fun list
   | ENum        of int
   | ENum64      of int64
   | EStr        of string
   | EChr        of char
-  | EFn         of var * scheme * expr * effct
-  | EAppPoly    of expr * poly_expr
+  | EFn         of var * scheme_expr option * expr * effct
+  | EAppPoly    of expr * poly_fun
   | EAppMono    of expr * expr
   | ELetPoly    of var * poly_expr * expr
   | ELetMono    of var * expr * expr
@@ -130,7 +135,7 @@ and rec_def =
     rd_poly_var : var;
     rd_var      : var;
     rd_scheme   : scheme_expr;
-    rd_body     : poly_expr;
+    rd_body     : poly_fun;
   }
 
 and match_clause = pattern * expr

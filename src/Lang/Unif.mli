@@ -272,23 +272,35 @@ and poly_expr_data =
   | EVar of var
     (** Variable *)
 
-  | EPolyFun of named_tvar list * (name * var * scheme) list * expr
-    (** Polymorphic lambda abstraction. Always pure *)
-
   | ECtor of named_tvar list * proof_expr * int
     (** ADT constructor. The first parameter is a list of type parameters of
       the ADT, that are prepended to the scheme of the constructor. The
       remaining parameters are the shape proof and the index of the
       constructor. *)
 
-  | EHole of poly_expr option BRef.t
-    (** Placeholder for a polymorphic expression, to be filled by constraint
+  | EPolyFun of named_tvar list * (name * var * scheme_expr) list * expr
+    (** Polymorphic lambda abstraction. Always pure *)
+
+  | EGen of named_tvar list * (name * var * scheme_expr) list * poly_expr
+    (** Polymorphic lambda abstraction that generalizez extra parameters.
+      Always pure. In the scheme of this expression, the type parameters
+      and named parameters are prepended to the type parameters and named
+      parameters, respectively, of the body. *)
+
+(** Polymorphic function. The scheme should be known from the context. *)
+and poly_fun = poly_fun_data node
+and poly_fun_data =
+  | PF_Fun of tvar list * var list * expr
+    (** Polymorphic lambda abstraction. Always pure *)
+
+  | PF_Hole of poly_fun option BRef.t
+    (** Placeholder for a polymorphic function, to be filled by constraint
       solving. *)
 
 (** Expression *)
 and expr = expr_data node
 and expr_data =
-  | EInst of poly_expr * type_expr list * poly_expr list
+  | EInst of poly_expr * type_expr list * poly_fun list
     (** Instantiation of polymorphic expression *)
 
   | ENum of int
@@ -303,17 +315,19 @@ and expr_data =
   | EChr of char
     (** String literal *)
 
-  | EFn of var * scheme * expr * effct
-    (** Effect-annotated lambda-abstraction *)
+  | EFn of var * scheme_expr option * expr * effct
+    (** Effect-annotated lambda-abstraction. The scheme annotation can be
+      omitted, when the expression is in type-checking mode, i.e., on the
+      argument position of a function application, or in a let-definition. *)
 
-  | EAppPoly of expr * poly_expr
+  | EAppPoly of expr * poly_fun
     (** Function application to polymorphic expression *)
 
   | EAppMono of expr * expr
     (** Function application to regular, possibly effectful expression *)
 
   | ELetPoly of var * poly_expr * expr
-    (** Polymorphic let-definition *)
+    (** Let-definition with polymorphic expression *)
 
   | ELetMono of var * expr * expr
     (** Monomorphic let-definition *)
@@ -435,7 +449,7 @@ and rec_def =
     (** Scheme of the definition, or more precisely, the scheme of [rd_var].
       It doesn't contain common parameters. *)
 
-    rd_body     : poly_expr;
+    rd_body     : poly_fun;
     (** Body of the definition *)
   }
 

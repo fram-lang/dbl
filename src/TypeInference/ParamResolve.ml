@@ -70,26 +70,22 @@ let open_scheme_types ~pos env targs =
 
 let open_scheme_values ~pos ~sub env named =
   let open_named (env, rctx) (name, sch) =
-    let sch = T.Scheme.subst sub sch in
-    let (env, rctx, x) =
-      match name with
-      | T.NVar name ->
-        let (rctx, x) = Reinst.add_var rctx name sch in
-        (env, rctx, x)
-      | T.NOptionalVar name ->
-        let tp = BuiltinTypes.scheme_to_option_arg sch in
-        let (rctx, x) = Reinst.add_optional rctx name tp in
-        (env, rctx, x)
-      | T.NImplicit iname ->
-        let (env, x) = Env.add_implicit env iname sch in
-        (env, rctx, x)
-      | T.NMethod name ->
-        let pp = Env.pp_tree env in
-        let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
-        let (env, x) = Env.add_method env owner name sch in
-        (env, rctx, x)
-    in
-    ((env, rctx), (name, x, sch))
+    match name with
+    | T.NVar name ->
+      let (rctx, x) = Reinst.add_var rctx name sch in
+      ((env, rctx), x)
+    | T.NOptionalVar name ->
+      let tp = BuiltinTypes.scheme_to_option_arg sch in
+      let (rctx, x) = Reinst.add_optional rctx name tp in
+      ((env, rctx), x)
+    | T.NImplicit iname ->
+      let (env, x) = Env.add_implicit env iname sch in
+      ((env, rctx), x)
+    | T.NMethod name ->
+      let pp = Env.pp_tree env in
+      let owner = NameUtils.method_owner_of_scheme ~pos ~pp sch in
+      let (env, x) = Env.add_method env owner name sch in
+      ((env, rctx), x)
   in
   let ((env, rctx), xs) =
     List.fold_left_map open_named (env, Reinst.empty) named in
@@ -99,7 +95,7 @@ let open_scheme ~pos env (sch : T.scheme) =
   let (env, tvs, sub) = open_scheme_types ~pos env sch.sch_targs in
   let (env, rctx, xs) = open_scheme_values ~pos ~sub env sch.sch_named in
   let body = T.Type.subst sub sch.sch_body in
-  (env, rctx, tvs, xs, body)
+  (env, rctx, List.map snd tvs, xs, body)
 
 let open_scheme_values_explicit ~pos ~sub env named =
   let open_named env (name, sch) =
@@ -158,7 +154,7 @@ let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
   let (named, cs) =
     resolve_params ~sub ~vset ~pos env rctx sch_in.sch_named in
   let make data = { T.pos; T.data } in
-  let e = make (T.EPolyFun(tvs, xs, make (T.EInst(e, tps, named)))) in
+  let e = make (T.PF_Fun(tvs, xs, make (T.EInst(e, tps, named)))) in
   (e, cs)
 
 and resolve_params ~sub ~vset ~pos env rctx named =
@@ -195,12 +191,13 @@ and resolve_optional ~vset ~pos env rctx x sch =
   let tp = BuiltinTypes.scheme_to_option_arg sch in
   let name = Name.NOptionalVar x in
   let pp = Env.pp_tree env in
+  let make data = { T.pos; T.data } in
   begin match Reinst.lookup_var rctx x with
   | Some (ROpt(y, y_tp)) ->
     Error.check_unify_result ~pos
       (Unification.subtype env y_tp tp)
       ~on_error:(Error.named_param_type_mismatch ~pp name y_tp tp);
-    let e = { T.pos; T.data = T.EVar y } in
+    let e = make (T.PF_Fun([], [], make (T.EInst(make (T.EVar y), [], [])))) in
     (e, [])
 
   | Some (RReg(y, y_sch)) ->
@@ -209,12 +206,12 @@ and resolve_optional ~vset ~pos env rctx x sch =
     let (e, cs) =
       coerce_scheme ~vset ~pos ~name env e y_sch (T.Scheme.of_type tp) in
     let e = BuiltinTypes.mk_some_poly ~pos tp e in
-    let e = { T.pos; T.data = T.EPolyFun([], [], e) } in
+    let e = { T.pos; T.data = T.PF_Fun([], [], e) } in
     (e, cs)
 
   | None ->
     let e = BuiltinTypes.mk_none ~pos tp in
-    let e = { T.pos; T.data = T.EPolyFun([], [], e) } in
+    let e = { T.pos; T.data = T.PF_Fun([], [], e) } in
     (e, [])
   end
 
@@ -251,7 +248,7 @@ and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
     end
   | None ->
     let hole = BRef.create None in
-    let e = { T.pos; T.data = T.EHole hole } in
+    let e = { T.pos; T.data = T.PF_Hole hole } in
     let constr =
       Constr.ResolveMethod
         { hole; vset; pos; env; method_env; self_tp; mname; sch } in
