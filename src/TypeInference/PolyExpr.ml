@@ -30,7 +30,10 @@ let plug_inst_context ctx expr =
 let method_call_ctx pos env self =
   InstCtx (fun expr ->
     let result_expr =
-      { T.pos = pos; T.data = T.EAppMono(expr.er_expr, self.er_expr) } in
+      { T.pos  = pos;
+        T.pp   = Env.pp_tree env;
+        T.data = T.EAppMono(expr.er_expr, self.er_expr)
+      } in
     let self_tp = expr_result_type self in
     match T.Type.view (expr_result_type expr) with
     | TArrow(
@@ -56,7 +59,11 @@ let lookup_method ~pos env self_tp name =
   | Some own ->
     begin match ModulePath.try_lookup_method ~pos env own name with
     | Some(x, sch) ->
-      let poly_expr = { T.pos = pos; T.data = T.EVar x } in
+      let poly_expr =
+        { T.pos  = pos;
+          T.pp   = Env.pp_tree env;
+          T.data = T.EVar x
+        } in
       (poly_expr, sch)
     | None ->
       let pp = Env.pp_tree env in
@@ -92,7 +99,7 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
   let open (val tcfix : TCFix) in
   let pos = e.pos in
   let pp = Env.pp_tree env in
-  let make data = { T.data; T.pos } in
+  let make data = T.{ pos; pp; data } in
   match sch.sch_targs, sch.sch_named, e.data with
   | [], [], PE_Expr expr -> Mono (check_expr_type env expr sch.sch_body)
 
@@ -153,8 +160,8 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     Poly(poly_fun, body.er_constr)
 
 (* ------------------------------------------------------------------------- *)
-let infer_def_result_of_expr ~pos expr =
-  let make data = { T.data; T.pos } in
+let infer_def_result_of_expr ~pos env expr =
+  let make data = { T.pos = pos; T.pp = Env.pp_tree env; T.data } in
   match expr.er_effect with
   | Pure ->
     let poly_expr = make (T.EPolyFun([], [], expr.er_expr)) in
@@ -166,10 +173,11 @@ let infer_def_result_of_expr ~pos expr =
 let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
   let open (val tcfix : TCFix) in
   let pos = e.pos in
+  let make data = { T.pos = pos; T.pp = Env.pp_tree env; T.data } in
   match e.data with
   | PE_Expr expr ->
     let expr = infer_expr_type env expr in
-    infer_def_result_of_expr ~pos expr
+    infer_def_result_of_expr ~pos env expr
 
   | PE_Poly poly_expr ->
     let (ictx, poly_expr, sch) = infer_use_scheme ~tcfix env poly_expr in
@@ -187,7 +195,7 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
           er_effect = Pure;
           er_constr = cs
         } in
-      infer_def_result_of_expr ~pos (f expr)
+      infer_def_result_of_expr ~pos env (f expr)
     end
 
   | PE_Fn(pats, body) ->
@@ -217,5 +225,5 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
       } in
     let named =
       List.map (fun (name, x, _, sch) -> (Name.to_unif name, x, sch)) named in
-    let poly_expr = { T.pos; T.data = T.EPolyFun(targs, named, body_expr) } in
+    let poly_expr = make (T.EPolyFun(targs, named, body_expr)) in
     PPure(poly_expr, sch, body.er_constr)

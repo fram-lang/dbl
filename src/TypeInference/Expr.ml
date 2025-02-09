@@ -21,9 +21,9 @@ let tr_expr : type dir. tcfix:tcfix ->
 (* ------------------------------------------------------------------------- *)
 let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   let open (val tcfix : TCFix) in
-  let make data = { e with data = data } in
   let pos = e.pos in
   let pp = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match e.data with
   | EMatch _ | EEffect _ | EExtern _ | ERepl _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
@@ -175,7 +175,8 @@ let check_label ~tcfix ~pos env lbl_opt =
       begin match ModulePath.try_lookup_the_label ~pos env with
       | None -> Error.fatal (Error.unbound_the_label ~pos)
       | Some(x, sch) ->
-        let lbl = { T.pos = pos; T.data = T.EVar x } in
+        let lbl =
+          { T.pos = pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
         ParamResolve.instantiate ~pos env ParamResolve.no_reinst lbl sch
       end
   in
@@ -223,6 +224,7 @@ let rec check_repl_def_seq ~tcfix env def_seq tp =
       er.er_expr
   in
   { T.pos  = Position.nowhere;
+    T.pp   = Env.pp_tree env;
     T.data = T.ERepl(InterpLib.Error.wrap_repl_cont func, tp)
   }
 
@@ -239,9 +241,9 @@ let check_expr_type_default ~tcfix env (e : S.expr) tp =
 (* ------------------------------------------------------------------------- *)
 let check_expr_type ~tcfix env (e : S.expr) tp =
   let open (val tcfix : TCFix) in
-  let make data = { e with data = data } in
   let pos = e.pos in
   let pp = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match e.data with
   | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _
   | EAnnot _ ->

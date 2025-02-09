@@ -44,6 +44,7 @@ let to_ctor_decl (cde : ctor_decl_expr) =
 
 let mono_scheme_expr (tp : type_expr) =
   { se_pos   = tp.pos;
+    se_pp    = tp.pp;
     se_targs = [];
     se_named = [];
     se_body  = tp
@@ -51,7 +52,8 @@ let mono_scheme_expr (tp : type_expr) =
 
 let of_scheme_expr (sch : scheme_expr) =
   match sch with
-  | { se_pos = _; se_targs = []; se_named = []; se_body } -> Some se_body
+  | { se_pos = _; se_pp = _; se_targs = []; se_named = []; se_body } ->
+    Some se_body
   | _ -> None
 
 let rec subst sub (tp : type_expr) =
@@ -88,6 +90,7 @@ and subst_in_scheme sub (sch : scheme_expr) =
   let (sub, targs) =
     Subst.add_named_tvars (Subst.enter_scope sub) sch.se_targs in
   { se_pos   = sch.se_pos;
+    se_pp    = sch.se_pp;
     se_targs = targs;
     se_named = List.map (subst_in_named_scheme sub) sch.se_named;
     se_body  = subst sub sch.se_body

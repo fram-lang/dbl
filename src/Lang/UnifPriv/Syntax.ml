@@ -7,6 +7,12 @@
 open SyntaxNode
 open TypeBase
 
+type 'a node = {
+  pos  : Position.t;
+  pp   : PPTree.t;
+  data : 'a
+}
+
 type type_expr = type_expr_data node
 and type_expr_data =
   | TE_Type      of typ
@@ -31,6 +37,7 @@ and type_expr_data =
 
 and scheme_expr = {
   se_pos   : Position.t;
+  se_pp    : PPTree.t;
   se_targs : named_tvar list;
   se_named : named_scheme_expr list;
   se_body  : type_expr
@@ -132,6 +139,7 @@ and expr_data =
 
 and rec_def =
   { rd_pos      : Position.t;
+    rd_pp       : PPTree.t;
     rd_poly_var : var;
     rd_var      : var;
     rd_scheme   : scheme_expr;

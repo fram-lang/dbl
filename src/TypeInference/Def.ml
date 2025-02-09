@@ -24,6 +24,12 @@ let check_def : type st dir. tcfix:tcfix ->
   let open (val tcfix : TCFix) in
   let make (rest : _ expr_result) data =
     { T.pos  = Position.join def.pos rest.er_expr.pos;
+      T.pp   = Env.pp_tree env;
+      T.data = data
+    } in
+  let make_local data =
+    { T.pos  = def.pos;
+      T.pp   = Env.pp_tree env;
       T.data = data
     } in
   let pos = def.pos in
@@ -93,12 +99,12 @@ let check_def : type st dir. tcfix:tcfix ->
       { tvar     = x;
         var      = lx;
         delim_tp = delim_tp;
-        annot    = { def with data = T.TE_Type delim_tp }
+        annot    = make_local (T.TE_Type delim_tp)
       } in
     let expr =
       make rest (T.EData([dd],
         make rest (T.EMatch(
-          { pos; data = T.EInst({ pos; data = T.EVar lx }, [], []) },
+          make_local (T.EInst(make_local (T.EVar lx), [], [])),
           [(pat, rest.er_expr)], tp, rest_eff)))) in
     { er_expr   = expr;
       er_type   = resp;
@@ -126,7 +132,7 @@ let check_def : type st dir. tcfix:tcfix ->
       let expr =
         make rest (T.EHandle(eff_tvar, hx, hexp.er_expr,
           make rest (T.EMatch(
-            { pos; data = T.EInst({ pos; data =T.EVar hx }, [], []) },
+            make_local (T.EInst(make_local (T.EVar hx), [], [])),
             [(pat, rest.er_expr)], tp_out, Impure)))) in
       let resp : (_, dir) response =
         match req with
@@ -159,10 +165,7 @@ let check_def : type st dir. tcfix:tcfix ->
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
       | None     ->
-        let tp =
-          { T.pos  = def.pos;
-            T.data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type) }
-        in
+        let tp = make_local (T.TE_Type (Env.fresh_uvar env T.Kind.k_type)) in
         T.SchemeExpr.of_type_expr tp
     in
     let env = ParamGen.end_generalize_declare ~pos params env name x sch in

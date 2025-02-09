@@ -37,7 +37,7 @@ let tr_opt_clauses (type dir) ~tcfix ~pos env tp_in cls
     (rtp_req : (_, dir) request) ~(on_error : pos:_ -> _) :
     _ * dir expr_result =
   let x = Var.fresh () in
-  let make data = { T.pos; data } in
+  let make data = { T.pos; T.pp = Env.pp_tree env; data } in
   let x_expr = make (T.EInst(make (T.EVar x), [], [])) in
   match cls, rtp_req with
   | [], Infer ->

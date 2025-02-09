@@ -26,10 +26,10 @@ let select_named_type name tvars =
 let select_named_pattern name named =
   List.find_opt (fun np -> Name.equal np.name name) named
 
-let make_pattern ~pos np =
+let make_pattern ~pos ~pp np =
   let pat =
     match np.pat with
-    | None     -> { T.pos; T.data = T.PWildcard }
+    | None     -> { T.pos; T.pp; T.data = T.PWildcard }
     | Some pat -> pat
   in
   { pat with data = T.PAs(pat, np.var) }
@@ -194,9 +194,9 @@ let tr_named_scheme_annot env (name : Name.t) sch_expr =
 (* ========================================================================= *)
 
 let rec check_scheme env (pat : S.pattern) sch =
-  let make data = { pat with T.data = data } in
   let pos = pat.pos in
   let pp = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match pat.data with
   | PWildcard ->
     (PartialEnv.empty, make T.PWildcard, T.Pure)
@@ -222,9 +222,9 @@ let rec check_scheme env (pat : S.pattern) sch =
     check_scheme env pat sch'
 
 and check_type env (pat : S.pattern) tp =
-  let make data = { pat with T.data = data } in
   let pos = pat.pos in
   let pp = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match pat.data with
   | PWildcard | PId _ | PAnnot _ ->
     let sch = T.Scheme.of_type tp in
@@ -239,7 +239,7 @@ and check_type env (pat : S.pattern) tp =
     let (env, penv, tvars, named, arg_schemes) = open_ctor ~pos env ctor in
     let (env, penv, named, eff1) =
       check_named_patterns ~pos env penv named_pats tvars named in
-    let ps1 = List.map (make_pattern ~pos) named in
+    let ps1 = List.map (make_pattern ~pos ~pp) named in
     if List.length arg_schemes <> List.length pats then
       Error.fatal (Error.ctor_arity_mismatch ~pos:pat.pos
         cpath (List.length arg_schemes) (List.length pats));
@@ -283,11 +283,11 @@ and check_named_patterns ~pos env penv named_pats tvars named =
 
 and check_named_pattern env np tvars named =
   match np.data with
-  | NP_Type(_, { T.data = (TNAnon, _); _ }) ->
+  | NP_Type(_, { S.data = (TNAnon, _); _ }) ->
     Error.report (Error.anonymous_type_pattern ~pos:np.pos);
     (env, PartialEnv.empty, T.Pure)
 
-  | NP_Type(public, { T.data = (TNVar name, arg); T.pos = pos }) ->
+  | NP_Type(public, { S.data = (TNVar name, arg); S.pos = pos }) ->
     begin match select_named_type name tvars, arg.data with
     | Some x, TA_Wildcard ->
       (env, PartialEnv.empty, T.Pure)
@@ -371,7 +371,12 @@ let infer_scheme env (pat : S.pattern) =
   match pat.data with
   | PWildcard | PId _ | PCtor _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
-    let sch = T.SchemeExpr.of_type_expr { pat with data = T.TE_Type tp } in
+    let tp_expr =
+      { T.pos  = pat.pos;
+        T.pp   = Env.pp_tree env;
+        T.data = T.TE_Type tp
+      } in
+    let sch = T.SchemeExpr.of_type_expr tp_expr in
     let (penv, pat, eff) = check_type env pat tp in
     (penv, pat, sch, eff)
 
@@ -419,7 +424,10 @@ let infer_named_pattern env (np : S.named_pattern) =
             (Error.polymorphic_optional_parameter ~pos:sch_expr.se_pos)
         end
       | None ->
-        { np with data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type) }
+        { T.pos  = np.pos;
+          T.pp   = Env.pp_tree env;
+          T.data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type)
+        }
     in
     let sch_expr = BuiltinTypes.mk_option_scheme_expr tp_expr in
     let (penv, pat, eff) =

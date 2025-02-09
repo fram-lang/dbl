@@ -125,7 +125,8 @@ let open_scheme_explicit ~pos env (sch : T.scheme) =
 let guess_types ~pos env targs =
   let guess_type sub (_, x) =
     let tp = Env.fresh_uvar env (T.TVar.kind x) in
-    (T.Subst.add_type sub x tp, { T.pos; T.data = T.TE_Type tp })
+    let tp_expr = { T.pos; T.pp = Env.pp_tree env; T.data = T.TE_Type tp } in
+    (T.Subst.add_type sub x tp, tp_expr)
   in
   let scope = Env.scope env in
   List.fold_left_map guess_type (T.Subst.empty ~scope) targs
@@ -141,6 +142,7 @@ let restrict_var ~vset ~pos ~pp x name =
 (* ------------------------------------------------------------------------- *)
 
 let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
+  let make data = { T.pos; T.pp = Env.pp_tree env; T.data } in
   let (env, rctx, tvs, xs, tp_out) = open_scheme ~pos env sch_out in
   (* Now, we do basically the same as in [instantiate], but we perform
     unification just afeter guessing types, in order to get more precise
@@ -153,7 +155,6 @@ let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
     ~on_error:(Error.named_param_type_mismatch ~pp name tp_in tp_out);
   let (named, cs) =
     resolve_params ~sub ~vset ~pos env rctx sch_in.sch_named in
-  let make data = { T.pos; T.data } in
   let e = make (T.PF_Fun(tvs, xs, make (T.EInst(e, tps, named)))) in
   (e, cs)
 
@@ -172,7 +173,7 @@ and resolve_param ~vset ~pos env rctx name sch =
     begin match Reinst.lookup_var rctx x with
     | Some (RReg(y, y_sch)) ->
       let vset = restrict_var ~vset ~pos ~pp:(Env.pp_tree env) y (NVar x) in
-      let e = { T.pos; T.data = T.EVar y } in
+      let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.EVar y } in
       coerce_scheme ~vset ~pos ~name:(NVar x) env e y_sch sch
     | Some (ROpt _) | None ->
       Error.fatal (Error.cannot_resolve_named_param ~pos x)
@@ -191,7 +192,7 @@ and resolve_optional ~vset ~pos env rctx x sch =
   let tp = BuiltinTypes.scheme_to_option_arg sch in
   let name = Name.NOptionalVar x in
   let pp = Env.pp_tree env in
-  let make data = { T.pos; T.data } in
+  let make data = T.{ pos; pp; data } in
   begin match Reinst.lookup_var rctx x with
   | Some (ROpt(y, y_tp)) ->
     Error.check_unify_result ~pos
@@ -202,16 +203,16 @@ and resolve_optional ~vset ~pos env rctx x sch =
 
   | Some (RReg(y, y_sch)) ->
     let vset = restrict_var ~vset ~pos ~pp y name in
-    let e = { T.pos; T.data = T.EVar y } in
+    let e = make (T.EVar y) in
     let (e, cs) =
       coerce_scheme ~vset ~pos ~name env e y_sch (T.Scheme.of_type tp) in
-    let e = BuiltinTypes.mk_some_poly ~pos tp e in
-    let e = { T.pos; T.data = T.PF_Fun([], [], e) } in
+    let e = BuiltinTypes.mk_some_poly ~pos ~pp tp e in
+    let e = make (T.PF_Fun([], [], e)) in
     (e, cs)
 
   | None ->
-    let e = BuiltinTypes.mk_none ~pos tp in
-    let e = { T.pos; T.data = T.PF_Fun([], [], e) } in
+    let e = BuiltinTypes.mk_none ~pos ~pp tp in
+    let e = make (T.PF_Fun([], [], e)) in
     (e, [])
   end
 
@@ -222,7 +223,7 @@ and resolve_implicit ~vset ~pos env rctx iname sch =
     Error.fatal (Error.cannot_resolve_implicit ~pos iname)
   | Some(x, x_sch) ->
     let vset = restrict_var ~vset ~pos ~pp:(Env.pp_tree env) x name in
-    let e = { T.pos; T.data = T.EVar x } in
+    let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
     coerce_scheme ~vset ~pos ~name env e x_sch sch
 
 and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
@@ -240,7 +241,7 @@ and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
     begin match ModulePath.try_lookup_method ~pos method_env owner mname with
     | Some(x, x_sch) ->
       let vset = restrict_var ~vset ~pos ~pp x name in
-      let e = { T.pos; T.data = T.EVar x } in
+      let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
       coerce_scheme ~vset ~pos ~name env e x_sch sch
 
     | None ->
@@ -248,7 +249,7 @@ and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
     end
   | None ->
     let hole = BRef.create None in
-    let e = { T.pos; T.data = T.PF_Hole hole } in
+    let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.PF_Hole hole } in
     let constr =
       Constr.ResolveMethod
         { hole; vset; pos; env; method_env; self_tp; mname; sch } in
@@ -259,7 +260,11 @@ let instantiate ~pos env rctx poly_expr (sch : T.scheme) =
   let vset = Var.Set.empty in
   let (sub, tps) = guess_types ~pos env sch.sch_targs in
   let (named, cs) = resolve_params ~sub ~vset ~pos env rctx sch.sch_named in
-  let e = { T.pos; T.data = T.EInst(poly_expr, tps, named) } in
+  let e =
+    { T.pos  = pos;
+      T.pp   = Env.pp_tree env;
+      T.data = T.EInst(poly_expr, tps, named)
+    } in
   (e, T.Type.subst sub sch.sch_body, cs)
 
 let coerce_scheme ~pos ~name env poly_expr sch_in sch_out =

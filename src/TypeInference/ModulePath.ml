@@ -49,9 +49,14 @@ let lookup_type env (path : S.tvar S.path) =
 (* ========================================================================= *)
 
 let tr_val_info ~pos ~env (info : Module.val_info) =
+  let make data =
+    { T.pos  = pos;
+      T.pp   = Env.pp_tree env;
+      T.data = data
+    } in
   match info with
   | VI_Var(x, sch) ->
-    ({ T.pos; T.data = T.EVar x }, sch)
+    (make (T.EVar x), sch)
 
   | VI_Ctor(idx, info) ->
     let ctor = List.nth info.adt_ctors idx in
@@ -60,12 +65,12 @@ let tr_val_info ~pos ~env (info : Module.val_info) =
         T.sch_named = ctor.ctor_named;
         T.sch_body  = T.Type.t_pure_arrows ctor.ctor_arg_schemes info.adt_type
       } in
-    (ExprUtils.ctor_func ~pos idx info, sch)
+    (ExprUtils.ctor_func ~pos ~pp:(Env.pp_tree env) idx info, sch)
 
   | VI_Parameter uid ->
     begin match Env.check_val_param ~pos env uid with
     | StValid(x, sch) ->
-      ({ T.pos; T.data = T.EVar x }, sch)
+      (make (T.EVar x), sch)
     | StNotGeneralized(name, decl_pos) ->
       Error.fatal
         (Error.ungeneralizable_named_param

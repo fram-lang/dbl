@@ -13,6 +13,7 @@ let generalize ~pos ~pp tvs named e (sch : Name.scheme) =
     List.map (fun (name, x, sch) -> (Name.to_unif name, x, sch)) named in
   let poly_expr =
     { T.pos  = pos;
+      T.pp   = pp;
       T.data = T.EGen(tvs, poly_args, e)
     } in
   let sch_named =
@@ -28,8 +29,8 @@ let generalize ~pos ~pp tvs named e (sch : Name.scheme) =
 
 (* ========================================================================= *)
 
-let ctor_func ~pos idx (info : Module.adt_info) =
-  let make data = { T.pos; T.data } in
+let ctor_func ~pos ~pp idx (info : Module.adt_info) =
+  let make data = { T.pos; T.pp; T.data } in
   make (T.ECtor(info.adt_args, info.adt_proof, idx))
 
 (* ========================================================================= *)

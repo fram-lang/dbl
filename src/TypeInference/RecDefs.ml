@@ -35,7 +35,7 @@ type def1 =
       ctors        : S.ctor_decl list
     }
 
-  | D1_Section of def1 T.node list
+  | D1_Section of def1 S.node list
 
 (** The main function of the first pass. *)
 let rec prepare_rec_data env (def : S.def) =
@@ -111,7 +111,12 @@ let rec prepare_rec_data env (def : S.def) =
 
 (** The second pass for single definition. See [finalize_rec_data_defs] for
   more details. *)
-let rec finalize_rec_data ~nonrec_scope env (def : def1 T.node) =
+let rec finalize_rec_data ~nonrec_scope env (def : def1 S.node) =
+  let make data =
+    { T.pos  = def.pos;
+      T.pp   = Env.pp_tree env;
+      T.data = data
+    } in
   match def.data with
   | D1_Blank | D1_LetId _ -> (env, [], T.Pure)
 
@@ -121,10 +126,7 @@ let rec finalize_rec_data ~nonrec_scope env (def : def1 T.node) =
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
       | None     ->
-        let tp =
-          { T.pos  = def.pos;
-            T.data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type) }
-        in
+        let tp = make (T.TE_Type (Env.fresh_uvar env T.Kind.k_type)) in
         T.SchemeExpr.of_type_expr tp
     in
     let env =
@@ -136,7 +138,7 @@ let rec finalize_rec_data ~nonrec_scope env (def : def1 T.node) =
     let l_tp = T.Type.t_label delim_tp in
     let annot =
       match sch_opt with
-      | None -> { def with data = T.TE_Type l_tp }
+      | None -> make (T.TE_Type l_tp)
       | Some(sch_pos, sch) ->
         let sch = Type.tr_scheme env sch in
         begin match T.SchemeExpr.to_type_expr sch with
@@ -200,7 +202,8 @@ type rec_fun3 =
     rf3_named   : T.pattern list;
       (** Patterns for explicit named parameters *)
 
-    rf3_args    : (Position.t * T.pattern * T.scheme_expr * T.effct) list;
+    rf3_args    :
+      (Position.t * PPTree.t * T.pattern * T.scheme_expr * T.effct) list;
       (** Formal parameters of the function, together with position and effect
         of the lambda abstractions. *)
 
@@ -224,7 +227,8 @@ type rec_fun_body =
   { rfb_type    : T.type_expr;
       (** Type of the recursive function *)
 
-    rfb_args    : (Position.t * T.pattern * T.scheme_expr * T.effct) list;
+    rfb_args    :
+      (Position.t * PPTree.t * T.pattern * T.scheme_expr * T.effct) list;
       (** Formal parameters of the function, together with position and effect
         of the lambda abstractions. *)
 
@@ -238,14 +242,16 @@ type rec_fun_body =
       (** Guessed type of the body *)
   }
 
-let mk_arrow_type_expr ~pos sch tp eff =
+let mk_arrow_type_expr ~pos ~pp sch tp eff =
   { T.pos  = pos;
+    T.pp   = pp;
     T.data =
       match eff with
       | T.Pure   -> T.TE_PureArrow(sch, tp)
       | T.Impure ->
         let eff =
           { T.pos  = pos;
+            T.pp   = pp;
             T.data = T.TE_Type T.Type.t_effect
           } in
         T.TE_Arrow(sch, tp, eff)
@@ -258,6 +264,7 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
   let pos = e.pos in
   match e.data with
   | EFn(pat, body) ->
+    let fn_pp = Env.pp_tree env in
     let (penv, pat, sch, eff1) = Pattern.infer_scheme env pat in
     (* we ignore renaming, because guessed type cannot contain variables bound
       in the pattern. However, we need to extend the environment in order to
@@ -266,14 +273,14 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
     let body_tp = Env.fresh_uvar env T.Kind.k_type in
     let (rfb, eff2) = guess_rec_fun_type env body body_tp in
     let eff = T.Effect.join eff1 eff2 in
-    let fun_tp_expr = mk_arrow_type_expr ~pos sch rfb.rfb_type eff in
-    let fun_tp = T.TypeExpr.to_type fun_tp_expr in
     let pp = Env.pp_tree env in
+    let fun_tp_expr = mk_arrow_type_expr ~pos ~pp sch rfb.rfb_type eff in
+    let fun_tp = T.TypeExpr.to_type fun_tp_expr in
     Error.check_unify_result ~pos
       (Unification.subtype env fun_tp tp)
       ~on_error:(Error.expr_type_mismatch ~pp fun_tp tp);
     { rfb_type    = fun_tp_expr;
-      rfb_args    = (pos, pat, sch, eff) :: rfb.rfb_args;
+      rfb_args    = (pos, fn_pp, pat, sch, eff) :: rfb.rfb_args;
       rfb_penv    = PartialEnv.join ~pp penv rfb.rfb_penv;
       rfb_body    = rfb.rfb_body;
       rfb_body_tp = rfb.rfb_body_tp
@@ -294,7 +301,8 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
 
   | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _
   | EMatch _ | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
-    { rfb_type    = { T.pos = pos; T.data = T.TE_Type tp };
+    let pp = Env.pp_tree env in
+    { rfb_type    = { T.pos = pos; T.pp = pp; T.data = T.TE_Type tp };
       rfb_args    = [];
       rfb_penv    = PartialEnv.empty;
       rfb_body    = e;
@@ -320,6 +328,7 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     Error.fatal (Error.invalid_rec_def ~pos)
 
   | PE_Fn(nps, body) ->
+    let se_pp = Env.pp_tree env in
     let (env, penv, tvars, named, eff1) =
       Pattern.infer_named_patterns env nps in
     begin match eff1 with
@@ -335,6 +344,7 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     let (rfb, _) = guess_rec_fun_type env body body_tp in
     let sch =
       { T.se_pos   = pos;
+        T.se_pp    = se_pp;
         T.se_targs = List.map (fun (_, name, x) -> (name, x)) tvars;
         T.se_named =
           List.map (fun (name, _, sch) -> (Name.to_unif name, sch)) named;
@@ -352,8 +362,13 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
 
 (** The third pass for a single definition. It returns an option type: value
   [None] means that the definition does not produce any recursive value. *)
-let rec prepare_rec_fun env (def : def1 T.node) =
+let rec prepare_rec_fun env (def : def1 S.node) =
   let pos = def.pos in
+  let make data =
+    { T.pos  = pos;
+      T.pp   = Env.pp_tree env;
+      T.data = data
+    } in
   match def.data with
   | D1_Blank | D1_Label _ | D1_Data _ | D1_ValParam _ -> None
 
@@ -362,12 +377,12 @@ let rec prepare_rec_fun env (def : def1 T.node) =
     let sch = T.SchemeExpr.to_scheme rf3.rf3_scheme in
     let name = NameUtils.tr_ident ~pos ~pp:(Env.pp_tree env) name sch in
     let (env, x) = Env.add_val env name sch in
-    let def = { def with data = D3_LetFun(public, name, x, rf3) } in
+    let def = make (D3_LetFun(public, name, x, rf3)) in
     Some (env, def)
 
   | D1_Section defs ->
     let (env, defs) = prepare_rec_funs env defs in
-    Some (env, { def with data = D3_Section defs })
+    Some (env, make (D3_Section defs))
 
 and prepare_rec_funs env defs =
   match defs with
@@ -400,11 +415,12 @@ type def4 =
 
 (** Build a function from a list of arguments and a body. *)
 let mk_function args body body_tp =
-  let mk_fn (pos, pat, sch, eff) (body, body_tp) =
+  let mk_fn (pos, pp, pat, sch, eff) (body, body_tp) =
     let sch = T.SchemeExpr.to_scheme sch in
     let (x, body) = ExprUtils.match_var pat body body_tp eff in
     let body_tp = T.Type.t_arrow sch body_tp eff in
     { T.pos  = pos;
+      T.pp   = pp;
       T.data = T.EFn(x, None, body, eff)
     }, body_tp
   in
@@ -417,8 +433,8 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
   | D3_LetFun(public, name, x, rf3) ->
     let (body_env, _, targs, ren) =
       PartialEnv.extend env rf3.rf3_targs rf3.rf3_penv in
-    let rename_arg (pos, pat, sch, eff) =
-      (pos, T.Ren.rename_pattern ren pat,
+    let rename_arg (pos, pp, pat, sch, eff) =
+      (pos, pp, T.Ren.rename_pattern ren pat,
         T.Ren.rename_scheme_expr ren sch, eff) in
     let pats = List.map (T.Ren.rename_pattern ren) rf3.rf3_named in
     let args = List.map rename_arg rf3.rf3_args in
@@ -486,10 +502,12 @@ let rec add_rec_fun env targs1 named1 (def : def4 T.node) =
     let body = ExprUtils.match_args pats d.body d.body_tp Pure in
     let body =
       { T.pos  = def.pos;
+        T.pp   = Env.pp_tree env;
         T.data = T.PF_Fun(d.targs, vars, body)
       } in
     let def =
       { T.rd_pos      = def.pos;
+        T.rd_pp       = Env.pp_tree env;
         T.rd_poly_var = y;
         T.rd_var      = d.var;
         T.rd_scheme   = d.scheme;

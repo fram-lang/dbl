@@ -5,8 +5,6 @@
 (** The Unif language: result of type-inference.
   The main feature of the Unif language is a support for type-unification *)
 
-include module type of SyntaxNode.Export
-
 (** Kind unification variable *)
 type kuvar
 
@@ -94,6 +92,22 @@ type ctor_decl = {
 type subst
 
 (* ========================================================================= *)
+(** AST node
+
+  In Unif, AST node contains additional information about location and the
+  context of the pretty-printer. *)
+type 'a node = {
+  pos  : Position.t;
+    (** Location in the source code *)
+
+  pp   : PPTree.t;
+    (** Context of the pretty-printer *)
+
+  data : 'a
+    (** Payload of the node *)
+}
+
+(* ========================================================================= *)
 (** Type expressions
 
   Type expressions are used in a syntax, in contrast to types that are uses
@@ -159,6 +173,9 @@ and type_expr_data =
 and scheme_expr = {
   se_pos   : Position.t;
     (** Location of the scheme expression *)
+
+  se_pp    : PPTree.t;
+    (** Context of the pretty-printer *)
 
   se_targs : named_tvar list;
     (** Type parameters *)
@@ -435,6 +452,9 @@ and expr_data =
 and rec_def =
   { rd_pos      : Position.t;
     (** Position of the definition *)
+
+    rd_pp       : PPTree.t;
+    (** Context of the pretty-printer *)
 
     rd_poly_var : var;
     (** More polymorphic variable that represents the definition. It is bound

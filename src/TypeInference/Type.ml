@@ -17,7 +17,8 @@ let rec tr_kind (k : S.kind_expr) =
 
 let rec infer_kind env (tp : S.type_expr) =
   let pos = tp.pos in
-  let make data = { tp with data } in
+  let pp  = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match tp.data with
   | TWildcard ->
     let k = T.Kind.fresh_uvar () in
@@ -79,8 +80,10 @@ and check_kind env (tp : S.type_expr) k =
     Error.fatal (Error.kind_mismatch ~pos:tp.pos k' k);
 
 and tr_scheme env (sch : S.scheme_expr) =
+  let se_pp = Env.pp_tree env in
   let (env, targs, named) = tr_scheme_args env sch.sch_args in
-  { T.se_pos = sch.sch_pos;
+  { T.se_pos   = sch.sch_pos;
+    T.se_pp    = se_pp;
     T.se_targs = targs;
     T.se_named = named;
     T.se_body  = tr_ttype env sch.sch_body

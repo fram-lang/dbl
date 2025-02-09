@@ -122,7 +122,7 @@ let check_kind_of_type_param env inst =
     if not (Unification.unify_kind tp_kind kind) then
       Error.report
         (Error.named_type_kind_mismatch ~pos name tp_kind kind);
-    Some (name, { T.pos; T.data = T.TE_Type tp })
+    Some (name, { T.pos; T.pp = Env.pp_tree env; T.data = T.TE_Type tp })
 
 (** Check kinds of all preprocessed type parameters in the order that appears
   in the source. *)
@@ -132,18 +132,20 @@ let check_kinds_of_type_params env insts =
 
 (* ------------------------------------------------------------------------- *)
 let build_type_params ~pos ~env insts sch_targs =
+  let make data =
+    { T.pos; T.pp = Env.pp_tree env; T.data = data } in
   let build_type_param sub (name, x) =
     match name with
     | T.TNAnon ->
       let tp = Env.fresh_uvar env (T.TVar.kind x) in
-      let tp_expr = { T.pos; T.data = T.TE_Type tp } in
+      let tp_expr = make (T.TE_Type tp) in
       (T.Subst.add_type sub x tp, tp_expr)
 
     | T.TNVar name ->
       begin match StrMap.find_opt name insts with
       | None ->
         let tp = Env.fresh_uvar env (T.TVar.kind x) in
-        let tp_expr = { T.pos; T.data = T.TE_Type tp } in
+        let tp_expr = make (T.TE_Type tp) in
         (T.Subst.add_type sub x tp, tp_expr)
 
       | Some tp ->
@@ -425,7 +427,7 @@ end
 let let_poly_ctx e cs =
   let x = Var.fresh () in
   let ctx er =
-    { er_expr   = make_nowhere (T.ELetPoly(x, e, er.er_expr));
+    { er_expr   = { e with T.data = T.ELetPoly(x, e, er.er_expr) };
       er_type   = er.er_type;
       er_effect = er.er_effect;
       er_constr = cs @ er.er_constr;
@@ -436,7 +438,8 @@ let let_poly_ctx e cs =
 let let_mono_ctx er1 =
   let x = Var.fresh () in
   let ctx er2 =
-    { er_expr   = make_nowhere (T.ELetMono(x, er1.er_expr, er2.er_expr));
+    { er_expr   =
+        { er1.er_expr with T.data = T.ELetMono(x, er1.er_expr, er2.er_expr) };
       er_type   = er2.er_type;
       er_effect = T.Effect.join er1.er_effect er2.er_effect;
       er_constr = er1.er_constr @ er2.er_constr;
@@ -451,7 +454,11 @@ let default_check_provided ~tcfix ~wrap env e sch =
   match PolyExpr.check_def_scheme ~tcfix env e sch with
   | Mono er ->
     let (x_var, i_ctx) = let_mono_ctx er in
-    let make data = { T.pos = e.pos; T.data } in
+    let make data =
+      { T.pos  = e.pos;
+        T.pp   = Env.pp_tree env;
+        T.data = data
+      } in
     let e =
       make (T.PF_Fun([], [], make (T.EInst(make (T.EVar x_var), [], [])))) in
     (i_ctx, wrap e)
@@ -479,11 +486,17 @@ let check_type_of_val_param ~tcfix env inst insts =
     (i_ctx, insts)
 
   | VI_OptProvided(name, e, tp) ->
-    let make data = { T.pos = e.pos; T.data } in
+    let pp = Env.pp_tree env in
+    let make data =
+      { T.pos  = e.pos;
+        T.pp   = pp;
+        T.data = data
+      } in
     let (i_ctx, e) =
       default_check_provided ~tcfix
         ~wrap:(fun e ->
-          make (T.PF_Fun([], [], BuiltinTypes.mk_some_poly ~pos:e.pos tp e)))
+          make (T.PF_Fun([], [],
+            BuiltinTypes.mk_some_poly ~pos:e.pos ~pp tp e)))
       env e (T.Scheme.of_type tp) in
     let insts = Insts.add_val name e insts in
     (i_ctx, insts)
@@ -494,11 +507,13 @@ let check_type_of_val_param ~tcfix env inst insts =
     (add_constr_ctx cs, insts)
 
   | VI_OptModProvided(x, e, poly_sch, tp, pos) ->
+    let pp = Env.pp_tree env in
     let (e, cs) = ParamResolve.coerce_scheme ~pos ~name:(NOptionalVar x)
       env e poly_sch (T.Scheme.of_type tp) in
     let poly_expr =
-      { T.pos = pos;
-        T.data = (T.PF_Fun([], [], BuiltinTypes.mk_some_poly ~pos tp e))
+      { T.pos  = pos;
+        T.pp   = Env.pp_tree env;
+        T.data = (T.PF_Fun([], [], BuiltinTypes.mk_some_poly ~pos ~pp tp e))
       } in
     let insts = Insts.add_val (NOptionalVar x) poly_expr insts in
     (add_constr_ctx cs, insts)
@@ -541,7 +556,12 @@ let build_method_env ~pos env insts =
 (* ------------------------------------------------------------------------- *)
 (** Build a final list of named parameters *)
 let build_named_params ~pos ~env ~method_env (insts : Insts.t) sch_named =
-  let make data = { T.pos; T.data } in
+  let pp = Env.pp_tree env in
+  let make data =
+    { T.pos  = pos;
+      T.pp   = pp;
+      T.data = data
+    } in
   let build_named_param (name, sch) =
     match name with
     | T.NVar x ->
@@ -555,7 +575,8 @@ let build_named_params ~pos ~env ~method_env (insts : Insts.t) sch_named =
       | Some e -> (e, [])
       | None ->
         let e =
-          BuiltinTypes.mk_none ~pos (BuiltinTypes.scheme_to_option_arg sch) in
+          BuiltinTypes.mk_none ~pos ~pp
+            (BuiltinTypes.scheme_to_option_arg sch) in
         (make (T.PF_Fun([], [], e)), [])
       end
 
@@ -595,7 +616,11 @@ let instantiate_poly_expr ~tcfix ~pos env e (sch : T.scheme) inst =
   let (i_ctx, named_args) =
     check_named_params ~tcfix ~pos env inst named_schemes in
   let res =
-    { er_expr   = { pos; data = T.EInst(e, tps, named_args) };
+    { er_expr   =
+        { pos  = pos;
+          pp   = Env.pp_tree env;
+          data = T.EInst(e, tps, named_args)
+        };
       er_type   = Infered (T.Type.subst sub sch.sch_body);
       er_effect = Pure;
       er_constr = []

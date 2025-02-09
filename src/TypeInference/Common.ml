@@ -24,10 +24,6 @@ type exp  = Dummy_Exp
 type modl = Dummy_Modl
 type sec  = Dummy_Sec
 
-(** Build an AST node with dummy position *)
-let make_nowhere data =
-  { T.data; T.pos = Position.nowhere }
-
 (** Translate a type name *)
 let tr_tname (name : S.tname) : T.tname =
   match name with
