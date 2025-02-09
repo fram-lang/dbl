@@ -4,13 +4,13 @@
 
 (** Kinds *)
 
-type kuvar = kind option BRef.t
-and kind = kind_view
+type kuvar = t option BRef.t
+and t = kind_view
 and kind_view =
   | KType
   | KEffect
   | KUVar  of kuvar
-  | KArrow of kind * kind
+  | KArrow of t * t
 
 let k_type = KType
 

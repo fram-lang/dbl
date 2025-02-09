@@ -4,6 +4,7 @@
 
 (** Variable renaming. *)
 
+open UnifCommon
 open Syntax
 
 type t =

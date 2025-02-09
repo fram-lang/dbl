@@ -13,16 +13,16 @@ type kuvar
 (** Kinds.
 
   This is an abstract type. Use [Kind.view] to view it. *)
-type kind
+type kind = UnifCommon.Kind.t
 
 (** Unification variables *)
 type uvar
 
 (** Type variables *)
-type tvar
+type tvar = UnifCommon.TVar.t
 
 (** Name of a named type parameter *)
-type tname =
+type tname = UnifCommon.Names.tname =
   | TNAnon
     (** Anonymous parameter *)
 
@@ -33,7 +33,7 @@ type tname =
 type named_tvar = tname * tvar
 
 (** Name of a named parameter *)
-type name =
+type name = UnifCommon.Names.name =
   | NVar      of string
     (** Regular named parameter *)
 

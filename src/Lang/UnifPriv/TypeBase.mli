@@ -4,18 +4,20 @@
 
 (** Internal implementation of types in the Unif Language. *)
 
-open KindBase
+open UnifCommon
+
+type kind = Kind.t
 
 type uvar
 type tvar = TVar.t
 
-type tname =
+type tname = Names.tname =
   | TNAnon
   | TNVar of string
 
 type named_tvar = tname * tvar
 
-type name =
+type name = Names.name =
   | NVar         of string
   | NOptionalVar of string
   | NImplicit    of string

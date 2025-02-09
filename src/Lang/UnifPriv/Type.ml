@@ -4,6 +4,7 @@
 
 (** Basic operations on types *)
 
+open UnifCommon
 open TypeBase
 
 let view = TypeBase.view
@@ -22,12 +23,12 @@ let t_apps tp tps = List.fold_left t_app tp tps
 
 let rec kind tp =
   match view tp with
-  | TEffect -> KindBase.k_effect
+  | TEffect -> Kind.k_effect
   | TUVar u -> UVar.kind u
   | TVar  x -> TVar.kind x
-  | TArrow _ | THandler _ | TLabel _ -> KindBase.k_type
+  | TArrow _ | THandler _ | TLabel _ -> Kind.k_type
   | TApp(tp, _) ->
-    begin match KindBase.view (kind tp) with
+    begin match Kind.view (kind tp) with
     | KArrow(_, k) -> k
     | KType | KEffect | KUVar _ ->
       failwith "Internal kind error"

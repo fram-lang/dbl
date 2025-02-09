@@ -4,18 +4,16 @@
 
 (** Type variables *)
 
-open KindBase
-
 type t = private {
   uid    : UID.t;
   pp_uid : PPTree.uid;
-  kind   : kind;
+  kind   : Kind.t;
   scope  : Scope.t
 }
 
-val kind : t -> kind
+val kind : t -> Kind.t
 
-val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> t
+val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> Kind.t -> t
 
 val clone : scope:Scope.t -> t -> t
 

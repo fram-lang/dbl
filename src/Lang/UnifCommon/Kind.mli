@@ -6,38 +6,38 @@
 
 type kuvar
 
-type kind
+type t
 
 type kind_view =
   | KType
   | KEffect
   | KUVar  of kuvar
-  | KArrow of kind * kind
+  | KArrow of t * t
 
 (** Kind of all types *)
-val k_type : kind
+val k_type : t
 
 (** Kind of all effects *)
-val k_effect : kind
+val k_effect : t
 
 (** Arrow kind *)
-val k_arrow : kind -> kind -> kind
+val k_arrow : t -> t -> t
 
 (** Create an arrow kind with multiple parameters. *)
-val k_arrows : kind list -> kind -> kind
+val k_arrows : t list -> t -> t
 
 (** Create a fresh unification kind variable *)
-val fresh_uvar : unit -> kind
+val fresh_uvar : unit -> t
 
 (** Reveal a top-most constructor of a kind *)
-val view : kind -> kind_view
+val view : t -> kind_view
 
 (** Check if given kind contains given unification variable *)
-val contains_uvar : kuvar -> kind -> bool
+val contains_uvar : kuvar -> t -> bool
 
 (** Operations on kind unification variables *)
 module KUVar : sig
   val equal : kuvar -> kuvar -> bool
 
-  val set : kuvar -> kind -> unit
+  val set : kuvar -> t -> unit
 end

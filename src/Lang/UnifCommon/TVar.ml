@@ -4,13 +4,11 @@
 
 (** Type variables *)
 
-open KindBase
-
 module Ordered = struct
   type t = {
     uid   : UID.t;
     pp_uid : PPTree.uid;
-    kind  : kind;
+    kind  : Kind.t;
     scope : Scope.t
   }
 

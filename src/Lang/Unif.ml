@@ -6,16 +6,16 @@
 
 include SyntaxNode.Export
 
-include UnifPriv.KindBase
 include UnifPriv.TypeBase
 
 type subst = UnifPriv.Subst.t
 
-module Kind = struct
-  include UnifPriv.KindBase
-end
+type kuvar = UnifCommon.Kind.kuvar
 
-module TVar = UnifPriv.TVar
+module KUVar = UnifCommon.Kind.KUVar
+module Kind  = UnifCommon.Kind
+
+module TVar = UnifCommon.TVar
 module Name = UnifPriv.Name
 
 module Effect = UnifPriv.Effect
@@ -52,7 +52,7 @@ module CtorDecl = struct
 end
 
 module Subst = UnifPriv.Subst
-module BuiltinType = UnifPriv.BuiltinType
+module BuiltinType = UnifCommon.BuiltinType
 
 include UnifPriv.Syntax
 

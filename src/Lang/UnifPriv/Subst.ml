@@ -4,6 +4,7 @@
 
 (** Type substitutions *)
 
+open UnifCommon
 open TypeBase
 
 type t = {
