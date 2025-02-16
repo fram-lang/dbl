@@ -246,9 +246,9 @@ pub method iteri {E, self : Array E _} f =
   loop 0
 
 {## Perform right fold on array.
-  `a.fold_right f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
+  `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
 ##}
-pub method fold_right {E, self : Array E _} f init =
+pub method foldRight {E, self : Array E _} f init =
   let rec loop (i : Int) =
     if i >= self.length then init
     else f (unsafeGetArray {E} self i) (loop (i + 1))
@@ -256,9 +256,9 @@ pub method fold_right {E, self : Array E _} f init =
   loop 0
 
 {## Perform left fold on array.
-  `a.fold_left f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
+  `a.foldLeft f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
 ##}
-pub method fold_left {E, self : Array E _} f init =
+pub method foldLeft {E, self : Array E _} f init =
   let rec loop (i: Int) acc = 
     if i >= self.length then acc
     else loop (i + 1) (f acc (unsafeGetArray {E} self i))
@@ -390,6 +390,26 @@ pub method iteri {self : ConstArray _} f =
       loop (i + 1))
   in
   loop 0
+
+{## Perform right fold on immutable array.
+  `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
+##}
+pub method foldRight {self : ConstArray _} f init =
+  let rec loop (i : Int) =
+    if i >= self.length then init
+    else f (unsafeGetConstArray self i) (loop (i + 1))
+  in 
+  loop 0
+
+{## Perform left fold on immutable array.
+  `a.foldLeft f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
+##}
+pub method foldLeft {self : ConstArray  _} f init =
+  let rec loop (i: Int) acc = 
+    if i >= self.length then acc
+    else loop (i + 1) (f acc (unsafeGetConstArray self i))
+  in
+  loop 0 init
 
 {## Iterate function over all elements of an immutable array.
 
