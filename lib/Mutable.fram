@@ -245,6 +245,13 @@ pub method iteri {E, self : Array E _} f =
   in
   loop 0
 
+{## Iterate function over all elements of an array.
+
+  Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
+pub method iter {E, self : Array E _} f =
+  self.iteri (fn _ => f)
+
+
 {## Perform right fold on array.
   `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
 ##}
@@ -291,12 +298,32 @@ pub method concatenate {E, self : Array E _} (other : Array E _) =
   loopset 0 0 self;
   loopset 0 (self.length) other;
   result
-  
-{## Iterate function over all elements of an array.
 
-  Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
-pub method iter {E, self : Array E _} f =
-  self.iteri (fn _ => f)
+{## Reverse an array.
+  `a.reverse` returns new array with elements in reversed order
+##}
+pub method reverse {E, self: Array E _} =
+  let n = self.length in
+  let result = unsafeMakeArray {E} n in
+  let rec loopset (i: Int) =
+    if i >= n then ()
+    else (
+      result.at (n - (i + 1)) := (unsafeGetArray {E} self i);
+      loopset (i + 1) )
+  in
+  loopset 0;
+  result
+
+{## Check if any element of an array satisfy a condition.
+  `a.exists f` returns `True` if function `f` returns `True` on any element of an array `a`,
+   otherwise it returns `False`
+##}
+pub method exists {E, self : Array E _} f =
+  let rec loop (i: Int) =
+    if i >= self.length then False
+    else (f (unsafeGetArray {E} self i)) || loop (i + 1)
+  in
+  loop 0
 
 {# ========================================================================= #}
 ## ## Immutable arrays
@@ -391,6 +418,13 @@ pub method iteri {self : ConstArray _} f =
   in
   loop 0
 
+{## Iterate function over all elements of an immutable array.
+
+  Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
+pub method iter {self : ConstArray _} f =
+  self.iteri (fn _ => f)
+
+
 {## Perform right fold on immutable array.
   `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
 ##}
@@ -411,8 +445,13 @@ pub method foldLeft {self : ConstArray  _} f init =
   in
   loop 0 init
 
-{## Iterate function over all elements of an immutable array.
-
-  Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
-pub method iter {self : ConstArray _} f =
-  self.iteri (fn _ => f)
+{## Check if any element of an immutable array satisfy a condition.
+  `a.exists f` returns `True` if function `f` returns `True` on any element of an immutable array `a`,
+   otherwise it returns `False`
+##}
+pub method exists {E, self : ConstArray _} f =
+  let rec loop (i: Int) =
+    if i >= self.length then False
+    else (f (unsafeGetConstArray self i)) || loop (i + 1)
+  in
+  loop 0
