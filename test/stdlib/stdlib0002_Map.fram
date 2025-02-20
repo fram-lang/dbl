@@ -77,12 +77,12 @@ let _ = assert {msg="Failed partionGt"} (fst q >. toValueList == [3,2])
 let _ = assert {msg="Failed partionGt"} (snd q >. toValueList == [1,10,1,2,3]) 
 
 # range check 
-let q = w.range (Map.Exclusion 0) (Map.Exclusion 2) 
+let q = w.range False 0 False 2 
 let _ = assert {msg="Failed range"} (q.toValueList == [10]) 
-let q = w.range (Map.Inclusion 0) (Map.Inclusion 2)
+let q = w.range True 0 True 2
 let _ = assert {msg="Failed range"} (q.toValueList == [1,10,1])
 let _ = assert {msg="Failed range"} 
-  (w.range (Map.Inclusion 0) (Map.Exclusion 2) >. toValueList == [1,10]) 
+  (w.range True 0 False 2 >. toValueList == [1,10]) 
 let _ = assert {msg="Failed range"} 
-  (w.range (Map.Exclusion 0) (Map.Inclusion 2) >. toValueList == [10,1]) 
+  (w.range False 0 True 2 >. toValueList == [10,1]) 
 

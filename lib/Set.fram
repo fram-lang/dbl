@@ -111,24 +111,49 @@ pub data Set Elem = Set of {
     # @return Some value if the greatest element exist or otherwise None
   #}
   , method upperBound : T -> [] Option Elem
-  {# @brief Method that returns the greates stored value in a set
+  {# @brief Method that returns the greatest stored value in a set
     # @return greatest element or error
   #}
   , method upperBoundErr : 
       {Err, ~onError : Unit -> [Err] Elem} -> T -> [Err] Elem
-  {#
-
+  {# @brief Method that returns the lowest element greater than given element
+    # @return Some value or None
   #}
   , method lowerBoundGt : T -> Elem -> [] Option Elem
+  {# @brief Method that returns the lowest element greater than given element
+    # @return value or error
+  #}
   , method lowerBoundGtErr : 
       {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
+  {# @brief Method that returns the lowest element greater 
+    # or equal than given element
+    # @return Some value or None
+  #}
   , method lowerBoundGeq : T -> Elem -> [] Option Elem
+  {# @brief Method that returns the lowest element greater 
+    # or equal than given element
+    # @return value or error
+  #}
   , method lowerBoundGeqErr :
       {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
+  {# @brief Method that returns the greatest element lower than given element
+    # @return Some value or None
+  #}
   , method upperBoundLt : T -> Elem -> [] Option Elem
+  {# @brief Method that returns the greatest element lower than given element
+    # @return value or error
+  #}
   , method upperBoundLtErr :
       {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
+  {# @brief Method that returns the greatest element lower 
+    # or equal than given element
+    # @return Some value or None
+  #}
   , method upperBoundLeq : T -> Elem -> [] Option Elem 
+  {# @brief Method that returns the greatest element lower 
+    # or equal than given element
+    # @return value or error
+  #}
   , method upperBoundLeqErr :
       {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
 }

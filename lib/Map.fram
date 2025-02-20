@@ -8,22 +8,50 @@ import open RedBlackTree
  # Signature
  #}
 
-pub data Interval Value = Inclusion of Value | Exclusion of Value
+data Interval Value = Inclusion of Value | Exclusion of Value
 
 implicit ~onError
 
 pub data Map Key = Map of {
     T 
+    {# @brief Creates empty map
+    #}
     , empty : {type Val} -> T Val
+    {# @brief Method to testing whether given map is empty or not
+      # @return True if it's empty false otherwise
+    #}
     , method isEmpty : {type Val} -> T Val -> [] Bool
+    {# @brief Method for inserting element to the map
+      # @param Key which will be inserted to the map
+      # @param Value which will be inserted to the map
+      # @return Map with inserted value
+    #}
     , method insert : {type Val} -> T Val -> 
         Key -> Val -> [] T Val
+    {# @brief Method for inserting element to the map
+      # @param Key which will be inserted to the map
+      # @param Value which will be inserted to the map
+      # @return Map with inserted value 
+        and boolean value if the value was changed 
+        if the key already existed in map 
+    #}
     , method insertChange : {type Val} -> T Val -> 
         Key -> Val -> [] (Pair (T Val) Bool)
+    {# @brief Method for removing key from the map
+      # @param Key which will be removed to the map
+      # @return Map with removed key
+    #}
     , method remove : {type Val} -> T Val -> 
         Key -> [] T Val
+    {# @brief Method for removing key from the map
+      # @param Key which will be removed to the map
+      # @return Map with removed key 
+        and boolean value if the map was changed 
+    #}
     , method removeChange : {type Val} -> T Val ->
         Key -> [] (Pair (T Val) Bool)
+    {# @brief Method for checking if a given key is present in a map
+    #}
     , method member : {type Val} -> T Val -> Key -> [] Bool
     , method find : {type Val} -> T Val -> Key -> [] Option Val
     {# @brief method that searches for an item and returns value 
@@ -37,54 +65,142 @@ pub data Map Key = Map of {
     , method operate : {type Val,E} -> T Val -> Key ->
         (Unit -> [|E] Option Val) -> (Val -> [|E] Option Val) -> 
         [|E] (Pair (Pair (Option Val) (Option Val)) (T Val))
+    {# @brief Method to fold left through structure of map
+      # @param Function that receives key, value and accumulator
+      # @param Accumulator
+      # @return Result of applying function on keys 
+        and values of map and accumulator
+    #}
     , method foldl : {type Val, type A,E} -> T Val -> 
         (Key -> Val -> A -> [|E] A) -> A -> [|E] A
+    {# @brief Method to fold right through structure of map
+      # @param Function that receives key, value and accumulator
+      # @param Accumulator
+      # @return Result of applying function on keys 
+        and values of map and accumulator
+    #}
     , method foldr : {type Val, type A,E} -> T Val -> 
         (Key -> Val -> A -> [|E] A) -> A -> [|E] A
+    {# @brief Method that returns list of pairs (key,value)
+    #}
     , method toList : {type Val} -> T Val -> [] List (Pair Key Val)
+    {# @brief Method that returns list of values
+    #}
     , method toValueList : {type Val} -> T Val -> [] List Val
+    {# @brief Method that returns list of keys
+    #}
     , method domain : {type Val} -> T Val -> [] List Key
+    {# @brief Method that maps all values in a map to diffrent value
+    #}
     , method mapVal : {type Val, type A,E} -> T Val -> 
         (Val -> [|E] A) -> [|E] T A
+    {# @brief Method that maps all (key,value) in a map to (key, func key)
+    #}
     , method mapKey : {type Val, type A,E} -> T Val -> 
         (Key -> [|E] A) -> [|E] T A
+    {#  @brief Method that applies function to every key and value
+    #}
     , method app : {type Val,E} -> T Val -> 
         (Key -> Val -> [|E] Unit) -> [|E] Unit
+    {# @brief Method that joins two maps
+      # @param Function that resolves conflicts 
+      # if maps have the same key
+    #}
     , method union : {type Val,E} -> T Val -> T Val ->
         (Key -> Val -> Val -> [|E] Val) -> [|E] T Val
+    {# @brief Method that splits map into two maps one with 
+      # the keys lower then given key, the other with greater.
+      # @return map with lower keys, Some value if key was present,
+      # map with greater keys 
+    #}
     , method partion : {type Val} -> T Val -> Key ->
         [] (Pair (Pair (T Val) (Option Val)) (T Val))
+    {# @brief Method that splits map into two maps one with 
+      # the keys lower then given key, the other with greater or equal.
+    #}
     , method partionLt : {type Val} -> T Val -> Key ->
         [] Pair (T Val) (T Val)
+    {# @brief Method that splits map into two maps one with 
+      # the keys lower or equal then given key, the other with greater.
+    #}
     , method partionGt : {type Val} -> T Val -> Key ->
         [] Pair (T Val) (T Val)
-    , method range : {type Val} -> T Val -> Interval Key ->
-        Interval Key -> [] T Val
+    {# @brief Method that gives a submap in a given range 
+      # @param First Bool - if the submap should include lower key or not
+      # @param First Elem - lower key which all elements 
+      #   in returned map will be greater (or equal)
+      # @param Second Bool - if the submap should include upper key or not
+      # @param Second Elem - upper key which all elements
+      #   in returned map will be lower (or equal)  
+      # @return Submap in a given range
+    #}
+    , method range : {type Val} -> T Val -> Bool -> Key ->
+        Bool -> Key -> [] T Val
+    {# @brief Method that returns lowest pair (key,value) in a map
+      # @return Some (key,value) if the smallest key exist or otherwise None
+    #}
     , method lowerBound : {type Val} -> T Val -> [] Option (Pair Key Val)
+    {# @brief Method that returns lowest pair (key,value) in a map
+      # @return (key,value) or error
+    #}
     , method lowerBoundErr : 
       {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} -> 
       T Val -> [Err] (Pair Key Val)
+    {# @brief Method that returns greatest pair (key,value) in a map
+      # @return Some (key,value) if the greatest key exist or otherwise None
+    #}
     , method upperBound : {type Val} -> T Val -> [] Option (Pair Key Val)
+    {# @brief Method that returns greatest pair (key,value) in a map
+      # @return (key,value) or error
+    #}
     , method upperBoundErr : 
       {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} -> 
       T Val -> [Err] (Pair Key Val)
+    {# @brief Method that returns the lowest (key,value) greater than given key
+      # @return Some (key,value) or None
+    #}
     , method lowerBoundGt : {type Val} -> T Val -> Key -> 
       [] Option (Pair Key Val)
+    {# @brief Method that returns the lowest (key,value) greater than given key
+      # @return (key,value) or error
+    #}
     , method lowerBoundGtErr :
       {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
       T Val -> Key -> [Err] (Pair Key Val)
+    {# @brief Method that returns the lowest (key,value) greater 
+      # or equal than given key
+      # @return Some (key,value) or None
+    #}
     , method lowerBoundGeq : {type Val} -> T Val -> Key -> 
       [] Option (Pair Key Val)
+    {# @brief Method that returns the lowest (key,value) greater 
+      # or equal than given key
+      # @return (key,value) or error
+    #}
     , method lowerBoundGeqErr :
       {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
       T Val -> Key -> [Err] (Pair Key Val)
+    {# @brief Method that returns the greatest (key,value) lower than given key
+      # @return Some (key,value) or None
+    #}
     , method upperBoundLt : {type Val} -> T Val -> 
         Key -> [] Option (Pair Key Val)
+    {# @brief Method that returns the greatest (key,value) lower than given key
+      # @return (key,value) or error
+    #}
     , method upperBoundLtErr :
       {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
       T Val -> Key -> [Err] (Pair Key Val)
+      {# @brief Method that returns the greatest (key,value) lower 
+        # or equal than given key
+        # @return Some (key,value) or None
+      #}
     , method upperBoundLeq : {type Val,E} -> T Val ->
         Key -> [] Option (Pair Key Val)
+      {# @brief Method that returns the greatest (key,value) lower 
+        # or equal than given key
+        # @return (key,value) or error
+      #}
     , method upperBoundLeqErr :
       {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
       T Val -> Key -> [Err] (Pair Key Val)
@@ -364,7 +480,7 @@ let partion compare tree key =
       | Some (_,x) => (left,Some x, right)
     end
 
-let range compare tree left right = 
+let _range compare tree left right = 
   match (left,right) with
   | (Inclusion left, Inclusion right) =>
       let (_,middle) = partionGt compare tree left in
@@ -378,6 +494,14 @@ let range compare tree left right =
   | (Exclusion left, Exclusion right) =>
       let (_,middle) = partionLt compare tree left in
       let (result,_) = partionGt compare middle right in result
+  end
+
+let range compare tree incl left incr right =
+  match (incl,incr) with
+  | (False,False) => _range compare tree (Exclusion left) (Exclusion right)
+  | (False,True) => _range compare tree (Exclusion left) (Inclusion right)
+  | (True,False) => _range compare tree (Inclusion left) (Exclusion right)
+  | (True,True) => _range compare tree (Inclusion left) (Inclusion right)
   end
 
 data MapT Key Val = MapT of Tree (Pair Key Val)
@@ -434,8 +558,8 @@ let partionGtT compare (MapT tree) key =
   let (t1,t2) = partionGt compare tree key
     in (MapT t1, MapT t2)
 
-let rangeT compare (MapT tree) left right = 
-  MapT (range compare tree left right)
+let rangeT compare (MapT tree) incl left incr right = 
+  MapT (range compare tree incl left incr right)
 
 let lowerBoundT (MapT tree) = lowerBound tree
 
