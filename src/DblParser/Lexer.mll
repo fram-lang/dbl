@@ -155,7 +155,7 @@ rule token = parse
     whitespace+ { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
   | "{#" (comment_name as name) { block_comment name lexbuf }
-  | "#" { skip_line lexbuf; token lexbuf }
+  | "#"  { line_comment lexbuf.Lexing.lex_start_p lexbuf; token lexbuf }
   | '('  { YaccParser.BR_OPN     }
   | ')'  { YaccParser.BR_CLS     }
   | '['  { YaccParser.SBR_OPN    }
@@ -221,7 +221,28 @@ and block_comment name = parse
     }
   | _ { block_comment name lexbuf }
 
-and skip_line = parse
-    '\n' { Lexing.new_line lexbuf }
-  | eof  { () }
-  | _    { skip_line lexbuf }
+and line_comment start_p = parse
+    "@ " (digit+ as lnum) " " ([^'\n']+ as fname) "\n" {
+      Lexing.new_line lexbuf;
+      match int_of_string_opt lnum with
+      | Some lnum ->
+        lexbuf.Lexing.lex_curr_p <-
+          { lexbuf.Lexing.lex_curr_p with
+            pos_fname = fname;
+            pos_lnum  = lnum
+          }
+      | None ->
+        let pos = Position.of_pp start_p lexbuf.Lexing.lex_curr_p in
+        Error.warn (
+          Error.invalid_lexer_directive
+            ~msg:"line number out of range"
+            pos)
+    }
+  | "@" [^'\n']* ("\n"? as nl) {
+      let pos = Position.of_pp start_p lexbuf.Lexing.lex_curr_p in
+      Error.warn (Error.invalid_lexer_directive pos);
+      if nl <> "" then Lexing.new_line lexbuf
+    }
+  | [^'\n']* ("\n"? as nl) {
+      if nl <> "" then Lexing.new_line lexbuf
+    }

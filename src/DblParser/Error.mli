@@ -30,6 +30,8 @@ val number_out_of_bounds : Position.t -> string -> t
 val invalid_escape_code : Position.t -> t
 val eof_in_string       : Position.t -> t
 
+val invalid_lexer_directive : ?msg:string -> Position.t -> t
+
 val desugar_error : Position.t -> t
 val reserved_binop_error : Position.t -> string -> t
 val disallowed_op_error : Position.t -> string -> t
