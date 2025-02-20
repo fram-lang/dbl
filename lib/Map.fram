@@ -1,10 +1,12 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
-*)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 import open RedBlackTree
 
-(** Signature *)
+{#
+ # Signature
+ #}
 
 pub data Interval Value = Inclusion of Value | Exclusion of Value
 
@@ -24,14 +26,14 @@ pub data Map Key = Map of {
         Key -> [] (Pair (T Val) Bool)
     , method member : {type Val} -> T Val -> Key -> [] Bool
     , method find : {type Val} -> T Val -> Key -> [] Option Val
-    (** @brief method that searches for an item and returns value 
-               based on the search 
-        @param key
-        @param absentf what value return if the element doesn't exist
-        @param presentf what value return if the element exist
-        @return tuple of found an item and it's value, 
-        result of a given function absentf or presentf and orginal tree
-    *)
+    {# @brief method that searches for an item and returns value 
+      #         based on the search 
+      # @param key
+      # @param absentf what value return if the element doesn't exist
+      # @param presentf what value return if the element exist
+      # @return tuple of found an item and it's value, 
+      # result of a given function absentf or presentf and orginal tree
+    #}
     , method operate : {type Val,E} -> T Val -> Key ->
         (Unit -> [|E] Option Val) -> (Val -> [|E] Option Val) -> 
         [|E] (Pair (Pair (Option Val) (Option Val)) (T Val))
@@ -88,7 +90,7 @@ pub data Map Key = Map of {
       T Val -> Key -> [Err] (Pair Key Val)
 }
 
-(** implementation *)
+# implementation 
 
 let isEmpty tree =
   match tree with 
@@ -380,7 +382,7 @@ let range compare tree left right =
 
 data MapT Key Val = MapT of Tree (Pair Key Val)
 
-// Wrappers
+# Wrappers
 let isEmptyT (MapT tree) = isEmpty tree
 
 let insertT compare (MapT tree) key val  = MapT (insert compare tree key val)

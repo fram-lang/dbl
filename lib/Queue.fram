@@ -1,6 +1,6 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
-*)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 import List
 
@@ -97,7 +97,7 @@ let head queue =
   match queue with 
   | HMQueue Zero _ _ _ _ => None
   | HMQueue _ (x::xs) _ _ _ => Some x
-  | _ => None // Impossible
+  | _ => impossible ()
   end
 
 let tail queue =

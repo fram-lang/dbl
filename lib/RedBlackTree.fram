@@ -1,9 +1,16 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
-*)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
-import open Prelude
+#import open Prelude
+#import open Base/Assert
 import List
+
+pub data Comparable = Eq| Noteq
+
+pub let ordToComp elem = match elem with | Equal => Eq | _ => Noteq end
+
+pub method toComparable {self : Ordered} = ordToComp self
 
 data Color =
   | Red 
@@ -182,10 +189,10 @@ pub let rec zipBlack tree zipper =
       zipBlack 
       tree (Right Red  right2  value1 :: Right Black left2 value2 :: rest)
    
-  //Impossible
-  | Left _ _ Leaf :: _ => tree 
+  # Impossible
+  | Left _ _ Leaf :: _ => impossible ()
 
-  | Right _ Leaf _  :: _ => tree
+  | Right _ Leaf _  :: _ => impossible ()
 
  end
 

@@ -1,0 +1,88 @@
+import Map
+import open List
+import open Prelude
+
+let lt (v1 : Int) (v2 : Int) = 
+    if v1 < v2 then Less
+    else if v2 < v1 then Greater
+    else Equal
+
+let Map.Map {module IntMap} = Map.make lt
+
+let x = IntMap.empty
+
+# insert check 
+let y = x.insert 1 1
+let z = x.insert 1 "a"
+
+# isEmpty check 
+let _ = assert {msg="Failed isEmpty"} (y.isEmpty == False)
+let _ = assert {msg="Failed isEmpty"} (z.isEmpty == False)
+let _ = assert {msg="Failed isEmpty"} (y.remove 1 >. isEmpty)
+
+# domain check 
+let z = y.insert 2 1 >. insert 3 2 >. insert 4 3 
+let _ = assert {msg="Failed domain"} 
+  (z.domain == [1,2,3,4] && z.toValueList ==  [1,1,2,3]) 
+
+# toList check 
+let _ = assert {msg="Failed toList"} ((z.toList.foldLeft 
+  (fn acc (key,val) => val :: acc) []) == [1,1,2,3].rev) 
+
+# foldl check 
+let _ = assert {msg="Failed foldl"} 
+  (z.foldl (fn key val acc => key :: acc) [] == [1,2,3,4].rev)
+  
+
+# member check 
+let _ = assert {msg="Failed member"} (z.member 1)
+
+# find check 
+let _ = assert {msg="Failed find"} 
+  (match z.find 1 with | None => False | _ => True end)
+
+# operate change check 
+let _ = assert {msg="Failed operate"}
+  (snd (z.operate 1 (fn () => Some 2) (fn a => Some 0))  
+  >. toValueList == [0,1,2,3]) 
+
+# operate add check 
+let _ = assert {msg="Failed operate"}
+  (snd (z.operate 0 (fn () => Some 2) (fn a => Some 0))  
+  >. toValueList == [2,1,1,2,3]) 
+
+# map check 
+let _ = assert {msg="Failed map"}
+  (z.mapVal (fn x => if x == x.shiftr 1 >. shiftl 1 then -x else x) 
+  >. toValueList == [1,1,(0-2),3]) 
+
+# union check 
+let y = x.insert 1.neg 2 >. insert 2.neg 3 >. insert 0 1 >. insert 1 10
+let w = z.union y (fn key val1 val2 => val2) 
+let _ = assert {msg="Failed union"} (w.toValueList == [3,2,1,10,1,2,3]) 
+
+# partion check 
+let q = w.partion 0
+let _ = assert {msg="Failed partion"} (fst (fst q) >. toValueList == [3,2]) 
+let _ = assert {msg="Failed partion"} (snd q >. toValueList == [10,1,2,3]) 
+
+# partionLt check 
+let q = w.partionLt 0
+let _ = assert {msg="Failed partionLt"} (fst q >. toValueList == [3,2,1]) 
+let _ = assert {msg="Failed partionLt"} (snd q >. toValueList == [10,1,2,3]) 
+
+# partionGt check 
+let q = w.partionGt 0
+let _ = assert {msg="Failed partionGt"} (fst q >. toValueList == [3,2]) 
+let _ = assert {msg="Failed partionGt"} (snd q >. toValueList == [1,10,1,2,3]) 
+
+# range check 
+let q = w.range (Map.Exclusion 0) (Map.Exclusion 2) 
+let _ = assert {msg="Failed range"} (q.toValueList == [10]) 
+let q = w.range (Map.Inclusion 0) (Map.Inclusion 2)
+let _ = assert {msg="Failed range"} (q.toValueList == [1,10,1])
+let _ = assert {msg="Failed range"} 
+  (w.range (Map.Inclusion 0) (Map.Exclusion 2) >. toValueList == [1,10]) 
+let _ = assert {msg="Failed range"} 
+  (w.range (Map.Exclusion 0) (Map.Inclusion 2) >. toValueList == [10,1]) 
+

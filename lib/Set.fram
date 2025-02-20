@@ -1,39 +1,124 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
-*)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
 
 import open RedBlackTree
 
-(** Signature of Set *)
+# Signature of Set
 
 implicit ~onError
 
-pub data Interval Value = Inclusion of Value | Exclusion of Value
+data Interval Value = Inclusion of Value | Exclusion of Value
 
 pub data Set Elem = Set of {
   T
+  {# @brief Creates empty set
+  #}
   , empty : T
+  {# @brief Method to testing whether given set is empty or not
+   # @return True if it's empty false otherwise
+  #}
   , method isEmpty : T -> [] Bool
+  {# @brief Method for inserting element to the set
+   # @param Element which will be inserted to the set
+   # @return Set with inserted value
+  #}
   , method insert : T -> Elem -> [] T
+  {# @brief Method for removig element from the set
+   # @param Element which will be removed
+   # @return Set with removed element
+  #}
   , method remove : T -> Elem -> [] T
+  {# @brief Method to test whether given element is in a given set or not
+   # @param Element which will be searched
+   # @return True if given element is in given set, false otherwise
+  #}
   , method member : T -> Elem -> [] Bool
+  {# @brief Method to fold left through structure of set
+   # @param Function that receives element and accumulator
+   # @param Accumulator
+   # @return Result of applying function on elements of set and accumulator
+  #}
   , method foldl : {type A,E} -> T -> (Elem -> A -> [|E] A) -> A -> [|E] A
+  {# @brief Method to fold right through structure of set
+   # @param Function that receives element and accumulator
+   # @param Accumulator
+   # @return Result of applying function on elements of set and accumulator
+  #}
   , method foldr : {type A,E} -> T -> (Elem -> A -> [|E] A) -> A -> [|E] A
+  {# @brief Method to convert set to list of elements
+  #}
   , method toList : T -> [] List Elem
+  {# @brief Method to create union of two sets
+   # @param Set
+   # @return Union of two sets
+  #}
   , method union : T -> T -> [] T
+  {# @brief Method to create intersection of two sets
+   # @param Set
+   # @return Intersection of two sets
+  #}
   , method intersection : T -> T -> [] T
+  {# @brief Method to create difference of two sets
+   # @param Set
+   # @return Difference of two sets
+  #}
   , method difference : T -> T -> [] T
+  {# @brief Method to check if two sets are equal 
+   # @param Set
+   # @return True if two sets are equal, false otherwise.
+  #}
   , method eq : T -> T -> [] Bool
+  {# @brief Method to check if set which called this method is 
+   # subset of a given set
+   # @param Set
+   # @return True if set is subset, false otherwise.
+  #}
   , method subset : T -> T -> [] Bool
+  {# @brief Split set to two sets one containing elements 
+    # lesser then given element, second one containing equal or greater
+    # @param Elem
+    # @return Pair of sets with order and specification previously mentioned
+  #}
   , method partionLt : T -> Elem -> [] (Pair T T)
+  {# @brief Split set to two sets one containing elements 
+    # lesser or equal then given element, second one containing greater
+    # @param Elem
+    # @return Pair of sets with order and specification previously mentioned
+  #}
   , method partionGt : T -> Elem -> [] (Pair T T)
-  , method range : T -> Interval Elem -> Interval Elem -> [] T
+  {# @brief Method that gives a subset in a given range 
+    # @param First Bool - if the subset should include lower element or not
+    # @param First Elem - lower value which all elements 
+    #   in returned set will be greater (or equal)
+    # @param Second Bool - if the subset should include upper element or not
+    # @param Second Elem - upper value which all elements in 
+    #   in returned set will be lower (or equal)  
+    # @return Subset in a given range
+  #}
+  , method range : T -> Bool -> Elem -> Bool -> Elem -> [] T
+  {# @brief Method that returns lowest stored value in a set
+    # @return Some value if the smallest element exist or otherwise None
+  #}
   , method lowerBound : T -> [] Option Elem
+  {# @brief Method that returns lowest stored value in a set
+    # @return smallest element or error
+  #}
   , method lowerBoundErr : 
       {Err, ~onError : Unit -> [Err] Elem} -> T -> [Err] Elem
+  {# @brief Method that returns the greatest stored value in a set
+    # @return Some value if the greatest element exist or otherwise None
+  #}
   , method upperBound : T -> [] Option Elem
+  {# @brief Method that returns the greates stored value in a set
+    # @return greatest element or error
+  #}
   , method upperBoundErr : 
       {Err, ~onError : Unit -> [Err] Elem} -> T -> [Err] Elem
+  {#
+
+  #}
   , method lowerBoundGt : T -> Elem -> [] Option Elem
   , method lowerBoundGtErr : 
       {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
@@ -48,7 +133,7 @@ pub data Set Elem = Set of {
       {Err, ~onError : Unit -> [Err] Elem} ->  T -> Elem -> [Err] Elem
 }
 
-(** Red black tree implementation *)
+# Red black tree implementation 
 
 data rec Q Val = Nil | E of Val , Q Val | T of Tree Val , Q Val
 
@@ -242,10 +327,10 @@ let rec intersection compare tree1 tree2 =
             end
       end
   end
-
 let rec difference compare tree1 tree2 = 
   match tree1 with
     | Leaf => Leaf
+
     | Node {left = left1, value = key1, right = right1} => 
         match tree2 with 
           | Leaf => tree1 
@@ -264,7 +349,7 @@ let rec difference compare tree1 tree2 =
 
 let subset compare set1 set2 = subsetMain compare (T set1 Nil) (T set2 Nil)
 
-let range compare tree left right = 
+let _range compare tree left right = 
   match (left,right) with
     | (Inclusion left, Inclusion right) =>
         let (_, tree') = partionLt compare tree left in 
@@ -278,6 +363,14 @@ let range compare tree left right =
     | (Exclusion left, Exclusion right) => 
         let (_, tree') = partionGt compare tree left in
         let (tree'',_) = partionLt compare tree' right in tree''
+  end
+
+let range compare tree incl left incr right =
+  match (incl,incr) with
+  | (False,False) => _range compare tree (Exclusion left) (Exclusion right)
+  | (False,True) => _range compare tree (Exclusion left) (Inclusion right)
+  | (True,False) => _range compare tree (Inclusion left) (Exclusion right)
+  | (True,True) => _range compare tree (Inclusion left) (Inclusion right)
   end
         
 let rec leastGt compare tree val = 
