@@ -22,12 +22,6 @@ type method_name = string
 (** Names of operators *)
 type op_name = string
 
-(** Variable-like identifier *)
-type var_id =
-  | VIdVar of var
-  | VIdBOp of op_name
-  | VIdUOp of op_name
-
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
   | NVar         of var
@@ -265,9 +259,6 @@ and def_data =
 
   | DMethod of is_public * expr * expr
     (** Method definition *)
-
-  | DMethodFn of is_public * var_id * var_id
-    (** Declaration of function that should be interpreted as a method *)
 
   | DModule of is_public * module_name * def list
     (** Definition of a module *)

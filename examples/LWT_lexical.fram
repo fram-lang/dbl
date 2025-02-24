@@ -79,23 +79,15 @@ let sched _ =
   the handler with the parent thread without sharing parent's continuation. 
   With dynamic handlers we can just create a new handler for the same effect,
   but this is not possible with lexical handlers. #}
-data LWT_S E = LWT of
+data LWT E =
   { yield : Unit ->[E] Unit
   , spawn : (Unit ->[E] Unit) ->[E] Unit
   }
 
-{# For accessing operations of LWT effect we use an another mechanism
-  available in Fram, i.e., methods. We can associate functions with each
-  datatype and use usual dot syntax for accessing them. The main advantage of
-  methods is that the same name of the method can be used with many different
-  datatypes leading to a more concise and readable code. #}
-method yield {self = LWT {yield}} = yield
-method spawn {self = LWT {spawn}} = spawn
-
-{# Here we handle the LWT effect using pure lexical handlers. The problematic
+{# Here we handle the LWT_E effect using pure lexical handlers. The problematic
   spawn operation is implemented via more primitive fork and exit functions,
   not accessible directly via the LWT interface. #}
-handle (lwt : LWT_S [LWT,IO]) / LWT =
+handle (lwt : LWT [LWT_E,IO]) / LWT_E =
   let yield = effect _ / r => let _ = enqueue r in sched ()
   let exit  = effect _ / _ => sched ()
   let fork  = effect _ / r =>

@@ -1,6 +1,6 @@
 data Vec T = Vec of { x : T, y : T }
 
-method x = let Vec { x } = self in x
-method y { self = Vec { y } } = y
+method x self = let Vec { x } = self in x
+method y (Vec { y }) = y
 
 let swap (v : Vec _) = Vec { x = v.y, y = v.x }

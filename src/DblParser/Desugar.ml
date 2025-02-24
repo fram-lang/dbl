@@ -23,12 +23,6 @@ let tr_uop_to_expr (op : string node) =
   let make data = { op with data = data } in
   make (EPoly (make (EVar (make (NPName (make_uop_id op.data)))), []))
 
-let tr_var_id (var : Raw.var_id node) =
-  match var.data with
-  | VIdVar x  -> x
-  | VIdBOp op -> tr_bop_id { var with data = op }
-  | VIdUOp op -> make_uop_id op
-
 let tr_ctor_name (cname : Raw.ctor_name node) =
   match cname.data with
   | CNUnit   -> "()"
@@ -58,6 +52,12 @@ let node_is_data_def (def : def) =
 let annot_tp e tp =
   { pos = e.pos;
     data = Raw.EAnnot(e, with_nowhere tp)
+  }
+
+let scheme_wildcard pos =
+  { sch_pos  = pos;
+    sch_args = [];
+    sch_body = { pos; data = TWildcard }
   }
 
 module RawTypes = struct
@@ -193,13 +193,7 @@ and tr_scheme_field (fld : Raw.ty_field) =
     let (y, k) = tr_type_var arg in
     make (SA_Type(TNVar x, y, k))
   | FldName n ->
-    let sch =
-      { sch_pos  = fld.pos;
-        sch_args = [];
-        sch_body = make TWildcard
-      }
-    in
-    make (SA_Val(n, sch))
+    make (SA_Val(n, scheme_wildcard fld.pos))
   | FldNameVal(n, tp) ->
     make (SA_Val(n, tr_scheme_expr tp))
   | FldNameAnnot _ | FldModule _ | FldOpen ->
@@ -343,27 +337,44 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
+(** Translate a pattern, separating out its annotation [Some sch] if present
+    or returning [None] otherwise. *)
+and tr_annot_pattern ~public (p : Raw.expr) =
+  let pos = p.pos in
+  match p.data with
+  | EParen p       ->
+    begin match tr_annot_pattern ~public p with
+    | pat, None -> { pat with pos }, None
+    | (_, Some _) as res -> res
+    end
+  | EAnnot(p, sch) -> tr_pattern ~public p, Some (tr_scheme_expr sch)
+  | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
+  | ENum _ | ENum64 _ | EStr _ | EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
+  | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
+  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ ->
+    tr_pattern ~public p, None
+
 and tr_named_pattern ~public (fld : Raw.field) =
   let make data = { fld with data = data } in
   match fld.data with
-  | FldAnonType _ ->
-    Error.fatal (Error.anon_type_pattern fld.pos)
+  | FldAnonType arg ->
+    make (NP_Type(false, make (TNAnon, tr_type_arg arg)))
   | FldType(x, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
     make (NP_Type(public, make (TNVar x, make (TA_Var(x, k)))))
   | FldTypeVal(x, arg) ->
     make (NP_Type(public, make (TNVar x, tr_type_arg arg)))
   | FldName n ->
-    make (NP_Val(n, make (PId(public, ident_of_name n))))
+    make (NP_Val(n, make (PId(public, ident_of_name n)), None))
   | FldNameVal(n, p) ->
-    make (NP_Val(n, tr_pattern ~public p))
+    let (p, sch) = tr_annot_pattern ~public p in
+    make (NP_Val(n, p, sch))
   | FldNameAnnot(n, sch) ->
-    let arg =
-      make (PAnnot(make (PId(public, ident_of_name n)), tr_scheme_expr sch)) in
-    make (NP_Val(n, arg))
-  | FldModule { data = NPName name; _ } -> make (NP_Module name)
+    let p = make (PId(public, ident_of_name n)) in
+    make (NP_Val(n, p, Some (tr_scheme_expr sch)))
+  | FldModule { data = NPName name; _ } -> make (NP_Module(public, name))
   | FldModule _ -> Error.fatal (Error.desugar_error fld.pos)
-  | FldOpen     -> make NP_Open
+  | FldOpen     -> make (NP_Open public)
 
 (** Translate a parameter declaration *)
 let tr_param_decl (fld : Raw.field) =
@@ -376,41 +387,12 @@ let tr_param_decl (fld : Raw.field) =
     let k = Option.value ka ~default:(make KWildcard) in
     Either.Left (TNVar x, x, k)
   | FldName n ->
-    let sch =
-      { sch_pos   = fld.pos;
-        sch_args  = [];
-        sch_body  = make TWildcard
-      }
-    in
-    Either.Right (n, ident_of_name n, sch)
+    Either.Right (n, ident_of_name n, None)
   | FldNameAnnot(n, sch) ->
-    Either.Right (n, ident_of_name n, tr_scheme_expr sch)
+    Either.Right (n, ident_of_name n, Some (tr_scheme_expr sch))
 
   | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen ->
     Error.fatal (Error.desugar_error fld.pos)
-
-(** Translate a field to a named pattern. *)
-let tr_named_arg (fld : Raw.field) =
-  let make data = { fld with data = data } in
-  match fld.data with
-  | FldAnonType arg ->
-    make (NP_Type(false, make (TNAnon, tr_type_arg arg)))
-  | FldType(x, ka) ->
-    let k = Option.value ka ~default:(make KWildcard) in
-    make (NP_Type(false, make (TNVar x, make (TA_Var(x, k)))))
-  | FldTypeVal(x, arg) ->
-    make (NP_Type(false, make (TNVar x, tr_type_arg arg)))
-  | FldName n ->
-    make (NP_Val(n, make (PId(false, ident_of_name n))))
-  | FldNameVal(n, e) ->
-    make (NP_Val(n, tr_pattern ~public:false e))
-  | FldNameAnnot(n, sch) ->
-    let arg =
-      make (PAnnot(make (PId(false, ident_of_name n)), tr_scheme_expr sch)) in
-    make (NP_Val(n, arg))
-  | FldModule { data = NPName name; _ } -> make (NP_Module name)
-  | FldModule _    -> Error.fatal (Error.desugar_error fld.pos)
-  | FldOpen        -> make NP_Open
 
 (** Translate an expression as a let-pattern. *)
 let rec tr_let_pattern ~public (p : Raw.expr) =
@@ -461,16 +443,13 @@ let rec tr_function args body =
     }
 
 (** Translate a polymorphic function *)
-let rec tr_poly_function all_args body =
+let rec tr_poly_function ~pos all_args body =
   let (flds, _, args) = collect_fields ~ppos:Position.nowhere all_args in
-  let named = List.map tr_named_arg flds in
+  let named = List.map (tr_named_pattern ~public:false) flds in
   let body = tr_function args body in
   match named with
-  | [] -> { body with data = PE_Expr body }
-  | _ :: _ ->
-    { pos  = Position.join (List.hd all_args).pos body.pos;
-      data = PE_Fn(named, body)
-    }
+  | []     -> { pos; data = PE_Expr { body with pos } }
+  | _ :: _ -> { pos; data = PE_Fn(named, body) }
 
 (* ========================================================================= *)
 
@@ -523,10 +502,11 @@ let rec tr_poly_expr (e : Raw.expr) =
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_poly_expr_def (e : Raw.expr) =
+  let pos = e.pos in
   let make data = { e with data = data } in
   match e.data with
   | EParen e -> make (tr_poly_expr_def e).data
-  | EFn(es, e) -> make (tr_poly_function es (tr_expr e)).data
+  | EFn(es, e) -> make (tr_poly_function ~pos es (tr_expr e)).data
 
   | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (PE_Poly (tr_poly_expr e))
@@ -672,6 +652,7 @@ and tr_explicit_inst (fld : Raw.field) =
     Error.fatal (Error.desugar_error fld.pos)
 
 and tr_def ?(public=false) (def : Raw.def) =
+  let pos = def.pos in
   let make data = { def with data = data } in
   match def.data with
   | DLet(pub, p, e) ->
@@ -680,7 +661,7 @@ and tr_def ?(public=false) (def : Raw.def) =
       | LP_Id id ->
         make (DLetId(public, id, tr_poly_expr_def e))
       | LP_Fun(id, args) ->
-        make (DLetId(public, id, tr_poly_function args (tr_expr e)))
+        make (DLetId(public, id, tr_poly_function ~pos args (tr_expr e)))
       | LP_Pat p ->
         make (DLetPat(p, tr_expr e))
     ]
@@ -690,15 +671,13 @@ and tr_def ?(public=false) (def : Raw.def) =
       | LP_Id (IdVar x) ->
         make (DLetId(public, IdMethod x, tr_poly_expr_def e))
       | LP_Fun(IdVar x, args) ->
-        make (DLetId(public, IdMethod x, tr_poly_function args (tr_expr e)))
+        make (DLetId(public,
+          IdMethod x, tr_poly_function ~pos args (tr_expr e)))
       | LP_Id (IdImplicit _ | IdMethod _)
       | LP_Fun((IdImplicit _ | IdMethod _), _)
       | LP_Pat _ ->
         Error.fatal (Error.desugar_error p.pos)
     ]
-  | DMethodFn(pub, id1, id2) ->
-    let public = public || pub in
-    [ make (DMethodFn(public, tr_var_id (make id1), tr_var_id (make id2))) ]
   | DParam fld ->
     [ match tr_param_decl fld with
       | Either.Left (x, y, k)    -> make (DTypeParam(x, y, k))
@@ -825,7 +804,7 @@ and generate_accessor_method_pattern named_type_args type_name =
   let pattern_gen field =
     make (PAnnot(make (PCtor(
       make (NPName type_name),
-      [ make (NP_Val(NVar field, make (PId(false, IdVar field)))) ],
+      [ make (NP_Val(NVar field, make (PId(false, IdVar field)), None)) ],
       [])), type_annot))
   in
   new_named_type_args, pattern_gen

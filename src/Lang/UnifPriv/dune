@@ -1,3 +1,3 @@
 (library
   (name unifPriv)
-  (libraries utils))
+  (libraries utils unifCommon))

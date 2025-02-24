@@ -35,7 +35,6 @@ val reserved_binop_error : Position.t -> string -> t
 val disallowed_op_error : Position.t -> string -> t
 val invalid_pattern_arg : Position.t -> t
 val impure_scheme : Position.t -> t
-val anon_type_pattern : Position.t -> t
 
 val finally_before_return_clause : Position.t -> t
 

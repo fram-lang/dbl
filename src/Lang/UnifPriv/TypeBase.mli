@@ -4,33 +4,34 @@
 
 (** Internal implementation of types in the Unif Language. *)
 
-open KindBase
+open UnifCommon
+
+type kind = Kind.t
 
 type uvar
-type tvar  = TVar.t
-type scope = Scope.t
+type tvar = TVar.t
 
-type tname =
+type tname = Names.tname =
   | TNAnon
   | TNVar of string
 
 type named_tvar = tname * tvar
 
-type name =
+type name = Names.name =
   | NVar         of string
   | NOptionalVar of string
   | NImplicit    of string
   | NMethod      of string
 
-type effect = Pure | Impure
+type effct = Pure | Impure
 
 type typ
 
 type type_view =
   | TEffect
-  | TUVar    of TVar.Perm.t * uvar
+  | TUVar    of uvar
   | TVar     of tvar
-  | TArrow   of scheme * typ * effect
+  | TArrow   of scheme * typ * effct
   | THandler of tvar * typ * typ * typ
   | TLabel   of typ
   | TApp     of typ * typ
@@ -54,13 +55,13 @@ type ctor_decl = {
 val t_effect : typ
 
 (** Unification variable *)
-val t_uvar : TVar.Perm.t -> uvar -> typ
+val t_uvar : uvar -> typ
 
 (** Regular type variable *)
 val t_var : tvar -> typ
 
 (** Arrow type *)
-val t_arrow : scheme -> typ -> effect -> typ
+val t_arrow : scheme -> typ -> effct -> typ
 
 (** Type of first-class handlers *)
 val t_handler : tvar -> typ -> typ -> typ -> typ
@@ -78,7 +79,7 @@ val view : typ -> type_view
 module UVar : sig
   type t = uvar
 
-  val fresh : scope:scope -> kind -> uvar
+  val fresh : scope:Scope.t -> kind -> uvar
 
   (** Get the kind of given unification variable *)
   val kind : t -> kind
@@ -87,20 +88,17 @@ module UVar : sig
 
   val uid : t -> UID.t
 
-  val scope : t -> scope
-
-  val level : t -> int
+  val scope : t -> Scope.t
 
   (** Set a unification variable, without checking any constraints. It returns
-    expected scope of set type. The first parameter is a permutation attached
-    to unification variable *)
-  val raw_set : TVar.Perm.t -> t -> typ -> scope
+    expected scope of set type. *) 
+  val raw_set : t -> typ -> Scope.t
 
   val fix : t -> tvar
 
-  (** Shrink scope of given unification variable to given level, leaving only
-    those variables which satisfy given predicate. *)
-  val filter_scope : uvar -> int -> (tvar -> bool) -> unit
+  (** Update the scope of a unification variable. Its scope is set to the
+    intersection of its current scope and the given scope. *)
+  val shrink_scope : t -> Scope.t -> unit
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t

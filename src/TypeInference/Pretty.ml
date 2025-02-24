@@ -3,7 +3,7 @@
  *)
 
 (** Pretty printing of types and kinds *)
-(*
+
 open Common
 
 type ctx = {
@@ -39,7 +39,7 @@ let empty_context () = {
 module PPEnv : sig
   type t
 
-  val create : ctx -> Env.t -> t
+  val create : ctx -> PPTree.t -> t
 
   val add_tvar : t -> string -> T.tvar -> t
 
@@ -47,21 +47,19 @@ module PPEnv : sig
 
   val get_context : t -> ctx
 
-  val lookup_tvar : t -> T.tvar -> string option
+  val lookup_tvar : t -> T.tvar -> PPTree.pp_result
 
-  val lookup_tvar_pp_info : t -> T.tvar -> Env.pp_info option
-
-  val is_tvar_name_fresh : t -> string -> bool
+  val is_anon_tvar_fresh : t -> string -> bool
 end = struct
   type t = {
     local_names : string T.TVar.Map.t;
-    env         : Env.t;
+    pp_tree     : PPTree.t;
     context     : ctx
   }
 
-  let create ctx env = {
+  let create ctx pp_tree = {
     local_names = T.TVar.Map.empty;
-    env         = env;
+    pp_tree     = pp_tree;
     context     = ctx
   }
 
@@ -78,37 +76,20 @@ end = struct
 
   let get_context env = env.context
 
-  let tvar_valid_name env x name =
-    match Env.lookup_tvar env.env name with
-    | Some tp ->
-      begin match T.Type.view tp with
-      | TVar y -> T.TVar.equal x y
-      | _      -> false
-      end
-    | None    -> false
-
-  let rec pp_path (p : string S.path) =
-    match p with
-    | NPName x    -> x
-    | NPSel(n, p) -> Printf.sprintf "%s.%s" n (pp_path p)
-
   let lookup_tvar env x =
     match T.TVar.Map.find_opt x env.local_names with
-    | Some name -> Some name
+    | Some name -> PPTree.Found name
     | None ->
-      begin match Env.lookup_tvar_pp_info env.env x with
-      | Some info ->
-        begin match List.find_opt (tvar_valid_name env x) info.pp_names with
-        | Some path -> Some (pp_path path)
-        | None -> T.TVar.Map.find_opt x env.context.tvar_map
+      begin match PPTree.lookup env.pp_tree (T.TVar.pp_uid x) with
+      | Found name -> PPTree.Found name
+      | _ as result ->
+        begin match T.TVar.Map.find_opt x env.context.tvar_map with
+        | Some name -> PPTree.Found name
+        | None -> result
         end
-      | None -> T.TVar.Map.find_opt x env.context.tvar_map
       end
 
-  let lookup_tvar_pp_info env x =
-    Env.lookup_tvar_pp_info env.env x
-
-  let is_tvar_name_fresh env name =
+  let is_anon_tvar_fresh env name =
     not (Hashtbl.mem env.context.used_tvars name)
 end
 
@@ -121,7 +102,7 @@ let paren buf prec eprec pp =
 
 (* ========================================================================= *)
 
-let kuvar_to_string ctx u non_eff =
+let kuvar_to_string ctx u  =
   let kuvar_name (u', name) =
     if T.KUVar.equal u u' then Some name
     else None
@@ -130,7 +111,7 @@ let kuvar_to_string ctx u non_eff =
   | Some name -> name
   | None ->
     let n = List.length ctx.kuvar_list in
-    let name = (if non_eff then "?_k" else "?k") ^ string_of_int n in
+    let name = "?k" ^ string_of_int n in
     ctx.kuvar_list <- (u, name) :: ctx.kuvar_list;
     name
 
@@ -138,9 +119,8 @@ let rec pp_kind ctx buf prec k =
   match T.Kind.view k with
   | KType   -> Buffer.add_string buf "type"
   | KEffect -> Buffer.add_string buf "effect"
-  | KEffrow -> Buffer.add_string buf "effrow"
   | KUVar u ->
-    Buffer.add_string buf (kuvar_to_string ctx u (T.Kind.non_effect k))
+    Buffer.add_string buf (kuvar_to_string ctx u)
   | KArrow(k1, k2) ->
     paren buf prec 0 (fun () ->
       pp_kind ctx buf 1 k1;
@@ -176,7 +156,7 @@ let pp_uvar env u =
     ctx.uvar_map <- T.UVar.Map.add u name ctx.uvar_map;
     Hashtbl.add ctx.used_uvars name ();
     name
-    
+
 (* ========================================================================= *)
 
 let gen_tvar_name is_fresh base =
@@ -190,57 +170,37 @@ let gen_tvar_name is_fresh base =
 
 let pp_tvar env x =
   match PPEnv.lookup_tvar env x with
-  | Some name -> name
-  | None ->
-    let (pos, base) =
-      match PPEnv.lookup_tvar_pp_info env x with
-      | None -> (None, "T")
-      | Some info -> (info.pp_pos, info.pp_base_name)
-    in
-    let name = gen_tvar_name (PPEnv.is_tvar_name_fresh env) ("#" ^ base) in
+  | Found name -> name
+  | Anon(base, pos) ->
+    let name = gen_tvar_name (PPEnv.is_anon_tvar_fresh env) ("#" ^ base) in
     PPEnv.add_anon_tvar env pos name x;
+    name
+  | Unbound _ ->
+    let name = gen_tvar_name (PPEnv.is_anon_tvar_fresh env) "#?T" in
+    PPEnv.add_anon_tvar env None name x;
     name
 
 (* ========================================================================= *)
 
 let fresh_for_tvar env name x =
   begin match PPEnv.lookup_tvar env x with
-  | Some name' -> name <> name'
-  | None -> true
+  | Found name' -> name <> name'
+  | _ -> true
   end
 
 let rec fresh_for_type env name tp =
   match T.Type.view tp with
-  | TUVar _ -> true
+  | TEffect | TUVar _ -> true
   | TVar x -> fresh_for_tvar env name x
-  | TEffect xs -> T.TVar.Set.for_all (fresh_for_tvar env name) xs
-  | TEffrow(xs, ee) ->
-    T.TVar.Set.for_all (fresh_for_tvar env name) xs &&
-    fresh_for_effrow_end env name ee
-  | TPureArrow(sch, tp) ->
+  | TArrow(sch, tp, _) ->
     fresh_for_scheme env name sch && fresh_for_type env name tp
-  | TArrow(sch, tp, eff) ->
-    fresh_for_scheme env name sch &&
-    fresh_for_type env name tp &&
-    fresh_for_type env name eff
-  | THandler(_, tp, itp, ieff, otp, oeff) ->
-    fresh_for_type env name tp &&
-    fresh_for_type env name itp &&
-    fresh_for_type env name ieff &&
-    fresh_for_type env name otp &&
-    fresh_for_type env name oeff
-  | TLabel(eff, tp0, eff0) ->
-    fresh_for_type env name eff &&
-    fresh_for_type env name tp0 &&
-    fresh_for_type env name eff0
+  | THandler(_, cap_tp, tp_in, tp_out) ->
+    fresh_for_type env name cap_tp &&
+    fresh_for_type env name tp_in &&
+    fresh_for_type env name tp_out
+  | TLabel delim_tp ->
+    fresh_for_type env name delim_tp
   | TApp(tp1, tp2) ->
-    fresh_for_type env name tp1 && fresh_for_type env name tp2
-
-and fresh_for_effrow_end env name (ee : T.Type.effrow_end) =
-  match ee with
-  | EEClosed | EEUVar _ -> true
-  | EEVar x -> fresh_for_tvar env name x
-  | EEApp(tp1, tp2) ->
     fresh_for_type env name tp1 && fresh_for_type env name tp2
 
 and fresh_for_scheme env name { T.sch_targs = _; sch_named; sch_body } =
@@ -251,87 +211,43 @@ and fresh_for_scheme env name { T.sch_targs = _; sch_named; sch_body } =
 
 let rec pp_type buf env prec tp =
   match T.Type.view tp with
-  | TUVar(_, u) -> Buffer.add_string buf (pp_uvar env u)
+  | TEffect -> Buffer.add_string buf "[_]"
+  | TUVar u -> Buffer.add_string buf (pp_uvar env u)
   | TVar x -> Buffer.add_string buf (pp_tvar env x)
-  | TEffect xs ->
-    Buffer.add_string buf "[";
-    pp_effect_prefix buf env "" (T.TVar.Set.to_list xs);
-    Buffer.add_string buf "]"
-  | TEffrow(xs, ee) ->
-    Buffer.add_string buf "[";
-    pp_effect_prefix buf env "" (T.TVar.Set.to_list xs);
-    pp_effrow_end buf env ee;
-    Buffer.add_string buf "]"
-  | TPureArrow(sch, tp) ->
-    paren buf prec 0 (fun () ->
-      pp_scheme buf env 1 sch;
-      Buffer.add_string buf " -> ";
-      pp_type buf env 0 tp)
   | TArrow(sch, tp, eff) ->
-    let (xs, ee) = T.Type.effrow_view eff in
     paren buf prec 0 (fun () ->
       pp_scheme buf env 1 sch;
-      Buffer.add_string buf " ->[";
-      pp_effect_prefix buf env "" (T.TVar.Set.to_list xs);
-      pp_effrow_end buf env ee;
-      Buffer.add_string buf "] ";
+      Buffer.add_string buf
+        (match eff with
+        | Pure   -> " -> "
+        | Impure -> " ->> ");
       pp_type buf env 0 tp)
-  | THandler(x, tp, itp, ieff, otp, oeff) ->
+  | THandler(x, cap_tp, tp_in, tp_out) ->
     paren buf prec 0 (fun () ->
       let name = gen_tvar_name
-        (fun n -> 
-          fresh_for_type env n tp &&
-          fresh_for_type env n itp && fresh_for_type env n ieff &&
-          fresh_for_type env n otp && fresh_for_type env n oeff)
+        (fun n ->
+          fresh_for_type env n cap_tp &&
+          fresh_for_type env n tp_in &&
+          fresh_for_type env n tp_out)
         "E" in
       let env1 = PPEnv.add_tvar env name x in
       Buffer.add_string buf "handler ";
       Buffer.add_string buf name;
-      Buffer.add_string buf ", ";
-      pp_type buf env1 1 tp;
-      Buffer.add_string buf " @ ";
-      pp_type buf env1 1 itp;
-      Buffer.add_string buf " / ";
-      pp_type buf env1 1 ieff;
-      Buffer.add_string buf " => ";
-      pp_type buf env 1 otp;
-      Buffer.add_string buf " / ";
-      pp_type buf env 1 oeff)
-  | TLabel(eff, tp0, eff0) ->
+      Buffer.add_string buf " of ";
+      pp_type buf env1 1 cap_tp;
+      Buffer.add_string buf " with [_] ";
+      pp_type buf env1 1 tp_in;
+      Buffer.add_string buf " ->> ";
+      pp_type buf env 1 tp_out)
+  | TLabel delim_tp ->
     paren buf prec 0 (fun () ->
-      Buffer.add_string buf "label ";
-      pp_type buf env 1 eff;
-      Buffer.add_string buf " @ ";
-      pp_type buf env 1 tp0;
-      Buffer.add_string buf " / ";
-      pp_type buf env 1 eff0)
+      Buffer.add_string buf "label _ [_] ";
+      pp_type buf env 11 delim_tp)
   | TApp(tp1, tp2) ->
     paren buf prec 10 (fun () ->
       pp_type buf env 10 tp1;
       Buffer.add_string buf " ";
       pp_type buf env 11 tp2)
-
-and pp_effect_prefix buf env sep xs =
-  match xs with
-  | [] -> ()
-  | x :: xs ->
-    Buffer.add_string buf sep;
-    Buffer.add_string buf (pp_tvar env x);
-    pp_effect_prefix buf env "," xs
-
-and pp_effrow_end buf env (ee : T.Type.effrow_end) =
-  match ee with
-  | EEClosed -> ()
-  | EEUVar(_, u) ->
-    Buffer.add_string buf "|";
-    Buffer.add_string buf (pp_uvar env u)
-  | EEVar x ->
-    Buffer.add_string buf "|";
-    Buffer.add_string buf (pp_tvar env x)
-  | EEApp(tp1, tp2) ->
-    pp_type buf env 10 tp1;
-    Buffer.add_string buf " ";
-    pp_type buf env 11 tp2
 
 and pp_scheme buf env prec (sch : T.scheme) =
   match sch.sch_targs, sch.sch_named with
@@ -354,11 +270,6 @@ and pp_scheme_args sch buf env sep targs nargs =
         Buffer.add_string buf "type ";
         Buffer.add_string buf xname;
         xname
-      | TNEffect ->
-        let xname = gen_tvar_name (fun n -> fresh_for_scheme env n sch) "E" in
-        Buffer.add_string buf "effect=";
-        Buffer.add_string buf xname;
-        xname
       | TNVar xn ->
         let xname = gen_tvar_name (fun n -> fresh_for_scheme env n sch) xn in
         Buffer.add_string buf xn;
@@ -378,7 +289,6 @@ and pp_scheme_named_args buf env sep nargs =
     Buffer.add_string buf sep;
     let sch = 
       begin match name with
-      | NLabel         -> Buffer.add_string buf "label"; sch
       | NVar x         -> Buffer.add_string buf x; sch
       | NOptionalVar x -> 
         assert (T.Scheme.is_monomorphic sch);
@@ -413,22 +323,15 @@ let kind_to_string ctx k =
   pp_kind ctx buf 0 k;
   Buffer.contents buf
 
-let tname_to_string (name : T.tname) =
-  match name with
-  | TNAnon   -> "<anon>"
-  | TNEffect -> "effect"
-  | TNVar x  -> x
+let tvar_to_string ctx pp_tree x =
+  pp_tvar (PPEnv.create ctx pp_tree) x
 
-let tvar_to_string ctx env x =
-  pp_tvar (PPEnv.create ctx env) x
-
-let type_to_string ctx env tp =
+let type_to_string ctx pp_tree tp =
   let buf = Buffer.create 80 in
-  pp_type buf (PPEnv.create ctx env) 0 tp;
+  pp_type buf (PPEnv.create ctx pp_tree) 0 tp;
   Buffer.contents buf
 
-let scheme_to_string ctx env sch =
+let scheme_to_string ctx pp_tree sch =
   let buf = Buffer.create 80 in
-  pp_scheme buf (PPEnv.create ctx env) 0 sch;
+  pp_scheme buf (PPEnv.create ctx pp_tree) 0 sch;
   Buffer.contents buf
-*)

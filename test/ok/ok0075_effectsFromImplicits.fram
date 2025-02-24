@@ -3,8 +3,8 @@ data StateSig E X = State of
   , put : X ->[E] Unit
   }
 
-method get {State, self = State { get } : StateSig State _ } = get
-method put {State, self = State { put } : StateSig State _ } = put
+method get {State} (State { get } : StateSig State _) = get
+method put {State} (State { put } : StateSig State _) = put
 
 parameter State
 parameter ~st : StateSig State _

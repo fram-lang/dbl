@@ -7,22 +7,22 @@
 open TypeBase
 
 type neutral_head =
-  | NH_UVar of TVar.Perm.t * uvar
+  | NH_UVar of uvar
   | NH_Var  of tvar
 
 type whnf =
   | Whnf_Effect
   | Whnf_Neutral of neutral_head * typ list
       (* Arguments are in reversed order! *)
-  | Whnf_Arrow of scheme * typ * effect
+  | Whnf_Arrow of scheme * typ * effct
   | Whnf_Handler   of tvar * typ * typ * typ
   | Whnf_Label of typ
 
 let rec whnf tp =
   match view tp with
-  | TEffect     -> Whnf_Effect
-  | TUVar(p, u) -> Whnf_Neutral(NH_UVar(p, u), [])
-  | TVar x      -> Whnf_Neutral(NH_Var x, [])
+  | TEffect -> Whnf_Effect
+  | TUVar u -> Whnf_Neutral(NH_UVar u, [])
+  | TVar  x -> Whnf_Neutral(NH_Var  x, [])
   | TArrow(sch, tp, eff) -> Whnf_Arrow(sch, tp, eff)
   | THandler(a, tp, itp, otp) ->
     Whnf_Handler(a, tp, itp, otp)

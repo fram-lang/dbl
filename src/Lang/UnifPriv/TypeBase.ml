@@ -4,30 +4,22 @@
 
 (** Internal implementation of types in the Unif Language. *)
 
-open KindBase
+open UnifCommon
+include Names
+
+type kind = Kind.t
 
 type tvar  = TVar.t
-type scope = Scope.t
-
-type tname =
-  | TNAnon
-  | TNVar of string
 
 type named_tvar = tname * tvar
 
-type name =
-  | NVar         of string
-  | NOptionalVar of string
-  | NImplicit    of string
-  | NMethod      of string
-
-type effect = Pure | Impure
+type effct = Pure | Impure
 
 type uvar = {
   uid   : UID.t;
   kind  : kind;
   state : uvar_state BRef.t;
-  scope : scope BRef.t
+  scope : Scope.t BRef.t
 }
 
 and uvar_state =
@@ -37,9 +29,9 @@ and uvar_state =
 and typ = type_view
 and type_view =
   | TEffect
-  | TUVar    of TVar.Perm.t * uvar
+  | TUVar    of uvar
   | TVar     of tvar
-  | TArrow   of scheme * typ * effect
+  | TArrow   of scheme * typ * effct
   | THandler of tvar * typ * typ * typ
   | TLabel   of typ
   | TApp     of typ * typ
@@ -61,7 +53,7 @@ type ctor_decl = {
 
 let t_effect = TEffect
 
-let t_uvar p u = TUVar(Scope.shrink_perm_dom (BRef.get u.scope) p, u)
+let t_uvar u = TUVar u
 
 let t_var x = TVar x
 
@@ -73,50 +65,18 @@ let t_label tp0 = TLabel tp0
 
 let t_app tp1 tp2 = TApp(tp1, tp2)
 
-let perm_named_tvar p (n, x) =
-  (n, TVar.Perm.apply p x)
-
 let rec view tp =
   match tp with
-  | TUVar(p, u) ->
+  | TUVar u ->
     begin match BRef.get u.state with
     | UV_UVar -> tp
     | UV_Type tp ->
       (* Path compression *)
       let tp = view tp in
       BRef.set u.state (UV_Type tp);
-      perm p tp
+      tp
     end
   | TEffect | TVar _ | TArrow _ | THandler _ | TLabel _ | TApp _ -> tp
-
-and perm p tp =
-  if TVar.Perm.is_identity p then tp
-  else perm_rec p tp
-
-and perm_rec p tp =
-  match view tp with
-  | TEffect -> TEffect
-  | TUVar(p', u) ->
-    let p = TVar.Perm.compose p p' in
-    TUVar(Scope.shrink_perm_dom (BRef.get u.scope) p, u)
-  | TVar x -> TVar (TVar.Perm.apply p x)
-  | TArrow(sch, tp2, eff) ->
-    TArrow(perm_scheme_rec p sch, perm_rec p tp2, eff)
-  | THandler(a, tp, itp, otp) ->
-    THandler(TVar.Perm.apply p a, perm_rec p tp,
-      perm_rec p itp, perm_rec p otp)
-  | TLabel tp0 -> TLabel (perm_rec p tp0)
-  | TApp(tp1, tp2) ->
-    TApp(perm_rec p tp1, perm_rec p tp2)
-
-and perm_scheme_rec p sch =
-  { sch_targs = List.map (perm_named_tvar p) sch.sch_targs;
-    sch_named = List.map (perm_named_scheme_rec p) sch.sch_named;
-    sch_body  = perm_rec p sch.sch_body
-  }
-
-and perm_named_scheme_rec p (n, sch) =
-  (n, perm_scheme_rec p sch)
 
 module UVar = struct
   module Ordered = struct
@@ -140,25 +100,23 @@ module UVar = struct
 
   let scope u = BRef.get u.scope
 
-  let level u = Scope.level (scope u)
-
-  let raw_set p u tp =
+  let raw_set u tp =
     match BRef.get u.state with
     | UV_Type _ -> assert false
     | UV_UVar   ->
-      BRef.set u.state (UV_Type (perm (TVar.Perm.inverse p) tp));
-      Scope.perm p (BRef.get u.scope)
+      BRef.set u.state (UV_Type tp);
+      BRef.get u.scope
 
   let fix u =
     match BRef.get u.state with
     | UV_Type _ -> assert false
     | UV_UVar ->
-      let x = TVar.fresh u.kind in
+      let x = TVar.fresh ~scope:(BRef.get u.scope) u.kind in
       BRef.set u.state (UV_Type (t_var x));
       x
 
-  let filter_scope u lvl f =
-    BRef.set u.scope (Scope.filter lvl f (BRef.get u.scope))
+  let shrink_scope u scope =
+    BRef.set u.scope (Scope.inter (BRef.get u.scope) scope)
 
   module Set = Set.Make(Ordered)
   module Map = Map.Make(Ordered)

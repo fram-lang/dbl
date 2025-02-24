@@ -11,11 +11,11 @@ let fold_left f acc xs = fix (fn fold acc xs =>
   | Cons x xs => fold (f acc x) xs
   end) acc xs 
 
-method toString = (extern dbl_intToString : Int -> String) self
-method add = (extern dbl_strCat : String -> String -> String) self
+method toString = (extern dbl_intToString : Int -> String)
+method add = (extern dbl_strCat : String -> String -> String)
 
-method toString {A, method toString : A ->[] String, self : (List A) } =
- fold_left (fn (acc : String) (x : A) => acc.add x.toString) "" self
+method toString {A, method toString : A ->[] String} (self : (List A)) =
+ fold_left (fn (acc : String) (x : A) => acc.add x.toString) ""
 
 
 let x = Cons 1 (Cons 2 Nil)

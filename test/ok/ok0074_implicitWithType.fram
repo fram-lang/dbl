@@ -3,8 +3,8 @@ data State E X = State of
   , put : X ->[E] Unit
   }
 
-method get {E, self = State { get } : State E _ } = get
-method put {E, self = State { put } : State E _ } = put
+method get {E} (State { get } : State E _) = get
+method put {E} (State { put } : State E _) = put
 
 parameter State_Eff
 parameter ~st : State State_Eff _

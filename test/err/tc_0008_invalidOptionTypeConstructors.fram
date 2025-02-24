@@ -1,4 +1,0 @@
-data Option A = Non | Som of A
-
-let f {?x} = x
-let a = f
