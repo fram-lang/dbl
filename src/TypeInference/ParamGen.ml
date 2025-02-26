@@ -20,7 +20,7 @@ let end_generalize_pure ~pos params uvs cs =
   (* Generalize all unification variables *)
   let scope = ParamEnv.scope params in
   let can_be_generalized u =
-    if Scope.mem (T.UVar.scope u) scope then false
+    if T.UVar.in_scope u scope then false
     else begin
       T.UVar.shrink_scope u scope;
       true

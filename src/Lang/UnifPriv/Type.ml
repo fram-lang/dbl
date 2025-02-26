@@ -90,7 +90,7 @@ let scheme_uvars sch = collect_scheme_uvars sch UVar.Set.empty
 exception Escapes_scope of tvar
 
 let shrink_var_scope ~tvars ~scope x =
-  if Scope.mem (TVar.scope x) scope then ()
+  if TVar.in_scope x scope then ()
   else if TVar.Set.mem x tvars then ()
   else raise (Escapes_scope x)
 

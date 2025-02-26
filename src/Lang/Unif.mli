@@ -556,6 +556,9 @@ module TVar : sig
   (** Get the scope of a type variable *)
   val scope : tvar -> Scope.t
 
+  (** Check if a type variable can be used in a given scope *)
+  val in_scope : tvar -> Scope.t -> bool
+
   (** Finite sets of type variables *)
   module Set : Set.S with type elt = tvar
 
@@ -587,6 +590,9 @@ module UVar : sig
   (** Update the scope of a unification variable. Its scope is set to the
     intersection of its current scope and the given scope. *)
   val shrink_scope : t -> Scope.t -> unit
+
+  (** Check if a unification variable can be used in a given scope *)
+  val in_scope : t -> Scope.t -> bool
 
   (** Set of unification variables *)
   module Set : Set.S with type elt = t

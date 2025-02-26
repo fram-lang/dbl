@@ -179,7 +179,7 @@ let tr_named_type_arg penv (arg : S.named_type_arg) =
   | TA_Var(x, k) ->
     let kind = tr_kind k in
     (* It will be sustituted, so the scope is not important *)
-    let tvar = T.TVar.fresh ~scope:Scope.root kind in
+    let tvar = T.TVar.fresh ~scope:Scope.any kind in
     let penv = PartialEnv.add_anon_tvar ~pos penv tvar in
     let penv = PartialEnv.add_tvar_alias ~public:false ~pos penv x tvar in
     (penv, (pos, name, tvar))
@@ -187,7 +187,7 @@ let tr_named_type_arg penv (arg : S.named_type_arg) =
   | TA_Wildcard ->
     let kind = T.Kind.fresh_uvar () in
     (* It will be sustituted, so the scope is not important *)
-    let tvar = T.TVar.fresh ~scope:Scope.root kind in
+    let tvar = T.TVar.fresh ~scope:Scope.any kind in
     let penv = PartialEnv.add_anon_tvar ~pos penv tvar in
     (penv, (pos, name, tvar))
 

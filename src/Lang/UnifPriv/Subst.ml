@@ -56,7 +56,7 @@ let rec in_type_rec sub tp =
     begin match TVar.Map.find_opt x sub.sub with
     | Some tp -> tp
     | None ->
-      assert (Scope.mem (TVar.scope x) sub.scope);
+      assert (TVar.in_scope x sub.scope);
       tp
     end
   | TArrow(sch, tp2, eff) ->

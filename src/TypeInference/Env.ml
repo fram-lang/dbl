@@ -53,14 +53,14 @@ let empty =
     cur_module     = Module.empty;
     mod_stack      = MStack (StModule, Nil);
     pp_tree        = PPTree.empty;
-    scope          = Scope.root;
+    scope          = Scope.initial;
     param_env      = ParamEnv.empty
   }
 
 (* ========================================================================= *)
 
 let add_existing_tvar ?pos ?(public=false) (Env env) name x =
-  assert (Scope.mem (T.TVar.scope x) env.scope);
+  assert (T.TVar.in_scope x env.scope);
   Env { env with
     cur_module =
       Module.add_type_alias ~public env.cur_module name
@@ -224,7 +224,7 @@ let unit_adt =
   }
 
 let option_adt =
-  let a = T.TVar.fresh ~scope:(Scope.enter Scope.root) T.Kind.k_type in
+  let a = T.TVar.fresh ~scope:Scope.any T.Kind.k_type in
   { Module.adt_args  = [T.TNAnon, a];
     Module.adt_proof = T.PE_Option (T.Type.t_var a);
     Module.adt_ctors =
