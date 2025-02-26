@@ -100,6 +100,8 @@ module UVar : sig
     intersection of its current scope and the given scope. *)
   val shrink_scope : t -> Scope.t -> unit
 
+  val in_scope : t -> Scope.t -> bool
+
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t
 end

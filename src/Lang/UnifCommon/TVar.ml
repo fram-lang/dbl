@@ -19,6 +19,7 @@ include Ordered
 let kind x = x.kind
 
 let fresh ?pp_uid ~scope kind =
+  assert (not (Scope.equal scope Scope.root));
   let uid = UID.fresh () in
   { uid    = uid;
     kind   = kind;
@@ -39,6 +40,8 @@ let uid x = x.uid
 let pp_uid x = x.pp_uid
 
 let scope x = x.scope
+
+let in_scope x scope = Scope.mem x.scope scope
 
 module Set = Set.Make(Ordered)
 module Map = Map.Make(Ordered)

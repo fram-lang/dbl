@@ -118,6 +118,9 @@ module UVar = struct
   let shrink_scope u scope =
     BRef.set u.scope (Scope.inter (BRef.get u.scope) scope)
 
+  let in_scope u scope =
+    Scope.mem (BRef.get u.scope) scope
+
   module Set = Set.Make(Ordered)
   module Map = Map.Make(Ordered)
 end

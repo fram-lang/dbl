@@ -5,26 +5,26 @@
 (** Built-in type variable *)
 
 (** Int type *)
-let tv_int = TVar.fresh ~scope:Scope.root Kind.k_type
+let tv_int = TVar.fresh ~scope:Scope.initial Kind.k_type
 
 (** Int64 type *)
-let tv_int64 = TVar.fresh ~scope:Scope.root Kind.k_type
+let tv_int64 = TVar.fresh ~scope:Scope.initial Kind.k_type
 
 (** String type *)
-let tv_string = TVar.fresh ~scope:Scope.root Kind.k_type
+let tv_string = TVar.fresh ~scope:Scope.initial Kind.k_type
 
 (** Char type *)
-let tv_char = TVar.fresh ~scope:Scope.root Kind.k_type
+let tv_char = TVar.fresh ~scope:Scope.initial Kind.k_type
 
 (** Unit type *)
-let tv_unit = TVar.fresh ~scope:Scope.root Kind.k_type
+let tv_unit = TVar.fresh ~scope:Scope.initial Kind.k_type
 
 (** Option type *)
-let tv_option = TVar.fresh ~scope:Scope.root
+let tv_option = TVar.fresh ~scope:Scope.initial
   (Kind.k_arrow Kind.k_type Kind.k_type)
 
 (** IO effect *)
-let tv_io = TVar.fresh ~scope:Scope.root Kind.k_effect
+let tv_io = TVar.fresh ~scope:Scope.initial Kind.k_effect
 
 (** List of all built-in types together with their names *)
 let all =
