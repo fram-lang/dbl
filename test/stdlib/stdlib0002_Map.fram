@@ -42,21 +42,21 @@ let _ = assert {msg="Failed find"}
 
 # update change check
 let _ = assert {msg="Failed update"}
-	(let f a =
-		match a with
-		| None => Some 2
-		| Some _ => Some 0
-		end in
+  (let f a =
+    match a with
+    | None => Some 2
+    | Some _ => Some 0
+    end in
   z.update 1 f
   >. toValueList == [0,1,2,3])
 
 # update add check
 let _ = assert {msg="Failed update"}
-	(let f a =
-		match a with
-		| None => Some 2
-		| Some _ => Some 0
-		end in
+  (let f a =
+    match a with
+    | None => Some 2
+    | Some _ => Some 0
+    end in
   z.update 0 f
   >. toValueList == [2,1,1,2,3])
 

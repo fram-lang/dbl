@@ -26,8 +26,8 @@ pub let empty = Leaf
 
 pub let size tree =
   match tree with
-	| Leaf => 0
-	| Node {size} => size
+  | Leaf => 0
+  | Node {size} => size
   end
 
 pub let makeNode color left value right =
@@ -41,10 +41,10 @@ pub let rec zip tree zipper =
   | [] => tree
 
   | Left color value right :: rest =>
-		zip (makeNode color tree value right) rest
+    zip (makeNode color tree value right) rest
 
   | Right color left value :: rest =>
-		zip (makeNode color left value tree) rest
+    zip (makeNode color left value tree) rest
 
  end
 
@@ -53,67 +53,67 @@ pub let rec zipRed value left right zipper =
   | [] => makeNode Black left value right
 
   | Left Black value1 right1 :: rest =>
-		zip (makeNode Black (makeNode Red left value right) value1 right1) rest
+    zip (makeNode Black (makeNode Red left value right) value1 right1) rest
 
   | Right Black left1 value1  :: rest =>
-		zip (makeNode Black left1 value1 (makeNode Red left value right)) rest
+    zip (makeNode Black left1 value1 (makeNode Red left value right)) rest
 
   | Left Red value1 right1 ::
-			Left _ value2
-			(Node {color = Red, size = size3, left = left3,
-			value = value3, right = right3}) :: rest =>
-		let left'  = makeNode Red left value right
-		let right' = construct Black size3 left3 value3 right3 in
-		zipRed value2 (makeNode Black left' value1 right1) right' rest
+      Left _ value2
+      (Node {color = Red, size = size3, left = left3,
+      value = value3, right = right3}) :: rest =>
+    let left'  = makeNode Red left value right
+    let right' = construct Black size3 left3 value3 right3 in
+    zipRed value2 (makeNode Black left' value1 right1) right' rest
 
   | Left Red value1 right1 ::
-			Right _
-			(Node {color = Red, size = size3, left = left3,
-			value = value3, right = right3}) value2 :: rest =>
-		let left'  = construct Black size3 left3 value3 right3
-		let right' = makeNode Red left value right in
-		zipRed value2 left' (makeNode Black right' value1 right1) rest
+      Right _
+      (Node {color = Red, size = size3, left = left3,
+      value = value3, right = right3}) value2 :: rest =>
+    let left'  = construct Black size3 left3 value3 right3
+    let right' = makeNode Red left value right in
+    zipRed value2 left' (makeNode Black right' value1 right1) rest
 
   | Right Red left1 value1 ::
-			Left _ value2
-			(Node {color = Red, size = size3, left = left3,
-			value = value3, right = right3}) :: rest =>
-		let left'  = makeNode Red left value right
-		let right' = construct Black size3 left3 value3 right3 in
-		zipRed value2 (makeNode Black left1 value1 left') right' rest
+      Left _ value2
+      (Node {color = Red, size = size3, left = left3,
+      value = value3, right = right3}) :: rest =>
+    let left'  = makeNode Red left value right
+    let right' = construct Black size3 left3 value3 right3 in
+    zipRed value2 (makeNode Black left1 value1 left') right' rest
 
   | Right Red left1 value1 ::
-			Right _ (Node {color = Red, size = size3, left = left3,
-			value = value3, right = right3}) value2 :: rest =>
-		let left'  = construct Black size3 left3 value3 right3
-		let right' = makeNode Red left value right in
-		zipRed value2 left' (makeNode Black left1 value1 right') rest
+      Right _ (Node {color = Red, size = size3, left = left3,
+      value = value3, right = right3}) value2 :: rest =>
+    let left'  = construct Black size3 left3 value3 right3
+    let right' = makeNode Red left value right in
+    zipRed value2 left' (makeNode Black left1 value1 right') rest
 
   | Left Red value1 right1 :: Left _ value2 node3 :: rest =>
-		let left'  = makeNode Red left value right
-		let right' = makeNode Red right1 value2 node3 in
-		zip (makeNode Black left' value1 right') rest
+    let left'  = makeNode Red left value right
+    let right' = makeNode Red right1 value2 node3 in
+    zip (makeNode Black left' value1 right') rest
 
   | Left Red value1 right1 :: Right _ node3 value2  :: rest =>
-		let left'  = makeNode Red node3 value2 left
-		let right' = makeNode Red right value1 right1 in
-		zip (makeNode Black left' value right') rest
+    let left'  = makeNode Red node3 value2 left
+    let right' = makeNode Red right value1 right1 in
+    zip (makeNode Black left' value right') rest
 
   | Right Red left1 value1 :: Left _ value2 node3 :: rest =>
-		let left'  = makeNode Red left1 value1 left
-		let right' = makeNode Red right value2 node3 in
-		zip (makeNode Black left' value right') rest
+    let left'  = makeNode Red left1 value1 left
+    let right' = makeNode Red right value2 node3 in
+    zip (makeNode Black left' value right') rest
 
   | Right Red left1 value1 :: Right _  node3 value2 :: rest =>
-		let left'  = makeNode Red node3 value2 left1
-		let right' = makeNode Red left value right in
-		zip (makeNode Black left' value1 right') rest
+    let left'  = makeNode Red node3 value2 left1
+    let right' = makeNode Red left value right in
+    zip (makeNode Black left' value1 right') rest
 
   | Left Red value1 right1 :: [] =>
-		makeNode Black (makeNode Red left value right) value1 right1
+    makeNode Black (makeNode Red left value right) value1 right1
 
   | Right Red left1 value1 :: [] =>
-		makeNode Black left1 value1 (makeNode Red left value right)
+    makeNode Black left1 value1 (makeNode Red left value right)
 
  end
 
@@ -122,63 +122,63 @@ pub let rec zipBlack tree zipper =
   | [] => tree
 
   | Left color1 value1
-			(Node {left = left2, value = value2,
-			right = (Node {color = Red, size = size3,
-			left = left3, value = value3, right = right3})}) ::
-			rest =>
-		let left'  = makeNode Black tree value1 left2
-		let right' = construct Black size3 left3 value3 right3 in
-		zip (makeNode color1 left' value2 right') rest
+      (Node {left = left2, value = value2,
+      right = (Node {color = Red, size = size3,
+      left = left3, value = value3, right = right3})}) ::
+      rest =>
+    let left'  = makeNode Black tree value1 left2
+    let right' = construct Black size3 left3 value3 right3 in
+    zip (makeNode color1 left' value2 right') rest
 
   | Right color1 (Node { left = (Node {color = Red, size = size3, left = left3,
-			value = value3, right = right3}), value = value2, right = right2})
-			value1 :: rest =>
-		let left'  = construct Black size3 left3 value3 right3
-		let right' = makeNode Black right2 value1 tree in
-		zip (makeNode color1 left' value2 right') rest
+      value = value3, right = right3}), value = value2, right = right2})
+      value1 :: rest =>
+    let left'  = construct Black size3 left3 value3 right3
+    let right' = makeNode Black right2 value1 tree in
+    zip (makeNode color1 left' value2 right') rest
 
   | Left color1 value1 (Node {left = (Node {color = Red, left = left3,
-			value = value3, right = right3}),
-			value = value2, right = right2}) :: rest =>
-		let left'  = makeNode Black tree value1 left3
-		let right' = makeNode Black right3 value2 right2 in
-		zip (makeNode color1 left' value3 right') rest
+      value = value3, right = right3}),
+      value = value2, right = right2}) :: rest =>
+    let left'  = makeNode Black tree value1 left3
+    let right' = makeNode Black right3 value2 right2 in
+    zip (makeNode color1 left' value3 right') rest
 
   | Right color1 (Node {left = left2, value = value2, right =
-			(Node {color = Red, left = left3, value = value3, right = right3})})
-			value1 :: rest =>
-		let left'  = makeNode Black left2 value2 left3
-		let right' = makeNode Black right3 value1 tree in
-		zip (makeNode color1 left' value3 right') rest
+      (Node {color = Red, left = left3, value = value3, right = right3})})
+      value1 :: rest =>
+    let left'  = makeNode Black left2 value2 left3
+    let right' = makeNode Black right3 value1 tree in
+    zip (makeNode color1 left' value3 right') rest
 
   | Left Red value1 (Node {size = size2, left = left2,
-			value = value2, right = right2}) :: rest =>
-		let right' = construct Red size2 left2 value2 right2 in
-		zip (makeNode Black tree value1 right') rest
+      value = value2, right = right2}) :: rest =>
+    let right' = construct Red size2 left2 value2 right2 in
+    zip (makeNode Black tree value1 right') rest
 
   | Right Red (Node {size = size2, left = left2,
-			value = value2, right = right2}) value1 :: rest =>
-		let left' = construct Red size2 left2 value2 right2 in
-		zip (makeNode Black left' value1 tree) rest
+      value = value2, right = right2}) value1 :: rest =>
+    let left' = construct Red size2 left2 value2 right2 in
+    zip (makeNode Black left' value1 tree) rest
 
   | Left Black value1 (Node {color = Black, size = size2, left = left2,
-			value = value2, right = right2}) :: rest =>
-		let right' = construct Red size2 left2 value2 right2 in
-		zipBlack (makeNode Black tree value1 right') rest
+      value = value2, right = right2}) :: rest =>
+    let right' = construct Red size2 left2 value2 right2 in
+    zipBlack (makeNode Black tree value1 right') rest
 
   | Right Black (Node {color = Black, size = size2, left = left2,
-			value = value2, right = right2}) value1 :: rest =>
-		let left' = construct Red size2 left2 value2 right2 in
-		zipBlack (makeNode Black left' value1 tree) rest
+      value = value2, right = right2}) value1 :: rest =>
+    let left' = construct Red size2 left2 value2 right2 in
+    zipBlack (makeNode Black left' value1 tree) rest
 
   | Left Black value1 (Node {color = Red, left = left2,
-			value = value2, right = right2}) :: rest =>
-		zipBlack tree (Left Red value1 left2 :: Left Black value2 right2 :: rest)
+      value = value2, right = right2}) :: rest =>
+    zipBlack tree (Left Red value1 left2 :: Left Black value2 right2 :: rest)
 
   | Right Black (Node {color = Red, left = left2, value = value2,
-			right = right2}) value1 :: rest =>
-		let rest' = Right Red right2 value1 :: Right Black left2 value2 :: rest in
-		zipBlack tree rest'
+      right = right2}) value1 :: rest =>
+    let rest' = Right Red right2 value1 :: Right Black left2 value2 :: rest in
+    zipBlack tree rest'
 
   # Impossible
   | Left _ _ Leaf :: _ => impossible ()
@@ -204,23 +204,23 @@ pub let rec searchMin tree zipper =
   match tree with
   | Leaf => zipper
   | Node {color, left, value, right} =>
-		searchMin left (Left color value right :: zipper)
+    searchMin left (Left color value right :: zipper)
   end
 
 pub let rec searchMax tree zipper =
   match tree with
   | Leaf => zipper
   | Node {color, left, value, right} =>
-		searchMax right (Right color left value:: zipper)
+    searchMax right (Right color left value:: zipper)
   end
 
 pub let deleteNearLeaf color child zipper =
   match color with
   | Red => zip Leaf zipper
   | Black =>
-		match child with
+    match child with
     | Node {value} =>
-			zip (makeNode Black Leaf value Leaf) zipper
+      zip (makeNode Black Leaf value Leaf) zipper
     | Leaf => zipBlack Leaf zipper
     end
   end
@@ -230,23 +230,23 @@ pub let delete color left right zipper =
   | Leaf =>
     match left with
     | Leaf =>
-			match color with
+      match color with
       | Red => zip Leaf zipper
       | Black => zipBlack Leaf zipper
       end
     | _ =>
       match searchMax left [] with
       | Right colorLeftMin leftLeftMin valueLeftMin :: zipperr =>
-				deleteNearLeaf colorLeftMin leftLeftMin
-						(List.append zipperr (Left color valueLeftMin right :: zipper))
+        deleteNearLeaf colorLeftMin leftLeftMin
+            (List.append zipperr (Left color valueLeftMin right :: zipper))
       | _ => Leaf
       end
     end
   | _ =>
     match searchMin right [] with
     | Left colorRightMin valueRightMin rightRightMin :: zipperr =>
-			deleteNearLeaf colorRightMin rightRightMin
-					(List.append zipperr (Right color left valueRightMin :: zipper))
+      deleteNearLeaf colorRightMin rightRightMin
+          (List.append zipperr (Right color left valueRightMin :: zipper))
     | _ => Leaf
     end
   end
@@ -254,7 +254,7 @@ pub let delete color left right zipper =
 pub let blacken tree =
   match tree with
   | Node {color = Red, size, left, value, right} =>
-		construct Black size left value right
+    construct Black size left value right
   | _ => tree
   end
 
@@ -270,18 +270,18 @@ pub let rec searchHeight leftward target tree zipper =
   | Leaf => (Leaf, zipper)
   | Node {color=Red,left,value,right} =>
     if leftward then
-			searchHeight leftward target left (Left Red value right :: zipper)
+      searchHeight leftward target left (Left Red value right :: zipper)
     else
-			searchHeight leftward target right (Right Red  left value :: zipper)
+      searchHeight leftward target right (Right Red  left value :: zipper)
   | Node {color=Black,left,value,right} =>
     if 0 == target then
-			(tree,zipper)
+      (tree,zipper)
     else if leftward then
-			searchHeight leftward (target - 1) left
-					(Left Black value right :: zipper)
+      searchHeight leftward (target - 1) left
+          (Left Black value right :: zipper)
     else
-			searchHeight leftward (target - 1) right
-					(Right Black left value :: zipper)
+      searchHeight leftward (target - 1) right
+          (Right Black left value :: zipper)
   end
 
 pub let joinVal left value right =

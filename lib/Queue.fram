@@ -8,8 +8,8 @@ data NotNegativeInt = Zero | Positive of Int
 
 let addOne value =
   match value with
-	| Zero => Positive 1
-	| Positive n => Positive (n+1)
+  | Zero => Positive 1
+  | Positive n => Positive (n+1)
   end
 
 let subOne value =
@@ -76,7 +76,7 @@ let check queue =
     if leq lenr lenf then exec_twice queue
     else (
       let newstate = Reversing Zero f [] r [] in
-			exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
+      exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
     )
   end
 
@@ -90,7 +90,7 @@ pub let isEmpty queue =
 let snoc queue value =
   match queue with
   | HMQueue lenf f state lenr r =>
-		check (HMQueue lenf f state (addOne lenr) (value :: r))
+    check (HMQueue lenf f state (addOne lenr) (value :: r))
   end
 
 let head queue =
@@ -105,7 +105,7 @@ let tail queue =
   | HMQueue Zero _ _ _ _ => emptyQueue
   | HMQueue _ [] _ _ _ => emptyQueue
   | HMQueue lenf (x::xs) state lenr r =>
-		check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
+    check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
   end
 
 let foldlRotationState f acc state =
@@ -131,8 +131,8 @@ pub let foldlQueue queue f acc  =
     | HMQueue _ list1 state _ list2 =>
       List.foldLeft f
         (foldlRotationState f
-					(List.foldLeft f acc list1)
-					state)
+          (List.foldLeft f acc list1)
+          state)
         list2
     end
 
