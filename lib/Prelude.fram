@@ -47,7 +47,3 @@ pub module Int64
   pub let ofInt (n : Int) = n.toInt64
 end
 
-pub data Ordered = 
-| Less
-| Equal
-| Greater
