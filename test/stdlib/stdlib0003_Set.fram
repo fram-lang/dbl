@@ -1,76 +1,71 @@
 import Set
 import open List
-import open Prelude
 
-let lt (v1 : Int) (v2 : Int) = 
-    if v1 < v2 then Less
-    else if v2 < v1 then Greater
-    else Equal
+let lt (v1 : Int) (v2 : Int) =
+    if v1 < v2 then Lt
+    else if v2 < v1 then Gt
+    else Eq
 
 let Set.Set {module IntSet} = Set.make lt
 
-# empty check 
+# empty check
 let x = IntSet.empty
-let _ = assert {msg="Failed empty"} (x.isEmpty) 
+let _ = assert {msg="Failed empty"} (x.isEmpty)
 
 let x = x.insert 0
 
-# toList check 
-let _ = assert {msg="Failed toList"} (x.toList == [0]) 
+# toList check
+let _ = assert {msg="Failed toList"} (x.toList == [0])
 
-# insert check 
+# insert check
 let y = x.insert 1
-let _ = assert {msg="Failed insert"} (y.toList == [0,1]) 
-let _ = assert {msg="Failed insert"} (y.insert 2 >. toList == [0,1,2]) 
+let _ = assert {msg="Failed insert"} (y.toList == [0,1])
+let _ = assert {msg="Failed insert"} (y.insert 2 >. toList == [0,1,2])
 
-# remove check 
-let y = y.insert 2 >. insert 3 
-let _ = assert {msg="Failed remove"} (y.remove 1 >. toList == [0,2,3]) 
+# remove check
+let y = y.insert 2 >. insert 3
+let _ = assert {msg="Failed remove"} (y.remove 1 >. toList == [0,2,3])
 
-# member check 
-let _ = assert {msg="Failed check"} (y.member 1) 
-let _ = assert {msg="Failed check"} (not (y.member 10)) 
+# member check
+let _ = assert {msg="Failed check"} (y.member 1)
+let _ = assert {msg="Failed check"} (not (y.member 10))
 
-# foldl/r check 
-let _ = assert {msg="Failed foldl"} (y.foldl (fn x acc => x + acc) 0 == 6) 
-let _ = assert {msg="Failed foldr"} (y.foldr (fn x acc => x + acc) 0 == 6) 
+# foldl/r check
+let _ = assert {msg="Failed foldl"} (y.foldl (fn x acc => x + acc) 0 == 6)
+let _ = assert {msg="Failed foldr"} (y.foldr (fn x acc => x + acc) 0 == 6)
 
-# union check 
+# union check
 let x = x.insert 4 >. insert 5 >. insert 6
-let _ = assert {msg="Failed union"} (y.union x >. toList == [0,1,2,3,4,5,6]) 
+let _ = assert {msg="Failed union"} (y.union x >. toList == [0,1,2,3,4,5,6])
 
-# intersection check 
-let _ = assert {msg="Failed intersection"} (x.intersection y >. toList == [0]) 
+# intersection check
+let _ = assert {msg="Failed intersection"} (x.intersection y >. toList == [0])
 
-# diffrence check 
-let _ = assert {msg="Failed difference"} (y.difference x >. toList == [1,2,3]) 
-let _ = assert {msg="Failed difference"} (x.difference y >. toList == [4,5,6]) 
+# diffrence check
+let _ = assert {msg="Failed difference"} (y.difference x >. toList == [1,2,3])
+let _ = assert {msg="Failed difference"} (x.difference y >. toList == [4,5,6])
 
-# eq check 
-let _ = assert {msg="Failed eq"} (x.eq x) 
-let _ = assert {msg="Failed eq"} (not (x.eq y)) 
+# eq check
+let _ = assert {msg="Failed eq"} (x.eq x)
+let _ = assert {msg="Failed eq"} (not (x.eq y))
 
-# subset check 
-let _ = assert {msg="Failed subset"} (IntSet.empty.subset x) 
-let _ = assert {msg="Failed subset"} 
-  (IntSet.empty.insert 0 >. insert 1 >. subset y) 
-let _ = assert {msg="Failed subset"} (not (x.subset y)) 
+# subset check
+let _ = assert {msg="Failed subset"} (IntSet.empty.subset x)
+let _ = assert {msg="Failed subset"}
+  (IntSet.empty.insert 0 >. insert 1 >. subset y)
+let _ = assert {msg="Failed subset"} (not (x.subset y))
 
-# partionLt check 
-let _ = assert {msg="Failed partionLt"} 
-  (fst (y.partionLt 2) >. toList == [0,1]) 
-let _ = assert {msg="Failed partionLt"} 
-  (snd (y.partionLt 2) >. toList == [2,3]) 
+# partionLt check
+let _ = assert {msg="Failed partionLt"}
+  (fst (y.partionLt 2) >. toList == [0,1])
+let _ = assert {msg="Failed partionLt"}
+  (snd (y.partionLt 2) >. toList == [2,3])
 
-# range check 
-let _ = assert {msg="Failed range"}
-  (y.range True 1 True 2 >. toList == [1,2]) 
-
-# lowerBound check 
+# lowerBound check
 let _ = assert {msg="Failed lowerBound"}
-  (match y.lowerBound with | Some x => x == 0 | _ => False end) 
+  (match y.lowerBound with | Some x => x == 0 | _ => False end)
 
-# upperBound check 
-let _ = assert {msg="Failed upperBound"} 
+# upperBound check
+let _ = assert {msg="Failed upperBound"}
   (match y.upperBound with | Some x => x == 3 | _ => False end)
- 
+

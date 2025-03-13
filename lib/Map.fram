@@ -8,359 +8,399 @@ import open RedBlackTree
  # Signature
  #}
 
-data Interval Value = Inclusion of Value | Exclusion of Value
-
 implicit ~onError
 
 pub data Map Key = Map of {
-    T 
-    {# @brief Creates empty map
-    #}
-    , empty : {type Val} -> T Val
-    {# @brief Method to testing whether given map is empty or not
-      # @return True if it's empty false otherwise
-    #}
-    , method isEmpty : {type Val} -> T Val -> [] Bool
-    {# @brief Method for inserting element to the map
-      # @param Key which will be inserted to the map
-      # @param Value which will be inserted to the map
-      # @return Map with inserted value
-    #}
-    , method insert : {type Val} -> T Val -> 
-        Key -> Val -> [] T Val
-    {# @brief Method for inserting element to the map
-      # @param Key which will be inserted to the map
-      # @param Value which will be inserted to the map
-      # @return Map with inserted value 
-        and boolean value if the value was changed 
-        if the key already existed in map 
-    #}
-    , method insertChange : {type Val} -> T Val -> 
-        Key -> Val -> [] (Pair (T Val) Bool)
-    {# @brief Method for removing key from the map
-      # @param Key which will be removed to the map
-      # @return Map with removed key
-    #}
-    , method remove : {type Val} -> T Val -> 
-        Key -> [] T Val
-    {# @brief Method for removing key from the map
-      # @param Key which will be removed to the map
-      # @return Map with removed key 
-        and boolean value if the map was changed 
-    #}
-    , method removeChange : {type Val} -> T Val ->
-        Key -> [] (Pair (T Val) Bool)
-    {# @brief Method for checking if a given key is present in a map
-    #}
-    , method member : {type Val} -> T Val -> Key -> [] Bool
-    , method find : {type Val} -> T Val -> Key -> [] Option Val
-    {# @brief method that searches for an item and returns value 
-      #         based on the search 
-      # @param key
-      # @param absentf what value return if the element doesn't exist
-      # @param presentf what value return if the element exist
-      # @return tuple of found an item and it's value, 
-      # result of a given function absentf or presentf and orginal tree
-    #}
-    , method operate : {type Val,E} -> T Val -> Key ->
-        (Unit -> [|E] Option Val) -> (Val -> [|E] Option Val) -> 
-        [|E] (Pair (Pair (Option Val) (Option Val)) (T Val))
-    {# @brief Method to fold left through structure of map
-      # @param Function that receives key, value and accumulator
-      # @param Accumulator
-      # @return Result of applying function on keys 
-        and values of map and accumulator
-    #}
-    , method foldl : {type Val, type A,E} -> T Val -> 
-        (Key -> Val -> A -> [|E] A) -> A -> [|E] A
-    {# @brief Method to fold right through structure of map
-      # @param Function that receives key, value and accumulator
-      # @param Accumulator
-      # @return Result of applying function on keys 
-        and values of map and accumulator
-    #}
-    , method foldr : {type Val, type A,E} -> T Val -> 
-        (Key -> Val -> A -> [|E] A) -> A -> [|E] A
-    {# @brief Method that returns list of pairs (key,value)
-    #}
-    , method toList : {type Val} -> T Val -> [] List (Pair Key Val)
-    {# @brief Method that returns list of values
-    #}
-    , method toValueList : {type Val} -> T Val -> [] List Val
-    {# @brief Method that returns list of keys
-    #}
-    , method domain : {type Val} -> T Val -> [] List Key
-    {# @brief Method that maps all values in a map to diffrent value
-    #}
-    , method mapVal : {type Val, type A,E} -> T Val -> 
-        (Val -> [|E] A) -> [|E] T A
-    {# @brief Method that maps all (key,value) in a map to (key, func key)
-    #}
-    , method mapKey : {type Val, type A,E} -> T Val -> 
-        (Key -> [|E] A) -> [|E] T A
-    {#  @brief Method that applies function to every key and value
-    #}
-    , method app : {type Val,E} -> T Val -> 
-        (Key -> Val -> [|E] Unit) -> [|E] Unit
-    {# @brief Method that joins two maps
-      # @param Function that resolves conflicts 
-      # if maps have the same key
-    #}
-    , method union : {type Val,E} -> T Val -> T Val ->
-        (Key -> Val -> Val -> [|E] Val) -> [|E] T Val
-    {# @brief Method that splits map into two maps one with 
-      # the keys lower then given key, the other with greater.
-      # @return map with lower keys, Some value if key was present,
-      # map with greater keys 
-    #}
-    , method partion : {type Val} -> T Val -> Key ->
-        [] (Pair (Pair (T Val) (Option Val)) (T Val))
-    {# @brief Method that splits map into two maps one with 
-      # the keys lower then given key, the other with greater or equal.
-    #}
-    , method partionLt : {type Val} -> T Val -> Key ->
-        [] Pair (T Val) (T Val)
-    {# @brief Method that splits map into two maps one with 
-      # the keys lower or equal then given key, the other with greater.
-    #}
-    , method partionGt : {type Val} -> T Val -> Key ->
-        [] Pair (T Val) (T Val)
-    {# @brief Method that gives a submap in a given range 
-      # @param First Bool - if the submap should include lower key or not
-      # @param First Elem - lower key which all elements 
-      #   in returned map will be greater (or equal)
-      # @param Second Bool - if the submap should include upper key or not
-      # @param Second Elem - upper key which all elements
-      #   in returned map will be lower (or equal)  
-      # @return Submap in a given range
-    #}
-    , method range : {type Val} -> T Val -> Bool -> Key ->
-        Bool -> Key -> [] T Val
-    {# @brief Method that returns lowest pair (key,value) in a map
-      # @return Some (key,value) if the smallest key exist or otherwise None
-    #}
-    , method lowerBound : {type Val} -> T Val -> [] Option (Pair Key Val)
-    {# @brief Method that returns lowest pair (key,value) in a map
-      # @return (key,value) or error
-    #}
-    , method lowerBoundErr : 
-      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} -> 
-      T Val -> [Err] (Pair Key Val)
-    {# @brief Method that returns greatest pair (key,value) in a map
-      # @return Some (key,value) if the greatest key exist or otherwise None
-    #}
-    , method upperBound : {type Val} -> T Val -> [] Option (Pair Key Val)
-    {# @brief Method that returns greatest pair (key,value) in a map
-      # @return (key,value) or error
-    #}
-    , method upperBoundErr : 
-      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} -> 
-      T Val -> [Err] (Pair Key Val)
-    {# @brief Method that returns the lowest (key,value) greater than given key
-      # @return Some (key,value) or None
-    #}
-    , method lowerBoundGt : {type Val} -> T Val -> Key -> 
-      [] Option (Pair Key Val)
-    {# @brief Method that returns the lowest (key,value) greater than given key
-      # @return (key,value) or error
-    #}
-    , method lowerBoundGtErr :
-      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
-      T Val -> Key -> [Err] (Pair Key Val)
-    {# @brief Method that returns the lowest (key,value) greater 
-      # or equal than given key
-      # @return Some (key,value) or None
-    #}
-    , method lowerBoundGeq : {type Val} -> T Val -> Key -> 
-      [] Option (Pair Key Val)
-    {# @brief Method that returns the lowest (key,value) greater 
-      # or equal than given key
-      # @return (key,value) or error
-    #}
-    , method lowerBoundGeqErr :
-      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
-      T Val -> Key -> [Err] (Pair Key Val)
-    {# @brief Method that returns the greatest (key,value) lower than given key
-      # @return Some (key,value) or None
-    #}
-    , method upperBoundLt : {type Val} -> T Val -> 
-        Key -> [] Option (Pair Key Val)
-    {# @brief Method that returns the greatest (key,value) lower than given key
-      # @return (key,value) or error
-    #}
-    , method upperBoundLtErr :
-      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
-      T Val -> Key -> [Err] (Pair Key Val)
-      {# @brief Method that returns the greatest (key,value) lower 
-        # or equal than given key
-        # @return Some (key,value) or None
-      #}
-    , method upperBoundLeq : {type Val,E} -> T Val ->
-        Key -> [] Option (Pair Key Val)
-      {# @brief Method that returns the greatest (key,value) lower 
-        # or equal than given key
-        # @return (key,value) or error
-      #}
-    , method upperBoundLeqErr :
-      {type Val, Err, ~onError : Unit -> [Err] (Pair Key Val)} ->
-      T Val -> Key -> [Err] (Pair Key Val)
+  T
+
+ {## @brief Creates empty map
+   ##}
+  , empty : {type Val} -> T Val
+
+ {## @brief Method to testing whether given map is empty or not
+   # @return True if it's empty false otherwise
+   ##}
+  , method isEmpty : {type Val} -> T Val ->[] Bool
+
+ {## @brief Method for inserting element to the map
+   # @param Key which will be inserted to the map
+   # @param Value which will be inserted to the map
+   # @return Map with inserted value
+   ##}
+  , method insert : {type Val} -> T Val ->
+      Key -> Val ->[] T Val
+
+ {## @brief Method for inserting element to the map
+   # @param Key which will be inserted to the map
+   # @param Value which will be inserted to the map
+   # @return Map with inserted value
+   # and boolean value if the value was changed
+   # if the key already existed in map
+   ##}
+  , method insertChange : {type Val} -> T Val ->
+      Key -> Val ->[] (Pair (T Val) Bool)
+
+ {## @brief Method for removing key from the map
+   # @param Key which will be removed to the map
+   # @return Map with removed key
+   ##}
+  , method remove : {type Val} -> T Val -> Key ->[] T Val
+
+ {## @brief Method for removing key from the map
+   # @param Key which will be removed to the map
+   # @return Map with removed key
+   #  and boolean value if the map was changed
+   ##}
+  , method removeChange : {type Val} -> T Val ->
+      Key ->[] (Pair (T Val) Bool)
+
+ {## @brief Method for checking if a given key is present in a map
+   ##}
+  , method member : {type Val} -> T Val -> Key ->[] Bool
+
+ {## @brief Method for getting value mapping from a key
+   #   returns None if key is not found
+   ##}
+  , method find : {type Val} -> T Val -> Key ->[] Option Val
+
+ {## @brief Method for getting value mapping from a key,
+   #   calls `~onError` if key is not found
+   ##}
+  , method findErr :
+    {type Val, Err, ~onError : Unit ->[Err] Val} -> T Val -> Key ->[Err] Val
+
+ {## @brief Method to update mapping on a key using a function
+   # @param key
+   # @param f is called with Option Val based on if the key has mapping
+   #     in the input tree and should return Option Val to update the tree
+   # @return updated tree
+   ##}
+  , method update : {type Val,E} -> T Val -> Key ->
+      (Option Val ->[|E] Option Val) ->[|E] T Val
+
+ {## @brief Method to fold left through structure of map
+   # @param Function that receives key, value and accumulator
+   # @param Accumulator
+   # @return Result of applying function on keys
+   # and values of map and accumulator
+   ##}
+  , method foldl : {type Val, type A,E} -> T Val ->
+      (Key -> Val -> A ->[|E] A) -> A ->[|E] A
+
+ {## @brief Method to fold right through structure of map
+   # @param Function that receives key, value and accumulator
+   # @param Accumulator
+   # @return Result of applying function on keys
+   # and values of map and accumulator
+   ##}
+  , method foldr : {type Val, type A,E} -> T Val ->
+      (Key -> Val -> A ->[|E] A) -> A ->[|E] A
+
+ {## @brief Method that returns list of pairs (key,value)
+   ##}
+  , method toList : {type Val} -> T Val ->[] List (Pair Key Val)
+
+ {## @brief Method that returns list of values
+   ##}
+  , method toValueList : {type Val} -> T Val ->[] List Val
+
+ {## @brief Method that returns list of keys
+   ##}
+  , method domain : {type Val} -> T Val ->[] List Key
+
+ {## @brief Method that maps all values using given function
+   ##}
+  , method mapVal : {type Val, type A, E} -> T Val ->
+      (Val ->[|E] A) ->[|E] T A
+
+ {## @brief Method that maps all (key,value) in a map to (key, func key)
+   ##}
+  , method mapKey : {type Val, type A,E} -> T Val ->
+      (Key ->[|E] A) ->[|E] T A
+
+ {##  @brief Method that applies function to every key and value
+   ##}
+  , method iter : {type Val,E} -> T Val ->
+      (Key -> Val ->[|E] Unit) ->[|E] Unit
+
+ {## @brief Method that joins two maps
+   # @param Function that resolves conflicts
+   # if maps have the same key
+   ##}
+  , method union : {type Val,E} -> T Val -> T Val ->
+      (Key -> Val -> Val ->[|E] Val) ->[|E] T Val
+
+ {## @brief Method that splits map into two maps one with
+   # the keys lower then given key, the other with greater.
+   # @return map with lower keys, Some value if key was present,
+   # map with greater keys
+   ##}
+  , method partion : {type Val} -> T Val -> Key ->[]
+    (Pair (Pair (T Val) (Option Val)) (T Val))
+
+ {## @brief Method that splits map into two maps one with
+   # the keys lower then given key, the other with greater or equal.
+   ##}
+  , method partionLt : {type Val} -> T Val -> Key ->[] Pair (T Val) (T Val)
+
+ {## @brief Method that splits map into two maps one with
+   # the keys lower or equal then given key, the other with greater.
+   ##}
+  , method partionGt : {type Val} -> T Val -> Key ->[] Pair (T Val) (T Val)
+
+ {## @brief Method that returns lowest pair (key,value) in a map
+   # @return Some (key,value) if the smallest key exist or otherwise None
+   ##}
+  , method lowerBound : {type Val} -> T Val ->[] Option (Pair Key Val)
+
+ {## @brief Method that returns lowest pair (key,value) in a map
+   # @return (key,value) or error
+   ##}
+  , method lowerBoundErr :
+    {type Val, Err, ~onError : Unit ->[Err] (Pair Key Val)} ->
+    T Val ->[Err] (Pair Key Val)
+
+ {## @brief Method that returns greatest pair (key,value) in a map
+   # @return Some (key,value) if the greatest key exist or otherwise None
+   ##}
+  , method upperBound : {type Val} -> T Val ->[] Option (Pair Key Val)
+
+ {## @brief Method that returns greatest pair (key,value) in a map
+   # @return (key,value) or error
+   ##}
+  , method upperBoundErr :
+    {type Val, Err, ~onError : Unit ->[Err] (Pair Key Val)} ->
+    T Val ->[Err] (Pair Key Val)
+
+ {## @brief Method that returns the lowest (key,value) greater than given key
+   # @return Some (key,value) or None
+   ##}
+  , method lowerBoundGt : {type Val} -> T Val -> Key ->[]
+    Option (Pair Key Val)
+
+ {## @brief Method that returns the lowest (key,value) greater than given key
+   # @return (key,value) or error
+   ##}
+  , method lowerBoundGtErr :
+    {type Val, Err, ~onError : Unit ->[Err] (Pair Key Val)} ->
+    T Val -> Key ->[Err] (Pair Key Val)
+
+ {## @brief Method that returns the lowest (key,value) greater
+   # or equal than given key
+   # @return Some (key,value) or None
+   ##}
+  , method lowerBoundGeq : {type Val} -> T Val -> Key ->[]
+    Option (Pair Key Val)
+
+ {## @brief Method that returns the lowest (key,value) greater
+   # or equal than given key
+   # @return (key,value) or error
+   ##}
+  , method lowerBoundGeqErr :
+    {type Val, Err, ~onError : Unit ->[Err] (Pair Key Val)} ->
+    T Val -> Key ->[Err] (Pair Key Val)
+
+ {## @brief Method that returns the greatest (key,value) lower than given key
+   # @return Some (key,value) or None
+   ##}
+  , method upperBoundLt : {type Val} -> T Val ->
+      Key ->[] Option (Pair Key Val)
+
+ {## @brief Method that returns the greatest (key,value) lower than given key
+   # @return (key,value) or error
+   ##}
+  , method upperBoundLtErr :
+    {type Val, Err, ~onError : Unit ->[Err] (Pair Key Val)} ->
+    T Val -> Key ->[Err] (Pair Key Val)
+
+ {## @brief Method that returns the greatest (key,value) lower
+   # or equal than given key
+   # @return Some (key,value) or None
+   ##}
+  , method upperBoundLeq : {type Val,E} -> T Val ->
+    Key ->[] Option (Pair Key Val)
+
+ {## @brief Method that returns the greatest (key,value) lower
+   # or equal than given key
+   # @return (key,value) or error
+   ##}
+  , method upperBoundLeqErr :
+    {type Val, Err, ~onError : Unit ->[Err] (Pair Key Val)} ->
+    T Val -> Key ->[Err] (Pair Key Val)
 }
 
-# implementation 
+# implementation
+
+let keyComp compare key (key', _) = compare key key'
 
 let isEmpty tree =
-  match tree with 
-    | Leaf => True 
-    | _ => False 
+  match tree with
+  | Leaf => True
+  | _ => False
   end
 
-let insert compare tree key val = 
-  match search (fn (key', _ ) => compare key key') tree [] with
-    | (Leaf, zipper) => zipRed (key,val) Leaf Leaf zipper
-    | ((Node {color, size = bulk, left, right}), zipper) =>
-      zip (construct color bulk left (key,val) right) zipper
+let insert compare tree key val =
+  match search (keyComp compare key) tree [] with
+  | (Leaf, zipper) => zipRed (key,val) Leaf Leaf zipper
+  | ((Node {color, size, left, right}), zipper) =>
+    zip (construct color size left (key,val) right) zipper
   end
 
 let insert' compare tree key val =
-  match search (fn (key', _ ) => compare key key') tree [] with
-    | (Leaf, zipper) => (zipRed (key,val) Leaf Leaf zipper, False)
-    | ((Node {color, size = bulk, left, right}), zipper) =>
-      (zip (construct color bulk left (key,val) right) zipper, True)
+  match search (keyComp compare key) tree [] with
+  | (Leaf, zipper) => (zipRed (key,val) Leaf Leaf zipper, False)
+  | (Node {color, size, left, right}, zipper) =>
+    (zip (construct color size left (key,val) right) zipper, True)
   end
 
 let remove compare tree key =
-  match search (fn (key', _ ) => compare key key') tree [] with
-    | (Leaf,_) => tree
-    | (Node {color, left, right}, zipper) =>
-      delete color left right zipper
+  match search (keyComp compare key) tree [] with
+  | (Leaf,_) => tree
+  | (Node {color, left, right}, zipper) =>
+    delete color left right zipper
   end
 
 let remove' compare tree key =
-  match search (fn (key', _ ) => compare key key') tree [] with
-    | (Leaf,_) => (tree,False)
-    | (Node {color, left, right}, zipper) =>
-      (delete color left right zipper, True)
+  match search (keyComp compare key) tree [] with
+  | (Leaf,_) => (tree,False)
+  | (Node {color, left, right}, zipper) =>
+    (delete color left right zipper, True)
   end
 
 let rec member compare tree key =
   match tree with
-    | Leaf => False
-    | Node {left, value = (key',_), right} => 
-      match compare key key' with 
-        | Less => member compare left key
-        | Equal => True
-        | Greater => member compare right key
-      end
+  | Leaf => False
+  | Node {left, value = (key',_), right} =>
+    match compare key key' with
+    | Lt => member compare left key
+    | Eq => True
+    | Gt => member compare right key
+    end
   end
 
 let rec find compare tree key =
-  match tree with 
-    | Leaf => None
-    | Node {left, value = (key', val),  right} =>
-      match compare key key' with
-        | Less => find compare left key
-        | Equal => Some val
-        | Greater => find compare right key
-      end
-  end 
-
-let rec operate compare tree key absentf presentf =
-  match search (fn (key', _ ) => compare key key') tree [] with
-  | (Leaf, zipper) => match absentf () with
-      | None => (None,None, tree)
-      | Some x => (None,Some x, zipRed (key,x) Leaf Leaf zipper)
-    end
-  | (Node {color, size = bulk, left, value = (_, val), right}, zipper) =>
-    match presentf val with 
-      | None => (Some val, None, delete color left right zipper)
-      | Some x => (Some val, Some x, zip 
-        (construct color bulk left (key,x) right) zipper)
-    end
-  end 
-
-let rec foldr func tree acc = 
   match tree with
-    | Leaf => acc
-    | Node {left, value = (key, val), right} => 
-      let val_right = (foldr func right acc) in
-      let val_middle = (func key val val_right) in 
-      foldr func left val_middle
+  | Leaf => None
+  | Node {left, value = (key', val),  right} =>
+    match compare key key' with
+    | Lt => find compare left key
+    | Eq => Some val
+    | Gt => find compare right key
+    end
+  end
+
+let rec findErr compare tree key =
+  match tree with
+  | Leaf => ~onError ()
+  | Node {left, value = (key', val),  right} =>
+    match compare key key' with
+    | Lt => findErr compare left key
+    | Eq => val
+    | Gt => findErr compare right key
+    end
+  end
+
+let update compare tree key f =
+  match search (keyComp compare key) tree [] with
+  | (Leaf, zipper) =>
+    match f None with
+    | None => tree
+    | Some x => zipRed (key,x) Leaf Leaf zipper
+    end
+  | (Node {color, size, left, value = (_, val), right}, zipper) =>
+    match f (Some val) with
+    | None => delete color left right zipper
+    | Some x => zip (construct color size left (key,x) right) zipper
+    end
+  end
+
+let rec foldr func tree acc =
+  match tree with
+  | Leaf => acc
+  | Node {left, value = (key, val), right} =>
+    let val_right  = foldr func right acc
+    let val_middle = func key val val_right in
+    foldr func left val_middle
   end
 
 let rec foldl func tree acc =
   match tree with
-    | Leaf => acc
-    | Node {left, value = (key, val), right} => 
-        let val_left = (foldl func left acc) in
-        let val_middle = (func key val val_left) 
-        in foldl func right val_middle
-  end 
+  | Leaf => acc
+  | Node {left, value = (key, val), right} =>
+    let val_left   = foldl func left acc
+    let val_middle = func key val val_left in
+    foldl func right val_middle
+  end
 
-let rec map tree func = 
+let rec map tree func =
   match tree with
-    | Leaf => Leaf
-    | Node {color, size, left, value = (key,value), right} => 
-      construct color size (map left func) (key,func value) (map right func)
+  | Leaf => Leaf
+  | Node {color, size, left, value = (key,value), right} =>
+    let left'  = map left func
+    let right' = map right func in
+    construct color size left' (key,func value) right'
   end
 
-let rec map2 tree func = 
+let rec map2 tree func =
   match tree with
-    | Leaf => Leaf
-    | Node {color, size = bulk, left, value = (key, _), right} => 
-      construct color bulk (map2 left func) (key, func key) (map2 right func)
+  | Leaf => Leaf
+  | Node {color, size, left, value = (key, _), right} =>
+    let left'  = map2 left func
+    let right' = map2 right func in
+    construct color size left' (key, func key) right'
   end
 
-let rec app tree func = 
-  match tree with 
-    | Leaf => ()
-    | Node {left, value = (key,value), right} => 
-      app left func; func key value; app right func
+let rec iter tree func =
+  match tree with
+  | Leaf => ()
+  | Node {left, value = (key,value), right} =>
+    iter left func;
+    func key value;
+    iter right func
   end
 
-let rec union compare tree1 tree2 merge = 
+let rec union compare tree1 tree2 merge =
   match tree1 with
   | Leaf => tree2
   | Node {left = left1, value = (key1,value1), right = right1} =>
-    match tree2 with 
+    match tree2 with
     | Leaf => tree1
-    | _ => 
-      let (output,left2,right2) = 
-      split (fn (key2,_) => compare key1 key2) tree2
-      in 
-        let new_pair = 
-          match output with
-            | None => (key1,value1)
-            | Some (_,value2) => (key1, merge key1 value1 value2)
-          end 
-        in 
-          joinVal (union compare left1 left2 merge) new_pair
-          (union compare right1 right2 merge)
+    | _ =>
+      let (output,left2,right2) = split (keyComp compare key1) tree2
+      let new_pair =
+        match output with
+        | None => (key1,value1)
+        | Some (_,value2) => (key1, merge key1 value1 value2)
+        end
+      let left'  = union compare left1 left2 merge
+      let right' = union compare right1 right2 merge in
+      joinVal left' new_pair right'
     end
   end
 
-let partionLt compare tree key = 
-  let (_,left,right) = split (fn (key2,_) => 
+let partionLt compare tree key =
+  let comparator (key2, _) =
     match compare key key2 with
-      | Less => Less
-      | _ => Greater
-    end) tree 
-  in 
-    (left, right)
+    | Lt => Lt
+    | _ => Gt
+    end
+  let (_,left,right) = split comparator tree in
+  (left, right)
 
-let partionGt compare tree key = 
-  let (_,left,right) = split (fn (key2,_) =>
+let partionGt compare tree key =
+  let comparator (key2, _) =
     match compare key key2 with
-      | Greater => Greater
-      | _ => Less
-    end) tree 
-  in 
-    (left, right)
+    | Gt => Gt
+    | _ => Lt
+    end
+  let (_,left,right) = split comparator tree in
+  (left, right)
 
-let rec lowerBound tree = 
-  match tree with 
-    | Leaf => None
-    | Node {left = Leaf, value} => Some value
-    | Node {left} => lowerBound left
+let rec lowerBound tree =
+  match tree with
+  | Leaf => None
+  | Node {left = Leaf, value} => Some value
+  | Node {left} => lowerBound left
   end
 
 let lowerBoundErr tree =
@@ -369,11 +409,11 @@ let lowerBoundErr tree =
   | Some x => x
   end
 
-let rec upperBound tree = 
-  match tree with 
-    | Leaf => None
-    | Node { value, right=Leaf} => Some value
-    | Node {right} => upperBound right
+let rec upperBound tree =
+  match tree with
+  | Leaf => None
+  | Node {value, right=Leaf} => Some value
+  | Node {right} => upperBound right
   end
 
 let upperBoundErr tree =
@@ -382,18 +422,18 @@ let upperBoundErr tree =
   | Some x => x
   end
 
-let rec lowerBoundGt compare tree key = 
+let rec lowerBoundGt compare tree key =
   match tree with
-    | Leaf => None
-    | Node {left, value = (key1, value), right} =>
-      match compare key key1 with
-        | Less => 
-          match lowerBoundGt compare left key with
-            | None => Some (key1, value)
-            | x => x
-          end
-        | Equal => lowerBound right
-        | Greater => lowerBoundGt compare right key
+  | Leaf => None
+  | Node {left, value = (key1, value), right} =>
+    match compare key key1 with
+    | Lt =>
+      match lowerBoundGt compare left key with
+      | None => Some (key1, value)
+      | x => x
+      end
+    | Eq => lowerBound right
+    | Gt => lowerBoundGt compare right key
     end
   end
 
@@ -404,17 +444,17 @@ let lowerBoundGtErr compare tree key =
   end
 
 let rec lowerBoundGeq compare tree key =
-  match tree with 
-    | Leaf => None
-    | Node {left, value = (key1, value), right} =>
-      match compare key key1 with
-        | Less => 
-          match lowerBoundGeq compare left key with
-            | None => Some (key1,value)
-            | x => x
-          end
-        | Equal => Some (key1, value)
-        | Greater => lowerBoundGeq compare right key
+  match tree with
+  | Leaf => None
+  | Node {left, value = (key1, value), right} =>
+    match compare key key1 with
+    | Lt =>
+      match lowerBoundGeq compare left key with
+      | None => Some (key1,value)
+      | x => x
+      end
+    | Eq => Some (key1, value)
+    | Gt => lowerBoundGeq compare right key
     end
   end
 
@@ -424,43 +464,43 @@ let lowerBoundGeqErr compare tree key =
   | Some x => x
   end
 
-let rec upperBoundLt compare tree key = 
+let rec upperBoundLt compare tree key =
   match tree with
-    | Leaf => None
-    | Node {left, value = (key1,value), right} => 
-      match compare key key1 with
-        | Less => upperBoundLt compare left key
-        | Equal => upperBound left
-        | Greater => 
-          match upperBoundLt compare right key with
-            | None => Some (key1,value)
-            | x => x
-          end
+  | Leaf => None
+  | Node {left, value = (key1,value), right} =>
+    match compare key key1 with
+    | Lt => upperBoundLt compare left key
+    | Eq => upperBound left
+    | Gt =>
+      match upperBoundLt compare right key with
+      | None => Some (key1,value)
+      | x => x
       end
+    end
   end
 
-let upperBoundLtErr compare tree key = 
-  match upperBoundLt compare tree key with 
+let upperBoundLtErr compare tree key =
+  match upperBoundLt compare tree key with
   | None => ~onError ()
   | Some x => x
   end
 
 let rec upperBoundLeq compare tree key =
-  match tree with 
-    | Leaf => None 
-    | Node {left, value = (key1,value), right} =>
-      match compare key key1 with
-        | Less => upperBoundLt compare left key
-        | Equal => Some (key1,value)
-        | Greater => 
-          match upperBoundLeq compare right key with
-            | None => Some (key1,value)
-            | x => x
-          end
+  match tree with
+  | Leaf => None
+  | Node {left, value = (key1,value), right} =>
+    match compare key key1 with
+    | Lt => upperBoundLt compare left key
+    | Eq => Some (key1,value)
+    | Gt =>
+      match upperBoundLeq compare right key with
+      | None => Some (key1,value)
+      | x => x
       end
+    end
   end
 
-let upperBoundLeqErr compare tree key = 
+let upperBoundLeqErr compare tree key =
   match upperBoundLeq compare tree key with
   | None => ~onError ()
   | Some x => x
@@ -473,36 +513,11 @@ let toValueList tree = foldr (fn key value acc => value :: acc) tree []
 let domain tree = foldr (fn key value acc => key :: acc) tree []
 
 let partion compare tree key =
-  let (output,left,right) = split (fn (key2,_) => compare key key2) tree
-  in 
-    match output with 
-      | None => (left,None,right)
-      | Some (_,x) => (left,Some x, right)
+  let (output,left,right) = split (keyComp compare key) tree in
+    match output with
+    | None => (left,None,right)
+    | Some (_,x) => (left,Some x, right)
     end
-
-let _range compare tree left right = 
-  match (left,right) with
-  | (Inclusion left, Inclusion right) =>
-      let (_,middle) = partionGt compare tree left in
-      let (result,_) = partionLt compare middle right in result
-  | (Inclusion left, Exclusion right) =>
-      let (_,middle) = partionGt compare tree left in
-      let (result,_) = partionGt compare middle right in result
-  | (Exclusion left, Inclusion right) =>
-      let (_,middle) = partionLt compare tree left in 
-      let (result,_) = partionLt compare middle right in result
-  | (Exclusion left, Exclusion right) =>
-      let (_,middle) = partionLt compare tree left in
-      let (result,_) = partionGt compare middle right in result
-  end
-
-let range compare tree incl left incr right =
-  match (incl,incr) with
-  | (False,False) => _range compare tree (Exclusion left) (Exclusion right)
-  | (False,True) => _range compare tree (Exclusion left) (Inclusion right)
-  | (True,False) => _range compare tree (Inclusion left) (Exclusion right)
-  | (True,True) => _range compare tree (Inclusion left) (Inclusion right)
-  end
 
 data MapT Key Val = MapT of Tree (Pair Key Val)
 
@@ -511,21 +526,21 @@ let isEmptyT (MapT tree) = isEmpty tree
 
 let insertT compare (MapT tree) key val  = MapT (insert compare tree key val)
 
-let insertChangeT compare (MapT tree) key val = 
+let insertChangeT compare (MapT tree) key val =
   let (tree,bool) = insert' compare tree key val in (MapT tree, bool)
 
 let removeT compare (MapT tree) key = MapT (remove compare tree key)
 
-let removeChangeT compare (MapT tree) key = 
+let removeChangeT compare (MapT tree) key =
   let (tree,bool) = remove' compare tree key in (MapT tree, bool)
 
 let memberT compare (MapT tree) key = member compare tree key
 
 let findT compare (MapT tree) key = find compare tree key
 
-let operateT compare (MapT tree) key absentf presentf =
-  let (val,res,tree) = operate compare tree key absentf presentf 
-    in (val,res, MapT tree)
+let findErrT compare (MapT tree) key = findErr compare tree key
+
+let updateT compare (MapT tree) key f = MapT (update compare tree key f)
 
 let mapFoldl (MapT tree) func acc = foldl func tree acc
 
@@ -541,25 +556,19 @@ let mapVal (MapT tree) func = MapT (map tree func)
 
 let mapKey (MapT tree) func = MapT (map2 tree func)
 
-let appT (MapT tree) func = app tree func
+let iterT (MapT tree) func = iter tree func
 
-let unionT compare (MapT tree1) (MapT tree2) merge = 
+let unionT compare (MapT tree1) (MapT tree2) merge =
   MapT (union compare tree1 tree2 merge)
 
-let partionT compare (MapT tree) key = 
-  let (t1,v,t2) = partion compare tree key 
-    in (MapT t1, v, MapT t2)
+let partionT compare (MapT tree) key =
+  let (t1,v,t2) = partion compare tree key in (MapT t1, v, MapT t2)
 
-let partionLtT compare (MapT tree) key = 
-  let (t1,t2) = partionLt compare tree key
-    in (MapT t1, MapT t2)
+let partionLtT compare (MapT tree) key =
+  let (t1,t2) = partionLt compare tree key in (MapT t1, MapT t2)
 
-let partionGtT compare (MapT tree) key = 
-  let (t1,t2) = partionGt compare tree key
-    in (MapT t1, MapT t2)
-
-let rangeT compare (MapT tree) incl left incr right = 
-  MapT (range compare tree incl left incr right)
+let partionGtT compare (MapT tree) key =
+  let (t1,t2) = partionGt compare tree key in (MapT t1, MapT t2)
 
 let lowerBoundT (MapT tree) = lowerBound tree
 
@@ -571,13 +580,11 @@ let upperBoundTErr (MapT tree) = upperBoundErr tree
 
 let lowerBoundGtT compare (MapT tree) key = lowerBoundGt compare tree key
 
-let lowerBoundGtTErr compare (MapT tree) key =
-  lowerBoundGtErr compare tree key
+let lowerBoundGtTErr compare (MapT tree) key = lowerBoundGtErr compare tree key
 
 let upperBoundLtT compare (MapT tree) key = upperBoundLt compare tree key
 
-let upperBoundLtTErr compare (MapT tree) key =
-  upperBoundLtErr compare tree key
+let upperBoundLtTErr compare (MapT tree) key = upperBoundLtErr compare tree key
 
 let lowerBoundGeqT compare (MapT tree) key = lowerBoundGeq compare tree key
 
@@ -586,10 +593,10 @@ let lowerBoundGeqTErr compare (MapT tree) key =
 
 let upperBoundLeqT compare (MapT tree) key = upperBoundLeq compare tree key
 
-let upperBoundLeqTErr compare (MapT tree) key = 
+let upperBoundLeqTErr compare (MapT tree) key =
   upperBoundLeqErr compare tree key
 
-pub let make {Key} (compare : Key -> Key -> [] Ordered) = Map {
+pub let make {Key} (compare : Key -> Key ->[] Ordered) = Map {
   T = MapT Key
   , empty = MapT Leaf
   , method isEmpty = isEmptyT
@@ -599,7 +606,8 @@ pub let make {Key} (compare : Key -> Key -> [] Ordered) = Map {
   , method removeChange = removeChangeT compare
   , method member = memberT compare
   , method find = findT compare
-  , method operate = operateT compare
+  , method findErr = findErrT compare
+  , method update = updateT compare
   , method foldl = mapFoldl
   , method foldr = mapFoldr
   , method toList = toListT
@@ -607,12 +615,11 @@ pub let make {Key} (compare : Key -> Key -> [] Ordered) = Map {
   , method domain = domainT
   , method mapVal = mapVal
   , method mapKey = mapKey
-  , method app = appT
+  , method iter = iterT
   , method union = unionT compare
   , method partion = partionT compare
   , method partionLt = partionLtT compare
   , method partionGt = partionGtT compare
-  , method range = rangeT compare 
   , method lowerBound = lowerBoundT
   , method lowerBoundErr = lowerBoundTErr
   , method upperBound = upperBoundT

@@ -6,31 +6,31 @@ import List
 
 data NotNegativeInt = Zero | Positive of Int
 
-let addOne value = 
+let addOne value =
   match value with
-    | Zero => Positive 1
-    | Positive n => Positive (n+1)
+  | Zero => Positive 1
+  | Positive n => Positive (n+1)
   end
 
-let subOne value = 
+let subOne value =
   match value with
   | Zero => Zero
   | Positive n => if n == 1 then Zero else Positive (n-1)
   end
 
-data RotationState Val = 
+data RotationState Val =
   | Idle
   | Reversing of NotNegativeInt, List Val, List Val, List Val, List Val
   | Appending of NotNegativeInt, List Val, List Val
   | Done of List Val
 
-data HoodMelvilleQueue Val = 
+data HoodMelvilleQueue Val =
   | HMQueue of NotNegativeInt, List Val, RotationState Val,
    NotNegativeInt, List Val
 
-let exec state = 
-  match state with 
-    | Reversing ok (x::f) f' (y::r) r' => 
+let exec state =
+  match state with
+    | Reversing ok (x::f) f' (y::r) r' =>
       Reversing (addOne ok) f (x::f') r (y::r')
     | Reversing ok [] f' [y] r' => Appending ok f' (y::r')
     | Appending Zero f' r' => Done r'
@@ -48,14 +48,14 @@ let invalidate state =
 
 let exec_twice hmqueue =
   match hmqueue with
-  | HMQueue lenf f state lenr r => 
+  | HMQueue lenf f state lenr r =>
     match exec (exec state) with
     | Done newf => HMQueue lenf newf Idle lenr r
     | newstate => HMQueue lenf f newstate lenr r
     end
   end
 
-let leq v1 v2 = 
+let leq v1 v2 =
   match (v1,v2) with
   | (Zero,Zero) => True
   | (Zero,Positive _) => True
@@ -63,7 +63,7 @@ let leq v1 v2 =
   | (Positive n, Positive m) => n <= m
   end
 
-let add v1 v2 = 
+let add v1 v2 =
   match (v1,v2) with
   | (Zero,any) => any
   | (any,Zero) => any
@@ -72,29 +72,29 @@ let add v1 v2 =
 
 let check queue =
   match queue with
-  | HMQueue lenf f state lenr r => 
+  | HMQueue lenf f state lenr r =>
     if leq lenr lenf then exec_twice queue
     else (
       let newstate = Reversing Zero f [] r [] in
-        exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
+      exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
     )
   end
 
 pub let emptyQueue = HMQueue Zero [] Idle Zero []
-pub let isEmpty queue = 
-  match queue with 
+pub let isEmpty queue =
+  match queue with
   | HMQueue Zero _ _ _ _ => True
   | _ => False
   end
 
 let snoc queue value =
   match queue with
-  | HMQueue lenf f state lenr r => 
-  check (HMQueue lenf f state (addOne lenr) (value :: r))
+  | HMQueue lenf f state lenr r =>
+    check (HMQueue lenf f state (addOne lenr) (value :: r))
   end
 
 let head queue =
-  match queue with 
+  match queue with
   | HMQueue Zero _ _ _ _ => None
   | HMQueue _ (x::xs) _ _ _ => Some x
   | _ => impossible ()
@@ -104,38 +104,35 @@ let tail queue =
   match queue with
   | HMQueue Zero _ _ _ _ => emptyQueue
   | HMQueue _ [] _ _ _ => emptyQueue
-  | HMQueue lenf (x::xs) state lenr r => 
-  check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
+  | HMQueue lenf (x::xs) state lenr r =>
+    check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
   end
 
-let foldlRotationState f acc state = 
+let foldlRotationState f acc state =
   match state with
     | Idle => acc
     | Done list => List.foldLeft f acc list
-    | Appending _ list1 list2 => 
-        List.foldLeft f 
-          (List.foldLeft f acc list2) 
+    | Appending _ list1 list2 =>
+        List.foldLeft f
+          (List.foldLeft f acc list2)
           list1
-    | Reversing _ list1 list2 list3 list4 => 
-        List.foldLeft f 
-          (List.foldLeft f 
-            (List.foldLeft f 
+    | Reversing _ list1 list2 list3 list4 =>
+        List.foldLeft f
+          (List.foldLeft f
+            (List.foldLeft f
               (List.foldLeft f acc list4)
-              list3
-            ) 
-            list2
-          )
+              list3)
+            list2)
           list1
   end
 
 pub let foldlQueue queue f acc  =
   match queue with
     | HMQueue _ list1 state _ list2 =>
-      List.foldLeft f 
+      List.foldLeft f
         (foldlRotationState f
-            (List.foldLeft f acc list1)
-            state
-        )
+          (List.foldLeft f acc list1)
+          state)
         list2
     end
 
@@ -150,16 +147,15 @@ let mapRotationState f state =
           (List.map f list3) (List.map f list4)
   end
 
-let mapQueue queue f = 
+let mapQueue queue f =
   match queue with
   | HMQueue v1 list1 state v2 list2 =>
-    HMQueue v1 (List.map f list1) 
-      (mapRotationState f state) v2
-      (List.map f list2)
+    HMQueue v1 (List.map f list1)
+      (mapRotationState f state) v2 (List.map f list2)
   end
 
-let rec toList queue = 
-  match head queue with 
+let rec toList queue =
+  match head queue with
   | None => []
   | Some x => x :: toList (tail queue)
   end
