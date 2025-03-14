@@ -145,6 +145,9 @@ type data_vis = DV_Private | DV_Public | DV_Abstract
 (** Visibility of value definition *)
 type is_public = bool
 
+(** Attributes *)
+type attributes = string list list
+
 (** Expressions *)
 type expr = expr_data node
 and expr_data =
@@ -247,7 +250,7 @@ and field = (type_expr, expr) field_data node
 (** Definitions *)
 and def = def_data node
 and def_data =
-  | DLet of is_public * expr * expr
+  | DLet of attributes * is_public * expr * expr
     (** Let-definition *)
 
   | DImplicit of iname * type_expr list * type_expr option

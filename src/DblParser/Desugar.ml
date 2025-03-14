@@ -592,7 +592,7 @@ and tr_expr (e : Raw.expr) =
     | ";" ->
       let lhs = annot_tp exp1 RawTypes.unit in
       tr_expr (make (Raw.EDefs(
-        [make (Raw.DLet(false, make Raw.EWildcard, lhs))],
+        [make (Raw.DLet([], false, make Raw.EWildcard, lhs))],
         exp2
       )))
     | _ ->
@@ -665,7 +665,7 @@ and tr_explicit_inst (fld : Raw.field) =
 and tr_def ?(public=false) (def : Raw.def) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet(pub, p, e) ->
+  | DLet(attrs, pub, p, e) ->
     let public = public || pub in
     [ match tr_let_pattern ~public p with
       | LP_Id id -> 

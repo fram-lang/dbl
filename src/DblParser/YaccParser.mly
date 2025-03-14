@@ -15,7 +15,7 @@
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB
-%token KW_REC
+%token KW_REC ATTR_OPEN 
 %token KW_RETURN KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
@@ -496,6 +496,24 @@ field_list
 
 /* ========================================================================= */
 
+lids
+: LID         { [ $1 ]   }
+| LID lids    { $1 :: $2 }
+;
+
+lids_sep
+: /* empty */         { []       }       
+| lids COMMA lids_sep { $1 :: $3 }
+| lids                { [ $1 ]   }
+;
+
+attributes_pub
+: /* empty */                       { ([], false) }
+| KW_PUB                            { ([], true ) }
+| ATTR_OPEN lids_sep CBR_CLS        { ($2, false) }
+| ATTR_OPEN lids_sep CBR_CLS KW_PUB { ($2, true ) }
+;
+
 data_vis
 : /* empty */ { DV_Private  }
 | KW_PUB      { DV_Public   }
@@ -513,7 +531,8 @@ rec_opt
 ;
 
 def
-: pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
+: attributes_pub KW_LET rec_opt expr_70 EQ expr 
+    { let (attr, pub) = $1 in make_def $3 (DLet(attr, pub, $4, $6)) }
 | KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list

@@ -1,0 +1,18 @@
+
+# no attributes
+let x = 10
+
+# pub
+pub let y = 10
+
+# empty attributes + pub
+@{}
+pub let z = 20
+
+# singular list
+@{test1 test2}
+pub let w = 20
+
+# multiple lists
+@{a1 a2 a3, a4, a5 a6, a7}
+let u = 30
