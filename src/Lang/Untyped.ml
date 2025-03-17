@@ -15,7 +15,7 @@ type expr =
   | ELet of var * expr * expr
     (** Let-expression *)
 
-  | ELetRec of (var * value) list * expr
+  | ELetRec of (var * expr) list * expr
     (** Mutually recursive let-definitions *)
 
   | EApp of value * value
