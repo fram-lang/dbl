@@ -330,7 +330,7 @@ and expr_data =
     (** String literal *)
 
   | EChr of char
-    (** String literal *)
+    (** Character literal *)
 
   | EFn of var * scheme_expr option * expr * effct
     (** Effect-annotated lambda-abstraction. The scheme annotation can be
@@ -436,8 +436,8 @@ and expr_data =
   | EExtern of string * typ
     (** Externally defined value *)
 
-  | EAnnot of expr * type_expr * type_expr
-    (** Expression explicitly annotated with a type and an effect. *)
+  | EAnnot of expr * type_expr
+    (** Expression explicitly annotated with a type *)
 
   | ERepl of (unit -> expr) * typ
     (** REPL. It is a function that prompts user for another input. It returns

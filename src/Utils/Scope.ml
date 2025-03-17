@@ -68,3 +68,12 @@ let strict_subset s1 s2 =
     subset s1 (parent s2)
 
 let mem = subset
+
+let to_sexpr s =
+  if s.level < 0 then SExpr.Sym "any"
+  else
+    SExpr.List (
+      Sym (UID.to_string s.uid ^ ":" ^ string_of_int s.level) ::
+      match s.parent with
+      | None -> []
+      | Some p -> [ Sym ("->" ^ UID.to_string p.uid) ])

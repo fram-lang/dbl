@@ -47,3 +47,6 @@ module Set : Set.S with  type elt = t
 
 (** Finite map from type variables *)
 module Map : Map.S with  type key = t
+
+(** Pretty-print type variable as S-expression *)
+val to_sexpr : t -> SExpr.t

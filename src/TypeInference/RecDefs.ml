@@ -589,8 +589,8 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
         fin_body = update_expr h.fin_body
       })
 
-    | EAnnot(e, tp, eff) ->
-      make (T.EAnnot(update_expr e, tp, eff))
+    | EAnnot(e, tp) ->
+      make (T.EAnnot(update_expr e, tp))
 
     | ELetRec _ | ERecCtx _ | EMatchEmpty(_, _, _, Impure)
     | EMatch(_, _, _, Impure) | EMatchPoly(_, _, _, _, Impure) | EHandle _

@@ -155,9 +155,8 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   | EAnnot(e, tp) ->
     let tp_expr = Type.tr_ttype env tp in
     let tp = T.TypeExpr.to_type tp_expr in
-    let eff = make (T.TE_Type T.Type.t_effect) in
     let er = check_expr_type env e tp in
-    { er_expr = make (T.EAnnot(er.er_expr, tp_expr, eff));
+    { er_expr = make (T.EAnnot(er.er_expr, tp_expr));
       er_type = Infered tp;
       er_effect = er.er_effect;
       er_constr = er.er_constr

@@ -133,7 +133,7 @@ let check_def : type st dir. tcfix:tcfix ->
         make rest (T.EHandle(eff_tvar, hx, hexp.er_expr,
           make rest (T.EMatch(
             make_local (T.EInst(make_local (T.EVar hx), [], [])),
-            [(pat, rest.er_expr)], tp_out, Impure)))) in
+            [(pat, rest.er_expr)], tp_in, Impure)))) in
       let resp : (_, dir) response =
         match req with
         | Infer    -> Infered tp_out
