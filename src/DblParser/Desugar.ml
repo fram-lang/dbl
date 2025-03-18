@@ -43,7 +43,7 @@ let tr_ctor_name' (cname : Raw.ctor_name) =
 let with_nowhere data = { pos = Position.nowhere; data = data}
 
 let rec node_is_rec_data (def : Raw.def) =
-  match def.data with
+  match (snd def).data with
   | DRecord _ -> true
   | DData   _ -> true
   | DLabel  _ -> true
@@ -592,7 +592,7 @@ and tr_expr (e : Raw.expr) =
     | ";" ->
       let lhs = annot_tp exp1 RawTypes.unit in
       tr_expr (make (Raw.EDefs(
-        [make (Raw.DLet([], false, make Raw.EWildcard, lhs))],
+        [([], make (Raw.DLet(false, make Raw.EWildcard, lhs)))],
         exp2
       )))
     | _ ->
@@ -656,16 +656,16 @@ and tr_explicit_inst (fld : Raw.field) =
     Either.Right (make (n, make (EPoly(pe, [], []))))
   | FldNameVal(n, e) ->
     Either.Right (make (n, tr_expr e))
-  | FldModule _ ->
+| FldModule _ ->
     (* TODO: This should eventually be supported. *)
     Error.fatal (Error.desugar_error fld.pos)
   | FldEffect | FldNameAnnot _ | FldType(_, Some _) ->
     Error.fatal (Error.desugar_error fld.pos)
 
-and tr_def ?(public=false) (def : Raw.def) =
+and tr_def ?(public=false) (def : Raw.def_data_raw) =
   let make data = { def with data = data } in
   match def.data with
-  | DLet(attrs, pub, p, e) ->
+  | DLet(pub, p, e) ->
     let public = public || pub in
     [ match tr_let_pattern ~public p with
       | LP_Id id -> 
@@ -776,7 +776,7 @@ and tr_def ?(public=false) (def : Raw.def) =
     let public = public || pub in
     [ make (DRec (tr_defs ~public defs)) ]
 
-and tr_defs ?(public=false) defs = List.concat_map (tr_def ~public) defs
+and tr_defs ?(public=false) defs = List.concat_map (tr_def ~public) @@ List.map snd defs
 
 and tr_pattern_with_fields ~public (pat : Raw.expr) =
   match pat.data with

@@ -248,9 +248,10 @@ and match_clause_data =
 and field = (type_expr, expr) field_data node
 
 (** Definitions *)
-and def = def_data node
+and def = attributes * def_data_raw
+and def_data_raw = def_data node
 and def_data =
-  | DLet of attributes * is_public * expr * expr
+  | DLet of is_public * expr * expr
     (** Let-definition *)
 
   | DImplicit of iname * type_expr list * type_expr option

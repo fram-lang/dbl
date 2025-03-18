@@ -16,3 +16,27 @@ pub let w = 20
 # multiple lists
 @{a1 a2 a3, a4, a5 a6, a7}
 let u = 30
+
+@{hidden}
+let _ = printStrLn "abc"
+
+@{notHidden}
+let _ = printStrLn "def"
+
+@{ignoreExistential}
+data Structure = { type X, foo : X, bar : String }
+
+@{ selector bar
+ , selector foo }
+data Foo = Foo of {bar : Int} {foo : ...}
+         | Bar of {bar : Int} {foo : ...}
+
+@{test} 
+let _ = testEq 10 (5 + 5)
+
+
+{# 
+ - Atrybuty przed każdą definicją
+ - Atrybut -> funkcja :: [def] -> [def] => atrybut . desugar
+ - pub abstr record -> atrybuty
+ #}
