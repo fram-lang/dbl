@@ -776,7 +776,7 @@ and tr_def ?(public=false) (def : Raw.def_data_raw) =
     let public = public || pub in
     [ make (DRec (tr_defs ~public defs)) ]
 
-and tr_defs ?(public=false) defs = List.concat_map (tr_def ~public) @@ List.map snd defs
+and tr_defs ?(public=false) defs = List.concat_map (fun (attrs, def) -> Attributes.tr_attrs attrs @@ tr_def ~public def) defs
 
 and tr_pattern_with_fields ~public (pat : Raw.expr) =
   match pat.data with

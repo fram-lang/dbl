@@ -56,6 +56,10 @@ let cmd_args_options = Arg.align
       [ "always"; "never"; "auto"; ],
       (fun s -> DblConfig.print_colors_of_string s)),
     " Use colors when printing Errors.";
+
+    "-test",
+    Arg.Set DblParser.Attributes.run_test,
+    " Run tests"
   ]
 
 let fname = ref None
