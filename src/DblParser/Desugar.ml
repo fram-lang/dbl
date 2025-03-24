@@ -43,7 +43,7 @@ let tr_ctor_name' (cname : Raw.ctor_name) =
 let with_nowhere data = { pos = Position.nowhere; data = data}
 
 let rec node_is_rec_data (def : Raw.def) =
-  match (snd def).data with
+  match (snd def.data) with
   | DRecord _ -> true
   | DData   _ -> true
   | DLabel  _ -> true
@@ -592,7 +592,7 @@ and tr_expr (e : Raw.expr) =
     | ";" ->
       let lhs = annot_tp exp1 RawTypes.unit in
       tr_expr (make (Raw.EDefs(
-        [([], make (Raw.DLet(false, make Raw.EWildcard, lhs)))],
+        [make ([], Raw.DLet(false, make Raw.EWildcard, lhs))],
         exp2
       )))
     | _ ->
@@ -662,24 +662,24 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldEffect | FldNameAnnot _ | FldType(_, Some _) ->
     Error.fatal (Error.desugar_error fld.pos)
 
-and tr_def ?(public=false) (def : Raw.def_data_raw) =
-  let make data = { def with data = data } in
-  match def.data with
+and tr_def ?(public=false) (pos : Position.t) (def : Raw.def_data) =
+  let make data = { pos = pos; data = data } in
+  match def with
   | DLet(pub, p, e) ->
     let public = public || pub in
     [ match tr_let_pattern ~public p with
       | LP_Id id -> 
-        make (DLetId(id, tr_expr e))
+        DLetId(id, tr_expr e)
     | LP_Fun(id, targs, iargs, args) ->
-        make (DLetFun(id, targs, iargs, tr_function args (tr_expr e)))
+        DLetFun(id, targs, iargs, tr_function args (tr_expr e))
     | LP_Pat p ->
-        make (DLetPat(p, tr_expr e))
+        DLetPat(p, tr_expr e)
     ]
   | DMethod(pub, p, e) ->
     let public = public || pub in
     [ match tr_let_pattern ~public p with
       | LP_Id (IdVar(public, x)) ->
-        make (DLetFun(IdMethod(public, x), [], [],
+        (DLetFun(IdMethod(public, x), [], [],
           make (EFn(ArgPattern (make (PId (IdVar(false, "self")))),
             tr_expr e))))
       | LP_Fun(IdVar(public, x), targs, iargs, args) ->
@@ -689,8 +689,8 @@ and tr_def ?(public=false) (def : Raw.def_data_raw) =
             (ArgPattern (make (PId (IdVar(false, "self")))), iargs)
           | Some(_, arg), iargs -> (arg, iargs)
         in
-        make (DLetFun(IdMethod(public, x), targs, iargs,
-          make (EFn(self_arg, tr_function args (tr_expr e)))))
+        DLetFun(IdMethod(public, x), targs, iargs,
+          make (EFn(self_arg, tr_function args (tr_expr e))))
       | LP_Id (IdLabel | IdImplicit _ | IdMethod _)
       | LP_Fun((IdLabel | IdImplicit _ | IdMethod _), _, _, _)
       | LP_Pat _ ->
@@ -698,22 +698,22 @@ and tr_def ?(public=false) (def : Raw.def_data_raw) =
     ]
   | DMethodFn(pub, id1, id2) ->
     let public = public || pub in
-    [ make (DMethodFn(public, tr_var_id (make id1), tr_var_id (make id2))) ]
+    [ (DMethodFn(public, tr_var_id (with_nowhere id1), tr_var_id (with_nowhere id2))) ]
   | DImplicit(n, args, sch) ->
     let args = List.map tr_named_type_arg args in
     let sch =
       match sch with
       | None -> {
-          sch_pos   = def.pos;
+          sch_pos   = pos;
           sch_targs = [];
           sch_named = [];
           sch_body  = make TWildcard
         }
       | Some sch -> tr_scheme_expr sch
     in
-    [ make (DImplicit(n, args, sch)) ]
+    [ DImplicit(n, args, sch) ]
   | DRecord (vis, tp, flds) ->
-    let (pub_type, pub_ctors) = tr_data_vis ~public def.pos vis in
+    let (pub_type, pub_ctors) = tr_data_vis ~public pos vis in
     let (cd_targs, cd_named) = map_inst_like tr_scheme_field flds in
     begin match cd_targs with
     | [] -> ()
@@ -726,7 +726,7 @@ and tr_def ?(public=false) (def : Raw.def_data_raw) =
       let ctor = make
         { cd_public=pub_ctors; cd_name;
           cd_targs=[]; cd_named; cd_arg_schemes=[] } in
-      let dd = make (DData(pub_type, cd_name, named_type_args, [ ctor ])) in
+      let dd = DData(pub_type, cd_name, named_type_args, [ ctor ]) in
       let method_named_args, pattern_gen =
         generate_accessor_method_pattern named_type_args cd_name in
       dd :: List.filter_map
@@ -735,48 +735,56 @@ and tr_def ?(public=false) (def : Raw.def_data_raw) =
         cd_named
     end
   | DData(vis, tp, cs) ->
-    let (pub_type, pub_ctors) = tr_data_vis ~public def.pos vis in
+    let (pub_type, pub_ctors) = tr_data_vis ~public pos vis in
     [ match tr_type_def tp [] with
       | TD_Id(x, args) ->
-        make (DData(pub_type, x,
+        DData(pub_type, x,
           List.map tr_named_type_arg args,
-          List.map (tr_ctor_decl ~public:pub_ctors) cs))
+          List.map (tr_ctor_decl ~public:pub_ctors) cs)
     ]
   | DLabel(pub, pat) ->
     let public = public || pub in
     let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
-    [ make (DLabel (eff_opt, pat)) ]
+    [ DLabel (eff_opt, pat) ]
   | DHandle(pub, pat, body, hcs) ->
     let public = public || pub in
     let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
     let body = tr_expr body in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     let body = { body with data = EHandler(body, rcs, fcs) } in
-    [ make (DHandlePat(eff_opt, pat, body)) ]
+    [ DHandlePat(eff_opt, pat, body) ]
   | DHandleWith(pub, pat, body) ->
     let public = public || pub in
     let (eff_opt, pat) = tr_pattern_with_eff_opt ~public pat in
     let body = tr_expr body in
-    [ make (DHandlePat(eff_opt, pat, body)) ]
+    [ DHandlePat(eff_opt, pat, body) ]
   | DModule(pub, x, defs) ->
     let public = public || pub in
-    [ make (DModule(public, x, tr_defs defs)) ]
+    [ DModule(public, x, tr_defs defs) ]
   | DOpen(pub, path) -> 
     let public = public || pub in
-    [ make (DOpen(public, path)) ]
-  | DRec(pub, defs) when List.for_all node_is_rec_data defs ->
+    [ DOpen(public, path) ]
+  
+  (**| DRec(pub, defs) when List.for_all node_is_rec_data defs ->
     (* This case is a quick fix to make most record accessors
        not marked impure if they aren't. (Explained #160) *)
     (* TODO: Remove when more robust solution is implemented *)
     let public = public || pub in
     let dds, accessors = tr_defs ~public defs
       |> List.partition node_is_data_def in
-    make (DRec dds) :: accessors
+    DRec dds :: accessors*)
+  
   | DRec(pub, defs) ->
     let public = public || pub in
-    [ make (DRec (tr_defs ~public defs)) ]
+    [ DRec (tr_defs ~public defs) ]
 
-and tr_defs ?(public=false) defs = List.concat_map (fun (attrs, def) -> Attributes.tr_attrs attrs @@ tr_def ~public def) defs
+and tr_defs ?(public=false) (defs : Raw.def list) = 
+  let map_def def = 
+    let (attrs, (def_data : Raw.def_data)) = def.data in 
+    let def_list : Lang.Surface.def_data list = tr_def def.pos def_data in
+    let defs = List.map with_nowhere def_list in
+    Attributes.tr_attrs attrs defs
+  in List.concat_map map_def defs
 
 and tr_pattern_with_fields ~public (pat : Raw.expr) =
   match pat.data with
@@ -855,10 +863,10 @@ and create_accessor_method ~public named_type_args pattern_gen scheme =
     (* generate accessor body, this piece of code generated accessing
     variable *)
     let e = make (EPoly(make (EVar(NPName field)), [], [])) in
-    make (DLetFun(IdMethod(public, field),
+    DLetFun(IdMethod(public, field),
       named_type_args,
       [],
-      make (EFn(pattern_gen field, e))))
+      make (EFn(pattern_gen field, e)))
     |> Option.some
   | (NLabel | NImplicit _ | NMethod _ | NOptionalVar _), _ ->
     Error.warn (Error.ignored_field_in_record scheme.pos);

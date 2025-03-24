@@ -146,7 +146,7 @@ type data_vis = DV_Private | DV_Public | DV_Abstract
 type is_public = bool
 
 (** Attributes *)
-type attributes = string list list
+type attributes = (string list) node list
 
 (** Expressions *)
 type expr = expr_data node
@@ -248,8 +248,7 @@ and match_clause_data =
 and field = (type_expr, expr) field_data node
 
 (** Definitions *)
-and def = attributes * def_data_raw
-and def_data_raw = def_data node
+and def = (attributes * def_data) node
 and def_data =
   | DLet of is_public * expr * expr
     (** Let-definition *)

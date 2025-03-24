@@ -8,8 +8,6 @@ open Lang.Surface
 
 let run_test = ref false
 
-type defs = def list
-
 let mapNode f (n : 'a node) = {pos = n.pos; data = f n.data}
 
 let make_public_ident = function
@@ -22,11 +20,14 @@ let make_ctor_decl_public (n : ctor_decl) =
   {n with data = {n.data with cd_public = true}}
 
 let rec make_public = function
-  | DLetId (ident, expr) -> DLetId (make_public_ident ident, expr)
-  | DLetFun (ident, nts, ns, expr) -> DLetFun (make_public_ident ident, nts, ns, expr)
+  | DLetId (ident, expr) 
+  -> DLetId (make_public_ident ident, expr)
+  | DLetFun (ident, nts, ns, expr) 
+  -> DLetFun (make_public_ident ident, nts, ns, expr)
   | DMethodFn (_, v1, v2) -> DMethodFn (true, v1, v2)
-  | DData (_, v, ta, cd) -> DData (true, v, ta, List.map make_ctor_decl_public cd)
-  | DModule (_, v, ds) -> DModule (true, v, List.map (mapNode make_public) ds)
+  | DData (_, v, ta, cd) 
+  -> DData (true, v, ta, List.map make_ctor_decl_public cd)
+  | DModule (_, v, ds) -> DModule (true, v, ds)
   | DOpen (_, pth) -> DOpen (true, pth)
   | DRec ds -> DRec (List.map (mapNode make_public) ds) 
   | other -> other
@@ -34,7 +35,7 @@ let rec make_public = function
 let make_public_all (ds : def_data node list) = 
   List.map (mapNode make_public) ds
 
-let make_test (defs : defs) =
+let make_test defs =
   if !run_test then
     defs
   else 
@@ -42,17 +43,17 @@ let make_test (defs : defs) =
 
 module M = Map.Make(String)
 
-let attrs : (defs -> defs) M.t = 
+let attrs : (Lang.Surface.def list -> Lang.Surface.def list) M.t = 
   M.of_list
     [ ("pub", make_public_all)
     ; ("abstr", fun x -> x)
     ; ("test",   make_test)
     ]
 
-let tr_attr (args : string list) (data : defs) = 
-  let f = M.find (List.hd args) attrs in
+let tr_attr (args : string list node) (data : Lang.Surface.def list) = 
+  let f = M.find (List.hd args.data) attrs in
   f data
 
-let tr_attrs (args : string list list) (data : defs) = 
-  List.fold_right (fun ats defs -> tr_attr ats defs) args data
+let tr_attrs (args : string list node list) (data : Lang.Surface.def list) = 
+  List.fold_right (fun atr defs -> tr_attr atr defs) args data
     

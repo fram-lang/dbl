@@ -42,8 +42,7 @@ let make data =
 
 (** Make potentially recursive definition *)
 let make_def is_rec data =
-  let def = make data in
-  if is_rec then make (DRec(false, [([], def)])) else def
+  if is_rec then DRec(false, [make ([], data)]) else data 
 
 %}
 
@@ -515,14 +514,14 @@ attributes_pub
 ;
 
 data_vis
-: /* empty */ { []          }
-| KW_PUB      { [["pub"]]   }
-| KW_ABSTR    { [["abstr"]] }
+: /* empty */ { []                }
+| KW_PUB      { [ make ["pub"]]   }
+| KW_ABSTR    { [ make ["abstr"]] }
 ;
 
 pub
-: /* empty */ { []        }
-| KW_PUB      { [["pub"]] }
+: /* empty */ { []              }
+| KW_PUB      { [ make ["pub"]] }
 ;
 
 rec_opt
@@ -532,20 +531,20 @@ rec_opt
 
 attrs
 : CBR_CLS def_base      { $2 }
-| lids COMMA attrs      { let (x, y) = $3 in ($1 :: x, y) }
-| lids CBR_CLS def_base { let (x, y) = $3 in ($1 :: x, y) }
+| lids COMMA attrs      { let (x, y) = $3 in (make $1 :: x, y) }
+| lids CBR_CLS def_base { let (x, y) = $3 in (make $1 :: x, y) }
 ;
 
 def
-: def_base         { $1 }
-| ATTR_OPEN  attrs { $2 }
+: def_base         { make $1 }
+| ATTR_OPEN  attrs { make $2 }
 ;
 
 def_base
 : pub KW_LET rec_opt expr_70 EQ expr 
     { ($1, make_def $3 (DLet(false, $4, $6))) }
 | KW_IMPLICIT TLID implicit_ty_args type_annot_opt
-    { ([], make (DImplicit($2, $3, $4))) }
+    { ([], DImplicit($2, $3, $4)) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
     { ($1, make_def $3  (DData(DV_Private, $4, $7))) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
@@ -556,12 +555,12 @@ def_base
 | pub KW_HANDLE rec_opt expr_70 KW_WITH expr
     { ($1, make_def $3 (DHandleWith(false, $4, $6))) }
 | pub KW_METHOD rec_opt expr_70 EQ expr { ($1, make_def $3 (DMethod(false, $4, $6))) }
-| pub KW_METHOD KW_FN var_id { ($1, make (DMethodFn(false, $4, $4))) }
-| pub KW_METHOD KW_FN var_id EQ var_id { ($1, make (DMethodFn(false, $4, $6))) }
+| pub KW_METHOD KW_FN var_id { ($1, DMethodFn(false, $4, $4)) }
+| pub KW_METHOD KW_FN var_id EQ var_id { ($1, DMethodFn(false, $4, $6)) }
 | pub KW_MODULE rec_opt UID def_list KW_END
     { ($1, make_def $3 (DModule(false, $4, $5))) }
-| pub KW_REC def_list KW_END { ($1, make (DRec(false, $3))) }
-| pub KW_OPEN uid_path { ($1, make (DOpen(false, $3))) }
+| pub KW_REC def_list KW_END { ($1, DRec(false, $3)) }
+| pub KW_OPEN uid_path { ($1, DOpen(false, $3)) }
 ;
 
 def_list

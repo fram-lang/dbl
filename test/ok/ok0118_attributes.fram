@@ -40,3 +40,6 @@ let _ = testEq 10 (5 + 5)
  - Atrybut -> funkcja :: [def] -> [def] => atrybut . desugar
  - pub abstr record -> atrybuty
  #}
+
+
+ 
