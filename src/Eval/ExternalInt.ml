@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-open ExternalHelpers
+open ExternalUtils
 
 let int_fun2 f = int_fun (fun x -> int_fun (f x))
 

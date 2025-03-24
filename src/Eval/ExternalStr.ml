@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-open ExternalHelpers
+open ExternalUtils
 open Value
 
 let list_chr_fun f = VFn (fun v cont ->
