@@ -22,7 +22,7 @@ type data_def =
       tvars     : TVar.ex list;
       val_types : ttype list;
       delim_tp  : ttype;
-      delim_eff : effect
+      delim_eff : effct
     }
 
 type expr =
@@ -34,10 +34,10 @@ type expr =
   | EApp      of value * value
   | ETApp      : value * 'k typ -> expr
   | EData     of data_def list * expr
-  | EMatch    of expr * value * match_clause list * ttype * effect
+  | EMatch    of expr * value * match_clause list * ttype * effct
   | EShift    of value * TVar.ex list * var list * var * expr * ttype
   | EReset    of value * Type.ex list * value list * expr * var * expr
-  | ERepl     of (unit -> expr) * ttype * effect
+  | ERepl     of (unit -> expr) * ttype * effct
   | EReplExpr of expr * string * expr
 
 and value =

@@ -114,7 +114,7 @@ and tr_expr_v env (e : S.expr) cont =
     T.EData(dds, tr_expr_v env e cont)
 
   | EHandler h ->
-    let (env, Ex a) = Env.add_tvar env h.effect in
+    let (env, Ex a) = Env.add_tvar env h.effct in
     begin match T.TVar.kind a with
     | KEffect ->
       let delim_tp  = Type.tr_ttype env h.delim_tp in

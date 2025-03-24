@@ -54,21 +54,21 @@ type _ typ =
   | TEffPure : keffect typ
     (** Pure effect *)
 
-  | TEffJoin : effect * effect -> keffect typ
+  | TEffJoin : effct * effct -> keffect typ
     (** Join of two effects. Avoid using this constructor directly: Function
       [Effect.join] provides similar functionalily, but removes duplicates. *)
 
   | TVar  : 'k tvar -> 'k typ
     (** Type variable *)
 
-  | TArrow  : ttype * ttype * effect -> ktype typ
+  | TArrow  : ttype * ttype * effct -> ktype typ
     (** Arrow type *)
 
   | TForall : 'k tvar * ttype -> ktype typ
     (** Polymorphic type *)
 
   | TLabel : (** Type of the first class label *)
-    { effect    : effect;
+    { effct    : effct;
         (** The effect of this label *)
 
       tvars     : TVar.ex list;
@@ -80,11 +80,11 @@ type _ typ =
       delim_tp  : ttype;
         (** Type of the delimiter *)
 
-      delim_eff : effect
+      delim_eff : effct
         (** Effect of the delimiter *)
     } -> ktype typ
 
-  | TData    : ttype * effect * ctor_type list -> ktype typ
+  | TData    : ttype * effct * ctor_type list -> ktype typ
     (** Proof of the shape of ADT.
       
       Algebraic data type (ADTs) are just abstract types, but each operation
@@ -105,7 +105,7 @@ type _ typ =
 and ttype = ktype typ
 
 (** Effects *)
-and effect = keffect typ
+and effct = keffect typ
 
 (** ADT constructor type *)
 and ctor_type = {
@@ -160,7 +160,7 @@ type data_def =
       delim_tp  : ttype;
         (** Type of the delimiter *)
 
-      delim_eff : effect
+      delim_eff : effct
         (** Effect of the delimiter *)
     }
 
@@ -198,10 +198,10 @@ end
 module Effect : sig
   (** Join of two effects. Same as TEffJoin constructor, but removes
     duplicates. *)
-  val join : effect -> effect -> effect
+  val join : effct -> effct -> effct
 
   (** Effect of possible non-termination *)
-  val nterm : effect
+  val nterm : effct
 end
 
 (* ========================================================================= *)
@@ -240,7 +240,7 @@ type expr =
   | EData of data_def list * expr
     (** Mutually recursive datatype definitions *)
 
-  | EMatch  of expr * value * match_clause list * ttype * effect
+  | EMatch  of expr * value * match_clause list * ttype * effct
     (** Shallow pattern matching. The first parameter is the proof that the
       type of the matched value is an ADT *)
 
@@ -253,7 +253,7 @@ type expr =
     (** Reset-0 operator parametrized by runtime tag, list of types and values
       stored at this delimiter, body, and the return clause *)
 
-  | ERepl of (unit -> expr) * ttype * effect
+  | ERepl of (unit -> expr) * ttype * effct
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
       The second and third parameters are type and effect of an expression

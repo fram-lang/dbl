@@ -38,7 +38,7 @@ type label =
     (** Cannot guess the effect of the label ("effect" type variable is not
       bound or not available *)
 
-  | L_Label of T.effect * T.typ * T.effrow
+  | L_Label of T.effct * T.typ * T.effrow
     (** Label type *)
 
 (** Extra information that can be attached to error occurred during

@@ -13,12 +13,12 @@ type neutral_head =
 type whnf =
   | Whnf_Neutral   of neutral_head * typ list
       (* Arguments are in reversed order! *)
-  | Whnf_Effect    of effect
+  | Whnf_Effect    of effct
   | Whnf_Effrow    of effrow
   | Whnf_PureArrow of scheme * typ
   | Whnf_Arrow     of scheme * typ * effrow
   | Whnf_Handler   of tvar * typ * typ * effrow * typ * effrow
-  | Whnf_Label     of effect * typ * effrow
+  | Whnf_Label     of effct * typ * effrow
 
 let rec whnf tp =
   match view tp with

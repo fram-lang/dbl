@@ -91,7 +91,7 @@ and tr_type env tp =
     let tp0  = tr_ttype  env tp0 in
     let eff0 = tr_effect env eff0 in
     T.Type.Ex (TLabel
-      { effect    = eff;
+      { effct    = eff;
         tvars     = [];
         val_types = [];
         delim_tp  = tp0;
@@ -120,7 +120,7 @@ and tr_ttype env tp : T.ttype =
     failwith "Internal kind error"
 
 (** Translate an effect (a type of effect kind) *)
-and tr_effect env eff : T.effect =
+and tr_effect env eff : T.effct =
   let (Ex eff) = tr_type env eff in
   match T.Type.kind eff with
   | KEffect -> eff

@@ -42,7 +42,7 @@ val add_mono_implicit :
 (** Extend an environment with a variable labeled with "label". Such a
   variable always have a label type. All components of the label type should
   be passed as a parameters. *)
-val add_the_label : t -> T.effect -> T.typ -> T.effrow -> t * T.var
+val add_the_label : t -> T.effct -> T.typ -> T.effrow -> t * T.var
 
 (** Extend an environment with information that given identifier when used
   as function is a method of given name. *)
@@ -97,7 +97,7 @@ val add_the_label_sch : t -> T.scheme -> t * Var.t
 
 (** Lookup for variable labeled with "label". On success, returns the variable
   together with its label-type components *)
-val lookup_the_label : t -> (T.var * T.effect * T.typ * T.effrow) option
+val lookup_the_label : t -> (T.var * T.effct * T.typ * T.effrow) option
 
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and

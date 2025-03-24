@@ -74,7 +74,7 @@ module type MatchContext = sig
   val res_tp  : T.ttype
 
   (** Result effect of the whole matching expression *)
-  val res_eff : T.effect
+  val res_eff : T.effct
 end
 
 module Make(Ctx : MatchContext) = struct

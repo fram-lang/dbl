@@ -62,7 +62,7 @@ let rec equal : type k. k typ -> k typ -> bool =
   | TForall _, _ -> false
 
   | TLabel lbl1, TLabel lbl2 ->
-    effect_equal lbl1.effect lbl2.effect &&
+    effect_equal lbl1.effct lbl2.effct &&
     begin match
       tvars_binder_equal ~sub1:Subst.empty ~sub2:Subst.empty
         lbl1.tvars lbl2.tvars
@@ -126,7 +126,7 @@ and tvars_binder_equal ~sub1 ~sub2 xs1 xs2 =
   | [], _ :: _ | _ :: _, [] -> None
 
 (** Check equality of effects *)
-and effect_equal : effect -> effect -> bool =
+and effect_equal : effct -> effct -> bool =
   fun eff1 eff2 -> subeffect eff1 eff2 && subeffect eff2 eff1
 
 (** Check if one effect is a subeffect of another *)
@@ -233,17 +233,17 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
     | None      -> None
     end
   | TLabel lbl ->
-    let effect = type_in_scope scope lbl.effect in
+    let effct = type_in_scope scope lbl.effct in
     let scope  = add_tvars_to_scope lbl.tvars scope in
     begin match
-      effect,
+      effct,
       forall_map (type_in_scope scope) lbl.val_types,
       type_in_scope scope lbl.delim_tp,
       type_in_scope scope lbl.delim_eff
     with
-    | Some effect, Some val_types, Some delim_tp, Some delim_eff ->
+    | Some effct, Some val_types, Some delim_tp, Some delim_eff ->
       Some (TLabel
-        { effect; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
+        { effct; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
     | _ -> None
     end
   | TData(tp, eff, ctors) ->
@@ -274,12 +274,12 @@ and ctor_type_in_scope scope ctor =
 
 (** Tries to find a supereffect of given type, such that all free type
   variables are members of given set ([scope]) *)
-let supereffect_in_scope scope (eff : effect) =
+let supereffect_in_scope scope (eff : effct) =
   type_in_scope scope eff
 
 (** Tries to find a subeffect of given type, such that all free type
   variables are members of given set ([scope]) *)
-let rec subeffect_in_scope scope (eff : effect) =
+let rec subeffect_in_scope scope (eff : effct) =
   match eff with
   | TUVar _ | TEffPure -> eff
   | TEffJoin(eff1, eff2) ->

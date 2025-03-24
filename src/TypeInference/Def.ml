@@ -15,7 +15,7 @@ type label_info =
     l_ctx : T.expr -> T.expr;
       (** Context that generates fresh label when necessary *)
 
-    l_eff : T.effect;
+    l_eff : T.effct;
       (** Effect provided by this label *)
 
     l_sub : T.tvar -> T.subst;

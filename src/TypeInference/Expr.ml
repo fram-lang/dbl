@@ -149,7 +149,7 @@ let infer_expr_type ~tcfix env (e : S.expr) eff =
     let e =
       make (T.EHandler {
         label     = lx;
-        effect    = a;
+        effct    = a;
         delim_tp  = delim_tp;
         delim_eff = delim_eff;
         cap_type  = tp;
@@ -319,7 +319,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp eff =
       let e =
         make (T.EHandler {
           label     = lx;
-          effect    = a;
+          effct     = a;
           delim_tp  = delim_tp;
           delim_eff = delim_eff;
           cap_type  = cap_tp;

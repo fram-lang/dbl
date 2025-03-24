@@ -19,7 +19,7 @@ type handler =
 type label =
   | L_No
   | L_NoEffect
-  | L_Label of T.effect * T.typ * T.effrow
+  | L_Label of T.effct * T.typ * T.effrow
 
 type error_info =
   | TVarEscapesScope of Env.t * T.tvar

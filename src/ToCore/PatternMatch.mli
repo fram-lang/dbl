@@ -12,4 +12,4 @@ open Common
 val tr_single_match :
   pos:Position.t -> env:Env.t ->
   tr_expr:(Env.t -> S.expr -> T.expr) ->
-  T.value -> S.match_clause list -> T.ttype -> T.effect -> T.expr
+  T.value -> S.match_clause list -> T.ttype -> T.effct -> T.expr

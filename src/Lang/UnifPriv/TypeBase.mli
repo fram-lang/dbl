@@ -26,7 +26,7 @@ type name =
 
 type typ
 
-type effect = typ
+type effct = typ
 type effrow = typ
 
 type effrow_end =
@@ -43,7 +43,7 @@ type type_view =
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effrow
   | THandler   of tvar * typ * typ * effrow * typ * effrow
-  | TLabel     of effect * typ * effrow
+  | TLabel     of effct * typ * effrow
   | TApp       of typ * typ
 
 and scheme = {
@@ -77,10 +77,10 @@ val t_arrow : scheme -> typ -> effrow -> typ
 val t_handler : tvar -> typ -> typ -> effrow -> typ -> effrow -> typ
 
 (** Type of first-class label *)
-val t_label : effect -> typ -> effrow -> typ
+val t_label : effct -> typ -> effrow -> typ
 
 (** Create an effect *)
-val t_effect : TVar.Set.t -> effect
+val t_effect : TVar.Set.t -> effct
 
 (** Create an effect row *)
 val t_effrow : TVar.Set.t -> effrow_end -> effrow
@@ -95,7 +95,7 @@ val t_app : typ -> typ -> typ
 val view : typ -> type_view
 
 (** Reveal a representation of an effect: a set of effect variables *)
-val effect_view : effect -> TVar.Set.t
+val effect_view : effct -> TVar.Set.t
 
 (** Reveal a representation of an effect row: a set of effect variables
   together with a way of closing an effect row. *)

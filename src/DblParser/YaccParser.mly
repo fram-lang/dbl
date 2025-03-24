@@ -166,7 +166,7 @@ ty_expr_simple
 | uid_path  { make (TVar($1, None)) }
 | BR_OPN uid_path COLON kind_expr BR_CLS { make (TVar($2, Some $4)) }
 | UNDERSCORE { make TWildcard }
-| SBR_OPN effect SBR_CLS { make ($2).data }
+| SBR_OPN effct SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
 ;
 
@@ -187,7 +187,7 @@ kind_expr_simple
 
 /* ------------------------------------------------------------------------- */
 
-effect
+effct
 : ty_expr_list                    { make (TEffect($1, None))    }
 | ty_expr_list BAR ty_expr_simple { make (TEffect($1, Some $3)) }
 ;

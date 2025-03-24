@@ -49,7 +49,7 @@ let rec tr_type : type k. k typ -> SExpr.t =
   | TLabel lbl ->
     List
       [ Sym "label";
-        tr_type lbl.effect;
+        tr_type lbl.effct;
         List (List.map tr_tvar_binder_ex lbl.tvars);
         List (List.map tr_type lbl.val_types);
         tr_type lbl.delim_tp;
@@ -59,7 +59,7 @@ let rec tr_type : type k. k typ -> SExpr.t =
       List.map tr_ctor_type ctors)
   | TApp _ -> tr_type_app tp []
 
-and tr_effect : effect -> SExpr.t list =
+and tr_effect : effct -> SExpr.t list =
   fun tp ->
   match tp with
   | TEffPure -> []

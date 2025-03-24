@@ -35,7 +35,7 @@ and uvar_state =
   | UV_Type of typ
 
 and typ = type_view
-and effect = typ
+and effct = typ
 and effrow = typ
 and type_view =
   | TUVar      of TVar.Perm.t * uvar
@@ -45,7 +45,7 @@ and type_view =
   | TPureArrow of scheme * typ
   | TArrow     of scheme * typ * effrow
   | THandler   of tvar * typ * typ * effrow * typ * effrow
-  | TLabel     of effect * typ * effrow
+  | TLabel     of effct * typ * effrow
   | TApp       of typ * typ
 
 and effrow_end =

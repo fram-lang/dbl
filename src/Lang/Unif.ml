@@ -102,9 +102,9 @@ and expr_data =
   | EHandle     of tvar * var * typ * expr * expr
   | EHandler    of
     { label     : var;
-      effect    : tvar;
+      effct    : tvar;
       delim_tp  : typ;
-      delim_eff : effect;
+      delim_eff : effct;
       cap_type  : typ;
       cap_body  : expr;
       ret_var   : var;

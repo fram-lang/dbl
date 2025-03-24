@@ -61,7 +61,7 @@ type name =
 type typ
 
 (** Effects. They are represented as types effect kind. Always ground. *)
-type effect = typ
+type effct = typ
 
 (** Effect rows. *)
 type effrow = typ
@@ -231,13 +231,13 @@ and expr_data =
     { label     : var;
       (** Variable, that binds the runtime-label *)
 
-      effect    : tvar;
+      effct    : tvar;
       (** Effect variable *)
 
       delim_tp  : typ;
       (** Type of the delimiter *)
 
-      delim_eff : effect;
+      delim_eff : effct;
       (** Effect of the delimiter *)
 
       cap_type  : typ;
@@ -517,7 +517,7 @@ module Type : sig
     | TArrow of scheme * typ * effrow
       (** Impure arrow *)
   
-    | THandler of tvar * typ * typ * effrow * typ * effect
+    | THandler of tvar * typ * typ * effrow * typ * effct
       (** First class handler. In [THandler(a, tp, itp, ieff, otp, oeff)]:
         - [a] is a variable bound in [tp], [itp], and [ieff];
         - [tp] is a type of provided capability;
@@ -525,7 +525,7 @@ module Type : sig
           The variable [a] in [ieff] can be omitted.
         - [otp] and [oeff] are type and effects of the whole handler. *)
   
-    | TLabel of effect * typ * effrow
+    | TLabel of effct * typ * effrow
       (** Type of first-class label. It stores the effect of the label and
         type and effect of the delimiter. *)
 
@@ -545,7 +545,7 @@ module Type : sig
     | Whnf_Neutral of neutral_head * typ list
       (** Neutral type. Its parameters are in reversed order. *)
 
-    | Whnf_Effect  of effect
+    | Whnf_Effect  of effct
       (** Effect *)
 
     | Whnf_Effrow of effrow
@@ -560,7 +560,7 @@ module Type : sig
     | Whnf_Handler   of tvar * typ * typ * effrow * typ * effrow
       (** Handler type *)
 
-    | Whnf_Label of effect * typ * effrow
+    | Whnf_Label of effct * typ * effrow
       (** Label type *)
 
   (** Unit type *)
@@ -585,15 +585,15 @@ module Type : sig
   val t_handler : tvar -> typ -> typ -> effrow -> typ -> effrow -> typ
 
   (** Type of first-class label *)
-  val t_label : effect -> typ -> effrow -> typ
+  val t_label : effct -> typ -> effrow -> typ
 
   (** Create an effect *)
-  val t_effect : TVar.Set.t -> effect
+  val t_effect : TVar.Set.t -> effct
 
   (** Create an effect row *)
   val t_effrow : TVar.Set.t -> effrow_end -> effrow
 
-  (** Create a closed effect row *)
+  (** Create a closed effct row *)
   val t_closed_effrow : TVar.Set.t -> effrow
 
   (** Type application *)
@@ -612,7 +612,7 @@ module Type : sig
   val whnf : typ -> whnf
 
   (** Reveal a representation of an effect: a set of effect variables. *)
-  val effect_view : effect -> TVar.Set.t
+  val effect_view : effct -> TVar.Set.t
 
   (** Reveal a representation of an effect row: a set of effect variables
     together with a way of closing an effect row. *)
@@ -684,7 +684,7 @@ module Effect : sig
   val cons : tvar -> effrow -> effrow
 
   (** Consing an effect to an effect row *)
-  val cons_eff : effect -> effrow -> effrow
+  val cons_eff : effct -> effrow -> effrow
 
   (** Row-like view of an effect row *)
   val view : effrow -> row_view
