@@ -3,7 +3,7 @@
  *)
 
 open Value
-open ExternalHelpers
+open ExternalUtils
 
 let extern_map =
   let extern_map =

@@ -3,7 +3,7 @@
  *)
 
 open Value
-open ExternalHelpers
+open ExternalUtils
 
 let getEnv s =
   Option.map (fun x -> VStr x) (Sys.getenv_opt s)
