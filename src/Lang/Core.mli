@@ -48,9 +48,6 @@ end
 
 (** Types, indexed by a type-represented kind *)
 type _ typ =
-  | TUVar : UID.t * 'k kind -> 'k typ
-    (** UVar type kept for pretty printing *)
-
   | TEffPure : keffect typ
     (** Pure effect *)
 
@@ -66,6 +63,9 @@ type _ typ =
 
   | TForall : 'k tvar * ttype -> ktype typ
     (** Polymorphic type *)
+
+  | TGuard : constr list * ttype -> ktype typ
+    (** Type of constraint abstraction *)
 
   | TLabel : (** Type of the first class label *)
     { effect    : effect;
@@ -106,6 +106,9 @@ and ttype = ktype typ
 
 (** Effects *)
 and effect = keffect typ
+
+(** Constraints *)
+and constr = keffect typ * keffect typ
 
 (** ADT constructor type *)
 and ctor_type = {
@@ -189,6 +192,9 @@ module Type : sig
   (** Unit type *)
   val t_unit : ttype
 
+  (** Option type *)
+  val t_option : ttype -> ttype
+
   (** Existential version of type representation, where its kind is packed *)
   type ex = Ex : 'k typ -> ex
 end
@@ -227,15 +233,24 @@ type expr =
   | ELetIrr of var * expr * expr
     (** Let expression, that binds computationally irrelevant expression *)
 
-  | ELetRec of (var * ttype * value) list * expr
-    (** Mutually recursive let-definitions. Recursive values must be
-      productive. See [CorePriv.WellTypedInvariant] for details. *)
+  | ELetRec of (var * ttype * expr) list * expr
+    (** Mutually recursive let-definitions. Recursive expressions must be
+      pure and productive, i.e., they can recursively refer to themselves
+      or other mutually recursive definitions only under [ERecCtx] marker. *)
+
+  | ERecCtx of expr
+    (** Marker for recursive context. It has [NTerm] effect, and from this
+      point, all recursive calls are allowed. It is used to ensure that
+      recursive definitions are productive. *)
 
   | EApp of value * value
     (** Function application *)
 
   | ETApp : value * 'k typ -> expr
     (** Type application *)
+
+  | ECApp of value
+    (** Instantiation of a constraint abstraction *)
 
   | EData of data_def list * expr
     (** Mutually recursive datatype definitions *)
@@ -282,6 +297,9 @@ and value =
 
   | VTFun : 'k tvar * expr -> value
     (** Type function *)
+
+  | VCAbs of constr list * expr
+    (** Constraint abstraction *)
 
   | VCtor of expr * int * Type.ex list * value list
     (** Fully-applied constructor of ADT. The meaning of the parameters
