@@ -25,6 +25,9 @@ val equal : t -> t -> bool
 (** Check if a type variable can be used in a given scope *)
 val in_scope : t -> Scope.t -> bool
 
+(** Get the unique identifier for pretty-printing *)
+val pp_uid : t -> PPTree.uid
+
 (** Finite sets of type variables *)
 module Set : Set.S with type elt = t
 

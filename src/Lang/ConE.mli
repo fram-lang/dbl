@@ -260,6 +260,9 @@ module TVar : sig
   (** Check if type variable belongs to the given scope. *)
   val in_scope : tvar -> Scope.t -> bool
 
+  (** Get the unique identifier for pretty-printing *)
+  val pp_uid : tvar -> PPTree.uid
+
   (** Finite sets of type variables *)
   module Set : Set.S with type elt = tvar
 
