@@ -434,12 +434,19 @@ let let_poly_ctx e cs =
     } in
   (x, ctx)
 
-(** Create a context with monomorphic let-definition. *)
-let let_mono_ctx er1 =
+(** Create a context with monomorphic let-definition and optional type
+  annotation. *)
+let let_mono_ctx ?tp er1 =
   let x = Var.fresh () in
   let ctx er2 =
+    let make data = { er1.er_expr with T.data = data } in
     { er_expr   =
-        { er1.er_expr with T.data = T.ELetMono(x, er1.er_expr, er2.er_expr) };
+        make (T.ELetMono(
+          x,
+          (match tp with
+          | None -> er1.er_expr
+          | Some tp -> make (T.EAnnot(er1.er_expr, make (T.TE_Type tp)))),
+          er2.er_expr));
       er_type   = er2.er_type;
       er_effect = T.Effect.join er1.er_effect er2.er_effect;
       er_constr = er1.er_constr @ er2.er_constr;
@@ -453,7 +460,7 @@ let add_constr_ctx cs er =
 let default_check_provided ~tcfix ~wrap env e sch =
   match PolyExpr.check_def_scheme ~tcfix env e sch with
   | Mono er ->
-    let (x_var, i_ctx) = let_mono_ctx er in
+    let (x_var, i_ctx) = let_mono_ctx ~tp:sch.sch_body er in
     let make data =
       { T.pos  = e.pos;
         T.pp   = Env.pp_tree env;

@@ -56,6 +56,21 @@ let of_scheme_expr (sch : scheme_expr) =
     Some se_body
   | _ -> None
 
+let rec scheme_expr_of_scheme ~pos ~pp sch =
+  { se_pos   = pos;
+    se_pp    = pp;
+    se_targs = sch.sch_targs;
+    se_named =
+      List.map
+        (fun (name, sch) -> (name, scheme_expr_of_scheme ~pos ~pp sch))
+        sch.sch_named;
+    se_body  =
+      { pos  = pos;
+        pp   = pp;
+        data = TE_Type sch.sch_body
+      }
+  }
+
 let rec subst sub (tp : type_expr) =
   { tp with data =
     match tp.data with

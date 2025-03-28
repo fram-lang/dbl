@@ -330,12 +330,10 @@ and expr_data =
     (** String literal *)
 
   | EChr of char
-    (** String literal *)
+    (** Character literal *)
 
-  | EFn of var * scheme_expr option * expr * effct
-    (** Effect-annotated lambda-abstraction. The scheme annotation can be
-      omitted, when the expression is in type-checking mode, i.e., on the
-      argument position of a function application, or in a let-definition. *)
+  | EFn of var * scheme_expr * expr * effct
+    (** Effect-annotated lambda-abstraction. *)
 
   | EAppPoly of expr * poly_fun
     (** Function application to polymorphic expression *)
@@ -436,8 +434,8 @@ and expr_data =
   | EExtern of string * typ
     (** Externally defined value *)
 
-  | EAnnot of expr * type_expr * type_expr
-    (** Expression explicitly annotated with a type and an effect. *)
+  | EAnnot of expr * type_expr
+    (** Expression explicitly annotated with a type *)
 
   | ERepl of (unit -> expr) * typ
     (** REPL. It is a function that prompts user for another input. It returns
@@ -570,6 +568,9 @@ end
 (** Operations on unification variables *)
 module UVar : sig
   type t = uvar
+
+  (** Get the kind of given unification variable *)
+  val kind : t -> kind
 
   (** Check unification variables for equality *)
   val equal : t -> t -> bool
@@ -865,6 +866,9 @@ module SchemeExpr : sig
 
   (** Convert to type-scheme *)
   val to_scheme : scheme_expr -> scheme
+
+  (** Convert scheme to scheme expression. *)
+  val of_scheme : pos:Position.t -> pp:PPTree.t -> scheme -> scheme_expr
 
   (** Substitute in a scheme expression *)
   val subst : subst -> scheme_expr -> scheme_expr

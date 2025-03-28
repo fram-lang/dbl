@@ -77,7 +77,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
     let er_body = check_expr_type env body tp2 in
     let eff = T.Effect.join eff1 er_body.er_effect in
     let (x, body) = ExprUtils.match_var pat er_body.er_expr tp2 eff in
-    { er_expr   = make (T.EFn(x, Some sch_expr, body, eff));
+    { er_expr   = make (T.EFn(x, sch_expr, body, eff));
       er_type   = Infered (T.Type.t_arrow sch tp2 eff);
       er_effect = Pure;
       er_constr = er_body.er_constr
@@ -155,9 +155,8 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   | EAnnot(e, tp) ->
     let tp_expr = Type.tr_ttype env tp in
     let tp = T.TypeExpr.to_type tp_expr in
-    let eff = make (T.TE_Type T.Type.t_effect) in
     let er = check_expr_type env e tp in
-    { er_expr = make (T.EAnnot(er.er_expr, tp_expr, eff));
+    { er_expr = make (T.EAnnot(er.er_expr, tp_expr));
       er_type = Infered tp;
       er_effect = er.er_effect;
       er_constr = er.er_constr
@@ -254,6 +253,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
     | Arr_UVar ->
       check_expr_type_default ~tcfix env e tp
     | Arr_Arrow(sch, tp2, eff) ->
+      let sch_expr = T.SchemeExpr.of_scheme ~pos:pat.pos ~pp sch in
       let (env, pat, pat_eff) = Pattern.check_scheme_ext env pat sch in
       let er_body = check_expr_type env body tp2 in
       let fun_eff = T.Effect.join pat_eff er_body.er_effect in
@@ -262,7 +262,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
       | Pure, _ | _, Impure -> ()
       end;
       let (x, body) = ExprUtils.match_var pat er_body.er_expr tp2 eff in
-      { er_expr   = make (T.EFn(x, None, body, eff));
+      { er_expr   = make (T.EFn(x, sch_expr, body, eff));
         er_type   = Checked;
         er_effect = Pure;
         er_constr = er_body.er_constr

@@ -41,3 +41,6 @@ module KUVar : sig
 
   val set : kuvar -> t -> unit
 end
+
+(** Pretty-print kind as S-expression *)
+val to_sexpr : t -> SExpr.t

@@ -51,3 +51,16 @@ let rec contains_uvar x k =
   | KUVar u -> KUVar.equal x u
   | KArrow(k1, k2) ->
     contains_uvar x k1 || contains_uvar x k2
+
+let rec to_sexpr k =
+  let open SExpr in
+  let rec tr_arrow k =
+    match k with
+    | KArrow(k1, k2) -> to_sexpr k1 :: tr_arrow k2
+    | _ -> [ Sym "->"; to_sexpr k ]
+  in
+  match view k with
+  | KType   -> Sym "type"
+  | KEffect -> Sym "effect"
+  | KArrow _ -> List (tr_arrow k)
+  | KUVar  _  -> Sym "?"

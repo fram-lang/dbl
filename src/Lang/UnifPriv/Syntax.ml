@@ -102,7 +102,7 @@ and expr_data =
   | ENum64      of int64
   | EStr        of string
   | EChr        of char
-  | EFn         of var * scheme_expr option * expr * effct
+  | EFn         of var * scheme_expr * expr * effct
   | EAppPoly    of expr * poly_fun
   | EAppMono    of expr * expr
   | ELetPoly    of var * poly_expr * expr
@@ -133,7 +133,7 @@ and expr_data =
     }
   | EEffect     of expr * var * expr * typ
   | EExtern     of string * typ
-  | EAnnot      of expr * type_expr * type_expr
+  | EAnnot      of expr * type_expr
   | ERepl       of (unit -> expr) * typ
   | EReplExpr   of expr * expr
 

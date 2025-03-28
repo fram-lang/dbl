@@ -45,3 +45,9 @@ let in_scope x scope = Scope.mem x.scope scope
 
 module Set = Set.Make(Ordered)
 module Map = Map.Make(Ordered)
+
+let to_sexpr x =
+  SExpr.List [
+    SExpr.Sym (UID.to_string x.uid);
+    Scope.to_sexpr x.scope
+  ]

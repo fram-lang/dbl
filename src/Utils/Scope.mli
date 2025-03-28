@@ -48,3 +48,6 @@ val strict_subset : t -> t -> bool
 (** Check if a type variable marked as belonging to the first scope can be
   used in the second scope. *)
 val mem : t -> t -> bool
+
+(** Pretty-print a scope as S-expression. *)
+val to_sexpr : t -> SExpr.t
