@@ -415,13 +415,13 @@ type def4 =
 
 (** Build a function from a list of arguments and a body. *)
 let mk_function args body body_tp =
-  let mk_fn (pos, pp, pat, sch, eff) (body, body_tp) =
-    let sch = T.SchemeExpr.to_scheme sch in
+  let mk_fn (pos, pp, pat, sch_expr, eff) (body, body_tp) =
+    let sch = T.SchemeExpr.to_scheme sch_expr in
     let (x, body) = ExprUtils.match_var pat body body_tp eff in
     let body_tp = T.Type.t_arrow sch body_tp eff in
     { T.pos  = pos;
       T.pp   = pp;
-      T.data = T.EFn(x, None, body, eff)
+      T.data = T.EFn(x, sch_expr, body, eff)
     }, body_tp
   in
   List.fold_right mk_fn args (body, body_tp)

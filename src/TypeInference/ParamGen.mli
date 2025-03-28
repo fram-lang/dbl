@@ -9,7 +9,8 @@ open Common
 
 (** Build a list of types and named parameters that should be implicitly
   generalized. The second parameter is a set of unification variables that
-  appears in the type/scheme of the generalized entity. Additionally, the
+  appears in the type/scheme of the generalized entity. Unification variables
+  of the effect kind are set to [TEffect] construct. Additionally, the
   function modifies list of constraints generated in the generalized entity:
   it extends their scope with unification variables promoted to type
   variables. This function tries to generalize only those parameters that were
@@ -24,7 +25,7 @@ val end_generalize_pure : pos:Position.t ->
     T.named_tvar list * (Name.t * T.var * T.scheme_expr) list * Constr.t list
 
 (** Ensure, that no named parameters on a given list were used. After calling
-  this function, given named parameter become unavailable. The fuction takes
+  this function, given named parameter become unavailable. The function takes
   also a set of unification variables that appears in the entity that was
   created with the environment returned by [begin_generalize]. This set is
   needed to decrease the level of unification variables. *)

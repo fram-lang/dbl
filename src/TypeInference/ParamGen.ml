@@ -21,10 +21,15 @@ let end_generalize_pure ~pos params uvs cs =
   let scope = ParamEnv.scope params in
   let can_be_generalized u =
     if T.UVar.in_scope u scope then false
-    else begin
-      T.UVar.shrink_scope u scope;
-      true
-    end in
+    else
+      begin match T.Kind.view (T.UVar.kind u) with
+      | KEffect ->
+        let _ : Scope.t = T.UVar.raw_set u T.Type.t_effect in
+        false
+      | _ ->
+        T.UVar.shrink_scope u scope;
+        true
+      end in
   let targs1 =
     T.UVar.Set.filter can_be_generalized uvs
     |> T.UVar.Set.elements

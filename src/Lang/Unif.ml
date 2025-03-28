@@ -64,6 +64,7 @@ module SchemeExpr = struct
   let of_type_expr = UnifPriv.TypeExpr.mono_scheme_expr
   let to_type_expr = UnifPriv.TypeExpr.of_scheme_expr
   let to_scheme    = UnifPriv.TypeExpr.to_scheme
+  let of_scheme    = UnifPriv.TypeExpr.scheme_expr_of_scheme
   let subst        = UnifPriv.TypeExpr.subst_in_scheme
 end
 
