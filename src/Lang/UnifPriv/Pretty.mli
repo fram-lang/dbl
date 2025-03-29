@@ -2,27 +2,27 @@
  * See LICENSE for details.
  *)
 
-(** Pretty printing of types and kinds *)
+(** Pretty-printing of kinds and types *)
 
-open Common
+open TypeBase
 
-(** Contexts of pretty-printing *)
+(** Context of pretty-printing *)
 type ctx
 
 (** Create an empty context. *)
 val empty_context : unit -> ctx
 
 (** Pretty-print kind *)
-val kind_to_string : ctx -> T.kind -> string
+val pp_kind : ctx -> kind -> string
 
 (** Pretty-print type variable *)
-val tvar_to_string : ctx -> PPTree.t -> T.tvar -> string
+val pp_tvar : ctx -> PPTree.t -> tvar -> string
 
 (** Pretty-print type *)
-val type_to_string : ctx -> PPTree.t -> T.typ -> string
+val pp_type : ctx -> PPTree.t -> typ -> string
 
 (** Pretty-print type scheme *)
-val scheme_to_string : ctx -> PPTree.t -> T.scheme -> string
+val pp_scheme : ctx -> PPTree.t -> scheme -> string
 
 (** Pretty-print additional information about printing context, e.g.,
   locations of binders of anonymous types. *)

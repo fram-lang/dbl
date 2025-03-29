@@ -888,6 +888,7 @@ module CtorDeclExpr : sig
   val to_ctor_decl : ctor_decl_expr -> ctor_decl
 end
 
+(* ========================================================================= *)
 (** Proofs of ADT shapes *)
 module ProofExpr : sig
   (** Apply substitution to a proof *)
@@ -928,4 +929,30 @@ module Ren : sig
 
   (** Rename variables in pattern *)
   val rename_pattern : t -> pattern -> pattern
+end
+
+(* ========================================================================= *)
+(** Pretty-printing *)
+module Pretty : sig
+  (** Context of pretty-printing *)
+  type ctx
+
+  (** Create an empty context. *)
+  val empty_context : unit -> ctx
+
+  (** Pretty-print kind *)
+  val pp_kind : ctx -> kind -> string
+
+  (** Pretty-print type variable *)
+  val pp_tvar : ctx -> PPTree.t -> tvar -> string
+
+  (** Pretty-print type *)
+  val pp_type : ctx -> PPTree.t -> typ -> string
+
+  (** Pretty-print type scheme *)
+  val pp_scheme : ctx -> PPTree.t -> scheme -> string
+
+  (** Pretty-print additional information about printing context, e.g.,
+    locations of binders of anonymous types. *)
+  val additional_info : ctx -> string
 end
