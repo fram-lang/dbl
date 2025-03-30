@@ -3,7 +3,6 @@
  *)
 
 (** Building counterexample of non-matched value in pattern-matching *)
-(*
 open Common
 
 (** Example of not-matched pattern *)
@@ -14,7 +13,7 @@ type ex_pattern =
   | ExWildcard
     (** Wild-card: any value *)
 
-  | ExCtor of string * (S.name * ex_pattern) list * ex_pattern list
+  | ExCtor of string * (T.name * ex_pattern) list * ex_pattern list
     (** Constructor pattern, with implicit parameters *)
 
 (** Zipper context of a not-matched counterexample *)
@@ -26,13 +25,13 @@ type ctx =
     (** Pattern without holes *)
 
   | CtxCtorI of string *
-    (S.name * ex_pattern) list * S.name * ctx * (S.name * ex_pattern) list *
+    (T.name * ex_pattern) list * T.name * ctx * (T.name * ex_pattern) list *
     ex_pattern list
     (** ADT constructor contexts, focussed in implicit parameters.
       The left list of example patterns is
       in reversed order *)
 
-  | CtxCtorP of string * (S.name * ex_pattern) list *
+  | CtxCtorP of string * (T.name * ex_pattern) list *
     ex_pattern list * ctx * ex_pattern list
     (** ADT constructor contexts, focussed in regular parameters.
       The left list of example patterns is
@@ -95,4 +94,3 @@ let focus_with ctx ex =
   match try_focus ctx ex with
   | Some ctx -> ctx
   | None     -> refocus_with ctx ex
-*)

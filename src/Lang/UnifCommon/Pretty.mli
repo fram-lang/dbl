@@ -48,6 +48,9 @@ val pp_kind : ctx -> Kind.t -> string
 (** Pretty-print type variable *)
 val pp_tvar : ctx -> PPTree.t -> TVar.t -> string
 
+(** Pretty-print internal representation of effects *)
+val pp_effect_trees : ctx -> PPTree.t -> effect_tree list -> string
+
 (** Pretty-print internal representation of types *)
 val pp_type_tree : ctx -> PPTree.t -> type_tree -> string
 
