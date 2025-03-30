@@ -446,6 +446,9 @@ let pp_kind ctx k =
 let pp_tvar ctx pp_tree x =
   run_printer ctx pp_tree print_tvar x
 
+let pp_effect_trees ctx pp_tree eff =
+  run_printer ctx pp_tree print_effect eff
+
 let pp_type_tree ctx pp_tree tp =
   run_printer ctx pp_tree print_type tp
 

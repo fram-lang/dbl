@@ -49,4 +49,6 @@ module Subst = ConEPriv.Subst
 
 module BuiltinType = UnifCommon.BuiltinType
 
+module Pretty = ConEPriv.Pretty
+
 let to_sexpr = ConEPriv.SExprPrinter.tr_program

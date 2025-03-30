@@ -20,6 +20,9 @@ module GVar : sig
   (** Check if generalizable variable belongs to the given scope. *)
   val in_scope : gvar -> Scope.t -> bool
 
+  (** Get the unique identifier *)
+  val uid : gvar -> UID.t
+
   (** Update the scope of generalizable variable. See [Lang.ConE] for details.
     *)
   val update_scope : scope:Scope.t -> tvars:TVar.t list -> gvar -> gvar

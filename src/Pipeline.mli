@@ -4,6 +4,9 @@
 
 (** Pipeline of the compiler *)
 
+(** Dump internal ConE representation if this flag is set. *)
+val dump_cone : bool ref
+
 (** Dump internal Core representation if this flag is set. *)
 val dump_core : bool ref
 

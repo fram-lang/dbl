@@ -172,6 +172,8 @@ module GVar = struct
   let in_scope gv scope =
     Scope.mem (get_scope gv) scope
 
+  let uid gv = gv.uid
+
   let update_scope ~scope ~tvars gv =
     let tvars = List.filter (Fun.flip TVar.in_scope (get_scope gv)) tvars in
     match tvars, BRef.get gv.state with
