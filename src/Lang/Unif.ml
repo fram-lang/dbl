@@ -78,3 +78,4 @@ end
 
 module ProofExpr = UnifPriv.ProofExpr
 module Ren = UnifPriv.Ren
+module Pretty = UnifPriv.Pretty
