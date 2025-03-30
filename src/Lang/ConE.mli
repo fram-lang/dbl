@@ -393,7 +393,8 @@ module Type : sig
 
     | THandler of (** Handler type *)
       { tvar    : tvar;
-          (** Type variable that represents the handled effect. *)
+          (** Type variable that represents the handled effect. It's bound in
+            [cap_tp], [in_tp] and [in_eff]. *)
 
         cap_tp  : typ;
           (** Capability type. *)
@@ -534,7 +535,7 @@ module BuiltinType : sig
   (** Int type *)
   val tv_int : tvar
 
-  (** Int type *)
+  (** Int64 type *)
   val tv_int64 : tvar
 
   (** String type *)
