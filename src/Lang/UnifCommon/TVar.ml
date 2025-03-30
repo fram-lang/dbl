@@ -31,7 +31,8 @@ let fresh ?pp_uid ~scope kind =
     scope  = scope
   }
 
-let clone ~scope x = fresh ~scope (kind x)
+let clone ~scope x =
+  { x with uid = UID.fresh (); scope = scope }
 
 let equal x y = x == y
 
