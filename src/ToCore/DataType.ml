@@ -2,30 +2,30 @@
  * See LICENSE for details.
  *)
 
-(** Translation of datatype definitions from Unif to Core *)
+(** Translation of datatype definitions from ConE to Core *)
 
 open Common
 
 (** Half-translated data-like definition *)
 type data_def =
   | DD_Data of
-    { tvar              : T.TVar.ex;
-      proof             : S.var;
-      args              : S.named_tvar list;
-      ctors             : S.ctor_decl list;
-      strictly_positive : bool;
+    { tvar     : T.TVar.ex;
+      proof    : S.var;
+      args     : S.named_tvar list;
+      ctors    : S.ctor_decl list;
+      positive : bool;
     }
+
   | DD_Label of
     { tvar      : T.keffect T.tvar;
       var       : S.var;
       delim_tp  : S.typ;
-      delim_eff : S.effrow
+      delim_eff : S.effct
     }
 
 (** Translate a constructor declaration *)
 let tr_ctor_decl env (ctor : S.ctor_decl) =
-  let (env, tvars) =
-    List.fold_left_map Env.add_named_tvar env ctor.ctor_targs in
+  let (env, tvars) = Env.add_named_tvars env ctor.ctor_targs in
   { T.ctor_name      = ctor.ctor_name;
     T.ctor_tvars     = tvars;
     T.ctor_arg_types =
@@ -43,10 +43,10 @@ let prepare_data_def env (dd : S.data_def) =
     let (env, tvar) = Env.add_tvar env dd.tvar in
     let dd = DD_Data
       { tvar;
-        proof             = dd.proof;
-        args              = dd.args;
-        ctors             = dd.ctors;
-        strictly_positive = dd.strictly_positive
+        proof    = dd.proof;
+        args     = dd.args;
+        ctors    = dd.ctors;
+        positive = dd.positive
       } in
     (env, dd)
 
@@ -66,14 +66,14 @@ let prepare_data_def env (dd : S.data_def) =
 let finalize_data_def env (dd : data_def) =
   match dd with
   | DD_Data dd ->
-    let (env, args) = List.fold_left_map Env.add_named_tvar env dd.args in
+    let (env, args) = Env.add_named_tvars env dd.args in
     let ctors = tr_ctor_decls env dd.ctors in
     T.DD_Data {
       tvar              = dd.tvar;
       proof             = dd.proof;
       args              = args;
       ctors             = ctors;
-      strictly_positive = dd.strictly_positive;
+      strictly_positive = dd.positive;
     }
 
   | DD_Label dd ->
@@ -83,7 +83,7 @@ let finalize_data_def env (dd : data_def) =
       tvars     = [];
       val_types = [];
       delim_tp  = Type.tr_ttype  env dd.delim_tp;
-      delim_eff = Type.tr_effect env dd.delim_eff
+      delim_eff = Type.tr_ceffect env (Impure dd.delim_eff)
     }
 
 let tr_data_defs env dds =

@@ -1,0 +1,15 @@
+data A = A
+data B = B
+
+module M
+  pub method m {~n : A} (_ : A) = A
+  pub let ~n = B
+end
+
+let ~n = A
+
+method m (_ : A) = B
+
+let foo {method m : A -> A} = ()
+
+let _ = foo {module M}

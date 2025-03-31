@@ -23,5 +23,8 @@ val unique_name : t -> string
 (** Equality of variables *)
 val equal : t -> t -> bool
 
+(** Finite sets of variables *)
+module Set : Set.S with type elt = t
+
 (** Finite maps from variables *)
 module Map : Map.S with type key = t

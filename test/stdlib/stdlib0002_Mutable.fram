@@ -1,10 +1,10 @@
 import open Mutable
 
 # Backtracking for testing
-data BT (effect E) = { flip : Unit ->[E] Bool }
+data BT E = { flip : Unit ->[E] Bool }
 
 let hBT =
-  handler BT { flip = effect () / (r : _ ->[|_] List _) => r True + r False }
+  handler BT { flip = effect () / (r : _ ->[_] List _) => r True + r False }
     return x => [x]
     finally l => l.toConstArray
   end

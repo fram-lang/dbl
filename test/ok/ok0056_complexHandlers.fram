@@ -1,9 +1,9 @@
 data Unit = I
 
 data State E X = State of
-  { get    : Unit ->[|E] X
-  , put    : X ->[|E] Unit
-  , update : (X ->[|E] X) ->[|E] Unit
+  { get    : Unit ->[E] X
+  , put    : X ->[E] Unit
+  , update : (X ->[E] X) ->[E] Unit
   }
 
 let hState s =

@@ -1,12 +1,13 @@
-data StateSig (effect E) X = State of
+data StateSig E X = State of
   { get : Unit ->[E] X
   , put : X ->[E] Unit
   }
 
-method get {State, self = State { get } : StateSig State _ } = get
-method put {State, self = State { put } : StateSig State _ } = put
+method get {State} (State { get } : StateSig State _) = get
+method put {State} (State { put } : StateSig State _) = put
 
-implicit ~st {State} : StateSig State _
+parameter State
+parameter ~st : StateSig State _
 
 let update f =
   ~st.put (f (~st.get ()))

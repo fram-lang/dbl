@@ -1,0 +1,9 @@
+module M
+  method m (self : Int) = self
+end
+
+let foo {A, method m : A -> A} = 42
+
+let _ = foo {method m = fn x => x, module M}
+
+# @stderr: Cannot instantiate with a module after explicit method instantiation
