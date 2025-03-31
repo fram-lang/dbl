@@ -6,234 +6,305 @@
 
 open Common
 
-module StrMap = Map.Make(String)
+(** The state of the environment. It is indexed by four types: current state
+    of the environment, the two type parameters to the [opn] state of the
+    module being defined, and the state that represents the rest of the
+    modules. *)
+type ('st, 'mod_st, 'mod_sc, 'rest_st) state =
+  | StExp     : (exp, 'mod_st, 'mod_sc, 'rest_st) state
+  | StModule  : ('st, closed, modl, 'st) state
+  | StSection :
+    ('cur_st, 'mod_st, 'mod_sc, 'rest_st) state ->
+    (('cur_st, sec) opn, ('mod_st, 'mod_sc) opn, sec, 'rest_st) state
 
-type pp_info = {
-  pp_base_name : string;
-  pp_names     : S.tvar S.path list;
-  pp_pos       : Position.t option
-}
+(** Stack of modules being defined. It uses a GADT to ensure that states of
+    modules match the state of the environment. *)
+type (_, _, _) module_stack =
+  | MStack :
+    ('st, 'cur_st, 'cur_sc, 'rest_st) state * 'rest_st module_stack_data ->
+      ('st, 'cur_st, 'cur_sc) module_stack
 
-type t = {
-  mod_stack : ModStack.t;
-    (** The module stack *)
+and 'st module_stack_data =
+  | Nil  : closed module_stack_data
+  | Cons :
+    ('mod_st, 'mod_sc) opn Module.t * ('st, 'mod_st, 'mod_sc) module_stack ->
+      ('st, modl) opn module_stack_data
 
-  adt_map : Module.adt_info T.TVar.Map.t;
-    (** Definition of ADT associated with a type variable *)
+type 'st t =
+  Env : {
+    cur_module     : ('cur_st, 'cur_sc) opn Module.t;
+      (** Currently defined module *)
 
-  method_map : (T.var * T.scheme) StrMap.t T.TVar.Map.t;
-    (** Methods associated with a type variable *)
+    mod_stack      : ('st, 'cur_st, 'cur_sc) module_stack;
+      (** Stack of modules which are currently being defined *)
 
-  pp_map : pp_info T.TVar.Map.t;
-    (** Additional metadata used for pretty-printing of types *)
+    pp_tree        : PPTree.t;
+      (** Pretty-printing information for types *)
 
-  scope : T.scope
-    (** Scope of type variables *)
-}
+    scope          : Scope.t;
+      (** Scope of type variables *)
 
-let mk_builtin_pp_info (name, x) =
-  let info =
-    { pp_base_name = name;
-      pp_names     = [ NPName name ];
-      pp_pos       = None
-    }
-  in (x, info)
+    param_env      : ParamEnv.t
+      (** Management of section parameters *)
+  } -> 'st t
 
 let empty =
-  { mod_stack    = ModStack.toplevel;
-    adt_map      = T.TVar.Map.singleton T.BuiltinType.tv_unit Module.unit_info;
-    method_map   = T.TVar.Map.empty;
-    pp_map       =
-      T.BuiltinType.all
-      |> List.map mk_builtin_pp_info
-      |> List.to_seq |> T.TVar.Map.of_seq;
-    scope        =
-      T.BuiltinType.all
-      |> List.map snd
-      |> List.fold_left T.Scope.add T.Scope.initial
+  Env {
+    cur_module     = Module.empty;
+    mod_stack      = MStack (StModule, Nil);
+    pp_tree        = PPTree.empty;
+    scope          = Scope.initial;
+    param_env      = ParamEnv.empty
   }
 
-let add_poly_var ?(public=false) env x sch =
-  let mod_stack, y = ModStack.add_var ~public env.mod_stack x sch in
-  { env with mod_stack }, y
+(* ========================================================================= *)
 
-let add_mono_var ?(public=false) env x tp =
-  add_poly_var ~public env x (T.Scheme.of_type tp)
+let add_existing_tvar ?pos ?(public=false) (Env env) name x =
+  assert (T.TVar.in_scope x env.scope);
+  Env { env with
+    cur_module =
+      Module.add_type_alias ~public env.cur_module name
+        (T.Type.t_var x);
+    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.pp_uid x)
+  }
 
-let add_poly_implicit ?(public=false) env name sch on_use =
-  let mod_stack, x =
-    ModStack.add_implicit ~public env.mod_stack name sch on_use in
-  { env with mod_stack }, x
-
-let add_mono_implicit ?(public=false) env name tp on_use =
-  add_poly_implicit ~public env name (T.Scheme.of_type tp) on_use
-
-let add_the_label env eff tp0 eff0 =
-  add_mono_var env "#label" (T.Type.t_label eff tp0 eff0)
-
-let add_method_fn ~public env x name =
-  { env with mod_stack = ModStack.add_method_fn ~public env.mod_stack x name }
-
-let add_tvar ?pos ?(public=false) env name kind =
-  let mod_stack, x = ModStack.add_tvar ~public env.mod_stack name kind in
-  let pp_info = 
-    { pp_base_name = name;
-      pp_names     = [ NPName name ];
-      pp_pos       = pos
+let add_tvar ?pos ?(public=false) (Env env) name kind =
+  let x = T.TVar.fresh ~scope:env.scope kind in
+  let env =
+    Env { env with
+      cur_module =
+        Module.add_type_alias ~public env.cur_module name (T.Type.t_var x);
+      pp_tree = PPTree.add ?pos ~public env.pp_tree name (T.TVar.pp_uid x)
     } in
-  { env with
-    mod_stack;
-    pp_map   = T.TVar.Map.add x pp_info env.pp_map;
-    scope    = T.Scope.add env.scope x
-  }, x
+  (env, x)
 
-let add_the_effect ?pos env =
-  let mod_stack, x =
-    ModStack.add_tvar env.mod_stack ~public:false "#effect" T.Kind.k_effect in
-  let pp_info =
-    { pp_base_name = "effect";
-      pp_names     = [];
-      pp_pos       = pos
+let add_anon_tvar ?pos ?pp_uid ?name (Env env) kind =
+  let x = T.TVar.fresh ?pp_uid ~scope:env.scope kind in
+  let env =
+    Env { env with
+      pp_tree = PPTree.add_anon ?pos ?name env.pp_tree (T.TVar.pp_uid x)
     } in
-  { env with
-    mod_stack;
-    pp_map   = T.TVar.Map.add x pp_info env.pp_map;
-    scope    = T.Scope.add env.scope x
-  }, x
+  (env, x)
 
-let add_anon_tvar ?pos ?(name="T") env kind =
-  let x = T.TVar.fresh kind in
-  let pp_info =
-    { pp_base_name = name;
-      pp_names     = [];
-      pp_pos       = pos
+let add_tvar_alias ?pos ?(public=false) (Env env) name x =
+  Env { env with
+    cur_module =
+      Module.add_type_alias ~public env.cur_module name (T.Type.t_var x);
+    pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.pp_uid x)
+  }
+
+(* ========================================================================= *)
+
+let add_val ?(public=false) (Env env) name sch =
+  let x = Var.fresh ~name:(Name.to_string name) () in
+  let env =
+    Env { env with
+      cur_module = Module.add_val ~public env.cur_module name x sch
     } in
-  { env with
-    pp_map = T.TVar.Map.add x pp_info env.pp_map;
-    scope  = T.Scope.add env.scope x
-  }, x
+  (env, x)
 
-let add_the_effect_alias env tp =
-  assert (T.Kind.view (T.Type.kind tp) = KEffect);
-  { env with
-    mod_stack = ModStack.add_type_alias env.mod_stack ~public:false "#effect" tp
+let add_implicit ?public env name sch =
+  add_val ?public env (NImplicit name) sch
+
+let add_the_label env tp =
+  add_implicit env the_label_name (T.Scheme.of_type tp)
+
+let add_method ?public env owner name sch =
+  add_val ?public env (NMethod(owner, name)) sch
+
+let add_adt ?(public=false) (Env env) x info =
+  Env { env with
+    cur_module = Module.add_adt ~public env.cur_module x info
   }
 
-let add_type_alias ?(public=false) env name tp =
-  let pp_map =
-    match T.Type.view tp with
-    | TVar x ->
-      let pp_info =
-        match T.TVar.Map.find_opt x env.pp_map with
-        | Some pp_info ->
-          { pp_info with pp_names = NPName name :: pp_info.pp_names }
-        | None -> assert false
-      in
-      T.TVar.Map.add x pp_info env.pp_map
-    | _ -> env.pp_map
-  in
-  { env with
-    mod_stack = ModStack.add_type_alias ~public env.mod_stack name tp;
-    pp_map    = pp_map
+let add_ctor ?(public=false) (Env env) name idx info =
+  Env { env with
+    cur_module = Module.add_ctor ~public env.cur_module name idx info
   }
 
-let add_data env x info =
-  assert (not (T.TVar.Map.mem x env.adt_map));
-  { env with
-    adt_map = T.TVar.Map.add x info env.adt_map
+(* ========================================================================= *)
+
+let enter_scope (Env env) =
+  let scope = Scope.enter env.scope in
+  (Env { env with scope = scope }, scope)
+
+let enter_section (Env env) =
+  let (MStack(st, stack)) = env.mod_stack in
+  Env { env with
+    cur_module = Module.enter_section env.cur_module;
+    mod_stack  = MStack(StSection st, stack);
+    pp_tree    = PPTree.enter_section env.pp_tree
   }
 
-let add_ctor ?(public=false) env name idx info =
-  { env with
-    mod_stack = ModStack.add_ctor ~public env.mod_stack name idx info
+let leave_section (type st) (Env env : (st, sec) opn t) : st t =
+  match env.mod_stack with
+  | MStack(StSection st, stack) ->
+    Env { env with
+      cur_module = Module.leave_section env.cur_module;
+      mod_stack  = MStack(st, stack);
+      pp_tree    = PPTree.leave_section env.pp_tree
+    }
+
+let declare_type ~pos (Env env) name local_name kind =
+  let (MStack(StSection _, _)) = env.mod_stack in
+  let (cur_module, uid) = Module.declare_type env.cur_module local_name in
+  Env { env with
+    cur_module = cur_module;
+    pp_tree    = PPTree.declare ~pos env.pp_tree local_name (PP_UID uid);
+    param_env  = ParamEnv.declare_type ~pos env.param_env name uid kind
   }
 
-let lookup_method_map env owner =
-  match T.TVar.Map.find_opt owner env.method_map with
-  | Some map -> map
-  | None     -> StrMap.empty
+let declare_val ~pos (Env env) ~free_types ~used_types ~name ~local_name sch =
+  let (MStack(StSection _, _)) = env.mod_stack in
+  let (cur_module, uid) = Module.declare_val env.cur_module local_name in
+  Env { env with
+    cur_module = cur_module;
+    param_env  =
+      ParamEnv.declare_val ~pos env.param_env
+        ~free_types ~used_types ~name uid sch
+  }
 
-let add_poly_method ?(public=false) env owner name sch =
-  (* TODO: implement method visibility *)
-  let x = Var.fresh ~name () in
-  let method_map =
-    lookup_method_map env owner |> StrMap.add name (x, sch) in
-  { env with
-    method_map = T.TVar.Map.add owner method_map env.method_map
-  }, x
+let begin_generalize (Env env) =
+  let (MStack(_, stack)) = env.mod_stack in
+  let (param_env, scope, params) =
+    ParamEnv.begin_generalize ~pp:env.pp_tree env.param_env env.scope in
+  Env { env with
+    mod_stack = MStack(StExp, stack);
+    scope     = scope;
+    param_env = param_env
+  }, params
 
-let lookup_module env =
-  ModStack.lookup_module env.mod_stack
+let check_type_param ~pos (Env env) uid =
+  ParamEnv.check_type_param ~pos env.param_env uid
 
-let lookup_var env =
-  ModStack.lookup_var env.mod_stack
+let check_val_param ~pos (Env env) uid =
+  ParamEnv.check_val_param ~pos env.param_env uid
 
-let lookup_implicit env =
-  ModStack.lookup_implicit env.mod_stack
+(* ========================================================================= *)
 
-let scheme_to_label sch =
-  match sch with
-  | { T.sch_targs = []; sch_named = []; sch_body } ->
-    begin match T.Type.view sch_body with
-    | TLabel(eff, tp0, eff0) -> (eff, tp0, eff0)
-    | _ -> assert false
+let enter_module (Env env) =
+  Env { env with
+    cur_module = Module.empty;
+    mod_stack  = MStack(StModule, Cons(env.cur_module, env.mod_stack));
+    pp_tree    = PPTree.enter_module env.pp_tree
+  }
+
+let leave_module (type st) ~public (Env env : (st, modl) opn t) name : st t =
+  match env.mod_stack with
+  | MStack(StModule, Cons(new_top, mod_stack)) ->
+    let (pp_tree, ppm) = PPTree.leave_module ~public env.pp_tree name in
+    let m = Module.leave env.cur_module ppm in
+    let cur_module = Module.add_module ~public new_top name m in
+    let cur_module = Module.import_adts_and_methods ~public cur_module m in
+    Env { env with
+      cur_module = cur_module;
+      mod_stack  = mod_stack;
+      pp_tree    = pp_tree
+    }
+
+let open_module ~public (Env env) m =
+  Env { env with
+    cur_module = Module.open_module ~public env.cur_module m;
+    pp_tree    = PPTree.open_module ~public env.pp_tree (Module.pp_module m)
+  }
+
+(* ========================================================================= *)
+
+let unit_adt =
+  { Module.adt_args  = [];
+    Module.adt_proof = T.PE_Unit;
+    Module.adt_ctors =
+      [ { ctor_name        = "()";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        } ];
+    Module.adt_type   = T.Type.t_unit;
+    Module.adt_effect = Pure
+  }
+
+let option_adt =
+  let a = T.TVar.fresh ~scope:Scope.any T.Kind.k_type in
+  { Module.adt_args  = [T.TNAnon, a];
+    Module.adt_proof = T.PE_Option (T.Type.t_var a);
+    Module.adt_ctors =
+      [ { ctor_name        = "None";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        };
+        { ctor_name        = "Some";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = [T.Scheme.of_type (T.Type.t_var a)]
+        }
+      ];
+    Module.adt_type   = T.Type.t_option (T.Type.t_var a);
+    Module.adt_effect = Pure
+  }
+
+let initial =
+  let env = 
+    List.fold_left
+      (fun env (name, x) -> add_existing_tvar env name x)
+      empty
+      T.BuiltinType.all in
+  let env = add_adt env T.BuiltinType.tv_unit unit_adt in
+  let env = add_ctor env "()" 0 unit_adt in
+  let env = add_adt env T.BuiltinType.tv_option option_adt in
+  let env = add_ctor env "None" 0 option_adt in
+  let env = add_ctor env "Some" 1 option_adt in
+  env
+
+(* ========================================================================= *)
+
+type 'a lookup_fn =
+  { lookup : 'st 'sc. ('st, 'sc) opn Module.t -> 'a option }
+
+let rec lookup_stack_data : type st. _ -> st module_stack_data -> _ =
+  fun lookup stack ->
+  match stack with
+  | Nil -> None
+  | Cons(m, MStack(_, rest)) ->
+    begin match lookup.lookup m with
+    | Some x -> Some x
+    | None   -> lookup_stack_data lookup rest
     end
-  | _ -> assert false
 
-let add_the_label_sch env sch =
-  let (eff, tp0, eff0) = scheme_to_label sch in
-  add_the_label env eff tp0 eff0
+let lookup_stack (Env env) lookup =
+  lookup_stack_data lookup (Cons(env.cur_module, env.mod_stack))
+
+let lookup_tvar env x =
+  lookup_stack env { lookup = fun m -> Module.lookup_tvar m x }
+
+let lookup_val env name =
+  lookup_stack env { lookup = fun m -> Module.lookup_val m name }
+
+let lookup_var env x =
+  lookup_val env (NVar x)
+
+let lookup_implicit env x =
+  lookup_val env (NImplicit x)
 
 let lookup_the_label env =
-  match lookup_var env (NPName "#label") with
-  | None -> None
-  | Some(VI_Var (x, sch)) ->
-    let (eff, tp0, eff0) = scheme_to_label sch in
-    Some(x, eff, tp0, eff0)
-  | Some(VI_Ctor _ | VI_MethodFn _) ->
-    assert false
-
-let lookup_ctor env =
-  ModStack.lookup_ctor env.mod_stack
-
-let lookup_tvar env =
-  ModStack.lookup_tvar env.mod_stack
-
-let lookup_the_effect env =
-  lookup_tvar env (NPName "#effect")
-
-let lookup_adt env x =
-  T.TVar.Map.find_opt x env.adt_map
+  lookup_implicit env the_label_name
 
 let lookup_method env owner name =
-  StrMap.find_opt name (lookup_method_map env owner)
+  lookup_val env (NMethod(owner, name))
 
-let lookup_tvar_pp_info env x =
-  T.TVar.Map.find_opt x env.pp_map
+let lookup_ctor env name =
+  lookup_stack env { lookup = fun m -> Module.lookup_ctor m name }
 
-let incr_level env =
-  { env with scope = T.Scope.incr_level env.scope }
+let lookup_adt env x =
+  lookup_stack env { lookup = fun m -> Module.lookup_adt m x }
 
-let scope env = env.scope
+let lookup_module env name =
+  lookup_stack env { lookup = fun m -> Module.lookup_module m name }
 
-let extend_scope env (sch : T.scheme) = 
-  let sch = T.Scheme.refresh sch in
-  let env = 
-    { env with 
-    scope = List.fold_left T.Scope.add_named env.scope sch.sch_targs 
-    } in
-  (env, sch)
+(* ========================================================================= *)
+let scope (Env env) = env.scope
 
-let level env = T.Scope.level env.scope
+let pp_tree (Env env) = env.pp_tree
 
-let fresh_uvar env kind =
+let fresh_uvar (Env env) kind =
   T.Type.fresh_uvar ~scope:env.scope kind
-
-let enter_module env =
-  { env with mod_stack = ModStack.enter_module env.mod_stack }
-
-let leave_module env ~public name =
-  { env with mod_stack = ModStack.leave_module ~public env.mod_stack name }
-
-let open_module env ~public m =
-  { env with mod_stack = ModStack.open_module env.mod_stack ~public m }

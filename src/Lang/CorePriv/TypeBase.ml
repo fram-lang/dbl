@@ -79,12 +79,12 @@ end
 type 'k tvar = 'k TVar.t
 
 type _ typ =
-  | TUVar    : UID.t * 'k kind -> 'k typ
   | TEffPure : keffect typ
   | TEffJoin : effect * effect -> keffect typ
   | TVar     : 'k tvar -> 'k typ
   | TArrow   : ttype * ttype * effect -> ktype typ
   | TForall  : 'k tvar * ttype -> ktype typ
+  | TGuard   : constr list * ttype -> ktype typ
   | TLabel   :
     { effect    : effect;
       tvars     : TVar.ex list;
@@ -97,6 +97,7 @@ type _ typ =
 
 and ttype  = ktype typ
 and effect = keffect typ
+and constr = keffect typ * keffect typ
 
 and ctor_type = {
   ctor_name      : string;

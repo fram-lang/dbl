@@ -1,0 +1,3 @@
+(library
+  (name effectInference)
+  (libraries incrSAT interpLib lang utils))

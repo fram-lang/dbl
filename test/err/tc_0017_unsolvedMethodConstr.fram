@@ -1,0 +1,5 @@
+let foo {T, method bar : T -> Unit} = ()
+
+let _ = foo
+
+# @stderr:3:9-11: error: Cannot resolve a method bar

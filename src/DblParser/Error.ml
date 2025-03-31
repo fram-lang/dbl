@@ -80,12 +80,6 @@ let invalid_pattern_arg pos =
 let impure_scheme pos =
   (Some pos, "Syntax error. Type schemes must be pure")
 
-let anon_type_pattern pos =
-  (Some pos, "Syntax error. Anonymous types cannot be explicitly bound")
-
-let value_before_type_param pos =
-  (Some pos, "Named value parameter appears before a type parameter")
-
 let finally_before_return_clause pos =
   (Some pos, "Finally clause before return clause")
 

@@ -1,4 +1,4 @@
-implicit ~n
+parameter ~n
 
 let foo = fn x => ~n
 
