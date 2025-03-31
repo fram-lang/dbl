@@ -40,7 +40,7 @@ let rec tr_type env tp =
   | TLabel(eff, delim_tp, delim_eff) ->
     T.Type.Ex
       (T.TLabel
-        { effct    = tr_effect env eff;
+        { effct     = tr_effect env eff;
           tvars     = [];
           val_types = [];
           delim_tp  = tr_ttype env delim_tp;

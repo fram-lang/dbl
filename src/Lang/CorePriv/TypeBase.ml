@@ -86,7 +86,7 @@ type _ typ =
   | TForall  : 'k tvar * ttype -> ktype typ
   | TGuard   : constr list * ttype -> ktype typ
   | TLabel   :
-    { effct    : effct;
+    { effct     : effct;
       tvars     : TVar.ex list;
       val_types : ttype list;
       delim_tp  : ttype;

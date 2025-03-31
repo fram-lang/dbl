@@ -68,7 +68,7 @@ type _ typ =
     (** Type of constraint abstraction *)
 
   | TLabel : (** Type of the first class label *)
-    { effct    : effct;
+    { effct     : effct;
         (** The effect of this label *)
 
       tvars     : TVar.ex list;
