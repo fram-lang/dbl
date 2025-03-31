@@ -670,10 +670,10 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     [ match tr_let_pattern p with
       | LP_Id id -> 
         DLetId(id, tr_expr e)
-    | LP_Fun(id, targs, iargs, args) ->
-        DLetFun(id, targs, iargs, tr_function args (tr_expr e))
-    | LP_Pat p ->
-        DLetPat(p, tr_expr e)
+      | LP_Fun(id, targs, iargs, args) ->
+          DLetFun(id, targs, iargs, tr_function args (tr_expr e))
+      | LP_Pat p ->
+          DLetPat(p, tr_expr e)
     ]
   | DMethod(pub, p, e) ->
     [ match tr_let_pattern p with
@@ -758,14 +758,13 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
   | DOpen(pub, path) -> 
     [ DOpen(false, path) ]
   
-  (**| DRec(pub, defs) when List.for_all node_is_rec_data defs ->
+  | DRec(pub, defs) when List.for_all node_is_rec_data defs ->
     (* This case is a quick fix to make most record accessors
        not marked impure if they aren't. (Explained #160) *)
     (* TODO: Remove when more robust solution is implemented *)
-    let public = public || pub in
-    let dds, accessors = tr_defs ~public defs
+    let dds, accessors = tr_defs defs
       |> List.partition node_is_data_def in
-    DRec dds :: accessors*)
+    DRec dds :: List.map (fun x -> x.data) accessors
   
   | DRec(pub, defs) ->
     [ DRec (tr_defs defs) ]

@@ -8,32 +8,46 @@ open Lang.Surface
 
 let run_test = ref false
 
-let mapNode f (n : 'a node) = {pos = n.pos; data = f n.data}
+let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
 
-let make_public_ident = function
-  | IdImplicit (_, name) -> IdImplicit (true, name)
-  | IdMethod (_, name) -> IdMethod (true, name)
-  | IdVar (_, name) -> IdVar (true, name)
-  | IdLabel -> IdLabel
+(* ===== Public ===== *)
+let make_public_all (ds : def_data node list) = 
 
-let make_ctor_decl_public (n : ctor_decl) =
-  {n with data = {n.data with cd_public = true}}
-
-let rec make_public = function
+  let make_public_ident ident = 
+    match ident with
+    | IdImplicit (_, name) -> IdImplicit (true, name)
+    | IdMethod (_, name) -> IdMethod (true, name)
+    | IdVar (_, name) -> IdVar (true, name)
+    | ident -> ident
+  in
+  
+  let make_ctor_decl_public (n : ctor_decl) =
+    {n with data = {n.data with cd_public = true}}
+  in
+  
+  let rec make_public def =
+    match def with 
   | DLetId (ident, expr) 
-  -> DLetId (make_public_ident ident, expr)
+    -> DLetId (make_public_ident ident, expr)
   | DLetFun (ident, nts, ns, expr) 
-  -> DLetFun (make_public_ident ident, nts, ns, expr)
+    -> DLetFun (make_public_ident ident, nts, ns, expr)
   | DMethodFn (_, v1, v2) -> DMethodFn (true, v1, v2)
   | DData (_, v, ta, cd) 
-  -> DData (true, v, ta, List.map make_ctor_decl_public cd)
+    -> DData (true, v, ta, List.map make_ctor_decl_public cd)
   | DModule (_, v, ds) -> DModule (true, v, ds)
   | DOpen (_, pth) -> DOpen (true, pth)
-  | DRec ds -> DRec (List.map (mapNode make_public) ds) 
+  | DRec ds -> DRec (List.map (map_node make_public) ds) 
   | other -> other
+  in 
+  
+  List.map (map_node make_public) ds
 
-let make_public_all (ds : def_data node list) = 
-  List.map (mapNode make_public) ds
+(* ===== Abstract ===== *)
+
+let make_abstract_all (ds : def_data node list) =
+  ds
+
+(* ===== Test ===== *)
 
 let make_test defs =
   if !run_test then
@@ -46,7 +60,7 @@ module M = Map.Make(String)
 let attrs : (Lang.Surface.def list -> Lang.Surface.def list) M.t = 
   M.of_list
     [ ("pub", make_public_all)
-    ; ("abstr", fun x -> x)
+    ; ("abstr", make_abstract_all)
     ; ("test",   make_test)
     ]
 
