@@ -15,4 +15,4 @@ val empty : t
 val add_list : t -> constr list -> t
 
 (** Get the list of upper bounds for a given effect variable *)
-val upper_bounds : t -> keffect tvar -> effect list
+val upper_bounds : t -> keffect tvar -> effct list

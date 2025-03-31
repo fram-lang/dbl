@@ -80,23 +80,23 @@ type 'k tvar = 'k TVar.t
 
 type _ typ =
   | TEffPure : keffect typ
-  | TEffJoin : effect * effect -> keffect typ
+  | TEffJoin : effct * effct -> keffect typ
   | TVar     : 'k tvar -> 'k typ
-  | TArrow   : ttype * ttype * effect -> ktype typ
+  | TArrow   : ttype * ttype * effct -> ktype typ
   | TForall  : 'k tvar * ttype -> ktype typ
   | TGuard   : constr list * ttype -> ktype typ
   | TLabel   :
-    { effect    : effect;
+    { effct     : effct;
       tvars     : TVar.ex list;
       val_types : ttype list;
       delim_tp  : ttype;
-      delim_eff : effect
+      delim_eff : effct
     } -> ktype typ
-  | TData    : ttype * effect * ctor_type list -> ktype typ
+  | TData    : ttype * effct * ctor_type list -> ktype typ
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
 
 and ttype  = ktype typ
-and effect = keffect typ
+and effct = keffect typ
 and constr = keffect typ * keffect typ
 
 and ctor_type = {

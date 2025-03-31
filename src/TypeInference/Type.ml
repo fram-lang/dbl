@@ -43,9 +43,9 @@ let rec infer_kind env (tp : S.type_expr) =
     let eff = tr_effect env eff in
     (make (T.TE_Arrow(sch, tp, eff)), T.Kind.k_type)
 
-  | THandler { effect; cap_type; in_type; in_eff; out_type; out_eff } ->
+  | THandler { effct; cap_type; in_type; in_eff; out_type; out_eff } ->
     let (in_env, _) = Env.enter_scope env in
-    let (in_env, eff_var) = Env.add_tvar ~pos in_env effect T.Kind.k_effect in
+    let (in_env, eff_var) = Env.add_tvar ~pos in_env effct T.Kind.k_effect in
     let cap_type = tr_ttype  in_env cap_type in
     let in_type  = tr_ttype  in_env in_type in
     let in_eff   = tr_effect in_env in_eff in
@@ -55,8 +55,8 @@ let rec infer_kind env (tp : S.type_expr) =
       { eff_var; cap_type; in_type; in_eff; out_type; out_eff }) in
     (tp, T.Kind.k_type)
 
-  | TLabel { effect; delim_tp; delim_eff } ->
-    let eff       = tr_effect env effect in
+  | TLabel { effct; delim_tp; delim_eff } ->
+    let eff       = tr_effect env effct in
     let delim_tp  = tr_ttype  env delim_tp in
     let delim_eff = tr_effect env delim_eff in
     let tp = make (T.TE_Label { eff; delim_tp; delim_eff }) in

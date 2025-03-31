@@ -34,7 +34,7 @@ let subst_type x stp tp =
   Subst.in_type (Subst.singleton x stp) tp
 
 (** Check if effect variable appears (syntactically) in an effect *)
-let rec effect_mem a (eff : effect) =
+let rec effect_mem a (eff : effct) =
   match eff with
   | TEffPure -> false
   | TEffJoin(effa, effb) -> effect_mem a effa || effect_mem a effb
@@ -45,7 +45,7 @@ let rec effect_mem a (eff : effect) =
 (** Check if one effect is a subeffect of another. In order to avoid infinite
   loops, we keep track of the set of effect variables that we have already
   visited. *)
-let rec subeffect_rec cset visited (eff1 : effect) eff2 =
+let rec subeffect_rec cset visited (eff1 : effct) eff2 =
   match eff1 with
   | TEffPure -> true
   | TEffJoin(effa, effb) ->
@@ -116,7 +116,7 @@ let rec equal : type k. ConstrSet.t -> k typ -> k typ -> bool =
   | TGuard _, _ -> false
 
   | TLabel lbl1, TLabel lbl2 ->
-    effect_equal cset lbl1.effect lbl2.effect &&
+    effect_equal cset lbl1.effct lbl2.effct &&
     begin match
       tvars_binder_equal ~sub1:Subst.empty ~sub2:Subst.empty
         lbl1.tvars lbl2.tvars
@@ -271,17 +271,17 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
     | _ -> None
     end
   | TLabel lbl ->
-    let effect = type_in_scope scope lbl.effect in
+    let effct = type_in_scope scope lbl.effct in
     let scope  = add_tvars_to_scope lbl.tvars scope in
     begin match
-      effect,
+      effct,
       forall_map (type_in_scope scope) lbl.val_types,
       type_in_scope scope lbl.delim_tp,
       type_in_scope scope lbl.delim_eff
     with
-    | Some effect, Some val_types, Some delim_tp, Some delim_eff ->
+    | Some effct, Some val_types, Some delim_tp, Some delim_eff ->
       Some (TLabel
-        { effect; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
+        { effct; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
     | _ -> None
     end
   | TData(tp, eff, ctors) ->
@@ -317,12 +317,12 @@ and ctor_type_in_scope scope ctor =
 
 (** Tries to find a supereffect of given type, such that all free type
   variables are members of given set ([scope]) *)
-let supereffect_in_scope scope (eff : effect) =
+let supereffect_in_scope scope (eff : effct) =
   type_in_scope scope eff
 
 (** Tries to find a subeffect of given type, such that all free type
   variables are members of given set ([scope]) *)
-let rec subeffect_in_scope scope (eff : effect) =
+let rec subeffect_in_scope scope (eff : effct) =
   match eff with
   | TEffPure -> eff
   | TEffJoin(eff1, eff2) ->

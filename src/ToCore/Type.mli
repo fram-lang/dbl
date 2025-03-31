@@ -7,7 +7,7 @@
 open Common
 
 (** Translate a computation effect *)
-val tr_ceffect : Env.t -> S.ceffect -> T.effect
+val tr_ceffect : Env.t -> S.ceffect -> T.effct
 
 (** Translate a type *)
 val tr_type : Env.t -> S.typ -> T.Type.ex

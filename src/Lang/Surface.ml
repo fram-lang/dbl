@@ -92,7 +92,7 @@ and type_expr_data =
     (** Effectful function: the last parameter is an effect *)
 
   | THandler of (** First-class handler *)
-    { effect   : tvar;
+    { effct    : tvar;
         (** Effect variable bound by this handler (it bound in [cap_type],
           [in_type], and [in_eff] *)
 
@@ -115,7 +115,7 @@ and type_expr_data =
     }
 
   | TLabel of (** First-class label *)
-    { effect    : type_expr;
+    { effct     : type_expr;
         (** Effect of this label *)
 
       delim_tp  : type_expr;

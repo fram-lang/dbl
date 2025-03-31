@@ -8,7 +8,7 @@ open TypeBase
 
 (** Effect constraints are represented as maps from effect variables to list
   of their upper bounds. *)
-type t = effect list TVar.Map.t
+type t = effct list TVar.Map.t
 
 let empty = TVar.Map.empty
 
@@ -17,7 +17,7 @@ let upper_bounds cset x =
   | None      -> []
   | Some effs -> effs
 
-let rec add_simplify cset (eff1 : effect) eff2 =
+let rec add_simplify cset (eff1 : effct) eff2 =
   match eff1 with
   | TEffPure -> cset
   | TEffJoin(effa, effb) ->
