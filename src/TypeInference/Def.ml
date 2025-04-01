@@ -227,7 +227,9 @@ let check_def : type st dir. tcfix:tcfix ->
   | DOpen(public, path) ->
     let m = ModulePath.lookup_module env path in
     let env = Env.open_module ~public env m in
-    cont.run env req
+    let rest = cont.run env req in
+    (* We call `make` in order to have correct position and PPTree. *)
+    { rest with er_expr = make rest rest.er_expr.data }
 
   | DReplExpr e ->
     let (body_env, params) = Env.begin_generalize env in
