@@ -1,0 +1,10 @@
+data X * Y = (,) of X, Y
+
+data X + Y = 
+| Left of X
+| Right of Y
+
+data rec Tree X = Node of Tree X * X * Tree X + Unit
+
+let node t x t' = Node (Left (t, x, t'))
+let leaf = Node (Right ())

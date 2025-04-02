@@ -150,15 +150,101 @@ op
 /* ========================================================================= */
 
 ty_expr
-: ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
-| ty_expr_app { $1 }
+: ty_expr_0 { $1 }
+| KW_TYPE   ty_expr_0 { make (TTypeLbl $2)   }
+| KW_EFFECT ty_expr_0 { make (TEffectLbl $2) }
 ;
 
-ty_expr_app
-: ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
+ty_expr_no_comma
+: ty_expr_0_no_comma { $1 }
 | KW_TYPE   ty_expr_simple { make (TTypeLbl $2)   }
 | KW_EFFECT ty_expr_simple { make (TEffectLbl $2) }
-| ty_expr_simple { $1 }
+;
+
+// exp1 ; exp2
+ty_expr_0
+: ty_expr_20 op_0 ty_expr {make (TBOp($1, $2, $3))}
+| ty_expr_20 { $1 }
+;
+
+ty_expr_0_no_comma
+: ty_expr_20_no_comma op_0 ty_expr_no_comma {make (TBOp($1, $2, $3))}
+| ty_expr_20_no_comma { $1 }
+;
+
+// exp1 <- exp2
+ty_expr_20
+: ty_expr_30 op_20 ty_expr_20 { make (TBOp($1, $2, $3)) }
+| ty_expr_30 { $1 }
+;
+
+ty_expr_20_no_comma
+: ty_expr_30_no_comma op_20 ty_expr_20_no_comma { make (TBOp($1, $2, $3)) }
+| ty_expr_30_no_comma { $1 }
+;
+
+// exp1 , exp2
+ty_expr_30
+: ty_expr_30 op_30 ty_expr_35 { make (TBOp($1, $2, $3)) }
+| ty_expr_35 { $1 }
+;
+
+ty_expr_30_no_comma
+: ty_expr_30_no_comma op_30_no_comma ty_expr_35 { make (TBOp($1, $2, $3)) }
+| ty_expr_35 { $1 }
+;
+
+// // exp1 -> exp2
+ty_expr_35
+: ty_expr_40 ARROW ty_expr_35 { make (TArrow($1, $3)) }
+| ty_expr_40 { $1 }
+;
+
+// exp1 || exp2
+ty_expr_40
+: ty_expr_50 op_40 ty_expr_40 { make (TBOp($1, $2, $3)) }
+| ty_expr_50 { $1 }
+;
+
+// exp1 && exp2
+ty_expr_50
+: ty_expr_60 op_50 ty_expr_50 { make (TBOp($1, $2, $3)) }
+| ty_expr_60 { $1 }
+;
+
+// exp1 | '==' | '<' | '>' | '|' | '&' | '$' | '#' | '?' exp2
+ty_expr_60
+: ty_expr_60 op_60 ty_expr_70 { make (TBOp($1, $2, $3)) }
+| ty_expr_70 { $1 }
+;
+
+// exp1 | '@' | ':' | '^' | '.' exp2
+ty_expr_70
+: ty_expr_80 op_70 ty_expr_70 { make (TBOp($1, $2, $3)) }
+| ty_expr_80 { $1 }
+;
+
+// exp1 | '+' | '-' | '~' exp2
+ty_expr_80
+: ty_expr_80 op_80 ty_expr_90 { make (TBOp($1, $2, $3)) }
+| ty_expr_90 { $1 }
+;
+
+// exp1 | '*' | '/' | '%'  exp2
+ty_expr_90
+: ty_expr_90 op_90 ty_expr_100 { make (TBOp($1, $2, $3)) }
+| ty_expr_100 { $1 }
+;
+
+// exp1 ** exp2
+ty_expr_100 
+: ty_expr_250 op_100 ty_expr_100 { make (TBOp($1, $2, $3)) }
+| ty_expr_250 { $1 }
+;
+
+ty_expr_250
+: ty_expr_250 ty_expr_simple { make (TApp($1, $2)) }
+| ty_expr_simple    { $1 }
 ;
 
 ty_expr_simple
@@ -168,6 +254,7 @@ ty_expr_simple
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effect SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
+| SBR_OPN op SBR_CLS {make (TBOpID ($2).data) }
 ;
 
 /* ------------------------------------------------------------------------- */
@@ -198,21 +285,21 @@ ty_expr_list
 ;
 
 ty_expr_list1
-: ty_expr_app                     { [ $1 ]   }
-| ty_expr_app COMMA ty_expr_list1 { $1 :: $3 }
+: ty_expr_no_comma                     { [ $1 ]   }
+| ty_expr_no_comma COMMA ty_expr_list1 { $1 :: $3 }
 ;
 
 /* ------------------------------------------------------------------------- */
 
 ty_field
-: KW_TYPE ty_expr      { make (FldAnonType $2)       }
-| KW_EFFECT            { make FldEffect              }
-| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)      }
-| UID                  { make (FldType($1, None))    }
-| UID COLON kind_expr  { make (FldType($1, Some $3)) }
-| UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
-| name                 { make (FldName $1)           }
-| name COLON ty_expr   { make (FldNameVal($1, $3))   }
+: KW_TYPE ty_expr_no_comma      { make (FldAnonType $2)       }
+| KW_EFFECT                     { make FldEffect              }
+| KW_EFFECT EQ ty_expr_no_comma { make (FldEffectVal $3)      }
+| UID                           { make (FldType($1, None))    }
+| UID COLON kind_expr           { make (FldType($1, Some $3)) }
+| UID EQ ty_expr_no_comma       { make (FldTypeVal($1, $3))   }
+| name                          { make (FldName $1)           }
+| name COLON ty_expr_no_comma   { make (FldNameVal($1, $3))   }
 ;
 
 ty_field_list
@@ -249,7 +336,7 @@ ctor_decl_list
 
 type_annot_opt
 : /* empty */   { None    }
-| COLON ty_expr { Some $2 }
+| COLON ty_expr_no_comma { Some $2 }
 ;
 
 implicit_ty_args
@@ -340,13 +427,13 @@ expr_20_no_comma
 
 // exp1 , exp2
 expr_30
-: expr_30 COLON ty_expr { make (EAnnot($1, $3)) }
+: expr_30 COLON ty_expr_35 { make (EAnnot($1, $3)) }
 | expr_30 op_30 expr_40 { make (EBOp($1, $2, $3)) }
 | expr_40 { $1 }
 ;
 
 expr_30_no_comma
-: expr_30_no_comma COLON ty_expr { make (EAnnot($1, $3)) }
+: expr_30_no_comma COLON ty_expr_35 { make (EAnnot($1, $3)) }
 | expr_30_no_comma op_30_no_comma expr_40 { make (EBOp($1, $2, $3)) }
 | expr_40 { $1 }
 ;
@@ -478,15 +565,15 @@ match_clause_list
 /* ========================================================================= */
 
 field
-: KW_TYPE ty_expr       { make (FldAnonType $2)       }
-| KW_EFFECT             { make FldEffect              }
-| KW_EFFECT EQ ty_expr  { make (FldEffectVal $3)      }
-| UID                   { make (FldType($1, None))    }
-| UID EQ ty_expr        { make (FldTypeVal($1, $3))   }
-| name                  { make (FldName $1)           }
-| name EQ expr_no_comma { make (FldNameVal($1, $3))   }
-| name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
-| KW_MODULE UID         { make (FldModule $2)         }
+: KW_TYPE ty_expr_no_comma      { make (FldAnonType $2)       }
+| KW_EFFECT                     { make FldEffect              }
+| KW_EFFECT EQ ty_expr_no_comma { make (FldEffectVal $3)      }
+| UID                           { make (FldType($1, None))    }
+| UID EQ ty_expr_no_comma       { make (FldTypeVal($1, $3))   }
+| name                          { make (FldName $1)           }
+| name EQ expr_no_comma         { make (FldNameVal($1, $3))   }
+| name COLON ty_expr_no_comma   { make (FldNameAnnot($1, $3)) }
+| KW_MODULE UID                 { make (FldModule $2)         }
 ;
 
 field_list
@@ -516,9 +603,9 @@ def
 : pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
 | KW_IMPLICIT TLID implicit_ty_args type_annot_opt
     { make (DImplicit($2, $3, $4)) }
-| data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
+| data_vis KW_DATA rec_opt ty_expr_70 EQ bar_opt ctor_decl_list
     { make_def $3  (DData($1, $4, $7)) }
-| data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
+| data_vis KW_DATA rec_opt ty_expr_70 EQ CBR_OPN ty_field_list CBR_CLS
     { make_def $3  (DRecord($1, $4, $7)) }
 | pub KW_LABEL rec_opt expr_70 { make_def $3 (DLabel($1, $4)) }
 | pub KW_HANDLE rec_opt expr_70 EQ expr h_clauses
