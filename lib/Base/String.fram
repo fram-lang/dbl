@@ -7,21 +7,21 @@ import open /Base/Operators
 import open /Base/Assert
 import /Base/Int
 
-pub method add = (extern dbl_strCat : String -> String -> String) self
+pub method add = (extern dbl_strCat : String -> String -> String)
 
-pub method equal = (extern dbl_eqStr  : String -> String -> Bool) self
-pub method neq   = (extern dbl_neqStr : String -> String -> Bool) self
-pub method gt    = (extern dbl_gtStr  : String -> String -> Bool) self
-pub method lt    = (extern dbl_ltStr  : String -> String -> Bool) self
-pub method ge    = (extern dbl_geStr  : String -> String -> Bool) self
-pub method le    = (extern dbl_leStr  : String -> String -> Bool) self
+pub method equal = (extern dbl_eqStr  : String -> String -> Bool)
+pub method neq   = (extern dbl_neqStr : String -> String -> Bool)
+pub method gt    = (extern dbl_gtStr  : String -> String -> Bool)
+pub method lt    = (extern dbl_ltStr  : String -> String -> Bool)
+pub method ge    = (extern dbl_geStr  : String -> String -> Bool)
+pub method le    = (extern dbl_leStr  : String -> String -> Bool)
 
-pub method length = (extern dbl_strLen : String -> Int) self
-pub method get {self : String} (n : Int) =
+pub method length = (extern dbl_strLen : String -> Int)
+pub method get (self : String) (n : Int) =
   assert {msg="Out of bounds"} (n >= 0 && n < self.length);
   (extern dbl_strGet : String -> Int -> Char) self n
 
-pub method toList {self : String} =
+pub method toList (self : String) =
   let getChar = extern dbl_strGet : String -> Int -> Char in
   let rec iter (n : Int) acc = 
     if n == 0 then 

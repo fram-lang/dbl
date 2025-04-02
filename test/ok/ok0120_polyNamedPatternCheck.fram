@@ -1,0 +1,2 @@
+data T = T of {id : {X} -> X -> X}
+let foo (T {id}) = id id 42

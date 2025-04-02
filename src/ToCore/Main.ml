@@ -2,176 +2,166 @@
  * See LICENSE for details.
  *)
 
-(** Main module of a translation from Unif to Core *)
+(** Main module of a translation from ConE to Core *)
 
 open Common
 
+(** Expression-building do-notation *)
+let (let^ ) m cont = m cont
+let (let* ) m f cont = m (Fun.flip f cont)
+let return x cont = cont x
+
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
-  match e.data with
-  | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EVar _ | EChr _ | EPureFn _ | EFn _
-  | ETFun _ | ECtor _ | EHandler _ | EExtern _ ->
-    tr_expr_v env e (fun v -> T.EValue v)
+  match e with
+  | EUnitPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
+  | EFn _ | ETFun _ | ECAbs _ | ECtor _ | EExtern _ | ERepl _ | EReplExpr _ ->
+    let^ v = tr_expr_v env e in
+    T.EValue v
 
   | EApp(e1, e2) ->
-    tr_expr_v env e1 (fun v1 ->
-    tr_expr_v env e2 (fun v2 ->
-    T.EApp(v1, v2)))
+    let^ v1 = tr_expr_v env e1 in
+    let^ v2 = tr_expr_v env e2 in
+    T.EApp(v1, v2)
 
   | ETApp(e, tp) ->
-    tr_expr_v env e (fun v ->
+    let^ v = tr_expr_v env e in
     let (Ex tp) = Type.tr_type env tp in
-    T.ETApp(v, tp))
+    T.ETApp(v, tp)
 
-  | ELet(x, _, e1, e2) ->
-    tr_expr_as env e1 x (tr_expr env e2)
+  | ECApp e ->
+    let^ v = tr_expr_v env e in
+    T.ECApp v
 
-  | ELetRec(rds, e) ->
-    let rds = tr_rec_defs env rds in
-    T.ELetRec(rds, tr_expr env e)
+  | ELet(x, e1, e2) ->
+    let^ () = tr_let_expr ~pure:false x env e1 in
+    tr_expr env e2
+
+  | ELetPure(x, e1, e2) ->
+    let^ () = tr_let_expr ~pure:true x env e1 in
+    tr_expr env e2
+
+  | ELetRec(defs, body) ->
+    let defs = tr_rec_defs env defs in
+    T.ELetRec(defs, tr_expr env body)
+
+  | ERecCtx e ->
+    T.ERecCtx(tr_expr env e)
 
   | EData(dds, e) ->
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr env e)
 
-  | EMatchEmpty(proof, me, tp, eff) ->
-    let proof = tr_expr env proof in
-    let tp  = Type.tr_ttype env tp in
-    let eff = Type.tr_effect_opt env eff in
-    tr_expr_v env me (fun v ->
-    T.EMatch(proof, v, [], tp, eff))
+  | EMatch(prf, e, cls, tp, eff) ->
+    let^ v = tr_expr_v env e in
+    T.EMatch(tr_expr env prf, v,
+      List.map (tr_match_clause env) cls,
+      Type.tr_ttype env tp,
+      Type.tr_ceffect env eff)
 
-  | EMatch(me, cls, tp, eff) ->
-    let tp  = Type.tr_ttype env tp in
-    let eff = Type.tr_effect_opt env eff in
-    tr_expr_v env me (fun v ->
-    PatternMatch.tr_single_match ~pos:e.pos ~env ~tr_expr v cls tp eff)
+  | EShift(lbl_e, x, body, tp) ->
+    let^ lbl_v = tr_expr_v env lbl_e in
+    T.EShift(lbl_v, [], [], x, tr_expr env body, Type.tr_ttype env tp)
 
-  | EHandle(a, x, tp, e1, e2) ->
-    tr_expr_v env e1 (fun v1 ->
-    let (env, Ex a) = Env.add_tvar env a in
-    let tp = Type.tr_ttype env tp in
-    T.EApp(v1, T.VTFun(a, T.EValue (T.VFn(x, tp, tr_expr env e2)))))
+  | EReset(lbl_e, body, ret_var, ret_body) ->
+    let^ lbl_v = tr_expr_v env lbl_e in
+    T.EReset(lbl_v, [], [], tr_expr env body, ret_var, tr_expr env ret_body)
 
-  | EEffect(l, x, body, tp) ->
-    tr_expr_v env l (fun lv ->
-    T.EShift(lv, [], [], x, tr_expr env body, Type.tr_ttype env tp))
+(** Translate expression and store result in variable [x] *)
+and tr_let_expr ~pure x env (e : S.expr) cont =
+  match e with
+  | _ when pure ->
+    T.ELetPure(x, tr_expr env e, cont ())
 
-  | ERepl(func, tp, eff) ->
-    let tp  = Type.tr_ttype  env tp  in
-    let eff = Type.tr_effect env eff in
-    ERepl((fun () -> tr_expr env (func ())), tp, eff)
+  | EUnitPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
+  | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
+    T.ELetPure(x, tr_expr env e, cont ())
 
-  | EReplExpr(e1, tp, e2) ->
-    EReplExpr(tr_expr env e1, tp, tr_expr env e2)
+  | EApp _ | ETApp _ | ECApp _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
+  | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _
+  | ERepl _ | EReplExpr _ ->
+    T.ELet(x, tr_expr env e, cont ())
 
-(** Translate expression and store result in variable [x] bound in [rest] *)
-and tr_expr_as env (e : S.expr) x rest =
-  match e.data with
-  | EUnitPrf | ENum _ | ENum64 _ | EStr _ | EVar _ | EChr _ | EPureFn _ | EFn _
-  | ETFun _ | ECtor _ | EHandler _ | EExtern _ ->
-    T.ELetPure(x, tr_expr env e, rest)
+and tr_expr_as_var env e =
+  let x = Var.fresh () in
+  let* () = tr_let_expr ~pure:false x env e in
+  return x
 
-  | EApp _ | ETApp _ | ELet _ | ELetRec _ | EData _ | EMatchEmpty _
-  | EMatch _ | EHandle _ | EEffect _ | ERepl _ | EReplExpr _ ->
-    T.ELet(x, tr_expr env e, rest)
+and tr_expr_v env (e : S.expr) =
+  match e with
+  | EUnitPrf   -> return v_unit_prf
+  | EOptionPrf -> return v_option_prf
 
-(** Translate expression and pass a result (as a value to given
-  meta-continuation) *)
-and tr_expr_v env (e : S.expr) cont =
-  match e.data with
-  | EUnitPrf -> cont v_unit_prf
-  | ENum n -> cont (VNum n)
-  | ENum64 n -> cont (VNum64 n)
-  | EStr s -> cont (VStr s)
-  | EChr c -> cont (VNum (Char.code c))
-  | EVar x -> cont (VVar x)
+  | ENum   n -> return (T.VNum n)
+  | ENum64 n -> return (T.VNum64 n)
+  | EStr   s -> return (T.VStr s)
+  | EChr   c -> return (T.VNum (Char.code c))
+  | EVar   x -> return (T.VVar x)
 
-  | EPureFn(x, sch, body) | EFn(x, sch, body) ->
+  | EFn(x, sch, body) ->
     let tp = Type.tr_scheme env sch in
-    cont (VFn(x, tp, tr_expr env body))
+    return (T.VFn(x, tp, tr_expr env body))
 
   | ETFun(x, body) ->
     let (env, Ex x) = Env.add_tvar env x in
-    cont (VTFun(x, tr_expr env body))
+    return (T.VTFun(x, tr_expr env body))
 
-  | EApp _ | ETApp _ | ELetRec _ | EMatchEmpty _ | EMatch _
-  | EHandle _ | EEffect _ | ERepl _ ->
-    let x = Var.fresh () in
-    T.ELet(x, tr_expr env e, cont (VVar x))
+  | ECAbs(cs, body) ->
+    return (T.VCAbs(List.map (Type.tr_constr env) cs, tr_expr env body))
 
-  | ELet(x, _, e1, e2) ->
-    tr_expr_as env e1 x (tr_expr_v env e2 cont)
+  | ELet(x, e1, e2) ->
+    let* () = tr_let_expr ~pure:false x env e1 in
+    tr_expr_v env e2
 
-  | ECtor(proof, n, tps, args) ->
-    let proof = tr_expr env proof in
-    let tps   = List.map (Type.tr_type env) tps in
-    tr_expr_vs env args (fun args ->
-    cont (VCtor(proof, n, tps, args)))
+  | ELetPure(x, e1, e2) ->
+    let* () = tr_let_expr ~pure:true x env e1 in
+    tr_expr_v env e2
 
-  | EData(dds, e) ->
-    let (env, dds) = DataType.tr_data_defs env dds in
-    T.EData(dds, tr_expr_v env e cont)
+  | ECtor(prf, idx, tps, args)  ->
+    let prf = tr_expr env prf in
+    let tps = List.map (Type.tr_type env) tps in
+    let* args = tr_expr_vs env args in
+    return (T.VCtor(prf, idx, tps, args))
 
-  | EHandler h ->
-    let (env, Ex a) = Env.add_tvar env h.effect in
-    begin match T.TVar.kind a with
-    | KEffect ->
-      let delim_tp  = Type.tr_ttype env h.delim_tp in
-      let delim_eff = Type.tr_effect env h.delim_eff in
-      let cap_tp    = Type.tr_ttype env h.cap_type in
-      let body_tp   = Type.tr_ttype env h.body_tp in
-      let comp_x    = Var.fresh () in (* a parameter to handler: computation *)
-      let comp_y    = Var.fresh () in (* partially applied computation *)
-      let comp_eff  = T.Effect.join (TVar a) delim_eff in
-      let comp_tp   =
-        T.TForall(a, T.TArrow(cap_tp, body_tp, comp_eff)) in
-      let label_def = T.DD_Label
-        { tvar      = a;
-          var       = h.label;
-          tvars     = [];
-          val_types = [];
-          delim_tp  = delim_tp;
-          delim_eff = delim_eff;
-        } in
-      cont (VFn(comp_x, comp_tp,
-        T.EData([label_def],
-        T.ELet(h.fin_var,
-          T.EReset(T.VVar h.label, [], [],
-            tr_expr_v env h.cap_body (fun cap_v ->
-            T.ELetPure(comp_y, T.ETApp(T.VVar comp_x, T.TVar a),
-            T.EApp(T.VVar comp_y, cap_v))),
-            h.ret_var, tr_expr env h.ret_body),
-          tr_expr env h.fin_body))))
-    | _ ->
-      failwith "Internal kind error"
-    end
+  | EExtern(name, tp) ->
+    return (T.VExtern(name, Type.tr_ttype env tp))
 
-  | EExtern(name, tp) -> cont (VExtern(name, Type.tr_ttype env tp))
+  | EApp _ | ETApp _ | ECApp _ | ELetRec _ | ERecCtx _ | EData _ | EMatch _
+  | EShift _ | EReset _ | ERepl _ | EReplExpr _ ->
+    let* x = tr_expr_as_var env e in
+    return (T.VVar x)
 
-  | EReplExpr(e1, tp, e2) ->
-    EReplExpr(tr_expr env e1, tp, tr_expr_v env e2 cont)
-
-(** Translate a list of expressions and pass a result (as a list of values to
-  given meta-continuation) *)
-and tr_expr_vs env es cont =
+(** Translate a list of expressions as list of values in expression building
+  monad. *)
+and tr_expr_vs env es =
   match es with
-  | []      -> cont []
+  | [] -> return []
   | e :: es ->
-    tr_expr_v env  e  (fun v ->
-    tr_expr_vs env es (fun vs ->
-    cont (v :: vs)))
+    let* v = tr_expr_v env e in
+    let* vs = tr_expr_vs env es in
+    return (v :: vs)
+
+(** Translate a match clause *)
+and tr_match_clause env (cl : S.match_clause) =
+  let (env, tvs) = Env.add_tvars env cl.cl_tvars in
+  { T.cl_tvars = tvs;
+    T.cl_vars  = cl.cl_vars;
+    T.cl_body  = tr_expr env cl.cl_body
+  }
 
 (** Translate recursive definitions *)
-and tr_rec_defs env rds =
-  List.map (tr_rec_def env) rds
+and tr_rec_defs env defs =
+  List.map (tr_rec_def env) defs
 
-and tr_rec_def env (x, sch, body) =
-  match tr_expr env body with
-  | EValue v -> (x, Type.tr_scheme env sch, v)
-  | _ -> failwith "Internal error: non-productive recursive definition"
+and tr_rec_def env (rd : S.rec_def) =
+  let (env, tvs) = Env.add_tvars env rd.rd_evars in
+  let cs   = List.map (Type.tr_constr env) rd.rd_constr in
+  let sch  = Type.tr_scheme env rd.rd_scheme in
+  let tp   = T.Type.t_foralls tvs (TGuard(cs, sch)) in
+  let body = tr_expr env rd.rd_body in
+  (rd.rd_var, tp, body)
 
 (* ========================================================================= *)
 
-let tr_program ~repl_mode p =
-  tr_expr (Env.empty ~repl_mode) p
+let tr_program p =
+  tr_expr Env.initial p

@@ -6,32 +6,54 @@
 
 open Common
 
-(** Check if given pattern fits in given scope and has given type.
-  Returns extended environment, translated pattern, set of bound names (as
-  a map from names, to binding occurrence), and the effect of
-  pattern-matching (matching against ADT constructors is impure). The scope is
-  passed separately from environment, since the scope of the pattern flows
-  top-down in a complex patterns, while the environment flows left-to-right.
-  *)
-val check_type :
-  env:Env.t -> scope:T.scope -> S.pattern -> T.typ ->
-    Env.t * T.pattern * Position.t T.Name.Map.t * ret_effect
+(* Check type of given pattern. Returns partial-environment (variables bound
+  by this pattern), translated pattern, and the effect of pattern-matching. *)
+val check_type : 'st Env.t -> S.pattern -> T.typ ->
+  PartialEnv.t * T.pattern * T.effct
 
-(** Infer type-scheme of given formal argument. Returns extended environment,
-  a pattern that represents an argument, its scheme, and the effect of
+(** Infer scheme expression of given pattern. Returns partial-environment
+  (variables bound by this pattern), translated pattern, its scheme
+  expression, and the effect of pattern-matching *)
+val infer_scheme : 'st Env.t -> S.pattern ->
+  PartialEnv.t * T.pattern * T.scheme_expr * T.effct
+
+(** Enter a new scope and translate a list of named patterns. The returned
+  environment contains type parameters, but not the type variables bound by
+  value patterns. On the other hand, returned partial environment defines
+  type parameters as aliases for type variables added to the environment. *)
+val infer_named_patterns :
+  'st Env.t -> S.named_pattern list ->
+    'st Env.t * PartialEnv.t *
+      type_param list * Name.pattern list * T.effct
+
+(** Enter a new scope and infer type-scheme of given pattern. Returns extended
+  environment, translated pattern, its scheme, and the effect of
   pattern-matching *)
-val infer_arg_scheme :
-  Env.t -> S.arg -> Env.t * T.pattern * T.scheme * ret_effect
+val infer_scheme_ext :
+  'st Env.t -> S.pattern -> 'st Env.t * T.pattern * T.scheme_expr * T.effct
 
-(** Check if given argument has given type scheme. Returns extended
-  environment, translated argument as pattern, and the effect of
-  pattern-matching *)
-val check_arg_scheme :
-  Env.t -> S.arg -> T.scheme -> Env.t * T.pattern * ret_effect
+(** Check if given pattern has given type scheme. Returns extended
+  environment, translated pattern, and the effect of pattern-matching *)
+val check_scheme_ext :
+  'st Env.t -> S.pattern -> T.scheme -> 'st Env.t * T.pattern * T.effct
 
-(** Infer type schemes of given named formal parameters. Returns extended
-  environment, the effect of pattern-matching, and the list of translated
-  parameters as triples: name, pattern, and its type scheme *)
-val infer_named_arg_schemes :
-  Env.t -> S.named_arg list ->
-    Env.t * (T.name * T.pattern * T.scheme) list * ret_effect
+(** Check if given pattern has given type. Returns extended environment,
+  translated pattern, and the effect of pattern-matching *)
+val check_type_ext :
+  'st Env.t -> S.pattern -> T.typ -> 'st Env.t * T.pattern * T.effct
+
+(** Check schemes of named patterns. These parameters should be already
+  introduced in the environment, and provided as the last two arguments.
+  The environment is extended with aliases for these parameters. *)
+val check_named_patterns_ext :
+  pos:Position.t ->
+  'st Env.t -> S.named_pattern list ->
+  T.named_tvar list -> (T.name * T.var * T.scheme) list ->
+    'st Env.t * (T.var * T.pattern) list * T.effct
+
+(** Translate a list of named patterns and extend the environment. The
+  returned scope is a scope of the environment extended with type parameters,
+  but not with the type variables bound by value patterns. *)
+val infer_named_patterns_ext :
+  'st Env.t -> S.named_pattern list ->
+    'st Env.t * Scope.t * T.named_tvar list * Name.pattern list * T.effct

@@ -1,0 +1,23 @@
+data A = A
+data B = B
+data C = C
+
+method m (_ : A) = A
+method m (_ : B) = A
+
+module M
+  let _ = (A).m : A
+  pub method m (_ : A) = B
+  pub method m (_ : B) = B
+  module N
+    let _ = (A).m : B
+    pub method m (_ : A) = C
+    let _ = (A).m : C
+  end
+  let _ = (A).m : C
+  pub module O
+    pub method m (_ : B) = C
+  end
+end
+let _ = (A).m : B
+let _ = (B).m : C

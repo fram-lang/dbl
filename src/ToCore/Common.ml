@@ -4,17 +4,16 @@
 
 (** Common definitions of the translation *)
 
-module S = Lang.Unif
+module S = Lang.ConE
 module T = Lang.Core
 
 (** Translate kind *)
 let rec tr_kind k =
-  match S.Kind.view k with
+  match Lang.Unif.Kind.view k with
   | KType   -> T.Kind.Ex KType
   | KEffect -> T.Kind.Ex KEffect
-  | KEffrow -> T.Kind.Ex KEffect
   | KUVar u ->
-    S.KUVar.set_safe u S.Kind.k_type;
+    Lang.Unif.KUVar.set u Lang.Unif.Kind.k_type;
     T.Kind.Ex KType
   | KArrow(k1, k2) ->
     let (Ex k1) = tr_kind k1 in
@@ -30,5 +29,21 @@ let v_unit_prf =
     } in
   T.VExtern("__Unit_Proof__", T.TData(T.Type.t_unit, T.TEffPure, [ ctor ]))
 
-let v_unit =
-  T.VCtor(T.EValue v_unit_prf, 0, [], [])
+(** Proof that option is an ADT *)
+let v_option_prf =
+  let arg = T.TVar.fresh T.KType in
+  let ctor_none =
+    { T.ctor_name      = "None";
+      T.ctor_tvars     = [];
+      T.ctor_arg_types = []
+    } in
+  let ctor_some =
+    { T.ctor_name      = "Some";
+      T.ctor_tvars     = [];
+      T.ctor_arg_types = [ T.TVar arg ]
+    } in
+  let data_tp = T.TData(
+    T.Type.t_option (T.TVar arg),
+    T.TEffPure,
+    [ ctor_none; ctor_some ]) in
+  T.VExtern("__Option_Proof__", T.TForall(arg, data_tp))

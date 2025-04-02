@@ -7,10 +7,31 @@
 open Common
 open TypeCheckFix
 
-(** Check a block of mutually-recursive definitions. Returns extended
-  environment, list of data-like definitions, list of function-like
-  definitions, and the effect of the block. The block might be impure, because
-  of generating of new labels. *)
-val check_rec_defs : tcfix:tcfix ->
-  Env.t -> ImplicitEnv.t -> S.def list ->
-    Env.t * T.data_def list * T.rec_def list * ret_effect
+(** The result of checking a block of mutually-recursive definitions. *)
+type 'st rec_result =
+  { rec_env    : ('st, sec) opn Env.t;
+    (** The environment after checking the definitions. *)
+
+    rec_dds    : T.data_def list;
+    (** The data definitions in the block. *)
+
+    rec_targs  : T.named_tvar list;
+    (** Type parameters common to all definitions. *)
+
+    rec_named  : (T.name * T.var * T.scheme_expr) list;
+    (** Named parameters common to all definitions. *)
+
+    rec_fds    : T.rec_def list;
+    (** The recursive definitions in the block. *)
+
+    rec_eff    : T.effct;
+    (** The effect of the definitions. It might be impure, because of
+      generating fresh labels. *)
+
+    rec_constr : Constr.t list
+    (** The constraints that were generated. *)
+  }
+
+(** Check a block of mutually-recursive definitions. *)
+val check_rec_defs : tcfix:tcfix -> pos:Position.t ->
+  ('st, sec) opn Env.t -> S.def list -> 'st rec_result

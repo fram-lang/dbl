@@ -25,24 +25,23 @@ type method_name = string
 type module_name = string
 
 (** Module path to an identifier of type 'a *)
-type 'a path =
+type 'a path = 'a path_data node
+and 'a path_data =
   | NPName of 'a
-  | NPSel  of module_name * 'a path
+  | NPSel  of module_name path * 'a
 
 (** Extract the base name from a path *)
-let rec path_name = function
-  | NPName x    -> x
-  | NPSel(_, p) -> path_name p
+let path_name (path : _ path) =
+  match path.data with
+  | NPName x | NPSel(_, x) -> x
 
 (** Name of a named type parameter *)
 type tname =
   | TNAnon
-  | TNEffect
   | TNVar of tvar
 
 (** Name of a named parameter *)
 type name =
-  | NLabel
   | NVar         of var
   | NOptionalVar of var
   | NImplicit    of iname
@@ -53,10 +52,9 @@ type is_public = bool
 
 (** Identifier, i.e., object that can be bound in patterns *)
 type ident =
-  | IdLabel
-  | IdVar      of is_public * var
-  | IdImplicit of is_public * iname
-  | IdMethod   of is_public * method_name
+  | IdVar      of var
+  | IdImplicit of iname
+  | IdMethod   of method_name
     (** Methods must have an arrow type, where the argument type is a type
       of "self" variable. *)
 
@@ -75,9 +73,6 @@ and kind_expr_data =
   | KEffect
     (** Effect kind *)
 
-  | KEffrow
-    (** Effect row kind *)
-
 (** Type expressions *)
 type type_expr = type_expr_data node
 and type_expr_data =
@@ -87,57 +82,90 @@ and type_expr_data =
   | TVar of tvar path
     (** A (non-unification) type variable *)
 
+  | TEffect of type_expr list
+    (** Effect: list of simple effects *)
+
   | TPureArrow of scheme_expr * type_expr
     (** Pure function: a function without effects, that always terminates *)
 
   | TArrow of scheme_expr * type_expr * type_expr
     (** Effectful function: the last parameter is an effect *)
 
-  | TEffect of type_expr list * type_expr option
-    (** Effect: list of simple effect optionally closed by another effect *)
+  | THandler of (** First-class handler *)
+    { effct    : tvar;
+        (** Effect variable bound by this handler (it bound in [cap_type],
+          [in_type], and [in_eff] *)
+
+      cap_type : type_expr;
+        (** Type of a capability provided by this handler *)
+
+      in_type  : type_expr;
+        (** Inner type of a handler: a type of expression that can be run
+          inside this handler *)
+
+      in_eff   : type_expr;
+        (** Inner effect of a handler *)
+
+      out_type : type_expr;
+        (** Outer type of a handler: a type of the whole handler expression
+        *)
+
+      out_eff  : type_expr
+        (** Outer effect of a handler *)
+    }
+
+  | TLabel of (** First-class label *)
+    { effct     : type_expr;
+        (** Effect of this label *)
+
+      delim_tp  : type_expr;
+        (** Type of the delimiter *)
+
+      delim_eff : type_expr
+        (** Effect of the delimiter *)
+    }
 
   | TApp of type_expr * type_expr
     (** Type application *)
 
 (** Type-scheme expressions *)
 and scheme_expr = {
-  sch_pos : Position.t;
+  sch_pos   : Position.t;
     (** Location of the scheme expression *)
 
-  sch_targs : named_type_arg list;
-    (** Type parameters *)
-
-  sch_named : named_scheme list;
-    (** Named parameters *)
+  sch_args  : scheme_arg list;
+    (** Type and named parameters *)
 
   sch_body : type_expr
     (** Body of the scheme *)
 }
 
-(** Declaration of implicit/named parameter *)
-and named_scheme = (name * scheme_expr) node
+(** Named parameter of a scheme *)
+and scheme_arg = scheme_arg_data node
+and scheme_arg_data =
+  | SA_Type of tname * tvar * kind_expr
+    (** Type parameter *)
 
-(** Type formal parameter *)
+  | SA_Val  of name * scheme_expr
+    (** Value parameter *)
+
+(** Formal type parameter *)
 and type_arg = type_arg_data node
 and type_arg_data =
-  | TA_Effect
-    (** Effect variable *)
-
-  | TA_Var of is_public * tvar * kind_expr
+  | TA_Var of tvar * kind_expr
     (** Type variable *)
   
   | TA_Wildcard
     (** Wildcard *)
 
+(** Named formal type parameter *)
 and named_type_arg = (tname * type_arg) node
 
 (** Declaration of constructor of ADT *)
 type ctor_decl = ctor_decl_data node
 and ctor_decl_data = {
-  cd_public      : is_public;
   cd_name        : ctor_name;
-  cd_targs       : named_type_arg list;
-  cd_named       : named_scheme list;
+  cd_named_args  : scheme_arg list;
   cd_arg_schemes : scheme_expr list
 }
 
@@ -147,42 +175,37 @@ and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
 
-  | PId of ident
+  | PId of is_public * ident
     (** Pattern that binds an identifier*)
 
-  | PCtor of ctor_name path node * ctor_pattern_named * pattern list
+  | PCtor of ctor_name path * named_pattern list * pattern list
     (** ADT constructor pattern *)
 
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
 
-(** Set of named subpatterns of constructor *)
-and ctor_pattern_named =
-  | CNParams of named_type_arg list * named_pattern list
-    (** Named type parameters and named patterns of a constructor *)
-  | CNModule of is_public * module_name
-    (** Bind all named parameters under the specified module name *)
+(** Pattern for a named parameter *)
+and named_pattern = named_pattern_data node
+and named_pattern_data =
+  | NP_Type   of is_public * named_type_arg
+    (** Type parameter *)
 
-(** Pattern for named parameter *)
-and named_pattern = (name * pattern) node
+  | NP_Val    of name * pattern * scheme_expr option
+    (** Value parameter.
+      The scheme annotation is distinct from using the [PAnnot] constructor
+      from [pattern] because it's treated differently for optional parameters.
+      For example, [?x : T] should produce a variable [x : Option T], while
+      the pattern will be for the [Option T] type. *)
 
-(** Formal argument *)
-type arg =
-  | ArgAnnot of pattern * scheme_expr
-    (** Argument with scheme annotation *)
+  | NP_Module of is_public * module_name
+    (** Bind everything into a module *)
 
-  | ArgPattern of pattern
-    (** Argument with pattern-matching *)
+  | NP_Open   of is_public
+    (** Introduce everything into the environment *)
 
-(** Named formal argument *)
-type named_arg = (name * arg) node
-
-(** Explicit type instantiation *)
-type type_inst = (tname * type_expr) node
-
-(** Polymorphic expressions *)
-type poly_expr = poly_expr_data node
-and poly_expr_data =
+(** Polymorphic expressions, at the place of use. *)
+type poly_expr_use = poly_expr_use_data node
+and poly_expr_use_data =
   | EVar      of var path
     (** Variable *)
 
@@ -191,6 +214,18 @@ and poly_expr_data =
 
   | EMethod   of expr * method_name
     (** Call of a method *)
+
+(** Polymorphic expressions, at the place of definition. *)
+and poly_expr_def = poly_expr_def_data node
+and poly_expr_def_data =
+  | PE_Expr of expr
+    (** Expression *)
+
+  | PE_Poly of poly_expr_use
+    (** Polymorphic expression *)
+
+  | PE_Fn   of named_pattern list * expr
+    (** Polymorphic function *)
 
 (** Expressions *)
 and expr = expr_data node
@@ -211,15 +246,15 @@ and expr_data =
   | EChr of char
     (** Char literal *)
 
-  | EPoly of poly_expr * type_inst list * inst list
+  | EPoly of poly_expr_use * inst list
     (** Polymorphic expression with partial explicit instantiation, possibly
       empty *)
 
-  | EFn   of arg * expr
+  | EFn   of pattern * expr
     (** Lambda abstraction *)
 
-  | EApp  of expr * expr
-    (** Application *)
+  | EApp  of expr * poly_expr_def
+    (** Function application *)
 
   | EDefs of def list * expr
     (** Local definitions *)
@@ -231,9 +266,10 @@ and expr_data =
     (** First-class handler, with return and finally clauses. For each of these
       clause lists, empty list means the default identity clause *)
 
-  | EEffect of arg * expr
+  | EEffect of expr option * pattern * expr
     (** Effectful operation. The only argument is a continuation. Other
-      arguments should be bound using regular lambda abstractions ([EFn]). *)
+      arguments should be bound using regular lambda abstractions ([EFn]).
+      The first parameter is an optional label. *)
 
   | EExtern of string
     (** Externally defined value *)
@@ -247,41 +283,65 @@ and expr_data =
       other have no effect. *)
 
 (** Explicit instantiation of named parameters in polymorphic expression *)
-and inst = (name * expr) node
+and inst = inst_data node
+and inst_data =
+  | IType   of tvar * type_expr
+    (** Explicit instantiation of a type variable *)
+
+  | IVal    of name * poly_expr_def
+    (** Explicit instantiation of a value-level name *)
+
+  | IModule of module_name path
+    (** Explicit instantiation, that takes values from given module *)
+
+  | IOpen
+    (** Explicit instantiation, that takes values from the environment *)
 
 (** Local definitions *)
 and def = def_data node
 and def_data =
-  | DLetId of ident * expr
+  | DLetId of is_public * ident * poly_expr_def
     (** Let definition: monomorphic or polymorphic, depending on effect *)
-
-  | DLetFun of ident * named_type_arg list * named_arg list * expr
-    (** Polymorphic function definition *)
 
   | DLetPat  of pattern * expr
     (** Let definition combined with pattern-matching. Always monomorphic *)
 
-  | DMethodFn of is_public * var * method_name
-    (** Declaration of function that should be interpreted as a method *)
+  | DLabel   of type_arg * pattern
+    (** Creating a new label. *)
 
-  | DLabel   of type_arg option * pattern
-    (** Creating a new label. Optional type argument binds newly created
-      effect. *)
-
-  | DHandlePat of type_arg option * pattern * expr
+  | DHandlePat of pattern * type_arg * expr
     (** Effect handler combined with pattern matching. In
-      [DHandlePat(eff, pat, body)] the meaning of parameters is the following.
-      - [eff]  -- Optional name for the handled effect.
+      [DHandlePat(pat, eff, body)] the meaning of parameters is the following.
       - [pat]  -- Pattern matched against the effect capability.
+      - [eff]  -- A name for the handled effect.
       - [body] -- An expression that should evaluate to a first-class handler,
           providing the capability of the handled effect. *)
 
-  | DImplicit of iname * named_type_arg list * scheme_expr
-    (** Declaration of implicit. The second parameter is a list of types
-      that may differ between different uses of the implicit *)
+  | DTypeParam of tname * tvar * kind_expr
+    (** Declaration of type parameter *)
 
-  | DData of is_public * tvar * named_type_arg list * ctor_decl list
-    (** Definition of non-recursive ADT *)
+  | DValParam of name * ident * scheme_expr option
+    (** Declaration of value parameter *)
+
+  | DData of (** Definition of non-recursive ADT *)
+    { public_tp    : is_public;
+        (** A flag indicating that the type is public *)
+
+      public_ctors : is_public;
+        (** A flag indication that the constructors are visible *)
+
+      tvar         : tvar;
+        (** Type variable that represents this ADT *)
+
+      args         : named_type_arg list;
+        (** List of type parameters *)
+
+      ctors        : ctor_decl list
+        (** List of constructors *)
+    }
+
+  | DBlock of def list
+    (** Block of definitions that share parameter declarations *)
 
   | DRec of def list
     (** Mutually recursive definitions *)

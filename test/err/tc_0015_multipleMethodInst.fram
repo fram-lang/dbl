@@ -1,0 +1,5 @@
+let foo {A, method m : A -> A} = 42
+
+let _ = foo {method m = fn x => x, method m = fn x => x}
+
+# @stderr: Method m is provided more than once

@@ -64,24 +64,21 @@ data RefEx = RefEx of
 pub let RefEx { Ref, Array, ConstArray } =
   (extern dbl_abstrType : Unit ->[IO] RefEx) ()
 
-{## Infix operator for setting mutable values. ##}
-pub method fn (:=) = set
-
 {## Abstract capability of mutability. ##}
-abstr data Mut (effect E) = Mut
+abstr data Mut (E : effect) = Mut
 
 {## IO capability of mutability.
 
   The IO effect is rich enough to describe computations that use mutability.
   Therefore, this capability is always available. ##}
-pub let ioMut = Mut {effect=IO}
+pub let ioMut = Mut {E=IO}
 
 {## Local handler of state.
 
   The mutability effect can be handled locally, provided that the handled
   computation has no other effects. ##}
 pub let hMut (f : {E : effect} -> Mut E ->[E] _) =
-  handle {effect=E} _ = () in
+  handle _ / E = () in
   f {E} Mut
 
 {## Local handler of state, translated to IO.
@@ -89,7 +86,7 @@ pub let hMut (f : {E : effect} -> Mut E ->[E] _) =
   This function is similar to `hMut`, but it allows the handled expression to
   have other effects. However, this function is not pure: it has the `IO`
   effect. ##}
-pub let hMutIO (f : {E : effect} -> Mut E ->[E|_] _) =
+pub let hMutIO {type R} (f : {E : effect} -> Mut E ->[E,R] _) =
   f {E=IO} ioMut
 
 {# ========================================================================= #}
@@ -99,15 +96,15 @@ pub let hMutIO (f : {E : effect} -> Mut E ->[E|_] _) =
   Mutable references, annotated with the effect of reading and writing. ##}
 
 {## Get the contents of a mutable value. ##}
-pub method get {E, type T, self : Ref E T} =
-  (extern dbl_refGet : Ref E T ->[E] T) self
+pub method get {E, type T} =
+  extern dbl_refGet : Ref E T ->[E] T
 
 {## Set the contents of a mutable value. ##}
-pub method set {E, type T, self : Ref E T} =
-  (extern dbl_refSet : Ref E T -> T ->[E] Unit) self
+pub method set {E, type T} =
+  extern dbl_refSet : Ref E T -> T ->[E] Unit
 
 {## Create a new mutable cell. ##}
-pub method ref {E, type T, self : Mut E} =
+pub method ref {E, type T} (self : Mut E) =
   extern dbl_ref : T ->[E] Ref E T
 
 {# ========================================================================= #}
@@ -131,20 +128,20 @@ let unsafeMakeArray {E, type T} =
   extern dbl_mkArray : Int ->[E] Array E T
 
 {## Get the length of an array. ##}
-pub method length {E, self : Array E _} =
-  (extern dbl_arrayLength : Array E _ -> Int) self
+pub method length {E} =
+  extern dbl_arrayLength : Array E _ -> Int
 
 {## Get the nth element of an array.
 
   This function assumes that the given index is within array bounds. ##}
-pub method get {E, type T, self : Array E T} (n : Int) =
+pub method get {E, type T} (self : Array E T) (n : Int) =
   assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
   unsafeGetArray {E} self n
 
 {## Set the nth element of an array.
 
   This function assumes that the given index is within array bounds. ##}
-pub method setAt {E, type T, self : Array E T} (n : Int) v =
+pub method setAt {E, type T} (self : Array E T) (n : Int) v =
   assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
   unsafeSetArray {E} self n v
 
@@ -157,11 +154,11 @@ pub method setAt {E, type T, self : Array E T} (n : Int) v =
     arr.at 42 := "example string"
   ```
 ##}
-pub method at {E, self : Array E _} n =
+pub method at {E} (self : Array E _) n =
   ArrayElem { E, set = self.setAt n }
 
 {## Convert an array to a list. ##}
-pub method toList {E, self : Array E _} =
+pub method toList {E} (self : Array E _) =
   let rec loop (n : Int) acc =
     if n == 0 then acc
     else (
@@ -184,7 +181,7 @@ let unsafeInitArray {E} n (f : _ ->[E] _) =
   arr
 
 {## Convert a list to an array. ##}
-pub method toArray {E, ~mut : Mut E, self : List _} =
+pub method toArray {E, ~mut : Mut E} (self : List _) =
   let arr = unsafeMakeArray {E} self.length in
   self.iteri (unsafeSetArray {E} arr);
   arr
@@ -204,26 +201,26 @@ pub method toArray {E, ~mut : Mut E, self : List _} =
 
   The size of the array provided to this method must be non-negative.
 ##}
-pub method pureInitArray {E, self : Mut E} (n : Int) (f : _ ->[E] _) =
+pub method pureInitArray {E} (self : Mut E) (n : Int) (f : _ ->[E] _) =
   assert {msg="Array of negative size"} (n >= 0);
   unsafeInitArray {E} n f
 
 {## Same as `pureInitArray`, but it allows the function `f` to be impure. ##}
-pub method initArray {E, self : Mut E} n f =
+pub method initArray {E} (self : Mut E) n f =
   (List.init n f).toArray {~mut=self}
 
 {## Create an array initialized with the default element.
 
   A call `mut.makeArray n v` is equivalent to `mut.initArray n (fn _ => v)`.
 ##}
-pub method makeArray {E, self : Mut E} n v =
+pub method makeArray {E} (self : Mut E) n v =
   self.pureInitArray n (fn _ => v)
 
 {## Create a copy of a given array.
 
   This method returns a shallow copy, i.e., elements are shared between arrays.
 ##}
-pub method clone {E, type T, self : Array E T} =
+pub method clone {E, type T} (self : Array E T) =
   unsafeInitArray {E} self.length (unsafeGetArray {E} self)
 
 {# ------------------------------------------------------------------------- #}
@@ -236,7 +233,7 @@ pub method clone {E, type T, self : Array E T} =
   can be modified by the function `f`, but next calls of `f` will be performed
   on modified elements. In order to avoid such an odd behavior, the function
   can be called on the cloned array: `arr.clone.iteri f`. ##}
-pub method iteri {E, self : Array E _} f =
+pub method iteri {E} (self : Array E _) f =
   let rec loop (i : Int) =
     if i >= self.length then ()
     else (
@@ -248,7 +245,7 @@ pub method iteri {E, self : Array E _} f =
 {## Iterate function over all elements of an array.
 
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
-pub method iter {E, self : Array E _} f =
+pub method iter {E} (self : Array E _) f =
   self.iteri (fn _ => f)
 
 {# ========================================================================= #}
@@ -265,18 +262,18 @@ let unsafeGetConstArray {type T} =
   extern dbl_arrayGet : ConstArray T -> Int ->[] T
 
 {## Get the length of an immutable array ##}
-pub method length {self : ConstArray _} =
-  (extern dbl_arrayLength : ConstArray _ -> Int) self
+pub method length =
+  extern dbl_arrayLength : ConstArray _ -> Int
 
 {## Get the nth element of an immutable array.
 
   This function assumes that the given index is within array bounds. ##}
-pub method get {type T, self : ConstArray T} (n : Int) =
+pub method get {type T} (self : ConstArray T) (n : Int) =
   assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
   unsafeGetConstArray self n
 
 {## Convert an immutable array to a list ##}
-pub method toList {self : ConstArray _} =
+pub method toList (self : ConstArray _) =
   let rec loop (n : Int) acc =
     if n == 0 then acc
     else (
@@ -295,7 +292,7 @@ let unsafeFreeze {E, type T} (arr : Array E T) =
 
   This method returns a new immutable array that is a (shallow) copy of given
   mutable array. ##}
-pub method freeze {E, self : Array E _} =
+pub method freeze {E} (self : Array E _) =
   unsafeFreeze {E} self.clone
 
 {## A handler of mutability, that returns an immutable array.
@@ -306,11 +303,11 @@ pub method freeze {E, self : Array E _} =
   without copying the whole array. The call `hMutArray f` is equivalent
   to `hMut (fn mut => f mut >.freeze)`, but faster. ##}
 pub let hMutArray (f : {E : effect} -> Mut E ->[E] Array E _) =
-  handle {effect=E} _ = () in
+  handle _ / E = () in
   unsafeFreeze {E} (f {E} Mut)
 
 {## Convert a list to an immutable array. ##}
-pub method toConstArray {self : List _} =
+pub method toConstArray (self : List _) =
   hMutArray (fn ~mut => self.toArray)
 
 {## Create a new immutable array initialized with results of a pure function.
@@ -335,7 +332,7 @@ pub let initConstArray n f =
   In `arr.iteri f` for each element of the array `arr` the function `f` is
   applied to the index of the element (counting from 0) and the element itself.
 ##}
-pub method iteri {self : ConstArray _} f =
+pub method iteri (self : ConstArray _) f =
   let rec loop (i : Int) =
     if i >= self.length then ()
     else (
@@ -347,5 +344,5 @@ pub method iteri {self : ConstArray _} f =
 {## Iterate function over all elements of an immutable array.
 
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
-pub method iter {self : ConstArray _} f =
+pub method iter (self : ConstArray _) f =
   self.iteri (fn _ => f)

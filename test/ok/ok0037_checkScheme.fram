@@ -1,2 +1,0 @@
-let foo (f : (({type X} -> X) -> _) -> _) =
-  f (fn (x : {type Y} -> _) => x)

@@ -1,4 +1,0 @@
-let f {?x} = x
-let a = f
-
-# @stderr: Unbound type Option
