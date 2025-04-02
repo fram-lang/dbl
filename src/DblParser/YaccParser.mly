@@ -145,8 +145,7 @@ op
 
 ty_expr
 : ty_expr_0 { $1 }
-| KW_TYPE   ty_expr_0 { make (TTypeLbl $2)   }
-| KW_EFFECT ty_expr_0 { make (TEffectLbl $2) }
+| KW_TYPE   ty_expr_0 { make (TTypeLbl $2) }
 ;
 
 ty_expr_no_comma
@@ -365,7 +364,7 @@ effect_resumption_opt
 
 effect_var_opt
 : /* empty */   { None    }
-| SLASH ty_expr { Some $2 }
+| SLASH ty_expr_100 { Some $2 }
 ;
 
 expr_10

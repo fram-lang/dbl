@@ -122,7 +122,7 @@ let rec path_append prefix rest =
 
 let tr_bop_to_type_expr (op: Raw.op_name node) = 
   let make data = { op with data = data } in 
-  make (TVar(NPName (tr_type_bop_id op)))
+  make (TVar(make (NPName (tr_type_bop_id op))))
 
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
@@ -140,7 +140,7 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     make (TEffect (List.map tr_type_expr tps))
   | TApp(tp1, tp2) ->
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
-  | TBOpID op -> make (TVar (NPName (tr_type_bop_id (make op))))
+  | TBOpID op -> make (TVar (make (NPName (tr_type_bop_id (make op)))))
   | TBOp(tp1, op, tp2) -> 
     let t1 = tr_type_expr tp1 in 
     let t2 = tr_type_expr tp2 in 
@@ -267,7 +267,7 @@ let rec tr_type_def (tp : Raw.type_expr) args =
     if not (List.is_empty args) then
       Error.fatal (Error.desugar_error tp.pos)
     else
-      let op_id = make (Raw.TVar(NPName (tr_type_bop_id op), None)) in
+      let op_id = make (Raw.TVar(make (NPName (tr_type_bop_id op)), None)) in
       tr_type_def op_id [tp1; tp2]
   | TVar ({data = NPSel _; _}, _) | TWildcard | TParen _ | TArrow _
   | TEffect _ | TRecord _ | TTypeLbl _ ->
