@@ -217,3 +217,15 @@ let solve_all solver =
       end
     end
   | err -> err
+
+(* ========================================================================= *)
+
+let lit_to_sexpr (x, pol) =
+  if pol then PropVar.to_sexpr x
+  else SExpr.List [ Sym "not"; PropVar.to_sexpr x ]
+
+let clause_to_sexpr cl =
+  SExpr.List (Sym "or" :: List.map lit_to_sexpr cl.lits)
+
+let clauses_to_sexpr solver =
+  List.map clause_to_sexpr (BRef.get solver.clauses)
