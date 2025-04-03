@@ -14,9 +14,7 @@ let tr_bop_id (op : string node) =
 
 (** Translation of the type-level binary operator's name to the regular identifier. *)
 let tr_type_bop_id (op : Raw.op_name node) = 
-  if List.mem op.data [] then (* TODO: add built-in type binops, such as *, + *)
-    Error.fatal (Error.reserved_binop_error op.pos op.data)
-  else "[" ^ op.data ^ "]"
+  "[" ^ op.data ^ "]"
 
 (** Translation of the unary operator's name to the regular identifier. *)
 let make_uop_id str = "(" ^ str ^ " .)"
