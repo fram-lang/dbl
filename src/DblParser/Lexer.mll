@@ -44,6 +44,7 @@ let op_map =
   [ "->", ARROW
   ; "|",  BAR
   ; "=>", ARROW2
+  ; "->>", ARROWW
   ; "|",  BAR
   ; ":",  COLON
   ; ",",  COMMA
