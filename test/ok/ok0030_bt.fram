@@ -23,7 +23,7 @@ let iff b1 b2 =
 let form p q r =
   iff (band p (bor q r)) (bor (band p q) (band p r))
 
-implicit ~flip
+parameter ~flip
 
 let test f =
   f (~flip ()) (~flip ()) (~flip ())

@@ -40,6 +40,10 @@ module Env : sig
     irrelevant contexts. *)
   val add_irr_var : t -> var -> ttype -> t
 
+  (** Extend the environment with a recursively defined variable. It will be
+    available only after the call to [enter_rec_ctx]. *)
+  val add_rec_var : t -> var -> ttype -> t
+
   (** Extend environment with a type variable. It returns its refreshed
     version *)
   val add_tvar : t -> 'k tvar -> t * 'k tvar
@@ -47,9 +51,16 @@ module Env : sig
   (** Extend environment with a list of type variables. *)
   val add_tvars : t -> TVar.ex list -> t * TVar.ex list
 
+  (** Add a list of constraints to the environment. *)
+  val add_constrs : t -> constr list -> t
+
   (** Move to computationally irrelevant context, making all irrelevant
     variables available *)
   val irrelevant : t -> t
+
+  (** Move to recursive context, making all recursively defined variables
+    available *)
+  val enter_rec_ctx : t -> t
 
   (** Lookup for a type of given variable in the environment. *)
   val lookup_var : t -> var -> ttype
@@ -57,17 +68,27 @@ module Env : sig
   (** Lookup for a refreshed version of given type variable. *)
   val lookup_tvar : t -> 'k tvar -> 'k tvar
 
+  (** Get the current set of constraints. *)
+  val constr_set : t -> ConstrSet.t
+
   (** Get the current scope, i.e., set of available (refreshed) type
     variables. *)
   val scope : t -> TVar.Set.t
 end = struct
   module TMap = TVar.Map.Make(TVar)
 
+  type mode =
+    | Regular
+    | Irrelevant
+    | Recursive of int
+
   type t = {
-    var_map    : (bool * ttype) Var.Map.t;
+    var_map    : (mode * ttype) Var.Map.t;
     tvar_map   : TMap.t;
+    constr_set : ConstrSet.t;
     scope      : TVar.Set.t;
-    irrelevant : bool
+    irrelevant : bool;
+    rec_level  : int
   }
 
   let empty =
@@ -77,22 +98,29 @@ end = struct
         (fun tm (_, TVar.Ex x) -> TMap.add x x tm) 
         TMap.empty
         BuiltinType.all
+    ; constr_set = ConstrSet.empty
     ; scope      =
       List.fold_left
         (fun scope (_, TVar.Ex x) -> TVar.Set.add x scope) 
         TVar.Set.empty
         BuiltinType.all
     ; irrelevant = false
+    ; rec_level  = 0
     }
 
   let add_var env x tp =
     { env with
-      var_map = Var.Map.add x (false, tp) env.var_map
+      var_map = Var.Map.add x (Regular, tp) env.var_map
     }
 
   let add_irr_var env x tp =
     { env with
-      var_map = Var.Map.add x (true, tp) env.var_map
+      var_map = Var.Map.add x (Irrelevant, tp) env.var_map
+    }
+
+  let add_rec_var env x tp =
+    { env with
+      var_map = Var.Map.add x (Recursive env.rec_level, tp) env.var_map
     }
 
   let add_tvar env x =
@@ -109,14 +137,23 @@ end = struct
   let add_tvars env xs =
     List.fold_left_map add_tvar_ex env xs
 
+  let add_constrs env cs =
+    { env with constr_set = ConstrSet.add_list env.constr_set cs }
+
   let irrelevant env =
     { env with irrelevant = true }
 
+  let enter_rec_ctx env =
+    { env with rec_level = env.rec_level + 1 }
+
   let lookup_var env x =
     match Var.Map.find x env.var_map with
-    | (irr, _) when irr && not env.irrelevant ->
+    | (Irrelevant, _) when not env.irrelevant ->
       failwith
         "Internal error: using irrelevant variable in a relevant context."
+    | (Recursive lvl, _) when lvl >= env.rec_level ->
+      failwith
+        "Internal error: non-productive recursive definition"
     | (_, tp) -> tp
     | exception Not_found ->
       failwith "Internal error: unbound variable"
@@ -129,6 +166,8 @@ end = struct
         ~provided:(SExprPrinter.tr_tvar x)
         ()
 
+  let constr_set env = env.constr_set
+
   let scope env = env.scope
 end
 
@@ -137,9 +176,6 @@ end
 let rec tr_type : type k. Env.t -> k typ -> k typ =
   fun env tp ->
   match tp with
-  | TUVar _ ->
-    InterpLib.InternalError.report
-      ~reason:"Unsolved unification variables left." ();
   | TEffPure -> TEffPure
   | TEffJoin(eff1, eff2) ->
     TEffJoin(tr_type env eff1, tr_type env eff2)
@@ -149,11 +185,13 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, tr_type env tp)
+  | TGuard(cs, tp) ->
+    TGuard(List.map (tr_constr env) cs, tr_type env tp)
   | TLabel lbl ->
-    let effect = tr_type env lbl.effect in
+    let effct = tr_type env lbl.effct in
     let (env, tvars) = Env.add_tvars env lbl.tvars in
     TLabel
-      { effect; tvars;
+      { effct; tvars;
         val_types = List.map (tr_type env) lbl.val_types;
         delim_tp  = tr_type env lbl.delim_tp;
         delim_eff = tr_type env lbl.delim_eff
@@ -162,6 +200,9 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
     TData(tr_type env tp, tr_type env eff, List.map (tr_ctor_type env) ctors)
   | TApp(tp1, tp2) ->
     TApp(tr_type env tp1, tr_type env tp2)
+
+and tr_constr env (eff1, eff2) =
+  (tr_type env eff1, tr_type env eff2)
 
 (** Ensure well-formedness of a constructor type and refresh its type
   variables according to the environment. *)
@@ -287,12 +328,12 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
     (env, dd_eff)
 
   | DD_Label lbl ->
-    let effect = TVar lbl.tvar in
+    let effct = TVar lbl.tvar in
     let (eff_env, tvars) = Env.add_tvars env lbl.tvars in
     let val_types = List.map (tr_type eff_env) lbl.val_types in
     let delim_tp  = tr_type eff_env lbl.delim_tp in
     let delim_eff = tr_type eff_env lbl.delim_eff in
-    let lbl_tp = TLabel { effect; tvars; val_types; delim_tp; delim_eff } in
+    let lbl_tp = TLabel { effct; tvars; val_types; delim_tp; delim_eff } in
     let env = Env.add_var env lbl.var lbl_tp in
     (* We add nterm effect, since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
@@ -323,15 +364,15 @@ let rec infer_type_eff env e =
   | ELetRec(rds, e) ->
     let env = check_rec_defs env rds in
     infer_type_eff env e
+  | ERecCtx e ->
+    let (tp, eff) = infer_type_eff (Env.enter_rec_ctx env) e in
+    (tp, Effect.join eff Effect.nterm)
   | EApp(v1, v2) ->
     begin match infer_vtype env v1 with
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
-    | TUVar _ ->
-      InterpLib.InternalError.report
-        ~reason:"Unsolved unification variables left." ();
-    | TVar _ | TForall _ | TLabel _ | TData _ | TApp _ ->
+    | TVar _ | TForall _ | TGuard _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
   | ETApp(v, tp) ->
@@ -342,10 +383,21 @@ let rec infer_type_eff env e =
       | Equal    -> (Type.subst_type x tp body, TEffPure)
       | NotEqual -> failwith "Internal kind error"
       end
-    | TUVar _ ->
-      InterpLib.InternalError.report
-        ~reason:"Unsolved unification variables left." ();
-    | TVar _ | TArrow _ | TLabel _ | TData _ | TApp _ ->
+    | TVar _ | TArrow _ | TGuard _ | TLabel _ | TData _ | TApp _ ->
+      failwith "Internal type error"
+    end
+  | ECApp v ->
+    begin match infer_vtype env v with
+    | TGuard(cs, tp) ->
+      if
+        List.for_all
+          (fun (eff1, eff2) -> Type.subeffect (Env.constr_set env) eff1 eff2)
+          cs
+      then
+        (tp, TEffPure)
+      else
+        failwith "Internal type error"
+    | TVar _ | TArrow _ | TForall _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -393,12 +445,9 @@ let rec infer_type_eff env e =
       let env = List.fold_left2 Env.add_var env xs tps in
       let env = Env.add_var env k (TArrow(tp, tp0, eff0)) in
       check_type_eff env body tp0 eff0;
-      (tp, lbl.effect)
+      (tp, lbl.effct)
 
-    | TUVar _ ->
-      InterpLib.InternalError.report
-        ~reason:"Unsolved unification variables left." ();
-    | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
+    | TVar _ | TArrow _ | TForall _ | TGuard _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -413,15 +462,12 @@ let rec infer_type_eff env e =
       let delim_tp = Subst.in_type sub lbl.delim_tp in
       let delim_eff = Subst.in_type sub lbl.delim_eff in
       let x_tp =
-        infer_type_check_eff env body (TEffJoin(lbl.effect, delim_eff)) in
+        infer_type_check_eff env body (TEffJoin(lbl.effct, delim_eff)) in
       let env = Env.add_var env x x_tp in
       check_type_eff env ret delim_tp delim_eff;
       (delim_tp, delim_eff)
 
-    | TUVar _ ->
-      InterpLib.InternalError.report
-        ~reason:"Unsolved unification variables left." ();
-    | TVar _ | TArrow _ | TForall _ | TData _ | TApp _ ->
+    | TVar _ | TArrow _ | TForall _ | TGuard _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
 
@@ -449,6 +495,10 @@ and infer_vtype env v =
   | VTFun(x, body) ->
     let (env, x) = Env.add_tvar env x in
     TForall(x, infer_type_check_eff env body TEffPure)
+  | VCAbs(cs, body) ->
+    let cs = List.map (tr_constr env) cs in
+    let env = Env.add_constrs env cs in
+    TGuard(cs, infer_type_check_eff env body TEffPure)
   | VCtor(proof, n, tps, args) ->
     infer_ctor_type env proof n tps args (check_vtype env)
   | VExtern(_, tp) -> tr_type env tp
@@ -480,7 +530,7 @@ and infer_ctor_type env proof n tps args check_arg =
 (** Infer type of the expression, but check its effect *)
 and infer_type_check_eff env e eff =
   let (tp, eff') = infer_type_eff env e in
-  if Type.subeffect eff' eff then
+  if Type.subeffect (Env.constr_set env) eff' eff then
     tp
   else failwith "Internal effect error"
 
@@ -489,14 +539,14 @@ and infer_type_check_eff env e eff =
   *)
 and check_type_eff env e tp eff =
   let (tp', eff') = infer_type_eff env e in
-  if not (Type.subtype tp' tp) then
+  if not (Type.subtype (Env.constr_set env) tp' tp) then
     InterpLib.InternalError.report
       ~reason:"type mismatch"
       ~sloc:(SExprPrinter.tr_expr e)
       ~requested:(SExprPrinter.tr_type tp)
       ~provided:(SExprPrinter.tr_type tp')
       ();
-  if not (Type.subeffect eff' eff) then
+  if not (Type.subeffect (Env.constr_set env) eff' eff) then
     InterpLib.InternalError.report
       ~reason:"effect mismatch"
       ~sloc:(SExprPrinter.tr_expr e)
@@ -508,7 +558,7 @@ and check_type_eff env e tp eff =
 (** Check type of given value *)
 and check_vtype env v tp =
   let tp' = infer_vtype env v in
-  if Type.subtype tp' tp then
+  if Type.subtype (Env.constr_set env) tp' tp then
     ()
   else InterpLib.InternalError.report
     ~reason:"type mismatch"
@@ -521,84 +571,27 @@ and check_vtype env v tp =
   mutually recursive type definitions: in the first phase, the environment is
   extended, and in the second phase, bodies of the definitions are checked. *)
 and check_rec_defs env rds =
-  let rec_vars = List.map (fun (x, _, _) -> x) rds in
-  let (env, rds) = List.fold_left_map prepare_rec_def env rds in
-  List.iter (check_rec_def env rec_vars) rds;
+  let ((rec_env, env), rds) =
+    List.fold_left_map prepare_rec_def (env, env) rds in
+  List.iter (check_rec_def rec_env) rds;
   env
 
-(** The first phase of checking recursive definition. It returns the extended
-  environment, and untouched body of the definition together with the
-  refreshed type. Note that actual variable is forgotten, because the
-  environment is extended, so the variable is no longer needed. *)
-and prepare_rec_def env (x, tp, body) =
+(** The first phase of checking recursive definition. It returns two extended
+  environments (one for recursive definitions, and one for the body of
+  let-rec), and untouched body of the definition together with the refreshed
+  type. Note that actual variable is forgotten, because the environment is
+  extended, so the variable is no longer needed. *)
+and prepare_rec_def (rec_env, env) (x, tp, body) =
   let tp = tr_type env tp in
+  let rec_env = Env.add_rec_var rec_env x tp in
   let env = Env.add_var env x tp in
-  (env, (body, tp))
+  ((rec_env, env), (body, tp))
 
 (** Check if given body of recursive definition has expected type. The
-  function checks productiveness of the definition, so the list of variables
-  defined in the current recursive block should be provided. *)
-and check_rec_def env rec_vars (body, tp) =
-  check_vtype_productive env rec_vars body tp
-
-(** Check both type and productiveness of given value. Value is considered
-  productive if all non-trivial subexpressions are guarded by
-  lambda-abstraction with [NTerm] effect. The expression is considered
-  non-trivial if it is not a value or is a variable defined in current block
-  of recursive definitions. The [rec_vars] parameter should be a list of
-  such a variables. Only productive values can be used in recursive
-  definitions. *)
-and check_vtype_productive env rec_vars v tp =
-  match v with
-  | VNum _ | VNum64 _ | VStr _ | VExtern _ ->
-    check_vtype env v tp
-  | VVar x when not (List.exists (Var.equal x) rec_vars) ->
-    check_vtype env v tp
-
-  | VFn(x, xtp, body) ->
-    begin match body, tp with
-    | _, TArrow(_, _, eff) when Type.subeffect Effect.nterm eff ->
-      check_vtype env v tp
-    | EValue body, TArrow(tp1, tp2, _) ->
-      let xtp = tr_type env xtp in
-      if not (Type.subtype tp1 xtp) then
-        failwith "Internal type error";
-      let env = Env.add_var env x xtp in
-      let rec_vars = List.filter (Fun.negate (Var.equal x)) rec_vars in
-      check_vtype_productive env rec_vars body tp2
-    | _, TArrow _ ->
-      InterpLib.InternalError.report
-        ~reason:"non-productive recursive definition"
-        ()
-    | _ ->
-      failwith "Internal type error"
-    end
-
-  | VTFun(x, EValue body) ->
-    let (env, x) = Env.add_tvar env x in
-    begin match tp with
-    | TForall(y, tp) ->
-      begin match Kind.equal (TVar.kind x) (TVar.kind y) with
-      | Equal ->
-        let tp = Type.subst_type y (TVar x) tp in
-        check_vtype_productive env rec_vars body tp
-      | NotEqual ->
-        failwith "Internal kind error"
-      end
-    | _ -> failwith "Internal type error"
-    end
-
-  | VCtor(proof, n, tps, args) ->
-    let tp' = infer_ctor_type env proof n tps args
-      (check_vtype_productive env rec_vars) in
-    if Type.subtype tp' tp then
-      ()
-    else failwith "Internal type error"
-
-  | VVar _ | VTFun _ ->
-    InterpLib.InternalError.report
-      ~reason:"non-productive recursive definition"
-      ()
+  function is called on environment extended with [Env.add_rec_var] function,
+  so it also checks if the body is productive. *)
+and check_rec_def env (body, tp) =
+  check_type_eff env body tp TEffPure
 
 (** Check if given program is well-typed *)
 let check_program p =

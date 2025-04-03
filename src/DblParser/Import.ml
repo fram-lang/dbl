@@ -140,12 +140,13 @@ let add_import import defs =
   let open Lang.Surface in
   let make data = { import with data } in
   let mod_id, new_name = import.data in
+  let mod_path = make (NPName mod_id) in
   match new_name with
   | Some new_name ->
-    make (DModule(false, new_name, [ make (DOpen(true, NPName mod_id)) ]))
+    make (DModule(false, new_name, [ make (DOpen(true, mod_path)) ]))
     :: defs
   | None ->
-    make (DOpen(false, NPName mod_id)) :: defs
+    make (DOpen(false, mod_path)) :: defs
 
 let add_imports = List.fold_right add_import
 

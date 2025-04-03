@@ -6,19 +6,19 @@
 
 include SyntaxNode.Export
 
-include UnifPriv.KindBase
 include UnifPriv.TypeBase
 
 type subst = UnifPriv.Subst.t
 
-module Kind = struct
-  include UnifPriv.KindBase
-end
+type kuvar = UnifCommon.Kind.kuvar
 
-module TVar  = UnifPriv.TVar
-module Scope = UnifPriv.Scope
+module KUVar = UnifCommon.Kind.KUVar
+module Kind  = UnifCommon.Kind
 
+module TVar = UnifCommon.TVar
 module Name = UnifPriv.Name
+
+module Effect = UnifPriv.Effect
 
 module Type = struct
   include UnifPriv.TypeBase
@@ -28,14 +28,12 @@ module Type = struct
   let subst = UnifPriv.Subst.in_type
 end
 
-module Effect = UnifPriv.Effect
-
 module Scheme = struct
   let of_type        = UnifPriv.Type.mono_scheme
+  let to_type        = UnifPriv.Type.scheme_to_type
   let is_monomorphic = UnifPriv.Type.scheme_is_monomorphic
   let uvars          = UnifPriv.Type.scheme_uvars
   let collect_uvars  = UnifPriv.Type.collect_scheme_uvars
-  let refresh        = UnifPriv.Type.refresh_scheme
   let subst          = UnifPriv.Subst.in_scheme
 end
 
@@ -50,76 +48,34 @@ module CtorDecl = struct
 
   let find_index cs name = List.find_index (fun c -> c.ctor_name = name) cs
 
-  let strictly_positive = UnifPriv.Type.ctor_strictly_positive
+  let is_positive = UnifPriv.Type.ctor_is_positive
 end
 
 module Subst = UnifPriv.Subst
-module BuiltinType = UnifPriv.BuiltinType
+module BuiltinType = UnifCommon.BuiltinType
 
-type var = Var.t
+include UnifPriv.Syntax
 
-type data_def =
-  | DD_Data of
-    { tvar              : tvar;
-      proof             : var;
-      args              : named_tvar list;
-      ctors             : ctor_decl list;
-      strictly_positive : bool
-    }
+module TypeExpr = struct
+  let to_type = UnifPriv.TypeExpr.to_type
+end
 
-  | DD_Label of
-    { tvar      : tvar;
-      var       : var;
-      delim_tp  : typ;
-      delim_eff : effrow
-    }
+module SchemeExpr = struct
+  let of_type_expr = UnifPriv.TypeExpr.mono_scheme_expr
+  let to_type_expr = UnifPriv.TypeExpr.of_scheme_expr
+  let to_scheme    = UnifPriv.TypeExpr.to_scheme
+  let of_scheme    = UnifPriv.TypeExpr.scheme_expr_of_scheme
+  let subst        = UnifPriv.TypeExpr.subst_in_scheme
+end
 
-type pattern = pattern_data node
-and pattern_data =
-  | PWildcard
-  | PVar  of var * scheme
-  | PCtor of string * int * expr * ctor_decl list * tvar list * pattern list
+module NamedSchemeExpr = struct
+  let to_named_scheme = UnifPriv.TypeExpr.to_named_scheme
+end
 
-and expr = expr_data node
-and expr_data =
-  | EUnitPrf
-  | ENum        of int
-  | ENum64      of int64
-  | EStr        of string
-  | EChr        of char
-  | EVar        of var
-  | EPureFn     of var * scheme * expr
-  | EFn         of var * scheme * expr
-  | ETFun       of tvar * expr
-  | EApp        of expr * expr
-  | ETApp       of expr * typ
-  | ELet        of var * scheme * expr * expr
-  | ELetRec     of rec_def list * expr
-  | ECtor       of expr * int * typ list * expr list
-  | EData       of data_def list * expr
-  | EMatchEmpty of expr * expr * typ * effrow option
-  | EMatch      of expr * match_clause list * typ * effrow option
-  | EHandle     of tvar * var * typ * expr * expr
-  | EHandler    of
-    { label     : var;
-      effect    : tvar;
-      delim_tp  : typ;
-      delim_eff : effect;
-      cap_type  : typ;
-      cap_body  : expr;
-      ret_var   : var;
-      body_tp   : typ;
-      ret_body  : expr;
-      fin_var   : var;
-      fin_body  : expr;
-    }
-  | EEffect     of expr * var * expr * typ
-  | EExtern     of string * typ
-  | ERepl       of (unit -> expr) * typ * effrow
-  | EReplExpr   of expr * string * expr
+module CtorDeclExpr = struct
+  let to_ctor_decl = UnifPriv.TypeExpr.to_ctor_decl
+end
 
-and rec_def = var * scheme * expr
-
-and match_clause = pattern * expr
-
-type program = expr
+module ProofExpr = UnifPriv.ProofExpr
+module Ren = UnifPriv.Ren
+module Pretty = UnifPriv.Pretty

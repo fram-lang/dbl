@@ -5,365 +5,393 @@
 (** Type-inference for expressions and related syntactic categories *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
-
-(* ------------------------------------------------------------------------- *)
-(** Default behaviour of type-inferece for application *)
-let infer_app_type ~tcfix ~pos env e1 e2 eff =
-  let open (val tcfix : TCFix) in
-  let make data = T.{ data; pos } in
-  let (e1, ftp, r_eff1) = infer_expr_type env e1 eff in
-  match Unification.to_arrow env ftp with
-  | Arr_UVar -> assert false
-  | Arr_Pure(sch, vtp) ->
-    let (e2, r_eff2) = PolyExpr.check_actual_arg ~tcfix env e2 sch eff in
-    (make (T.EApp(e1, e2)), vtp, ret_effect_join r_eff1 r_eff2)
-  | Arr_Impure(sch, vtp, f_eff) ->
-    let (e2, r_eff2) = PolyExpr.check_actual_arg ~tcfix env e2 sch eff in
-    Error.check_unify_result ~pos:e1.pos
-      (Unification.subeffect env f_eff eff)
-      ~on_error:(Error.func_effect_mismatch ~env f_eff eff);
-    (make (T.EApp(e1, e2)), vtp, Impure)
-  | Arr_No ->
-    Error.fatal (Error.expr_not_function ~pos:e1.pos ~env ftp)
 
 (* ------------------------------------------------------------------------- *)
 (** Bidirectional type-checker of expressions *)
 let tr_expr : type dir. tcfix:tcfix ->
-  Env.t -> S.expr -> (T.typ, dir) request -> T.effrow ->
-    (T.expr * (T.typ, dir) response * ret_effect) =
-  fun ~tcfix env e tp_req eff ->
+  _ Env.t -> S.expr -> (T.typ, dir) request -> dir expr_result =
+  fun ~tcfix env e tp_req ->
   let open (val tcfix : TCFix) in
   match tp_req with
-  | Infer ->
-    let (e, tp, r_eff) = infer_expr_type env e eff in
-    (e, Infered tp, r_eff)
-  | Check tp ->
-    let (e, r_eff) = check_expr_type env e tp eff in
-    (e, Checked, r_eff)
+  | Infer    -> infer_expr_type env e
+  | Check tp -> check_expr_type env e tp
 
 (* ------------------------------------------------------------------------- *)
-let infer_expr_type ~tcfix env (e : S.expr) eff =
+let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   let open (val tcfix : TCFix) in
-  let make data = { e with data = data } in
   let pos = e.pos in
+  let pp = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match e.data with
   | EMatch _ | EEffect _ | EExtern _ | ERepl _ ->
     let tp = Env.fresh_uvar env T.Kind.k_type in
-    let (e, r_eff) = check_expr_type env e tp eff in
-    (e, tp, r_eff)
+    let er = check_expr_type env e tp in
+    { er with er_type = Infered tp }
 
   | EUnit ->
-    (make (T.ECtor(make T.EUnitPrf, 0, [], [])), T.Type.t_unit, Pure)
+    { er_expr   = make (T.EInst(make (T.ECtor([], T.PE_Unit, 0)), [], []));
+      er_type   = Infered T.Type.t_unit;
+      er_effect = Pure;
+      er_constr = []
+    }
 
   | ENum n ->
-    (make (T.ENum n), T.Type.t_var T.BuiltinType.tv_int, Pure)
+    { er_expr   = make (T.ENum n);
+      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_int);
+      er_effect = Pure;
+      er_constr = []
+    }
 
   | ENum64 n ->
-    (make (T.ENum64 n), T.Type.t_var T.BuiltinType.tv_int64, Pure)
+    { er_expr   = make (T.ENum64 n);
+      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_int64);
+      er_effect = Pure;
+      er_constr = []
+    }
 
   | EStr s ->
-    (make (T.EStr s), T.Type.t_var T.BuiltinType.tv_string, Pure)
+    { er_expr   = make (T.EStr s);
+      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_string);
+      er_effect = Pure;
+      er_constr = []
+    }
 
   | EChr c ->
-    (make (T.EChr c), T.Type.t_var T.BuiltinType.tv_char, Pure)
+    { er_expr   = make (T.EChr c);
+      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_char);
+      er_effect = Pure;
+      er_constr = []
+    }
 
-  | EPoly(e, tinst, inst) ->
-    let (p_ctx, e, sch, hints1) = PolyExpr.infer_scheme ~tcfix env e eff in
-    Uniqueness.check_type_inst_uniqueness tinst;
-    Uniqueness.check_inst_uniqueness inst;
-    let tinst = Type.check_type_insts env tinst sch.sch_targs in
-    let (hints2, cached_inst) =
-      TypeHints.extract_implicit_type_hints ~tcfix ~pos env sch inst eff in
-    let hints = TypeHints.merge_hints hints1 hints2 in
-    let (sub, tps) =
-      ExprUtils.guess_types ~pos ~tinst ~hints env sch.sch_targs in
-    let e = ExprUtils.make_tapp e tps in
-    let named = List.map (T.NamedScheme.subst sub) sch.sch_named in
-    let (i_ctx, inst, r_eff) =
-      PolyExpr.check_explicit_insts ~tcfix env named inst cached_inst eff in
-    let e = ExprUtils.instantiate_named_params env e named inst in
-    let tp = T.Type.subst sub sch.sch_body in
-    (p_ctx (i_ctx e) tp r_eff)
+  | EPoly(e, inst) ->
+    let (p_ctx, e, sch) = PolyExpr.infer_use_scheme ~tcfix ?app_type env e in
+    PolyExpr.plug_inst_context p_ctx
+      (Inst.instantiate_poly_expr ~tcfix ~pos env e sch inst)
 
-  | EFn(arg, body) ->
+  | EFn(pat, body) ->
     let tp2 = Env.fresh_uvar env T.Kind.k_type in
-    let body_eff = Env.fresh_uvar env T.Kind.k_effrow in
-    let (env, pat, sch, r_eff1) = Pattern.infer_arg_scheme env arg in
-    let (body, r_eff2) = check_expr_type env body tp2 body_eff in
-    let meff = match_effect (ret_effect_join r_eff1 r_eff2) body_eff in
-    let (x, body) = ExprUtils.arg_match pat body tp2 meff in
-    begin match ret_effect_join r_eff1 r_eff2 with
-    | Pure ->
-      let b = Unification.subeffect env body_eff T.Effect.pure in
-      assert (b = Unify_Success);
-      (make (T.EPureFn(x, sch, body)), T.Type.t_pure_arrow sch tp2, Pure)
-    | Impure ->
-      (make (T.EFn(x, sch, body)), T.Type.t_arrow sch tp2 body_eff, Pure)
-    end
+    let (env, pat, sch_expr, eff1) = Pattern.infer_scheme_ext env pat in
+    let sch = T.SchemeExpr.to_scheme sch_expr in
+    let er_body = check_expr_type env body tp2 in
+    let eff = T.Effect.join eff1 er_body.er_effect in
+    let (x, body) = ExprUtils.match_var pat er_body.er_expr tp2 eff in
+    { er_expr   = make (T.EFn(x, sch_expr, body, eff));
+      er_type   = Infered (T.Type.t_arrow sch tp2 eff);
+      er_effect = Pure;
+      er_constr = er_body.er_constr
+    }
 
   | EApp(e1, e2) ->
-    begin match e1.data with
-    | EPoly({ data = EVar x; _ }, tinst, insts) ->
-      begin match Env.lookup_var env x with
-      | Some (VI_MethodFn name) ->
-        let new_m = { e with data = S.EMethod(e2, name) } in
-        let new_e = { e1 with data = S.EPoly(new_m, tinst, insts) } in
-        infer_expr_type env new_e eff
-      | _ -> infer_app_type ~tcfix ~pos env e1 e2 eff
+    let er1 = infer_expr_type ?app_type env e1 in
+    let ftp = expr_result_type er1 in
+    begin match Unification.to_arrow env ftp with
+    | Arr_UVar -> assert false
+    | Arr_Arrow(sch, tp2, eff) ->
+      begin match PolyExpr.check_def_scheme ~tcfix env e2 sch with
+      | Mono er2 ->
+        { er_expr   = make (T.EAppMono(er1.er_expr, er2.er_expr));
+          er_type   = Infered tp2;
+          er_effect = T.Effect.joins [er1.er_effect; er2.er_effect; eff];
+          er_constr = er1.er_constr @ er2.er_constr
+        }
+      | Poly(e2, cs2) ->
+        { er_expr   = make (T.EAppPoly(er1.er_expr, e2));
+          er_type   = Infered tp2;
+          er_effect = T.Effect.joins [er1.er_effect; eff];
+          er_constr = er1.er_constr @ cs2
+        }
       end
-    | _ -> infer_app_type ~tcfix ~pos env e1 e2 eff
+    | Arr_No ->
+      Error.fatal (Error.expr_not_function ~pos:e1.pos ~pp ftp)
     end
 
   | EDefs(defs, e) ->
-    let (e, Infered tp, r_eff) =
-      check_defs env ImplicitEnv.empty defs Infer eff
-        { run = fun env _ req eff -> tr_expr ~tcfix env e req eff }
-    in
-    (e, tp, r_eff)
+    let env = Env.enter_section env in
+    check_defs env defs Infer
+      { run = fun env req ->
+          let env = Env.leave_section env in
+          tr_expr ~tcfix env e req
+      }
 
-  | EHandler(h, rcs, fcs) ->
+  | EHandler(cap, rcs, fcs) ->
+    let fin_tp = Env.fresh_uvar env T.Kind.k_type in
     (* TODO: effect and label could be named here *)
-    let (env, a) = Env.add_the_effect ~pos:e.pos env in
-    let delim_tp  = Env.fresh_uvar env T.Kind.k_type in
-    let delim_eff = Env.fresh_uvar env T.Kind.k_effrow in
-    let (env, lx) =
-      Env.add_the_label env (T.Type.t_var a) delim_tp delim_eff in
-    let (h, tp, r_eff) = infer_expr_type env h T.Effect.pure in
-    begin match r_eff with
+    let (env, _) = Env.enter_scope env in
+    let (env, a) = Env.add_anon_tvar ~pos ~name:"E" env T.Kind.k_effect in
+    let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+    let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
+    let er_cap = infer_expr_type env cap in
+    begin match er_cap.er_effect with
     | Pure -> ()
-    | Impure -> Error.report (Error.impure_handler ~pos:e.pos)
+    | Impure -> Error.report (Error.impure_handler ~pos)
     end;
-    let (ret_x, Infered body_tp, ret_body, Checked) =
-      MatchClause.tr_opt_clauses ~tcfix ~pos:e.pos env Infer rcs
-        (Check delim_tp) delim_eff
-        ~on_error:(fun ~pos -> assert false) in
-    let fin_eff = Env.fresh_uvar env T.Kind.k_effrow in
-    let (fin_x, Checked, fin_body, Infered fin_tp) =
-      MatchClause.tr_opt_clauses ~tcfix ~pos:e.pos env (Check delim_tp) fcs
-        Infer fin_eff
-        ~on_error:(fun ~pos -> assert false) in
-    Error.check_unify_result ~pos
-      (Unification.subeffect env delim_eff fin_eff)
-      ~on_error:(Error.finally_effect_mismatch ~env delim_eff fin_eff);
-    let e =
-      make (T.EHandler {
-        label     = lx;
-        effect    = a;
-        delim_tp  = delim_tp;
-        delim_eff = delim_eff;
-        cap_type  = tp;
-        cap_body  = h;
-        ret_var   = ret_x;
-        body_tp   = body_tp;
-        ret_body  = ret_body;
-        fin_var   = fin_x;
-        fin_body  = fin_body;
-      }) in
-    (e, T.Type.t_handler a tp body_tp delim_eff fin_tp fin_eff, Pure)
+    let cap_tp = expr_result_type er_cap in
+    let body_tp = Env.fresh_uvar env T.Kind.k_type in
+    let (ret_x, er_ret) =
+      MatchClause.tr_return_clauses ~tcfix ~pos env body_tp rcs
+        (Check delim_tp) in
+    let (fin_x, er_fin) =
+      MatchClause.tr_finally_clauses ~tcfix ~pos env delim_tp fcs
+        (Check fin_tp) in
+    { er_expr   = make (T.EHandler {
+          label    = lx;
+          eff_var  = a;
+          delim_tp = delim_tp;
+          cap_type = cap_tp;
+          cap_body = er_cap.er_expr;
+          ret_var  = ret_x;
+          body_tp  = body_tp;
+          ret_body = er_ret.er_expr;
+          fin_var  = fin_x;
+          fin_body = er_fin.er_expr;
+        });
+      er_type   = Infered (T.Type.t_handler a cap_tp body_tp fin_tp);
+      er_effect = Pure;
+      er_constr = er_cap.er_constr @ er_ret.er_constr @ er_fin.er_constr
+    }
 
   | EAnnot(e, tp) ->
-    let tp = Type.tr_ttype env tp in
-    let (e, r_eff) = check_expr_type env e tp eff in
-    (e, tp, r_eff)
+    let tp_expr = Type.tr_ttype env tp in
+    let tp = T.TypeExpr.to_type tp_expr in
+    let er = check_expr_type env e tp in
+    { er_expr = make (T.EAnnot(er.er_expr, tp_expr));
+      er_type = Infered tp;
+      er_effect = er.er_effect;
+      er_constr = er.er_constr
+    }
+
+(* ------------------------------------------------------------------------- *)
+(** Infer the type of optional label *)
+let check_label ~tcfix ~pos env lbl_opt =
+  let (lbl, lbl_tp, cs) =
+    match lbl_opt with
+    | Some lbl ->
+      let er = infer_expr_type ~tcfix env lbl in
+      (er.er_expr, expr_result_type er, er.er_constr)
+    | None ->
+      begin match ModulePath.try_lookup_the_label ~pos env with
+      | None -> Error.fatal (Error.unbound_the_label ~pos)
+      | Some(x, sch) ->
+        let lbl =
+          { T.pos = pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
+        ParamResolve.instantiate ~pos env ParamResolve.no_reinst lbl sch
+      end
+  in
+  let delim_tp =
+    match Unification.to_label env lbl_tp with
+    | L_Label delim_tp -> delim_tp
+    | L_No ->
+      let pp = Env.pp_tree env in
+      begin match lbl_opt with
+      | Some _ ->
+        Error.report (Error.expr_not_label ~pos:lbl.pos ~pp lbl_tp)
+      | None ->
+        Error.report (Error.wrong_label_type ~pos ~pp lbl_tp)
+      end;
+      Env.fresh_uvar env T.Kind.k_type
+  in
+  (lbl, delim_tp, cs)
 
 (* ------------------------------------------------------------------------- *)
 (** Check the sequence of REPL definitions, provided by a user. Always
   in type-check mode. *)
-let rec check_repl_def_seq ~tcfix env ienv def_seq tp eff =
+let rec check_repl_def_seq ~tcfix env def_seq tp =
   let open (val tcfix : TCFix) in
   let func () =
     match def_seq () with
     | Seq.Nil -> assert false
-    | Seq.Cons(def, def_seq) ->
-      let cont (type dir) env ienv (tp_req : (_, dir) request) eff :
-          _ * (_, dir) response * _ =
-        match tp_req with
-        | Check tp ->
-          let e = check_repl_def_seq ~tcfix env ienv def_seq tp eff in
-          (e, Checked, Impure)
-        | Infer ->
-          let tp = Env.fresh_uvar env T.Kind.k_type in
-          let e = check_repl_def_seq ~tcfix env ienv def_seq tp eff in
-          (e, Infered tp, Impure)
+    | Seq.Cons(defs, def_seq) ->
+      let cont (type dir) env (tp_req : (_, dir) request) :
+          dir expr_result =
+        let (tp, tp_resp) : _ * (_, dir) response =
+          match tp_req with
+          | Check tp -> (tp, Checked)
+          | Infer    ->
+            let tp = Env.fresh_uvar env T.Kind.k_type in
+            (tp, Infered tp)
+        in
+        { er_expr   = check_repl_def_seq ~tcfix env def_seq tp;
+          er_type   = tp_resp;
+          er_effect = Impure;
+          er_constr = []
+        }
       in
-      let (e, Checked, _) =
-        check_defs env ienv def (Check tp) eff { run = cont } in
-      e
+      let er = check_defs env defs (Check tp) { run = cont } in
+      ConstrSolve.solve_all er.er_constr;
+      er.er_expr
   in
-  let e =
-    { T.pos  = Position.nowhere;
-      T.data = T.ERepl(InterpLib.Error.wrap_repl_cont func, tp, eff)
-    } in
-  e
+  { T.pos  = Position.nowhere;
+    T.pp   = Env.pp_tree env;
+    T.data = T.ERepl(InterpLib.Error.wrap_repl_cont func, tp)
+  }
 
 (* ------------------------------------------------------------------------- *)
 (** Default action in type-check mode: switching to infer mode *)
-let check_expr_type_default ~tcfix env (e : S.expr) tp eff =
-  let open (val tcfix : TCFix) in
-  let pos = e.pos in
-  let (e, tp', r_eff) = infer_expr_type env e eff in
-  Error.check_unify_result ~pos
+let check_expr_type_default ~tcfix env (e : S.expr) tp =
+  let er = infer_expr_type ~tcfix ~app_type:tp env e in
+  let tp' = expr_result_type er in
+  Error.check_unify_result ~pos:e.pos
     (Unification.subtype env tp' tp)
-    ~on_error:(Error.expr_type_mismatch ~env tp' tp);
-  (e, r_eff)
+    ~on_error:(Error.expr_type_mismatch ~pp:(Env.pp_tree env) tp' tp);
+  { er with er_type = Checked }
 
 (* ------------------------------------------------------------------------- *)
-let check_expr_type ~tcfix env (e : S.expr) tp eff =
+let check_expr_type ~tcfix env (e : S.expr) tp =
   let open (val tcfix : TCFix) in
-  let make data = { e with data = data } in
   let pos = e.pos in
+  let pp = Env.pp_tree env in
+  let make data = T.{ pos; pp; data } in
   match e.data with
-  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ ->
-    check_expr_type_default ~tcfix env e tp eff
+  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _
+  | EAnnot _ ->
+    check_expr_type_default ~tcfix env e tp
 
-  | EFn(arg, body) ->
+  | EFn(pat, body) ->
     begin match Unification.from_arrow env tp with
     | Arr_UVar ->
-      check_expr_type_default ~tcfix env e tp eff
-
-    | Arr_Pure(sch, tp2) ->
-      let (env, pat, r_eff1) = Pattern.check_arg_scheme env arg sch in
-      let (body, r_eff2) = check_expr_type env body tp2 T.Effect.pure in
-      if ret_effect_join r_eff1 r_eff2 <> Pure then
-        Error.report (Error.func_not_pure ~pos);
-      let (x, body) = ExprUtils.arg_match pat body tp2 None in
-      (make (T.EPureFn(x, sch, body)), Pure)
-
-    | Arr_Impure(sch, tp2, eff) ->
-      let (env, pat, _) = Pattern.check_arg_scheme env arg sch in
-      let (body, _) = check_expr_type env body tp2 eff in
-      let (x, body) = ExprUtils.arg_match pat body tp2 (Some eff) in
-      (make (T.EFn(x, sch, body)), Pure)
-
+      check_expr_type_default ~tcfix env e tp
+    | Arr_Arrow(sch, tp2, eff) ->
+      let sch_expr = T.SchemeExpr.of_scheme ~pos:pat.pos ~pp sch in
+      let (env, pat, pat_eff) = Pattern.check_scheme_ext env pat sch in
+      let er_body = check_expr_type env body tp2 in
+      let fun_eff = T.Effect.join pat_eff er_body.er_effect in
+      begin match fun_eff, eff with
+      | Impure, Pure -> Error.report (Error.func_not_pure ~pos)
+      | Pure, _ | _, Impure -> ()
+      end;
+      let (x, body) = ExprUtils.match_var pat er_body.er_expr tp2 eff in
+      { er_expr   = make (T.EFn(x, sch_expr, body, eff));
+        er_type   = Checked;
+        er_effect = Pure;
+        er_constr = er_body.er_constr
+      }
     | Arr_No ->
-      Error.report (Error.expr_not_function_ctx ~pos ~env tp);
-      let (e, _, r_eff) = infer_expr_type env e eff in
-      (e, r_eff)
+      Error.report (Error.expr_not_function_ctx ~pos ~pp tp);
+      let er = infer_expr_type env e in
+      { er with er_type = Checked }
     end
 
   | EDefs(defs, e) ->
-    let (e, Checked, r_eff) =
-      check_defs env ImplicitEnv.empty defs (Check tp) eff
-        { run = fun env _ req eff -> tr_expr ~tcfix env e req eff }
-    in
-    (e, r_eff)
+    let env = Env.enter_section env in
+    check_defs env defs (Check tp)
+      { run = fun env req ->
+          let env = Env.leave_section env in
+          tr_expr ~tcfix env e req }
 
   | EMatch(me, []) ->
-    let (me, me_tp, r_eff1) = infer_expr_type env me eff in
-    begin match T.Type.whnf me_tp with
+    let er = infer_expr_type env me in
+    let mtp = expr_result_type er in
+    begin match T.Type.whnf mtp with
     | Whnf_Neutral(NH_Var x, targs_rev) ->
       begin match Env.lookup_adt env x with
-      | Some { adt_ctors = []; adt_proof; adt_strictly_positive; _ } ->
-        let targs = List.rev targs_rev in
-        let proof = ExprUtils.make_tapp adt_proof targs in
-        let (meff, r_eff2) =
-          if adt_strictly_positive then (None, Pure)
-          else (Some eff, Impure)
-        in
-        (make (T.EMatchEmpty(proof, me, tp, meff)),
-          ret_effect_join r_eff1 r_eff2)
+      | Some { adt_ctors = []; adt_args; adt_proof; adt_effect; _ } ->
+        assert (List.length adt_args = List.length targs_rev);
+        let sub = List.fold_left2
+          (fun sub (_, x) tp -> T.Subst.add_type sub x tp)
+          (T.Subst.empty ~scope:(Env.scope env))
+          adt_args (List.rev targs_rev) in
+        let proof = T.ProofExpr.subst sub adt_proof in
+        let eff = T.Effect.join er.er_effect adt_effect in
+        { er_expr   = make (T.EMatchEmpty(proof, er.er_expr, tp, eff));
+          er_type   = Checked;
+          er_effect = eff;
+          er_constr = er.er_constr
+        }
 
       | Some { adt_ctors = _ :: _; _ } ->
-        Error.fatal (Error.empty_match_on_nonempty_adt ~pos ~env me_tp)
+        Error.fatal (Error.empty_match_on_nonempty_adt ~pos ~pp mtp)
       | None ->
-        Error.fatal (Error.empty_match_on_non_adt ~pos ~env me_tp)
+        Error.fatal (Error.empty_match_on_non_adt ~pos ~pp mtp)
       end
 
-    | Whnf_Neutral(NH_UVar _, _) | Whnf_PureArrow _
-    | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
-      Error.fatal (Error.empty_match_on_non_adt ~pos ~env me_tp)
+    | Whnf_Neutral(NH_UVar _, _) | Whnf_Arrow _ | Whnf_Handler _
+    | Whnf_Label _ ->
+      Error.fatal (Error.empty_match_on_non_adt ~pos ~pp mtp)
 
-    | Whnf_Effect _ | Whnf_Effrow _ ->
+    | Whnf_Effect ->
       failwith "Internal kind error"
     end
 
   | EMatch(e, cls) ->
-    let (e, e_tp, r_eff1) = infer_expr_type env e eff in
-    let (cls, r_eff2) =
-      MatchClause.check_match_clauses ~tcfix env e_tp cls tp eff in
-    (make (T.EMatch(e, cls, tp, match_effect r_eff2 eff)),
-      ret_effect_join r_eff1 r_eff2)
+    let er = infer_expr_type env e in
+    let mtp = expr_result_type er in
+    let (cls, meff, cs) =
+      MatchClause.check_match_clauses ~tcfix env mtp cls tp in
+    let eff = T.Effect.join er.er_effect meff in
+    { er_expr   = make (T.EMatch(er.er_expr, cls, tp, eff));
+      er_type   = Checked;
+      er_effect = eff;
+      er_constr = er.er_constr @ cs
+    }
 
-  | EHandler(body, rcs, fcs) ->
+  | EHandler(cap, rcs, fcs) ->
     begin match Unification.from_handler env tp with
-    | H_Handler(b, cap_tp, tp_in, eff_in, tp_out, eff_out) ->
-      let (env, a) = Env.add_the_effect ~pos env in
-      let sub    = T.Subst.rename_to_fresh T.Subst.empty b a in
+    | H_Handler(b, cap_tp, tp_in, tp_out) ->
+      (* TODO: effect and label could be named here *)
+      let (env, scope) = Env.enter_scope env in
+      let (env, a) = Env.add_anon_tvar ~pos ~name:"E" env T.Kind.k_effect in
+      let sub = T.Subst.rename_tvar (T.Subst.empty ~scope) b a in
       let cap_tp = T.Type.subst sub cap_tp in
       let tp_in  = T.Type.subst sub tp_in in
-      let eff_in = T.Type.subst sub eff_in in
-      let delim_tp  = Env.fresh_uvar env T.Kind.k_type in
-      let delim_eff = Env.fresh_uvar env T.Kind.k_effrow in
-      Error.check_unify_result ~pos
-        (Unification.subeffect env eff_in (T.Effect.cons a delim_eff))
-        ~on_error:(fun ~pos -> assert false);
-      let (env, lx) =
-        Env.add_the_label env (T.Type.t_var a) delim_tp delim_eff in
-      let (body, r_eff) = check_expr_type env body cap_tp T.Effect.pure in
-      begin match r_eff with
+      let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+      let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
+      let er_cap = check_expr_type env cap cap_tp in
+      begin match er_cap.er_effect with
       | Pure -> ()
       | Impure -> Error.report (Error.impure_handler ~pos)
       end;
-      let (ret_var, Checked, ret_body, Checked) =
-        MatchClause.tr_opt_clauses ~tcfix ~pos env
-          (Check tp_in) rcs (Check delim_tp) delim_eff
-          ~on_error:(Error.return_type_mismatch ~env tp_in delim_tp) in
-      Error.check_unify_result ~pos
-        (Unification.subeffect env delim_eff eff_out)
-        ~on_error:(Error.finally_effect_mismatch ~env delim_eff eff_out);
-      let (fin_var, Checked, fin_body, Checked) =
-        MatchClause.tr_opt_clauses ~tcfix ~pos env
-          (Check delim_tp) fcs (Check tp_out) eff_out
-          ~on_error:(Error.finally_type_mismatch ~env delim_tp tp_out) in
-      let e =
-        make (T.EHandler {
-          label     = lx;
-          effect    = a;
-          delim_tp  = delim_tp;
-          delim_eff = delim_eff;
-          cap_type  = cap_tp;
-          cap_body  = body;
-          ret_var   = ret_var;
-          body_tp   = tp_in;
-          ret_body  = ret_body;
-          fin_var   = fin_var;
-          fin_body  = fin_body;
-        }) in
-      (e, Pure)
-
+      let (ret_x, er_ret) =
+        MatchClause.tr_return_clauses ~tcfix ~pos env tp_in rcs
+          (Check delim_tp) in
+      let (fin_x, er_fin) =
+        MatchClause.tr_finally_clauses ~tcfix ~pos env delim_tp fcs
+          (Check tp_out) in
+      { er_expr   = make (T.EHandler {
+            label    = lx;
+            eff_var  = a;
+            delim_tp = delim_tp;
+            cap_type = cap_tp;
+            cap_body = er_cap.er_expr;
+            ret_var  = ret_x;
+            body_tp  = tp_in;
+            ret_body = er_ret.er_expr;
+            fin_var  = fin_x;
+            fin_body = er_fin.er_expr;
+          });
+        er_type   = Checked;
+        er_effect = Pure;
+        er_constr = er_cap.er_constr @ er_ret.er_constr @ er_fin.er_constr
+      }
     | H_No ->
-      Error.fatal (Error.expr_not_handler_ctx ~pos ~env tp)
+      Error.fatal (Error.expr_not_handler_ctx ~pos ~pp tp)
     end
 
-  | EEffect(arg, body) ->
-    begin match Env.lookup_the_label env with
-    | Some(lx, l_eff0, res_tp, res_eff) ->
-      let l_eff = T.Type.t_closed_effrow (T.Type.effect_view l_eff0) in
-      Error.check_unify_result ~pos
-        (Unification.subeffect env l_eff eff)
-        ~on_error:(Error.expr_effect_mismatch ~env l_eff eff);
-      let r_tp = T.Type.t_arrow (T.Scheme.of_type tp) res_tp res_eff in
-      let (env, rpat, _) =
-        Pattern.check_arg_scheme env arg (T.Scheme.of_type r_tp) in
-      let (body, _) = check_expr_type env body res_tp res_eff in
-      let (x, body) = ExprUtils.arg_match rpat body res_tp (Some res_eff) in
-      let e = make (T.EEffect(make (T.EVar lx), x, body, tp)) in
-      (e, Impure)
-
-    | None ->
-      Error.fatal (Error.unbound_the_label ~pos)
-    end
+  | EEffect(lbl_opt, cont_pat, body) ->
+    let (lbl, delim_tp, lbl_cs) = check_label ~tcfix ~pos env lbl_opt in
+    let cont_tp = T.Type.t_arrow (T.Scheme.of_type tp) delim_tp Impure in
+    let (env, cont_pat, _) = Pattern.check_type_ext env cont_pat cont_tp in
+    let er_body = check_expr_type env body delim_tp in
+    let (x, body) =
+      ExprUtils.match_var cont_pat er_body.er_expr delim_tp Impure in
+    { er_expr   = make (T.EEffect(lbl, x, body, tp));
+      er_type   = Checked;
+      er_effect = Impure;
+      er_constr = lbl_cs @ er_body.er_constr
+    }
 
   | EExtern name ->
-    (make (T.EExtern(name, tp)), Pure)
-
-  | EAnnot(e', tp') ->
-    let tp' = Type.tr_ttype env tp' in
-    Error.check_unify_result ~pos
-      (Unification.subtype env tp' tp)
-      ~on_error:(Error.expr_type_mismatch ~env tp' tp);
-    check_expr_type env e' tp' eff
+    { er_expr   = make (T.EExtern(name, tp));
+      er_type   = Checked;
+      er_effect = Pure;
+      er_constr = []
+    }
 
   | ERepl def_seq ->
-    (check_repl_def_seq ~tcfix env ImplicitEnv.empty def_seq tp eff, Impure)
+    let env = Env.enter_section env in
+    { er_expr   = check_repl_def_seq ~tcfix env def_seq tp;
+      er_type   = Checked;
+      er_effect = Impure;
+      er_constr = []
+    }
