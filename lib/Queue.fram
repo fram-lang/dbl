@@ -162,11 +162,11 @@ let rec toList queue =
 
 pub let fromList list = List.foldLeft snoc emptyQueue list
 
-pub method isEmpty = isEmpty self
-pub method snoc = snoc self
-pub method tail = tail self
-pub method push = snoc self
-pub method pop = tail self
-pub method head = head self
-pub method map = mapQueue self
-pub method toList = toList self
+pub method isEmpty self = isEmpty self
+pub method snoc self = snoc self
+pub method tail self = tail self
+pub method push self = snoc self
+pub method pop self = tail self
+pub method head self = head self
+pub method map self = mapQueue self
+pub method toList self = toList self

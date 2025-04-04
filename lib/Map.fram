@@ -8,7 +8,7 @@ import open RedBlackTree
  # Signature
  #}
 
-implicit ~onError
+parameter ~onError
 
 pub data Map Key = Map of {
   T
@@ -76,7 +76,7 @@ pub data Map Key = Map of {
    # @return updated tree
    ##}
   , method update : {type Val,E} -> T Val -> Key ->
-      (Option Val ->[|E] Option Val) ->[|E] T Val
+      (Option Val ->[E] Option Val) ->[E] T Val
 
  {## @brief Method to fold left through structure of map
    # @param Function that receives key, value and accumulator
@@ -85,7 +85,7 @@ pub data Map Key = Map of {
    # and values of map and accumulator
    ##}
   , method foldl : {type Val, type A,E} -> T Val ->
-      (Key -> Val -> A ->[|E] A) -> A ->[|E] A
+      (Key -> Val -> A ->[E] A) -> A ->[E] A
 
  {## @brief Method to fold right through structure of map
    # @param Function that receives key, value and accumulator
@@ -94,7 +94,7 @@ pub data Map Key = Map of {
    # and values of map and accumulator
    ##}
   , method foldr : {type Val, type A,E} -> T Val ->
-      (Key -> Val -> A ->[|E] A) -> A ->[|E] A
+      (Key -> Val -> A ->[E] A) -> A ->[E] A
 
  {## @brief Method that returns list of pairs (key,value)
    ##}
@@ -111,24 +111,24 @@ pub data Map Key = Map of {
  {## @brief Method that maps all values using given function
    ##}
   , method mapVal : {type Val, type A, E} -> T Val ->
-      (Val ->[|E] A) ->[|E] T A
+      (Val ->[E] A) ->[E] T A
 
  {## @brief Method that maps all (key,value) in a map to (key, func key)
    ##}
   , method mapKey : {type Val, type A,E} -> T Val ->
-      (Key ->[|E] A) ->[|E] T A
+      (Key ->[E] A) ->[E] T A
 
  {##  @brief Method that applies function to every key and value
    ##}
   , method iter : {type Val,E} -> T Val ->
-      (Key -> Val ->[|E] Unit) ->[|E] Unit
+      (Key -> Val ->[E] Unit) ->[E] Unit
 
  {## @brief Method that joins two maps
    # @param Function that resolves conflicts
    # if maps have the same key
    ##}
   , method union : {type Val,E} -> T Val -> T Val ->
-      (Key -> Val -> Val ->[|E] Val) ->[|E] T Val
+      (Key -> Val -> Val ->[E] Val) ->[E] T Val
 
  {## @brief Method that splits map into two maps one with
    # the keys lower then given key, the other with greater.
@@ -606,7 +606,7 @@ pub let make {Key} (compare : Key -> Key ->[] Ordered) = Map {
   , method removeChange = removeChangeT compare
   , method member = memberT compare
   , method find = findT compare
-  , method findErr = findErrT compare
+  , method findErr = fn {~onError} => findErrT compare
   , method update = updateT compare
   , method foldl = mapFoldl
   , method foldr = mapFoldr
@@ -621,15 +621,15 @@ pub let make {Key} (compare : Key -> Key ->[] Ordered) = Map {
   , method partionLt = partionLtT compare
   , method partionGt = partionGtT compare
   , method lowerBound = lowerBoundT
-  , method lowerBoundErr = lowerBoundTErr
+  , method lowerBoundErr = fn {~onError} => lowerBoundTErr
   , method upperBound = upperBoundT
-  , method upperBoundErr = upperBoundTErr
+  , method upperBoundErr = fn {~onError} => upperBoundTErr
   , method lowerBoundGt = lowerBoundGtT compare
-  , method lowerBoundGtErr = lowerBoundGtTErr compare
+  , method lowerBoundGtErr = fn {~onError} => lowerBoundGtTErr compare
   , method lowerBoundGeq = lowerBoundGeqT compare
-  , method lowerBoundGeqErr = lowerBoundGeqTErr compare
+  , method lowerBoundGeqErr = fn {~onError} => lowerBoundGeqTErr compare
   , method upperBoundLt = upperBoundLtT compare
-  , method upperBoundLtErr = upperBoundLtTErr compare
+  , method upperBoundLtErr = fn {~onError} => upperBoundLtTErr compare
   , method upperBoundLeq = upperBoundLeqT compare
-  , method upperBoundLeqErr = upperBoundLeqTErr compare
+  , method upperBoundLeqErr = fn {~onError} => upperBoundLeqTErr compare
 }

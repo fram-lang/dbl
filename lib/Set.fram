@@ -7,7 +7,7 @@ import open RedBlackTree
 
 # Signature of Set
 
-implicit ~onError
+parameter ~onError
 
 data Interval Value = Inclusion of Value | Exclusion of Value
 
@@ -46,14 +46,14 @@ pub data Set Elem = Set of {
    # @param Accumulator
    # @return Result of applying function on elements of set and accumulator
    ##}
-  , method foldl : {type A,E} -> T -> (Elem -> A ->[|E] A) -> A ->[|E] A
+  , method foldl : {type A,E} -> T -> (Elem -> A ->[E] A) -> A ->[E] A
 
  {## @brief Method to fold right through structure of set
    # @param Function that receives element and accumulator
    # @param Accumulator
    # @return Result of applying function on elements of set and accumulator
    ##}
-  , method foldr : {type A,E} -> T -> (Elem -> A ->[|E] A) -> A ->[|E] A
+  , method foldr : {type A,E} -> T -> (Elem -> A ->[E] A) -> A ->[E] A
 
  {## @brief Method to convert set to list of elements
    ##}
