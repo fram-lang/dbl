@@ -73,7 +73,7 @@ let finalize_data_def env (dd : data_def) =
       proof             = dd.proof;
       args              = args;
       ctors             = ctors;
-      strictly_positive = dd.positive;
+      positive = dd.positive;
     }
 
   | DD_Label dd ->

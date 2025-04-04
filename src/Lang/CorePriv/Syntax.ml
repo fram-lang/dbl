@@ -14,7 +14,7 @@ type data_def =
       proof             : var;
       args              : TVar.ex list;
       ctors             : ctor_type list;
-      strictly_positive : bool
+      positive : bool
     }
   | DD_Label of
     { tvar      : keffect tvar;
