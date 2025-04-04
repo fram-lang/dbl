@@ -124,7 +124,7 @@ let open_scheme_explicit ~pos env (sch : T.scheme) =
   variables. *)
 let guess_types ~pos env targs =
   let guess_type sub (_, x) =
-    let tp = Env.fresh_uvar env (T.TVar.kind x) in
+    let tp = Env.fresh_uvar ~pos env (T.TVar.kind x) in
     let tp_expr = { T.pos; T.pp = Env.pp_tree env; T.data = T.TE_Type tp } in
     (T.Subst.add_type sub x tp, tp_expr)
   in

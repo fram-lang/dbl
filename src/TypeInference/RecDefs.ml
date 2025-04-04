@@ -112,8 +112,9 @@ let rec prepare_rec_data env (def : S.def) =
 (** The second pass for single definition. See [finalize_rec_data_defs] for
   more details. *)
 let rec finalize_rec_data ~nonrec_scope env (def : def1 S.node) =
+  let pos = def.pos in
   let make data =
-    { T.pos  = def.pos;
+    { T.pos  = pos;
       T.pp   = Env.pp_tree env;
       T.data = data
     } in
@@ -126,7 +127,7 @@ let rec finalize_rec_data ~nonrec_scope env (def : def1 S.node) =
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
       | None     ->
-        let tp = make (T.TE_Type (Env.fresh_uvar env T.Kind.k_type)) in
+        let tp = make (T.TE_Type (Env.fresh_uvar ~pos env T.Kind.k_type)) in
         T.SchemeExpr.of_type_expr tp
     in
     let env =
@@ -134,7 +135,7 @@ let rec finalize_rec_data ~nonrec_scope env (def : def1 S.node) =
     (env, [], T.Pure)
 
   | D1_Label(tvar, public, id, sch_opt) ->
-    let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+    let delim_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let l_tp = T.Type.t_label delim_tp in
     let annot =
       match sch_opt with
@@ -270,7 +271,7 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
       in the pattern. However, we need to extend the environment in order to
       handle shadowing correctly *)
     let (env, _, _, _) = PartialEnv.extend env [] penv in
-    let body_tp = Env.fresh_uvar env T.Kind.k_type in
+    let body_tp = Env.fresh_uvar ~pos:body.pos env T.Kind.k_type in
     let (rfb, eff2) = guess_rec_fun_type env body body_tp in
     let eff = T.Effect.join eff1 eff2 in
     let pp = Env.pp_tree env in
@@ -313,7 +314,7 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
 let rec_def_scheme ~pos env (body : S.poly_expr_def) =
   match body.data with
   | PE_Expr e ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let (rfb, _) = guess_rec_fun_type env e tp in
     { rf3_scheme  = T.SchemeExpr.of_type_expr rfb.rfb_type;
       rf3_targs   = [];
@@ -335,7 +336,7 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
     | Pure -> ()
     | Impure -> Error.report (Error.func_not_pure ~pos)
     end;
-    let body_tp = Env.fresh_uvar env T.Kind.k_type in
+    let body_tp = Env.fresh_uvar ~pos:body.pos env T.Kind.k_type in
     (* we ignore renaming, because guessed scheme cannot contain variables
       bound in patterns, except for type parameters. Moreover, we provide
       empty type parameter list, in order to avoid renaming of type parameters

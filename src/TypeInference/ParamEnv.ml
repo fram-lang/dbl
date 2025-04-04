@@ -195,7 +195,7 @@ let open_param_decl ~new_scope (env, tps, vps, tmap) decl =
     let sub =
       List.fold_left
         (fun sub x ->
-          let tp = T.Type.fresh_uvar ~scope:new_scope (T.TVar.kind x) in
+          let tp = T.Type.fresh_uvar ~pos ~scope:new_scope (T.TVar.kind x) in
           T.Subst.add_type sub x tp)
         sub
         free_types

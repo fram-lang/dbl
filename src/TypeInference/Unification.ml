@@ -238,11 +238,11 @@ let subscheme env sch1 sch2 =
   | exception Error -> Unify_Fail []
   | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
-let to_arrow env tp =
+let to_arrow ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
-    let sch = T.Scheme.of_type (Env.fresh_uvar env T.Kind.k_type) in
-    let tp2 = Env.fresh_uvar env T.Kind.k_type in
+    let sch = T.Scheme.of_type (Env.fresh_uvar ~pos env T.Kind.k_type) in
+    let tp2 = Env.fresh_uvar ~pos env T.Kind.k_type in
     set_uvar env u (T.Type.t_arrow sch tp2 Impure);
     Arr_Arrow(sch, tp2, Impure)
 
@@ -263,14 +263,14 @@ let from_arrow env tp =
   | TEffect ->
     failwith "Internal kind error"
 
-let to_handler env tp =
+let to_handler ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
     let (env1, _) = Env.enter_scope env in
     let (_, a) = Env.add_anon_tvar env1 T.Kind.k_effect in
-    let cap_tp = Env.fresh_uvar env T.Kind.k_type in
-    let tp_in  = Env.fresh_uvar env T.Kind.k_type in
-    let tp_out = Env.fresh_uvar env T.Kind.k_type in
+    let cap_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
+    let tp_in  = Env.fresh_uvar ~pos env T.Kind.k_type in
+    let tp_out = Env.fresh_uvar ~pos env T.Kind.k_type in
     set_uvar env u (T.Type.t_handler a cap_tp tp_in tp_out);
     H_Handler(a, cap_tp, tp_in, tp_out)
 
@@ -282,14 +282,14 @@ let to_handler env tp =
   | TEffect ->
     failwith "Internal kind error"
 
-let from_handler env tp =
+let from_handler ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
     let (env1, _) = Env.enter_scope env in
     let (_, a) = Env.add_anon_tvar env1 T.Kind.k_effect in
-    let cap_tp = Env.fresh_uvar env T.Kind.k_type in
-    let tp_in  = Env.fresh_uvar env T.Kind.k_type in
-    let tp_out = Env.fresh_uvar env T.Kind.k_type in
+    let cap_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
+    let tp_in  = Env.fresh_uvar ~pos env T.Kind.k_type in
+    let tp_out = Env.fresh_uvar ~pos env T.Kind.k_type in
     set_uvar env u (T.Type.t_handler a cap_tp tp_in tp_out);
     H_Handler(a, cap_tp, tp_in, tp_out)
 
@@ -301,10 +301,10 @@ let from_handler env tp =
   | TEffect ->
     failwith "Internal kind error"
 
-let to_label env tp =
+let to_label ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
-    let tp0 = Env.fresh_uvar env T.Kind.k_type in
+    let tp0 = Env.fresh_uvar ~pos env T.Kind.k_type in
     set_uvar env u (T.Type.t_label tp0);
     L_Label tp0
 

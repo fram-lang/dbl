@@ -62,7 +62,7 @@ let of_lexing len (p : Lexing.position) =
   ; pos_end_bol    = p.pos_bol
   }
 
-(** Join to position into single one.
+(** Join two positions into single one.
   It take file name and start from the first parameter and end from the second
   parameter *)
 let join p1 p2 =
@@ -74,6 +74,37 @@ let join p1 p2 =
   ; pos_end_line   = p2.pos_end_line
   ; pos_end_bol    = p2.pos_end_bol
   }
+
+let join_sorted p1 p2 =
+  let pos_start_line, pos_start_cnum, pos_start_bol =
+    if p1.pos_start_line < p2.pos_start_line then
+      p1.pos_start_line, p1.pos_start_cnum, p1.pos_start_bol
+    else if p1.pos_start_line > p2.pos_start_line then
+      p2.pos_start_line, p2.pos_start_cnum, p2.pos_start_bol
+    else if p1.pos_start_line < p2.pos_start_line then
+      p1.pos_start_line, p1.pos_start_cnum, p1.pos_start_bol
+    else p2.pos_start_line, p2.pos_start_cnum, p2.pos_start_bol
+  and pos_end_line, pos_end_bol =
+    if p1.pos_end_line > p2.pos_end_line then
+      p1.pos_end_line, p1.pos_end_bol
+    else if p1.pos_end_line < p2.pos_end_line then
+      p2.pos_end_line, p2.pos_end_bol
+    else if p1.pos_end_line > p2.pos_end_line then
+      p1.pos_end_line, p1.pos_end_bol
+    else p2.pos_end_line, p2.pos_end_bol
+  and pos_length = abs (p2.pos_start_cnum - p1.pos_start_cnum)
+    + max p1.pos_length p2.pos_length
+  and pos_fname = p1.pos_fname
+  in
+  { pos_fname; pos_start_line; pos_start_cnum; pos_start_bol
+  ; pos_length; pos_end_line; pos_end_bol }
+
+(** Join list of positions into single one.
+  It take file name the head of the list and join the rest.
+  Returns Position.nowhere for empty list *)
+let join_list = function
+  | [] -> nowhere
+  | p1 :: ps -> List.fold_left join_sorted p1 ps
 
 (** Get the number of the first column of the position (counting from 1) *)
 let start_column pos =
