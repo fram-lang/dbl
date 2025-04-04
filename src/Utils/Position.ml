@@ -95,16 +95,18 @@ let join_sorted p1 p2 =
   and pos_length = abs (p2.pos_start_cnum - p1.pos_start_cnum)
     + max p1.pos_length p2.pos_length
   and pos_fname = p1.pos_fname
-  in
-  { pos_fname; pos_start_line; pos_start_cnum; pos_start_bol
-  ; pos_length; pos_end_line; pos_end_bol }
+  in { pos_fname; pos_start_line; pos_start_cnum
+  ; pos_start_bol; pos_length; pos_end_line; pos_end_bol }
 
 (** Join list of positions into single one.
   It take file name the head of the list and join the rest.
   Returns Position.nowhere for empty list *)
-let join_list = function
+let join_list f xs =
+  match xs with
   | [] -> nowhere
-  | p1 :: ps -> List.fold_left join_sorted p1 ps
+  | p1 :: ps ->
+    let h acc a = join_sorted acc (f a) in
+    List.fold_left h (f p1) ps
 
 (** Get the number of the first column of the position (counting from 1) *)
 let start_column pos =
