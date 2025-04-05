@@ -12,10 +12,11 @@
 %token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
-%token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_EFFROW KW_ELSE KW_END KW_EXTERN
-%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPLICIT KW_IMPORT
-%token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN KW_PUB
-%token KW_REC ATTR_OPEN 
+%token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
+%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPORT
+%token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
+%token KW_PARAMETER KW_PUB
+%token KW_REC
 %token KW_RETURN KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
@@ -59,23 +60,16 @@ lid
 : LID { make $1 }
 ;
 
-var_id
-: LID                  { VIdVar $1 }
-| BR_OPN op BR_CLS     { VIdBOp ($2).data }
-| BR_OPN op DOT BR_CLS { VIdUOp ($2).data }
-;
-
 name
-: KW_LABEL  { NLabel       }
-| LID       { NVar $1      }
+: LID       { NVar $1      }
 | QLID      { NOptionalVar $1 }
 | TLID      { NImplicit $1 }
 | KW_METHOD LID { NMethod $2   }
 ;
 
 uid_path
-: UID              { NPName $1     }
-| UID DOT uid_path { NPSel($1, $3) }
+: UID              { make (NPName $1)     }
+| uid_path DOT UID { make (NPSel($1, $3)) }
 ;
 
 /* ========================================================================= */
@@ -156,7 +150,6 @@ ty_expr
 ty_expr_app
 : ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
 | KW_TYPE   ty_expr_simple { make (TTypeLbl $2)   }
-| KW_EFFECT ty_expr_simple { make (TEffectLbl $2) }
 | ty_expr_simple { $1 }
 ;
 
@@ -180,15 +173,13 @@ kind_expr_simple
 : BR_OPN kind_expr BR_CLS { make ($2).data }
 | KW_TYPE { make KType }
 | KW_EFFECT { make KEffect }
-| KW_EFFROW { make KEffrow }
 | UNDERSCORE { make KWildcard }
 ;
 
 /* ------------------------------------------------------------------------- */
 
 effect
-: ty_expr_list                    { make (TEffect($1, None))    }
-| ty_expr_list BAR ty_expr_simple { make (TEffect($1, Some $3)) }
+: ty_expr_list { make (TEffect($1)) }
 ;
 
 ty_expr_list
@@ -205,8 +196,6 @@ ty_expr_list1
 
 ty_field
 : KW_TYPE ty_expr      { make (FldAnonType $2)       }
-| KW_EFFECT            { make FldEffect              }
-| KW_EFFECT EQ ty_expr { make (FldEffectVal $3)      }
 | UID                  { make (FldType($1, None))    }
 | UID COLON kind_expr  { make (FldType($1, Some $3)) }
 | UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
@@ -246,31 +235,20 @@ ctor_decl_list
 
 /* ========================================================================= */
 
-type_annot_opt
-: /* empty */   { None    }
-| COLON ty_expr { Some $2 }
-;
-
-implicit_ty_args
-: /* empty */                   { [] }
-| CBR_OPN ty_expr_list1 CBR_CLS { $2 }
-;
-
-/* ========================================================================= */
-
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_250_list1 ARROW2 expr { make (EFn($2, $4))   }
-| KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr
-    { make (EEffect($2, $3, $5)) }
+| effect_label_opt KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr
+    { make (EEffect { label = $1; args = $3; resumption = $4; body = $6 }) }
 | expr_0 { $1 }
 ;
 
 expr_no_comma
 : def_list1 KW_IN expr_no_comma  { make (EDefs($1, $3)) }
 | KW_FN expr_250_list1 ARROW2 expr_no_comma { make (EFn($2, $4))   }
-| KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr_no_comma
-    { make (EEffect($2, $3, $5)) }
+| effect_label_opt KW_EFFECT expr_250_list effect_resumption_opt
+  ARROW2 expr_no_comma
+    { make (EEffect { label = $1; args = $3; resumption = $4; body = $6 }) }
 | expr_0_no_comma { $1 }
 ;
 
@@ -287,9 +265,19 @@ expr_0_no_comma
 | expr_10_no_comma{ $1 }
 ;
 
+effect_label_opt
+: /* empty */  { None    }
+| expr_300 DOT { Some $1 }
+;
+
 effect_resumption_opt
 : /* empty */ { None    }
 | SLASH expr  { Some $2 }
+;
+
+effect_var_opt
+: /* empty */   { None    }
+| SLASH ty_expr { Some $2 }
 ;
 
 expr_10
@@ -412,15 +400,11 @@ expr_ctor
 : UID { make (ECtor $1) }
 ;
 
-expr_select
-: UID DOT expr_ctor   { (NPName $1, $3) }
-| UID DOT expr_300    { (NPName $1, $3) }
-| UID DOT expr_select { let (p, e) = $3 in (NPSel($1, p), e) }
-
 expr_250
 : expr_300    { $1 }
 | expr_ctor   { $1 }
-| expr_select { let (p, e) = $1 in make (ESelect(p, e)) }
+| uid_path DOT expr_300  { make (ESelect($1, $3)) }
+| uid_path DOT expr_ctor { make (ESelect($1, $3)) }
 ;
 
 expr_250_list1
@@ -478,14 +462,14 @@ match_clause_list
 
 field
 : KW_TYPE ty_expr       { make (FldAnonType $2)       }
-| KW_EFFECT             { make FldEffect              }
-| KW_EFFECT EQ ty_expr  { make (FldEffectVal $3)      }
 | UID                   { make (FldType($1, None))    }
 | UID EQ ty_expr        { make (FldTypeVal($1, $3))   }
+| UID COLON kind_expr   { make (FldType($1, Some $3)) }
 | name                  { make (FldName $1)           }
 | name EQ expr_no_comma { make (FldNameVal($1, $3))   }
 | name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
-| KW_MODULE UID         { make (FldModule $2)         }
+| KW_MODULE uid_path    { make (FldModule $2)         }
+| KW_OPEN               { make FldOpen                }
 ;
 
 field_list
@@ -540,23 +524,19 @@ def
 | ATTR_OPEN  attrs { make $2 }
 ;
 
-def_base
-: pub KW_LET rec_opt expr_70 EQ expr 
-    { ($1, make_def $3 (DLet(false, $4, $6))) }
-| KW_IMPLICIT TLID implicit_ty_args type_annot_opt
-    { ([], DImplicit($2, $3, $4)) }
+: pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
+| KW_PARAMETER field { make (DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
     { ($1, make_def $3  (DData(DV_Private, $4, $7))) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
-    { ($1, make_def $3  (DRecord(DV_Private, $4, $7))) }
-| pub KW_LABEL rec_opt expr_70 { ($1, make_def $3 (DLabel(false, $4))) }
-| pub KW_HANDLE rec_opt expr_70 EQ expr h_clauses
-    { ($1, make_def $3 (DHandle(false, $4, $6, $7))) }
-| pub KW_HANDLE rec_opt expr_70 KW_WITH expr
-    { ($1, make_def $3 (DHandleWith(false, $4, $6))) }
-| pub KW_METHOD rec_opt expr_70 EQ expr { ($1, make_def $3 (DMethod(false, $4, $6))) }
-| pub KW_METHOD KW_FN var_id { ($1, DMethodFn(false, $4, $4)) }
-| pub KW_METHOD KW_FN var_id EQ var_id { ($1, DMethodFn(false, $4, $6)) }
+    { make_def $3  (DRecord($1, $4, $7)) }
+| pub KW_LABEL rec_opt expr_100 effect_var_opt
+    { make_def $3 (DLabel($1, $4, $5)) }
+| pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses
+    { make_def $3 (DHandle($1, $4, $5, $7, $8)) }
+| pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr
+    { make_def $3 (DHandleWith($1, $4, $5, $7)) }
+| pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
 | pub KW_MODULE rec_opt UID def_list KW_END
     { ($1, make_def $3 (DModule(false, $4, $5))) }
 | pub KW_REC def_list KW_END { ($1, DRec(false, $3)) }

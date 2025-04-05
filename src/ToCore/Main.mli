@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-(** Main module of a translation from Unif to Core *)
+(** Main module of a translation from ConE to Core *)
 
 (** Translate program *)
-val tr_program : repl_mode:bool -> Lang.Unif.program -> Lang.Core.program
+val tr_program : Lang.ConE.program -> Lang.Core.program

@@ -1,4 +1,4 @@
-implicit ~id
+parameter ~id
 
 let id = fn x => ~id (~id x)
 

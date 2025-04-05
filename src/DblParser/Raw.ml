@@ -22,15 +22,8 @@ type method_name = string
 (** Names of operators *)
 type op_name = string
 
-(** Variable-like identifier *)
-type var_id =
-  | VIdVar of var
-  | VIdBOp of op_name
-  | VIdUOp of op_name
-
 (** Name of a named parameter *)
 type name = Lang.Surface.name =
-  | NLabel
   | NVar         of var
   | NOptionalVar of var
   | NImplicit    of iname
@@ -47,10 +40,10 @@ type ctor_name =
 (** Names of modules *)
 type module_name = string
 
-(** Module path to an identifier of type 'a *)
-type 'a path = 'a Lang.Surface.path =
+type 'a path = 'a path_data node
+and 'a path_data = 'a Lang.Surface.path_data =
   | NPName of 'a
-  | NPSel  of module_name * 'a path
+  | NPSel  of module_name path * 'a
 
 (** Kind expressions *)
 type kind_expr = kind_expr_data node
@@ -67,20 +60,11 @@ and kind_expr_data = Lang.Surface.kind_expr_data =
   | KEffect
     (** Effect kind*)
 
-  | KEffrow
-    (** Effect row kind *)
-
 (** Field of record-like, e.g., scheme name parameters, or explicit
   instantiation *)
 type ('tp, 'e) field_data =
   | FldAnonType of 'tp
     (** Anonymous type *)
-
-  | FldEffect
-    (** Effect associated with effect handler *)
-
-  | FldEffectVal of 'tp
-    (** Effect associated with effect handler, together with its value *)
 
   | FldType of tvar * kind_expr option
     (** Named type, possibly kind-annotated *)
@@ -97,8 +81,11 @@ type ('tp, 'e) field_data =
   | FldNameAnnot of name * 'tp
     (** type-annotated implicit parameter *)
 
-  | FldModule of module_name
+  | FldModule of module_name path
     (** Module grouping named parameters *)
+
+  | FldOpen
+    (** Introduce everything from a scheme into the environment *)
 
 (** Type expressions *)
 type type_expr = type_expr_data node
@@ -115,8 +102,8 @@ and type_expr_data =
   | TArrow of type_expr * type_expr
     (** Arrow type. The second parameter might have an effect. *)
 
-  | TEffect of type_expr list * type_expr option
-    (** Effect: list of simple effect optionally closed by another effect *)
+  | TEffect of type_expr list
+    (** Effect: list of simple effect *)
 
   | TApp of type_expr * type_expr
     (** Type application *)
@@ -126,9 +113,6 @@ and type_expr_data =
 
   | TTypeLbl of type_expr
     (** Label of anonymous type parameter of ADT *)
-
-  | TEffectLbl of type_expr
-    (** Label of effect type parameter of ADT *)
 
 (** Field of record-like type *)
 and ty_field = (type_expr, type_expr) field_data node
@@ -202,7 +186,12 @@ and expr_data =
   | EHandler of expr * h_clause list
     (** First-class handler *)
 
-  | EEffect of expr list * expr option * expr
+  | EEffect of
+    { label      : expr option;
+      args       : expr list;
+      resumption : expr option;
+      body       : expr
+    }
     (** Handler of a single operation *)
 
   | ERecord of field list
@@ -253,8 +242,8 @@ and def_data =
   | DLet of is_public * expr * expr
     (** Let-definition *)
 
-  | DImplicit of iname * type_expr list * type_expr option
-    (** Declaration of implicit parameter *)
+  | DParam of field
+    (** Declaration of a parameter *)
 
   | DRecord of data_vis * type_expr * ty_field list
     (** Definition of record-like type *)
@@ -262,20 +251,17 @@ and def_data =
   | DData of data_vis * type_expr * ctor_decl list
     (** Definition of ADT *)
 
-  | DLabel of is_public * expr
+  | DLabel of is_public * expr * type_expr option
     (** Creating a new label *)
 
-  | DHandle of is_public * expr * expr * h_clause list
+  | DHandle of is_public * expr * type_expr option * expr * h_clause list
     (** Effect handler *)
 
-  | DHandleWith of is_public * expr * expr
+  | DHandleWith of is_public * expr * type_expr option * expr
     (** Effect handler, with first-class handler *)
 
   | DMethod of is_public * expr * expr
     (** Method definition *)
-
-  | DMethodFn of is_public * var_id * var_id
-    (** Declaration of function that should be interpreted as a method *)
 
   | DModule of is_public * module_name * def list
     (** Definition of a module *)

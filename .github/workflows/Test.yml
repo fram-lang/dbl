@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ocaml/setup-ocaml@v3
         with:
-          ocaml-compiler: 5.1.1
+          ocaml-compiler: 5.2.0
       - run: opam install dune
       - run: opam exec -- dune build
       - run: opam exec -- dune install

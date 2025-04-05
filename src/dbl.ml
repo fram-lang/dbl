@@ -23,6 +23,10 @@ let cmd_args_options = Arg.align
     Arg.Rest (fun arg -> args := arg :: !args),
     "[CMD_ARG]... Pass remaining arguments to the interpreted program";
 
+    "-dcone",
+    Arg.Set Pipeline.dump_cone,
+    " Dump internal ConE representation";
+
     "-dcore",
     Arg.Set Pipeline.dump_core,
     " Dump internal Core representation";

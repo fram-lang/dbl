@@ -8,12 +8,16 @@ open TypeBase
 
 type t
 
-(** Empty substitution *)
-val empty : t
+(** Empty substitution. The [scope] argument should be the scope of the types
+  that will be substituted. *)
+val empty : scope:Scope.t -> t
 
-(** Extend substitution with a renaming. The new version of a variable
-  must be fresh enough. *)
-val rename_to_fresh : t -> tvar -> tvar -> t
+(** Enter a new scope. *)
+val enter_scope : t -> t
+
+(** Extend substitution with a renaming, where the new version of a variable
+  is generated automatically. *)
+val add_tvar : t -> tvar -> t * tvar
 
 (** Extend the substitution with a permutation that maps given type variables
   to their fresh version. It returns extended substitution together with
@@ -26,8 +30,9 @@ val add_named_tvars : t -> named_tvar list -> t * named_tvar list
 (** Extend substitution *)
 val add_type : t -> tvar -> typ -> t
 
-(** Substitute in name *)
-val in_name : t -> name -> name
+(** Extend substitution with a renaming of type variable. Equivalent to
+  [add_type sub x (Type.t_var y)] *)
+val rename_tvar : t -> tvar -> tvar -> t
 
 (** Substitute in type *)
 val in_type : t -> typ -> typ

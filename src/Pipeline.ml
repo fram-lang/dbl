@@ -4,6 +4,7 @@
 
 (** Pipeline of the compiler *)
 
+let dump_cone = ref false
 let dump_core = ref false
 
 let use_prelude = ref true
@@ -30,21 +31,31 @@ let set_module_dirs ?fname () =
   in
   DblConfig.local_search_dirs := cur_dir :: !DblConfig.local_search_dirs
 
-let common_pipeline repl_mode prog =
+let core_pipeline prog =
   prog
   |> TypeInference.Main.tr_program
-  |> ToCore.Main.tr_program ~repl_mode
+  |> EffectInference.Main.tr_program ~solve_all:true
+  |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
+  |> ToCore.Main.tr_program
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
-  |> check_invariant (not repl_mode) Lang.Core.check_well_typed
-  |> TypeErase.tr_program
+  |> check_invariant true Lang.Core.check_well_typed
+  |> CoreTypeErase.tr_program
+  |> Eval.eval_program
+
+let nocore_pipeline prog =
+  prog
+  |> TypeInference.Main.tr_program
+  |> EffectInference.Main.tr_program ~solve_all:false
+  |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
+  |> ConETypeErase.tr_program
   |> Eval.eval_program
 
 let run_repl () =
   set_module_dirs ();
   DblParser.Main.repl ~use_prelude:!use_prelude
-  |> common_pipeline true
+  |> nocore_pipeline
 
 let run_file fname =
   set_module_dirs ~fname ();
   DblParser.Main.parse_file ~use_prelude:!use_prelude fname
-  |> common_pipeline false
+  |> core_pipeline
