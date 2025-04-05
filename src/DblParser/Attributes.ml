@@ -11,41 +11,24 @@ let run_test = ref false
 let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
 
 (* ===== Public ===== *)
-let make_public_all (ds : def_data node list) = 
+let make_public_all (ds : Lang.Surface.def list) = 
 
-  let make_public_ident ident = 
-    match ident with
-    | IdImplicit (_, name) -> IdImplicit (true, name)
-    | IdMethod (_, name) -> IdMethod (true, name)
-    | IdVar (_, name) -> IdVar (true, name)
-    | ident -> ident
-  in
-  
-  let make_ctor_decl_public (n : ctor_decl) =
-    {n with data = {n.data with cd_public = true}}
-  in
-  
   let rec make_public def =
     match def with 
-  | DLetId (ident, expr) 
-    -> DLetId (make_public_ident ident, expr)
-  | DLetFun (ident, nts, ns, expr) 
-    -> DLetFun (make_public_ident ident, nts, ns, expr)
-  | DMethodFn (_, v1, v2) -> DMethodFn (true, v1, v2)
-  | DData (_, v, ta, cd) 
-    -> DData (true, v, ta, List.map make_ctor_decl_public cd)
+  | DLetId (_, ident, expr) -> 
+    DLetId (true, ident, expr)
+  | DData data -> 
+    DData { data with public_tp = true; public_ctors = true}
   | DModule (_, v, ds) -> DModule (true, v, ds)
   | DOpen (_, pth) -> DOpen (true, pth)
   | DRec ds -> DRec (List.map (map_node make_public) ds) 
   | other -> other
-  in 
-  
+  in   
   List.map (map_node make_public) ds
 
 (* ===== Abstract ===== *)
 
-let make_abstract_all (ds : def_data node list) =
-  ds
+let make_abstract_all ds = ds
 
 (* ===== Test ===== *)
 

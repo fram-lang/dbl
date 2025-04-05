@@ -11,7 +11,7 @@
 %token<string> STR
 %token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
+%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT ATTR_OPEN
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
@@ -524,23 +524,29 @@ def
 | ATTR_OPEN  attrs { make $2 }
 ;
 
-: pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
-| KW_PARAMETER field { make (DParam $2) }
+def_base
+: pub KW_LET rec_opt expr_70 EQ expr 
+    { ($1, make_def $3 (DLet(false, $4, $6))) }
+| KW_PARAMETER field 
+    { ([], DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
     { ($1, make_def $3  (DData(DV_Private, $4, $7))) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
-    { make_def $3  (DRecord($1, $4, $7)) }
+    { ($1, make_def $3  (DRecord(DV_Private, $4, $7))) }
 | pub KW_LABEL rec_opt expr_100 effect_var_opt
-    { make_def $3 (DLabel($1, $4, $5)) }
+    { ($1, make_def $3 (DLabel(false, $4, $5))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses
-    { make_def $3 (DHandle($1, $4, $5, $7, $8)) }
+    { ($1, make_def $3 (DHandle(false, $4, $5, $7, $8))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr
-    { make_def $3 (DHandleWith($1, $4, $5, $7)) }
-| pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
+    { ($1, make_def $3 (DHandleWith(false, $4, $5, $7))) }
+| pub KW_METHOD rec_opt expr_70 EQ expr 
+    { ($1, make_def $3 (DMethod(false, $4, $6))) }
 | pub KW_MODULE rec_opt UID def_list KW_END
     { ($1, make_def $3 (DModule(false, $4, $5))) }
-| pub KW_REC def_list KW_END { ($1, DRec(false, $3)) }
-| pub KW_OPEN uid_path { ($1, DOpen(false, $3)) }
+| pub KW_REC def_list KW_END 
+    { ($1, DRec(false, $3)) }
+| pub KW_OPEN uid_path 
+    { ($1, DOpen(false, $3)) }
 ;
 
 def_list
