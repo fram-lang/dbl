@@ -1,0 +1,5 @@
+
+
+@{test}
+let _ = printStrLn "This executes only with -test flag!"
+

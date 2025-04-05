@@ -33,6 +33,7 @@ val eof_in_string       : Position.t -> t
 val invalid_lexer_directive : ?msg:string -> Position.t -> t
 
 val desugar_error : Position.t -> t
+val attribute_error : Position.t -> string -> t
 val reserved_binop_error : Position.t -> string -> t
 val disallowed_op_error : Position.t -> string -> t
 val invalid_pattern_arg : Position.t -> t
