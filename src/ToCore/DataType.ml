@@ -69,11 +69,11 @@ let finalize_data_def env (dd : data_def) =
     let (env, args) = Env.add_named_tvars env dd.args in
     let ctors = tr_ctor_decls env dd.ctors in
     T.DD_Data {
-      tvar              = dd.tvar;
-      proof             = dd.proof;
-      args              = args;
-      ctors             = ctors;
-      positive = dd.positive;
+      tvar      = dd.tvar;
+      proof     = dd.proof;
+      args      = args;
+      ctors     = ctors;
+      positive  = dd.positive;
     }
 
   | DD_Label dd ->
