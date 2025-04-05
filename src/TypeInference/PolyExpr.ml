@@ -201,7 +201,7 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
   | PE_Fn(pats, body) ->
     let (env, scope, targs, named, eff) =
       Pattern.infer_named_patterns_ext env pats in
-    let body_tp = T.Type.fresh_uvar ~scope T.Kind.k_type in
+    let body_tp = T.Type.fresh_uvar ~pos:body.pos ~scope T.Kind.k_type in
     let body = check_expr_type env body body_tp in
     let eff = T.Effect.join eff body.er_effect in
     begin match eff with

@@ -8,11 +8,11 @@ open Common
 open BiDirectional
 open TypeCheckFix
 
-let switch_to_check_mode (type dir) env (req : (T.typ, dir) request) :
+let switch_to_check_mode (type dir) ~pos env (req : (T.typ, dir) request) :
     T.typ * (T.typ, dir) response =
   match req with
   | Infer ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     (tp, Infered tp)
   | Check tp -> (tp, Checked)
 
@@ -68,7 +68,7 @@ let check_def : type st dir. tcfix:tcfix ->
   | DLetPat(pat, body) ->
     (* Pattern may introduce type variables. We switch to check-mode in
       order to make sure that they don't escape their scope. *)
-    let (tp, resp) = switch_to_check_mode env req in
+    let (tp, resp) = switch_to_check_mode ~pos:body.pos env req in
     let (body_env, params) = Env.begin_generalize env in
     let body = infer_expr_type body_env body in
     let body_tp = expr_result_type body in
@@ -86,8 +86,8 @@ let check_def : type st dir. tcfix:tcfix ->
     }
 
   | DLabel(eff, pat) ->
-    let (tp, resp) = switch_to_check_mode env req in
-    let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
+    let delim_tp = Env.fresh_uvar ~pos:pat.pos env T.Kind.k_type in
     let (env, _) = Env.enter_scope env in
     let (env, name, x) = Type.check_type_arg env eff T.Kind.k_effect in
     let (env, pat, pat_eff) =
@@ -118,7 +118,7 @@ let check_def : type st dir. tcfix:tcfix ->
     let hexp = infer_expr_type hexp_env hexp in
     let hexp_tp = expr_result_type hexp in
     ParamGen.end_generalize_impure params (T.Type.uvars hexp_tp);
-    begin match Unification.to_handler env hexp_tp with
+    begin match Unification.to_handler ~pos env hexp_tp with
     | H_Handler(a, cap_tp, tp_in, tp_out) ->
       let (env, scope) = Env.enter_scope env in
       let (env, name, eff_tvar) =
@@ -165,14 +165,14 @@ let check_def : type st dir. tcfix:tcfix ->
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
       | None     ->
-        let tp = make_local (T.TE_Type (Env.fresh_uvar env T.Kind.k_type)) in
+        let tp = make_local (T.TE_Type (Env.fresh_uvar ~pos:pos env T.Kind.k_type)) in
         T.SchemeExpr.of_type_expr tp
     in
     let env = ParamGen.end_generalize_declare ~pos params env name x sch in
     cont.run env req
 
   | DData { public_tp; public_ctors; tvar=name; args; ctors } ->
-    let (tp, resp) = switch_to_check_mode env req in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
     let nonrec_scope = Env.scope env in
     let (penv, args) = Type.tr_named_type_args args in
     let kind = DataType.kind args in
@@ -198,7 +198,7 @@ let check_def : type st dir. tcfix:tcfix ->
 
   | DRec defs ->
     let env = Env.enter_section env in
-    let (tp, resp) = switch_to_check_mode env req in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
     let result = RecDefs.check_rec_defs ~tcfix ~pos env defs in
     let env = Env.leave_section result.rec_env in
     let rest = cont.run env (Check tp) in

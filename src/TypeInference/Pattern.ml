@@ -370,7 +370,7 @@ and check_named_pattern env np tvars named =
 let infer_scheme env (pat : S.pattern) =
   match pat.data with
   | PWildcard | PId _ | PCtor _ ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = Env.fresh_uvar ~pos:pat.pos env T.Kind.k_type in
     let tp_expr =
       { T.pos  = pat.pos;
         T.pp   = Env.pp_tree env;
@@ -426,7 +426,7 @@ let infer_named_pattern env (np : S.named_pattern) =
       | None ->
         { T.pos  = np.pos;
           T.pp   = Env.pp_tree env;
-          T.data = T.TE_Type (Env.fresh_uvar env T.Kind.k_type)
+          T.data = T.TE_Type (Env.fresh_uvar ~pos:np.pos env T.Kind.k_type)
         }
     in
     let sch_expr = BuiltinTypes.mk_option_scheme_expr tp_expr in

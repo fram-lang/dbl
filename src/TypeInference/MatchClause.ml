@@ -26,11 +26,11 @@ let check_match_clauses ~tcfix env tp cls res_tp =
   let ((eff, cs), cls) = List.fold_left_map check (T.Pure, []) cls in
   (cls, eff, cs)
 
-let guess_type (type d) env (req : (_, d) request) : _ * (_, d) response =
+let guess_type (type d) ~pos env (req : (_, d) request) : _ * (_, d) response =
   match req with
   | Check tp -> (tp, Checked)
   | Infer    ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     (tp, Infered tp)
 
 let tr_opt_clauses (type dir) ~tcfix ~pos env tp_in cls
@@ -61,7 +61,7 @@ let tr_opt_clauses (type dir) ~tcfix ~pos env tp_in cls
     in (x, er)
 
   | _ :: _, _ ->
-    let (tp, tp_resp) = guess_type env rtp_req in
+    let (tp, tp_resp) = guess_type ~pos env rtp_req in
     let (cls, eff, cs) = check_match_clauses ~tcfix env tp_in cls tp in
     let er =
       { er_expr   = make (T.EMatch(x_expr, cls, tp, eff));

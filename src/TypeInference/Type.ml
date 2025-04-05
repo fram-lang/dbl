@@ -22,8 +22,8 @@ let rec infer_kind env (tp : S.type_expr) =
   match tp.data with
   | TWildcard ->
     let k = T.Kind.fresh_uvar () in
-    (make (T.TE_Type(Env.fresh_uvar env k)), k)
-  
+    (make (T.TE_Type(Env.fresh_uvar ~pos env k)), k)
+
   | TVar path ->
     let tp = ModulePath.lookup_type env path in
     (make (T.TE_Type tp), T.Type.kind tp)
