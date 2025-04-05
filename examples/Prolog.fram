@@ -141,7 +141,7 @@ method rename (Cl t ts) sub =
   throughout our implementation, we declare it as an implicit, so that it and
   the associated effect variable E_st are generalized automatically. #}
 parameter E_st
-parameter ~st : State E_st (List (Pair Int Term))
+parameter ~st : State E_st (List (Int * Term))
 
 {# We also define a pair of functions that let us modify and read `~st`. #}
 

@@ -6,6 +6,6 @@ pub data Bool = False | True
 
 pub data rec List A = [] | (::) of A, List A
 
-pub data Pair X Y = (,) of X, Y
+pub data X * Y = (,) of X, Y
 
-pub data Either X Y = Left of X | Right of Y
+pub data X + Y = Left of X | Right of Y

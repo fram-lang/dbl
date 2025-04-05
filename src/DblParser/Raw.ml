@@ -114,6 +114,12 @@ and type_expr_data =
   | TTypeLbl of type_expr
     (** Label of anonymous type parameter of ADT *)
 
+  | TBOpID of op_name
+    (** Identifier of type-level binary operator *)
+
+  | TBOp of  type_expr * op_name node * type_expr
+    (** Type-level binary operator *)
+
 (** Field of record-like type *)
 and ty_field = (type_expr, type_expr) field_data node
 

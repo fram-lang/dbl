@@ -12,6 +12,10 @@ let tr_bop_id (op : string node) =
     Error.fatal (Error.reserved_binop_error op.pos op.data)
   else "(" ^ op.data ^ ")"
 
+(** Translation of the type-level binary operator's name to the regular identifier. *)
+let tr_type_bop_id (op : Raw.op_name node) = 
+  "[" ^ op.data ^ "]"
+
 (** Translation of the unary operator's name to the regular identifier. *)
 let make_uop_id str = "(" ^ str ^ " .)"
 
@@ -114,6 +118,10 @@ let rec path_append prefix rest =
   | NPName name       -> make (NPSel(prefix, name))
   | NPSel(rest, name) -> make (NPSel(path_append prefix rest, name))
 
+let tr_bop_to_type_expr (op: Raw.op_name node) = 
+  let make data = { op with data = data } in 
+  make (TVar(make (NPName (tr_type_bop_id op))))
+
 let rec tr_type_expr (tp : Raw.type_expr) =
   let make data = { tp with data = data } in
   match tp.data with
@@ -130,6 +138,14 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     make (TEffect (List.map tr_type_expr tps))
   | TApp(tp1, tp2) ->
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
+  | TBOpID op -> make (TVar (make (NPName (tr_type_bop_id (make op)))))
+  | TBOp(tp1, op, tp2) -> 
+    let t1 = tr_type_expr tp1 in 
+    let t2 = tr_type_expr tp2 in 
+      make (TApp(
+        { pos  = Position.join t1.pos op.pos;
+          data = TApp(tr_bop_to_type_expr op, t1)
+        }, t2))
   | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -172,7 +188,7 @@ and tr_scheme_expr (tp : Raw.type_expr) =
       Error.fatal (Error.impure_scheme pos)
     end
 
-  | TWildcard | TVar _ | TArrow _ | TEffect _ | TApp _ ->
+  | TWildcard | TVar _ | TArrow _ | TEffect _ | TApp _ | TBOpID _ | TBOp _ ->
     { sch_pos  = pos;
       sch_args = [];
       sch_body = tr_type_expr tp
@@ -208,7 +224,7 @@ and tr_type_var (tp : Raw.type_expr) =
     let k = Option.value ka ~default:(make KWildcard) in
     (x, k)
   | TVar ({data = NPSel _; _}, _) | TWildcard | TArrow _ | TEffect _ | TApp _
-  | TRecord _ | TTypeLbl _ ->
+  | TRecord _ | TTypeLbl _ | TBOpID _ | TBOp _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a type expression as a type parameter *)
@@ -234,15 +250,23 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TWildcard -> make (TNAnon, make (TA_Wildcard))
   | TVar ({data = NPSel _; _}, _) | TArrow _ | TEffect _ | TApp _
-  | TRecord _ ->
+  | TRecord _ | TBOpID _ | TBOp _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
   parameter is an accumulated list of formal parameters *)
 let rec tr_type_def (tp : Raw.type_expr) args =
+  let make data = { tp with data = data } in
   match tp.data with
   | TVar ({data = NPName x; _}, _) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
+  | TBOpID op -> TD_Id(tr_type_bop_id (make op), args)
+  | TBOp(tp1, op, tp2) ->
+    if not (List.is_empty args) then
+      Error.fatal (Error.desugar_error tp.pos)
+    else
+      let op_id = make (Raw.TVar(make (NPName (tr_type_bop_id op)), None)) in
+      tr_type_def op_id [tp1; tp2]
   | TVar ({data = NPSel _; _}, _) | TWildcard | TParen _ | TArrow _
   | TEffect _ | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
