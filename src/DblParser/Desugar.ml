@@ -654,7 +654,7 @@ and tr_explicit_inst (fld : Raw.field) =
 and tr_def (pos : Position.t) (def : Raw.def_data) =
   let make data = { data = data; pos = pos } in
   match def with
-  | DLet(pub, p, e) ->
+  | DLet(_, p, e) ->
     [ match tr_let_pattern p with
       | LP_Id id ->
         make (DLetId(false, id, tr_poly_expr_def e))
