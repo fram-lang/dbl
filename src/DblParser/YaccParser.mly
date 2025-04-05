@@ -143,16 +143,23 @@ op
 
 /* ========================================================================= */
 
+eff_arrow
+: EFF_ARROW { make (TEffect [make TWildcard]) }
+;
+
+ty_eff_arrow
+: eff_arrow ty_expr { make (TApp ($1, $2)) }
+;
+
 ty_expr
 : ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
-| ty_expr_app EFF_ARROW ty_expr
-    { make (TArrow($1, make (TApp(make (TEffect [make TWildcard]), $3)))) }
+| ty_expr_app ty_eff_arrow  { make (TArrow($1, $2)) }
 | ty_expr_app { $1 }
 ;
 
 ty_expr_app
 : ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
-| KW_TYPE   ty_expr_simple { make (TTypeLbl $2)   }
+| KW_TYPE   ty_expr_simple { make (TTypeLbl $2) }
 | ty_expr_simple { $1 }
 ;
 
