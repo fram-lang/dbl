@@ -227,8 +227,8 @@ type data_def =
         (** List of constructors. *)
 
       eff    : effct
-        (** An effect indicating if the type is strictly positively recursive
-          (in particular, not recursive at all). Strictly positively recursive
+        (** An effect indicating if the type is positively recursive
+          (in particular, not recursive at all). Positively recursive
           types can be deconstructed in a pure way. *)
     }
 

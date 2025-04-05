@@ -285,23 +285,23 @@ let prepare_data_def env (dd : data_def) =
     (env, DD_Label { lbl with tvar = a })
 
 (** Compute the effect attached to the datatype (the effect of
-  pattern-matching). Types flagged as strictly positive have pure effect
+  pattern-matching). Types flagged as positive have pure effect
   of pattern-matching, but the function ensures that provided constructors
-  are strictly positive, i.e., all type variables on non-strictly-positive
+  are positive, i.e., all type variables on non-positive
   position fit in [nonrec_scope]. The [nonrec_scope] should be a scope of
   the definition not extended with types defined in the current recursive
   block.
 
-  If the type is not flagged as strictly positive, have always NTerm effect
+  If the type is not flagged as positive, have always NTerm effect
   attached, and no extra checks are performed. *)
-let adt_effect ~nonrec_scope strictly_positive args ctors =
-  if strictly_positive then
+let adt_effect ~nonrec_scope positive args ctors =
+  if positive then
     let nonrec_scope = Type.add_tvars_to_scope args nonrec_scope in
-    if Type.strictly_positive_ctors ~nonrec_scope ctors then
+    if Type.positive_ctors ~nonrec_scope ctors then
       TEffPure
     else
       InterpLib.InternalError.report
-        ~reason:"Type is not strictly positively recursive"
+        ~reason:"Type is not positively recursive"
         ()
   else
     Effect.nterm
@@ -321,7 +321,7 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
   | DD_Data adt ->
     let (TVar.Ex a) = adt.tvar in
     let (xs, data_tp, ctors) = check_data env (TVar a) adt.args adt.ctors in
-    let eff = adt_effect ~nonrec_scope adt.strictly_positive xs ctors in
+    let eff = adt_effect ~nonrec_scope adt.positive xs ctors in
     let env =
       Env.add_irr_var env adt.proof
         (Type.t_foralls xs (TData(data_tp, eff, ctors))) in

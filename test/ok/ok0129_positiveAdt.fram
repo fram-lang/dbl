@@ -1,0 +1,2 @@
+data rec T = C of ((T -> Unit) -> Unit)
+let foo (C f) = f (fn (C g) => g (fn _ => ()))
