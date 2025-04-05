@@ -61,6 +61,9 @@ let invalid_lexer_directive ?msg pos =
 let desugar_error pos =
   (Some pos, "Syntax error. This construction cannot be used in this context")
 
+let attribute_error pos msg =
+  (Some pos, msg)
+
 let reserved_binop_error pos op =
   (Some pos,
     Printf.sprintf

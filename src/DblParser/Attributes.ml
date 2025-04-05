@@ -28,7 +28,7 @@ let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
   match-clause - DONE
 *)
 (* ===== Public/Abstract ===== *)
-let make_visible (is_abstract : bool) (ds : Lang.Surface.def list) = 
+let make_visible (is_abstract : bool) (args : string list node) (ds : Lang.Surface.def list) = 
   let rec make_vis_pattern (pt : Lang.Surface.pattern) =
     map_node begin function
     | PWildcard -> PWildcard
@@ -108,19 +108,28 @@ let make_visible (is_abstract : bool) (ds : Lang.Surface.def list) =
     | DReplExpr expr -> DReplExpr (make_vis_expr expr)
     | other -> other
     end def
-  in List.map make_vis_def ds
+  in 
+  match args.data with
+  | [_] -> List.map make_vis_def ds
+  | _ -> Error.fatal (Error.attribute_error args.pos "Too many arguments applied to visibility attribute")
 
 (* ===== Test ===== *)
 
-let make_test defs =
-  if !run_test then
-    defs
-  else 
-    []
+let make_test (args : string list node) defs =
+  match args.data with
+  | [_] 
+  | [_; _] ->
+    if !run_test then
+      defs
+    else 
+      []
+  | _ -> Error.fatal (Error.attribute_error args.pos "Test attribute expects only 1 optional parameter")
 
 module M = Map.Make(String)
 
-let attrs : (Lang.Surface.def list -> Lang.Surface.def list) M.t = 
+type attribute_fun = string list node -> Lang.Surface.def list -> Lang.Surface.def list
+
+let attrs : attribute_fun M.t = 
   M.of_list
     [ ("pub", make_visible false)
     ; ("abstr", make_visible true)
@@ -129,7 +138,7 @@ let attrs : (Lang.Surface.def list -> Lang.Surface.def list) M.t =
 
 let tr_attr (args : string list node) (data : Lang.Surface.def list) = 
   let f = M.find (List.hd args.data) attrs in
-  f data
+  f args data
 
 let tr_attrs (args : string list node list) (data : Lang.Surface.def list) = 
   List.fold_right (fun atr defs -> tr_attr atr defs) args data
