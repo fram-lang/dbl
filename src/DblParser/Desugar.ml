@@ -653,22 +653,23 @@ and tr_explicit_inst (fld : Raw.field) =
 
 and tr_def (pos : Position.t) (def : Raw.def_data) =
   let make data = { data = data; pos = pos } in
+  let make_attr data = (([] : Raw.attributes), make data) in 
   match def with
   | DLet(_, p, e) ->
     [ match tr_let_pattern p with
       | LP_Id id ->
-        make (DLetId(false, id, tr_poly_expr_def e))
+        make_attr (DLetId(false, id, tr_poly_expr_def e))
       | LP_Fun(id, args) ->
-        make (DLetId(false, id, tr_poly_function ~pos args (tr_expr e)))
+        make_attr (DLetId(false, id, tr_poly_function ~pos args (tr_expr e)))
       | LP_Pat p ->
-        make (DLetPat(p, tr_expr e))
+        make_attr (DLetPat(p, tr_expr e))
     ]
   | DMethod(pub, p, e) ->
     [ match tr_let_pattern p with
       | LP_Id (IdVar x) ->
-        make (DLetId(false, IdMethod x, tr_poly_expr_def e))
+        make_attr (DLetId(false, IdMethod x, tr_poly_expr_def e))
       | LP_Fun(IdVar x, args) ->
-        make (DLetId(false,
+        make_attr (DLetId(false,
           IdMethod x, tr_poly_function ~pos args (tr_expr e)))
       | LP_Id (IdImplicit _ | IdMethod _)
       | LP_Fun((IdImplicit _ | IdMethod _), _)
@@ -677,25 +678,17 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     ]
   | DParam fld ->
     [ match tr_param_decl fld with
-      | Either.Left (x, y, k)    -> make (DTypeParam(x, y, k))
-      | Either.Right (x, y, sch) -> make (DValParam(x, y, sch))
+      | Either.Left (x, y, k)    -> make_attr (DTypeParam(x, y, k))
+      | Either.Right (x, y, sch) -> make_attr (DValParam(x, y, sch))
     ]
   | DRecord (vis, tp, flds) ->
-    let (public_tp, public_ctors) = tr_data_vis pos vis in
     let cd_named_args = List.map tr_scheme_field flds in
     begin match tr_type_def tp [] with
     | TD_Id(cd_name, args) ->
       let args = List.map tr_named_type_arg args in
       let ctors = [ make { cd_name; cd_named_args; cd_arg_schemes = [] } ] in
-      let dd =
-        make (DData { public_tp; public_ctors; tvar = cd_name; args; ctors })
-      in
-      let method_named_args, pattern_gen =
-        generate_accessor_method_pattern args cd_name in
-      dd :: List.filter_map
-        (create_accessor_method
-          method_named_args pattern_gen)
-        cd_named_args
+      let record_attr = [make ["record"]] in
+        [(record_attr, make (DData { public_tp=false; public_ctors=false; tvar = cd_name; args; ctors }))]
     end
   | DData(vis, tp, cs) ->
     let (public_tp, public_ctors) = tr_data_vis pos vis in
@@ -703,28 +696,28 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       | TD_Id(tvar, args) ->
         let args = List.map tr_named_type_arg args in
         let ctors = List.map tr_ctor_decl cs in
-        make (DData { public_tp; public_ctors; tvar; args; ctors })
+        make_attr (DData { public_tp; public_ctors; tvar; args; ctors })
     ]
   | DLabel(pub, pat, eff_opt) ->
     let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
-    [ make (DLabel (eff, pat)) ]
+    [ make_attr (DLabel (eff, pat)) ]
   | DHandle(pub, pat, eff_opt, body, hcs) ->
     let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     let body = { body with data = EHandler(body, rcs, fcs) } in
-    [ make (DHandlePat(pat, eff, body)) ]
+    [ make_attr (DHandlePat(pat, eff, body)) ]
   | DHandleWith(pub, pat, eff_opt, body) ->
     let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
-    [ make (DHandlePat(pat, eff, body)) ]
+    [ make_attr (DHandlePat(pat, eff, body)) ]
   | DModule(pub, x, defs) ->
-    [ make @@ DModule(false, x, tr_defs defs) ]
+    [ make_attr @@ DModule(false, x, tr_defs defs) ]
   | DOpen(pub, path) -> 
-    [ make @@ DOpen(false, path) ]
+    [ make_attr @@ DOpen(false, path) ]
   
   | DRec(pub, defs) when List.for_all node_is_rec_data defs ->
     (* This case is a quick fix to make most record accessors
@@ -732,16 +725,16 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     (* TODO: Remove when more robust solution is implemented *)
     let dds, accessors = tr_defs defs
       |> List.partition node_is_data_def in
-    (DRec dds) :: List.map (fun x -> x.data) accessors |> List.map make
+    (DRec dds) :: List.map (fun x -> x.data) accessors |> List.map make_attr
   
   | DRec(pub, defs) ->
-    [ make @@ DRec (tr_defs defs) ]
+    [ make_attr @@ DRec (tr_defs defs) ]
 
 and tr_defs (defs : Raw.def list) = 
   let map_def def = 
     let (attrs, (def_data : Raw.def_data)) = def.data in 
-    let def_list : Lang.Surface.def_data node list = tr_def def.pos def_data in
-    Attributes.tr_attrs attrs def_list
+    let def_list : (Raw.attributes * Lang.Surface.def_data node) list = tr_def def.pos def_data in
+    Attributes.tr_attrs_ext attrs def_list
   in
   List.concat_map map_def defs 
 
@@ -765,73 +758,6 @@ and tr_h_clause (hc : Raw.h_clause) =
     Either.Left (make (Clause(tr_pattern pat, tr_expr body)))
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern pat, tr_expr body)))
-
-(** Returns: list of explicit type annotations with fresh type variable names
-    and a function that given a field name returns piece of code that
-    represents pattern which pulls out this variable, making it easy to use in
-    generated code *)
-and generate_accessor_method_pattern named_type_args type_name =
-  let make data = { data; pos=Position.nowhere } in
-  (* generate new names impossible to input by user *)
-  let create_mapping i arg =
-    let old_name, new_name =
-      match (snd arg.data).data with
-      | TA_Var(name, _) -> name, name ^ "#TA_Var#" ^ string_of_int i
-      | TA_Wildcard -> "TNAnon", "TNAnon#TA_Wildcard#" ^ string_of_int i
-    in
-    let named_arg =
-      make (TNVar old_name, make (TA_Var (new_name, make KWildcard))) in
-    named_arg, new_name
-  in
-  let (new_named_type_args, new_names : named_type_arg list * ctor_name list) =
-    List.split (List.mapi create_mapping named_type_args) in
-  (* function for fold that generates nested series of tapps for type
-     annotation *)
-  let gen_tapps inner name =
-    make (TApp(inner, make (TVar (make (NPName name))))) in
-  let type_annot : scheme_expr =
-    { sch_pos = Position.nowhere
-    ; sch_args = []
-    ; sch_body =
-      List.fold_left
-        gen_tapps
-        (make (TVar (make (NPName type_name))))
-        new_names
-    } in
-  (* function that generates pattern for accessing field *)
-  let pattern_gen field =
-    make (PAnnot(make (PCtor(
-      make (NPName type_name),
-      [ make (NP_Val(NVar field, make (PId(false, IdVar field)), None)) ],
-      [])), type_annot))
-  in
-  new_named_type_args, pattern_gen
-
-and create_accessor_method named_type_args pattern_gen scheme =
-  match scheme.data with
-  | SA_Val(NVar field, _) ->
-    let make data = { scheme with data } in
-    (* generate accessor body, this piece of code generated accessing
-    variable *)
-    let e =
-      make (EFn(pattern_gen field,
-        make (EPoly(make (EVar (make (NPName field))), [])))) in
-    Some begin match named_type_args with
-    | [] ->
-      make (DLetId(false, IdMethod field, make (PE_Expr e)))
-    | _ :: _ ->
-      let targs =
-        List.map
-          (fun arg -> { arg with data = NP_Type(false, arg) })
-          named_type_args
-      in
-      make (DLetId(false, IdMethod field, make (PE_Fn(targs, e))))
-    end
-  | SA_Val((NImplicit _ | NMethod _ | NOptionalVar _), _) ->
-    Error.warn (Error.ignored_field_in_record scheme.pos);
-    None
-  | SA_Type _ ->
-    Error.fatal (Error.existential_type_arg_in_record scheme.pos)
 
 let tr_program (p : Raw.program) =
   { p with data = tr_defs p.data }
