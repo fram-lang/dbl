@@ -209,8 +209,6 @@ let rec check_repl_def_seq ~tcfix env def_seq tp =
           match tp_req with
           | Check tp -> (tp, Checked)
           | Infer    ->
-            (* This probably can be something more than nowhere,
-                but will require significant refactor *)
             let tp = Env.fresh_uvar ~pos:Position.nowhere env T.Kind.k_type in
             (tp, Infered tp)
         in
@@ -224,7 +222,6 @@ let rec check_repl_def_seq ~tcfix env def_seq tp =
       ConstrSolve.solve_all er.er_constr;
       er.er_expr
   in
-  (* Same here *)
   { T.pos  = Position.nowhere;
     T.pp   = Env.pp_tree env;
     T.data = T.ERepl(InterpLib.Error.wrap_repl_cont func, tp)

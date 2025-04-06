@@ -129,6 +129,4 @@ let unused_pattern ~pos =
   (pos, "This pattern is unused")
 
 let unsolved_unification_variable ~pos =
-  InterpLib.Error.report ~pos ~cls:FatalError
-    "Unsolved unification variable left";
-  raise InterpLib.Error.Fatal_error
+  (pos, "Unsolved unification variable left")
