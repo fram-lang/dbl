@@ -11,7 +11,7 @@
 %token<string> STR
 %token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
+%token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
@@ -143,14 +143,23 @@ op
 
 /* ========================================================================= */
 
+eff_arrow
+: EFF_ARROW { make (TEffect [make TWildcard]) }
+;
+
+ty_eff_arrow
+: eff_arrow ty_expr { make (TApp ($1, $2)) }
+;
+
 ty_expr
 : ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
+| ty_expr_app ty_eff_arrow  { make (TArrow($1, $2)) }
 | ty_expr_app { $1 }
 ;
 
 ty_expr_app
 : ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
-| KW_TYPE   ty_expr_simple { make (TTypeLbl $2)   }
+| KW_TYPE   ty_expr_simple { make (TTypeLbl $2) }
 | ty_expr_simple { $1 }
 ;
 
