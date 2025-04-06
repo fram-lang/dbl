@@ -49,10 +49,10 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   | TGuard(cs, tp) ->
     TGuard(List.map (in_constr_rec sub) cs, in_type_rec sub tp)
   | TLabel lbl ->
-    let effect = in_type_rec sub lbl.effect in
+    let effct = in_type_rec sub lbl.effct in
     let (sub, tvars) = add_tvars sub lbl.tvars in
     TLabel
-      { effect; tvars;
+      { effct; tvars;
         val_types = List.map (in_type_rec sub) lbl.val_types;
         delim_tp  = in_type_rec sub lbl.delim_tp;
         delim_eff = in_type_rec sub lbl.delim_eff

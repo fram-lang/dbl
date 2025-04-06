@@ -40,7 +40,7 @@ let rec tr_type env tp =
   | TLabel(eff, delim_tp, delim_eff) ->
     T.Type.Ex
       (T.TLabel
-        { effect    = tr_effect env eff;
+        { effct     = tr_effect env eff;
           tvars     = [];
           val_types = [];
           delim_tp  = tr_ttype env delim_tp;
@@ -88,6 +88,7 @@ and tr_ttype env tp : T.ttype =
   | KEffect | KArrow _ ->
     failwith "Internal kind error"
 
+(** Translate a type scheme *)
 and tr_scheme env (sch : S.scheme) =
   let S.{ sch_targs; sch_named; sch_body } = sch in
   let (env, tvars) = Env.add_named_tvars env sch_targs in

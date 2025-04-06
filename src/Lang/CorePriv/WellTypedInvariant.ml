@@ -188,10 +188,10 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
   | TGuard(cs, tp) ->
     TGuard(List.map (tr_constr env) cs, tr_type env tp)
   | TLabel lbl ->
-    let effect = tr_type env lbl.effect in
+    let effct = tr_type env lbl.effct in
     let (env, tvars) = Env.add_tvars env lbl.tvars in
     TLabel
-      { effect; tvars;
+      { effct; tvars;
         val_types = List.map (tr_type env) lbl.val_types;
         delim_tp  = tr_type env lbl.delim_tp;
         delim_eff = tr_type env lbl.delim_eff
@@ -328,12 +328,12 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
     (env, dd_eff)
 
   | DD_Label lbl ->
-    let effect = TVar lbl.tvar in
+    let effct = TVar lbl.tvar in
     let (eff_env, tvars) = Env.add_tvars env lbl.tvars in
     let val_types = List.map (tr_type eff_env) lbl.val_types in
     let delim_tp  = tr_type eff_env lbl.delim_tp in
     let delim_eff = tr_type eff_env lbl.delim_eff in
-    let lbl_tp = TLabel { effect; tvars; val_types; delim_tp; delim_eff } in
+    let lbl_tp = TLabel { effct; tvars; val_types; delim_tp; delim_eff } in
     let env = Env.add_var env lbl.var lbl_tp in
     (* We add nterm effect, since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
@@ -445,7 +445,7 @@ let rec infer_type_eff env e =
       let env = List.fold_left2 Env.add_var env xs tps in
       let env = Env.add_var env k (TArrow(tp, tp0, eff0)) in
       check_type_eff env body tp0 eff0;
-      (tp, lbl.effect)
+      (tp, lbl.effct)
 
     | TVar _ | TArrow _ | TForall _ | TGuard _ | TData _ | TApp _ ->
       failwith "Internal type error"
@@ -462,7 +462,7 @@ let rec infer_type_eff env e =
       let delim_tp = Subst.in_type sub lbl.delim_tp in
       let delim_eff = Subst.in_type sub lbl.delim_eff in
       let x_tp =
-        infer_type_check_eff env body (TEffJoin(lbl.effect, delim_eff)) in
+        infer_type_check_eff env body (TEffJoin(lbl.effct, delim_eff)) in
       let env = Env.add_var env x x_tp in
       check_type_eff env ret delim_tp delim_eff;
       (delim_tp, delim_eff)

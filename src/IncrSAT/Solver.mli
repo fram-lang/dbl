@@ -23,3 +23,6 @@ val solve_partial : 'a t -> 'a solve_result
 
 (** Solve all the collected clauses *)
 val solve_all : 'a t -> 'a solve_result
+
+(** Pretty print all clauses of the SAT-solver as S-expressions. *)
+val clauses_to_sexpr : 'a t -> SExpr.t list

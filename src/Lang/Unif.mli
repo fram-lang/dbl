@@ -676,7 +676,7 @@ module Type : sig
 
     | Whnf_Arrow of scheme * typ * effct
       (** Effect annotated arrow *)
-  
+
     | Whnf_Handler   of tvar * typ * typ * typ
       (** Handler type *)
 
