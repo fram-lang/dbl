@@ -8,24 +8,7 @@ open Lang.Surface
 
 
 let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
-(*
-  kind-expr - OK
-  type-expr - Ok
-  scheme-expr - OK
-  scheme-arg - OK
-  kind-arg - OK
-  ctor-decl - OK
-  type-arg - OK
-  named-type-arg - OK
 
-  pattern - DONE
-  named-pattern - DONE
-  poly_expr_use - DONE
-  poly-expr-def - DONE
-  expr - DONE
-  inst - DONE
-  match-clause - DONE
-*)
 (* ===== Public/Abstract ===== *)
 let make_visible (is_abstract : bool) (args : string list node) (ds : Lang.Surface.def list) = 
   let rec make_vis_pattern (pt : Lang.Surface.pattern) =
