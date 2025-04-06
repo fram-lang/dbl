@@ -453,17 +453,6 @@ let rec tr_poly_function ~pos all_args body =
 
 (* ========================================================================= *)
 
-let tr_data_vis (pos : Position.t) (vis : Raw.data_vis) =
-  match vis with
-  | DV_Private  -> (false, false)
-  | DV_Abstract ->
-    if false then
-      Error.warn (Error.abstr_data_in_pub_block pos);
-    (true, false)
-  | DV_Public   -> (true, true)
-
-(* ========================================================================= *)
-
 let rec tr_poly_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
@@ -583,7 +572,7 @@ and tr_expr (e : Raw.expr) =
     | ";" ->
       let lhs = annot_tp exp1 RawTypes.unit in
       tr_expr (make (Raw.EDefs(
-        [make ([], Raw.DLet(false, make Raw.EWildcard, lhs))],
+        [make ([], Raw.DLet(make Raw.EWildcard, lhs))],
         exp2
       )))
     | _ ->
@@ -655,7 +644,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
   let make data = { data = data; pos = pos } in
   let make_attr data = (([] : Raw.attributes), make data) in 
   match def with
-  | DLet(_, p, e) ->
+  | DLet(p, e) ->
     [ match tr_let_pattern p with
       | LP_Id id ->
         make_attr (DLetId(false, id, tr_poly_expr_def e))
@@ -664,7 +653,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       | LP_Pat p ->
         make_attr (DLetPat(p, tr_expr e))
     ]
-  | DMethod(pub, p, e) ->
+  | DMethod(p, e) ->
     [ match tr_let_pattern p with
       | LP_Id (IdVar x) ->
         make_attr (DLetId(false, IdMethod x, tr_poly_expr_def e))
@@ -681,7 +670,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       | Either.Left (x, y, k)    -> make_attr (DTypeParam(x, y, k))
       | Either.Right (x, y, sch) -> make_attr (DValParam(x, y, sch))
     ]
-  | DRecord (vis, tp, flds) ->
+  | DRecord (tp, flds) ->
     let cd_named_args = List.map tr_scheme_field flds in
     begin match tr_type_def tp [] with
     | TD_Id(cd_name, args) ->
@@ -690,36 +679,35 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       let record_attr = [make ["record"]] in
         [(record_attr, make (DData { public_tp=false; public_ctors=false; tvar = cd_name; args; ctors }))]
     end
-  | DData(vis, tp, cs) ->
-    let (public_tp, public_ctors) = tr_data_vis pos vis in
+  | DData(tp, cs) ->
     [ match tr_type_def tp [] with
       | TD_Id(tvar, args) ->
         let args = List.map tr_named_type_arg args in
         let ctors = List.map tr_ctor_decl cs in
-        make_attr (DData { public_tp; public_ctors; tvar; args; ctors })
+        make_attr (DData { public_tp=false; public_ctors=false; tvar; args; ctors })
     ]
-  | DLabel(pub, pat, eff_opt) ->
+  | DLabel(pat, eff_opt) ->
     let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     [ make_attr (DLabel (eff, pat)) ]
-  | DHandle(pub, pat, eff_opt, body, hcs) ->
+  | DHandle(pat, eff_opt, body, hcs) ->
     let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     let body = { body with data = EHandler(body, rcs, fcs) } in
     [ make_attr (DHandlePat(pat, eff, body)) ]
-  | DHandleWith(pub, pat, eff_opt, body) ->
+  | DHandleWith(pat, eff_opt, body) ->
     let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
     [ make_attr (DHandlePat(pat, eff, body)) ]
-  | DModule(pub, x, defs) ->
+  | DModule(x, defs) ->
     [ make_attr @@ DModule(false, x, tr_defs defs) ]
-  | DOpen(pub, path) -> 
+  | DOpen(path) -> 
     [ make_attr @@ DOpen(false, path) ]
   
-  | DRec(pub, defs) when List.for_all node_is_rec_data defs ->
+  | DRec(defs) when List.for_all node_is_rec_data defs ->
     (* This case is a quick fix to make most record accessors
        not marked impure if they aren't. (Explained #160) *)
     (* TODO: Remove when more robust solution is implemented *)
@@ -727,7 +715,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       |> List.partition node_is_data_def in
     (DRec dds) :: List.map (fun x -> x.data) accessors |> List.map make_attr
   
-  | DRec(pub, defs) ->
+  | DRec(defs) ->
     [ make_attr @@ DRec (tr_defs defs) ]
 
 and tr_defs (defs : Raw.def list) = 

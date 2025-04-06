@@ -43,7 +43,7 @@ let make data =
 
 (** Make potentially recursive definition *)
 let make_def is_rec data =
-  if is_rec then DRec(false, [make ([], data)]) else data 
+  if is_rec then DRec([make ([], data)]) else data 
 
 %}
 
@@ -526,27 +526,27 @@ def
 
 def_base
 : pub KW_LET rec_opt expr_70 EQ expr 
-    { ($1, make_def $3 (DLet(false, $4, $6))) }
+    { ($1, make_def $3 (DLet($4, $6))) }
 | KW_PARAMETER field 
     { ([], DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
-    { ($1, make_def $3  (DData(DV_Private, $4, $7))) }
+    { ($1, make_def $3  (DData($4, $7))) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
-    { ($1, make_def $3  (DRecord(DV_Private, $4, $7))) }
+    { ($1, make_def $3  (DRecord($4, $7))) }
 | pub KW_LABEL rec_opt expr_100 effect_var_opt
-    { ($1, make_def $3 (DLabel(false, $4, $5))) }
+    { ($1, make_def $3 (DLabel($4, $5))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses
-    { ($1, make_def $3 (DHandle(false, $4, $5, $7, $8))) }
+    { ($1, make_def $3 (DHandle($4, $5, $7, $8))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr
-    { ($1, make_def $3 (DHandleWith(false, $4, $5, $7))) }
+    { ($1, make_def $3 (DHandleWith($4, $5, $7))) }
 | pub KW_METHOD rec_opt expr_70 EQ expr 
-    { ($1, make_def $3 (DMethod(false, $4, $6))) }
+    { ($1, make_def $3 (DMethod($4, $6))) }
 | pub KW_MODULE rec_opt UID def_list KW_END
-    { ($1, make_def $3 (DModule(false, $4, $5))) }
+    { ($1, make_def $3 (DModule($4, $5))) }
 | pub KW_REC def_list KW_END 
-    { ($1, DRec(false, $3)) }
+    { ($1, DRec($3)) }
 | pub KW_OPEN uid_path 
-    { ($1, DOpen(false, $3)) }
+    { ($1, DOpen($3)) }
 ;
 
 def_list

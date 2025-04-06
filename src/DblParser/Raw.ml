@@ -123,12 +123,6 @@ and ctor_decl_data =
   | CtorDecl of ctor_name * type_expr list
     (** Declaration of a constructor *)
 
-(** Visibility of an ADT definition *)
-type data_vis = DV_Private | DV_Public | DV_Abstract
-
-(** Visibility of value definition *)
-type is_public = bool
-
 (** Attributes *)
 type attributes = (string list) node list
 
@@ -239,37 +233,37 @@ and field = (type_expr, expr) field_data node
 (** Definitions *)
 and def = (attributes * def_data) node
 and def_data =
-  | DLet of is_public * expr * expr
+  | DLet of expr * expr
     (** Let-definition *)
 
   | DParam of field
     (** Declaration of a parameter *)
 
-  | DRecord of data_vis * type_expr * ty_field list
+  | DRecord of type_expr * ty_field list
     (** Definition of record-like type *)
 
-  | DData of data_vis * type_expr * ctor_decl list
+  | DData of type_expr * ctor_decl list
     (** Definition of ADT *)
 
-  | DLabel of is_public * expr * type_expr option
+  | DLabel of expr * type_expr option
     (** Creating a new label *)
 
-  | DHandle of is_public * expr * type_expr option * expr * h_clause list
+  | DHandle of expr * type_expr option * expr * h_clause list
     (** Effect handler *)
 
-  | DHandleWith of is_public * expr * type_expr option * expr
+  | DHandleWith of expr * type_expr option * expr
     (** Effect handler, with first-class handler *)
 
-  | DMethod of is_public * expr * expr
+  | DMethod of expr * expr
     (** Method definition *)
 
-  | DModule of is_public * module_name * def list
+  | DModule of module_name * def list
     (** Definition of a module *)
 
-  | DOpen of is_public * module_name path
+  | DOpen of module_name path
     (** Opening a module *)
 
-  | DRec of is_public * def list
+  | DRec of def list
     (** Block of mutually recursive definitions *)
 
 (** Additional clauses of handlers *)
