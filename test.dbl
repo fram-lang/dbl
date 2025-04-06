@@ -1,5 +1,11 @@
+import Prelude
 
+@{test tag1}
+let _ = printStrLn "Requires test tag `tag1`"
+
+@{test tag2}
+let _ = printStrLn "Requires test tag `tag2`"
 
 @{test}
-let _ = printStrLn "This executes only with -test flag!"
+let _ = printStrLn "Tagless test"
 

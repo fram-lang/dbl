@@ -11,4 +11,5 @@
   (synopsis "Interpreter of Fram: a language with algebraic effects and powerful named parameters")
   (description "")
   (depends
-    (dune (>= 3.11))))
+    (dune (>= 3.11))
+    (dune-glob (= 3.7.0))))

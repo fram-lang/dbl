@@ -62,8 +62,16 @@ let cmd_args_options = Arg.align
     " Use colors when printing Errors.";
 
     "-test",
-    Arg.Set DblParser.Attributes.run_test,
-    " Run tests"
+    Arg.Set DblConfig.test_tagless,
+    " Run tagless tests";
+
+    "-test-tags",
+    Arg.String 
+      (fun s -> String.split_on_char ',' s 
+      |> List.map String.trim 
+      |> List.map DblConfig.compile_glob 
+      |> fun s -> DblConfig.test_globs := s),
+    " Run tagged tests matching globs"
   ]
 
 let fname = ref None

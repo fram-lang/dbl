@@ -6,7 +6,6 @@
 
 open Lang.Surface
 
-let run_test = ref false
 
 let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
 (*
@@ -117,11 +116,10 @@ let make_visible (is_abstract : bool) (args : string list node) (ds : Lang.Surfa
 
 let make_test (args : string list node) defs =
   match args.data with
-  | [_] 
-  | [_; _] ->
-    if !run_test then
+  | _ :: tags ->
+    if DblConfig.test_active tags then
       defs
-    else 
+    else
       []
   | _ -> Error.fatal (Error.attribute_error args.pos "Test attribute expects only 1 optional parameter")
 
