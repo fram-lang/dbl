@@ -195,6 +195,7 @@ let attrs : attribute_fun M.t =
     ; ("#abstr",  make_visible true)
     ; ("test",    make_test)
     ; ("#record", tr_record)
+    ; ("ignore",  fun _ x -> x)
     ]
 
 let tr_attr (args : string list node) (data : Lang.Surface.def list) = 

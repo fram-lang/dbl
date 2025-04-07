@@ -45,6 +45,8 @@ let make data =
 let make_def is_rec data =
   if is_rec then DRec([make ([], data)]) else data 
 
+let append xs ys = xs @ ys
+
 %}
 
 %%
@@ -488,24 +490,6 @@ field_list
 
 /* ========================================================================= */
 
-lids
-: LID         { [ $1 ]   }
-| LID lids    { $1 :: $2 }
-;
-
-lids_sep
-: /* empty */         { []       }       
-| lids COMMA lids_sep { $1 :: $3 }
-| lids                { [ $1 ]   }
-;
-
-attributes_pub
-: /* empty */                       { ([], false) }
-| KW_PUB                            { ([], true ) }
-| ATTR_OPEN lids_sep CBR_CLS        { ($2, false) }
-| ATTR_OPEN lids_sep CBR_CLS KW_PUB { ($2, true ) }
-;
-
 data_vis
 : /* empty */ { []                }
 | KW_PUB      { [ make ["#pub"]]   }
@@ -522,15 +506,23 @@ rec_opt
 | KW_REC      { true  }
 ;
 
+lids
+: LID         { [ $1 ]   }
+| LID lids    { $1 :: $2 }
+;
+
 attrs
-: CBR_CLS def_base      { $2 }
-| lids COMMA attrs      { let (x, y) = $3 in (make $1 :: x, y) }
-| lids CBR_CLS def_base { let (x, y) = $3 in (make $1 :: x, y) }
+: lids COMMA attrs { make $1 :: $3 }
+| lids             { [make $1]     }
 ;
 
 def
-: def_base         { make $1 }
-| ATTR_OPEN  attrs { make $2 }
+: def_base 
+  { make $1 }
+| ATTR_OPEN CBR_CLS def_base 
+  { make $3 }
+| ATTR_OPEN attrs CBR_CLS def_base 
+  { let (attrs', def) = $4 in make (append $2 attrs', def) }
 ;
 
 def_base
