@@ -411,11 +411,19 @@ let rec positive : type k. nonrec_scope:_ -> k typ -> bool =
   fun ~nonrec_scope tp ->
   match tp with
   | TVar _ | TEffPure -> true
-  | TGuard _ | TLabel _ | TData _ ->
+  | TLabel _ | TData _ ->
     begin match type_in_scope nonrec_scope tp with
     | Some _ -> true
     | None   -> false
     end
+  
+  | TGuard (constraints, tp) ->
+    positive ~nonrec_scope tp &&
+    List.for_all (fun (lhs, rhs) ->
+      positive ~nonrec_scope lhs &&
+      negative ~nonrec_scope rhs
+    )
+    constraints
 
   | TEffJoin(eff1, eff2) ->
     positive ~nonrec_scope eff1 &&
@@ -443,16 +451,14 @@ let rec positive : type k. nonrec_scope:_ -> k typ -> bool =
 and negative : type k. nonrec_scope:_ -> k typ -> bool =
   fun ~nonrec_scope tp ->
   match tp with
-  | TVar _ | TEffPure -> true
-  | TGuard _ | TLabel _ | TData _ ->
+  | TEffPure -> true
+  | TVar _  | TLabel _ | TData _ | TApp _ | TEffJoin _ ->
     begin match type_in_scope nonrec_scope tp with
     | Some _ -> true
     | None   -> false
     end
 
-  | TEffJoin(eff1, eff2) ->
-    negative ~nonrec_scope eff1 &&
-    negative ~nonrec_scope eff2
+  | TGuard _  -> positive ~nonrec_scope tp
     
   | TArrow(tp1, tp2, eff) ->
     positive ~nonrec_scope tp1 &&
@@ -461,15 +467,6 @@ and negative : type k. nonrec_scope:_ -> k typ -> bool =
 
   | TForall(a, tp) ->
     negative ~nonrec_scope:(TVar.Set.add a nonrec_scope) tp
-
-  | TApp(tp1, tp2) ->
-    begin match
-      negative ~nonrec_scope tp1,
-      type_in_scope nonrec_scope tp2
-    with
-    | true, Some _ -> true
-    | _ -> false
-    end
 
 (** Check if all types on non-positive positions fits in given
   scope (for ADT constructors) *)
