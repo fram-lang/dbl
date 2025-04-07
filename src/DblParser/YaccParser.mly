@@ -508,13 +508,13 @@ attributes_pub
 
 data_vis
 : /* empty */ { []                }
-| KW_PUB      { [ make ["pub"]]   }
-| KW_ABSTR    { [ make ["abstr"]] }
+| KW_PUB      { [ make ["#pub"]]   }
+| KW_ABSTR    { [ make ["#abstr"]] }
 ;
 
 pub
 : /* empty */ { []              }
-| KW_PUB      { [ make ["pub"]] }
+| KW_PUB      { [ make ["#pub"]] }
 ;
 
 rec_opt

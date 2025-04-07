@@ -12,4 +12,4 @@
   (description "")
   (depends
     (dune (>= 3.11))
-    (dune-glob (= 3.7.0))))
+    (dune-glob (>= 3.7.0))))

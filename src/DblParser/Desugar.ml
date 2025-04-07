@@ -676,7 +676,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     | TD_Id(cd_name, args) ->
       let args = List.map tr_named_type_arg args in
       let ctors = [ make { cd_name; cd_named_args; cd_arg_schemes = [] } ] in
-      let record_attr = [make ["record"]] in
+      let record_attr = [make ["#record"]] in
         [(record_attr, make (DData { public_tp=false; public_ctors=false; tvar = cd_name; args; ctors }))]
     end
   | DData(tp, cs) ->

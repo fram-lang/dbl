@@ -191,10 +191,10 @@ type attribute_fun = string list node -> Lang.Surface.def list -> Lang.Surface.d
 
 let attrs : attribute_fun M.t = 
   M.of_list
-    [ ("pub", make_visible false)
-    ; ("abstr", make_visible true)
-    ; ("test",   make_test)
-    ; ("record", tr_record)
+    [ ("#pub",    make_visible false)
+    ; ("#abstr",  make_visible true)
+    ; ("test",    make_test)
+    ; ("#record", tr_record)
     ]
 
 let tr_attr (args : string list node) (data : Lang.Surface.def list) = 
