@@ -420,22 +420,11 @@ let rec positive : type k. nonrec_scope:_ -> k typ -> bool =
   | TEffJoin(eff1, eff2) ->
     positive ~nonrec_scope eff1 &&
     positive ~nonrec_scope eff2
-
-  | TArrow(TArrow (_, tp1, eff0), tp2, eff1) ->
-    positive ~nonrec_scope tp1 &&
-    positive ~nonrec_scope tp2 &&
-    positive ~nonrec_scope eff0 &&
-    positive ~nonrec_scope eff1
     
   | TArrow(tp1, tp2, eff) ->
-    begin match
-      type_in_scope nonrec_scope tp1,
-      positive ~nonrec_scope tp2,
-      positive ~nonrec_scope eff
-    with
-    | Some _, true, true -> true
-    | _ -> false
-    end
+    negative ~nonrec_scope tp1 &&
+    positive ~nonrec_scope tp2 &&
+    positive ~nonrec_scope eff
 
   | TForall(a, tp) ->
     positive ~nonrec_scope:(TVar.Set.add a nonrec_scope) tp
@@ -443,6 +432,39 @@ let rec positive : type k. nonrec_scope:_ -> k typ -> bool =
   | TApp(tp1, tp2) ->
     begin match
       positive ~nonrec_scope tp1,
+      type_in_scope nonrec_scope tp2
+    with
+    | true, Some _ -> true
+    | _ -> false
+    end
+
+(** Check if all types on non-negative positions fits in given
+  scope. *)
+and negative : type k. nonrec_scope:_ -> k typ -> bool =
+  fun ~nonrec_scope tp ->
+  match tp with
+  | TVar _ | TEffPure -> true
+  | TGuard _ | TLabel _ | TData _ ->
+    begin match type_in_scope nonrec_scope tp with
+    | Some _ -> true
+    | None   -> false
+    end
+
+  | TEffJoin(eff1, eff2) ->
+    negative ~nonrec_scope eff1 &&
+    negative ~nonrec_scope eff2
+    
+  | TArrow(tp1, tp2, eff) ->
+    positive ~nonrec_scope tp1 &&
+    negative ~nonrec_scope tp2 &&
+    negative ~nonrec_scope eff
+
+  | TForall(a, tp) ->
+    negative ~nonrec_scope:(TVar.Set.add a nonrec_scope) tp
+
+  | TApp(tp1, tp2) ->
+    begin match
+      negative ~nonrec_scope tp1,
       type_in_scope nonrec_scope tp2
     with
     | true, Some _ -> true
