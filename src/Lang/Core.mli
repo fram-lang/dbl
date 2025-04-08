@@ -95,7 +95,7 @@ type _ typ =
 
       The element of type [TData(tp, eff, ctors)] is a witness that type [tp]
       has constructors [ctors]. The effect [eff] is an effect of
-      pattern-matching: its pure for strictly positively recursive types,
+      pattern-matching: its pure for positively recursive types,
       and impure for other types (because it may lead to non-termination). *)
 
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
@@ -141,8 +141,8 @@ type data_def =
       ctors : ctor_type list;
         (** List of constructors. *)
 
-      strictly_positive : bool
-        (** A flag indicating if the type is strictly positively recursive (in
+      positive : bool
+        (** A flag indicating if the type is positively recursive (in
           particular, not recursive at all) and therefore can be deconstructed
           without performing NTerm effect. *)
     }
