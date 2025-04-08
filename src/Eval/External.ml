@@ -79,6 +79,8 @@ let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
 let extern_map =
   [ "dbl_runtimeError", str_fun runtime_error;
     "dbl_magic",       pure_fun Fun.id;
+    "dbl_maxInt",      (VNum Int.max_int);
+    "dbl_minInt",      (VNum Int.min_int);
     "dbl_negInt",      int_unop ( ~- );
     "dbl_addInt",      int_binop ( + );
     "dbl_subInt",      int_binop ( - );
