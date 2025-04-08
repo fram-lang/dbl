@@ -79,7 +79,7 @@ val view : typ -> type_view
 module UVar : sig
   type t = uvar
 
-  val fresh : scope:Scope.t -> kind -> uvar
+  val fresh : pos:Position.t -> scope:Scope.t -> kind -> uvar
 
   (** Get the kind of given unification variable *)
   val kind : t -> kind
@@ -101,6 +101,9 @@ module UVar : sig
   val shrink_scope : t -> Scope.t -> unit
 
   val in_scope : t -> Scope.t -> bool
+
+  (** Get position of variables first use *)
+  val pos : t -> Position.t
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t

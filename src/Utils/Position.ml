@@ -62,7 +62,7 @@ let of_lexing len (p : Lexing.position) =
   ; pos_end_bol    = p.pos_bol
   }
 
-(** Join to position into single one.
+(** Join two positions into single one.
   It take file name and start from the first parameter and end from the second
   parameter *)
 let join p1 p2 =

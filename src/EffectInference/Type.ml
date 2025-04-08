@@ -23,7 +23,7 @@ let rec tr_type env (tp : S.typ) =
 
     | _ ->
       (* TODO: we can handle them in the future. *)
-      Error.fatal (Error.unsolved_unification_variable ())
+      Error.fatal (Error.unsolved_unification_variable ~pos:(S.UVar.pos u))
     end
 
   | TVar x -> T.Type.t_var (Env.lookup_tvar env x)

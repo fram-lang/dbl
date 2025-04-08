@@ -128,7 +128,5 @@ let non_exhaustive_match ~pos ctx =
 let unused_pattern ~pos =
   (pos, "This pattern is unused")
 
-let unsolved_unification_variable () =
-  InterpLib.Error.report ~cls:FatalError
-    "Unsolved unification variable left";
-  raise InterpLib.Error.Fatal_error
+let unsolved_unification_variable ~pos =
+  (pos, "Unsolved unification variable left")

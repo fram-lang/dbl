@@ -157,4 +157,4 @@ val scope : 'st t -> Scope.t
 val pp_tree : 'st t -> PPTree.t
 
 (** Create a fresh unification variable in the current scope *)
-val fresh_uvar : 'st t -> T.kind -> T.typ
+val fresh_uvar : pos:Position.t -> 'st t -> T.kind -> T.typ

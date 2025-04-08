@@ -68,7 +68,7 @@ val subscheme : 'st Env.t -> T.scheme -> T.scheme -> result
 
 (** Coerce given type to an arrow.
   It performs some unifications when necessary. Never returns [Arr_UVar]. *)
-val to_arrow : 'st Env.t -> T.typ -> arrow
+val to_arrow : pos:Position.t -> 'st Env.t -> T.typ -> arrow
 
 (** Coerce given type from an arrow.
   It performs some unifications when necessary. Returns [Arr_UVar], when given
@@ -77,12 +77,12 @@ val from_arrow : 'st Env.t -> T.typ -> arrow
 
 (** Coerce given type to a handler.
   It performs some unification when necessary. *)
-val to_handler : 'st Env.t -> T.typ -> handler
+val to_handler : pos:Position.t -> 'st Env.t -> T.typ -> handler
 
 (** Coerce given type from a handler.
   It performs some unification when necessary. *)
-val from_handler : 'st Env.t -> T.typ -> handler
+val from_handler : pos:Position.t -> 'st Env.t -> T.typ -> handler
 
 (** Coerce given type to a label type.
   It performs some unification when necessary. *)
-val to_label : 'st Env.t -> T.typ -> label
+val to_label : pos:Position.t -> 'st Env.t -> T.typ -> label

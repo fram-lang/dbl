@@ -9,7 +9,7 @@ open TypeBase
 
 let view = TypeBase.view
 
-let fresh_uvar ~scope kind = t_uvar (UVar.fresh ~scope kind)
+let fresh_uvar ~pos ~scope kind = t_uvar (UVar.fresh ~pos ~scope kind)
 
 let t_unit = t_var BuiltinType.tv_unit
 

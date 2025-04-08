@@ -306,5 +306,5 @@ let scope (Env env) = env.scope
 
 let pp_tree (Env env) = env.pp_tree
 
-let fresh_uvar (Env env) kind =
-  T.Type.fresh_uvar ~scope:env.scope kind
+let fresh_uvar ~pos (Env env) kind =
+  T.Type.fresh_uvar ~pos ~scope:env.scope kind

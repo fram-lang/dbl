@@ -595,6 +595,9 @@ module UVar : sig
   (** Check if a unification variable can be used in a given scope *)
   val in_scope : t -> Scope.t -> bool
 
+  (** Get position of variable's first use *)
+  val pos : t -> Position.t
+
   (** Set of unification variables *)
   module Set : Set.S with type elt = t
 
@@ -720,7 +723,7 @@ module Type : sig
   val t_apps : typ -> typ list -> typ
 
   (** Fresh unification variable (packed as type) *)
-  val fresh_uvar : scope:Scope.t -> kind -> typ
+  val fresh_uvar : pos:Position.t -> scope:Scope.t -> kind -> typ
 
   (** Reveal a top-most constructor of a type *)
   val view : typ -> type_view
