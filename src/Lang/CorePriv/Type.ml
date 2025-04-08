@@ -416,19 +416,19 @@ let rec positive : type k. nonrec_scope:_ -> k typ -> bool =
     | Some _ -> true
     | None   -> false
     end
-  
+
   | TGuard (constraints, tp) ->
     positive ~nonrec_scope tp &&
     List.for_all
       (fun (lhs, rhs) ->
         positive ~nonrec_scope lhs &&
         negative ~nonrec_scope rhs)
-    constraints
+      constraints
 
   | TEffJoin(eff1, eff2) ->
     positive ~nonrec_scope eff1 &&
     positive ~nonrec_scope eff2
-    
+
   | TArrow(tp1, tp2, eff) ->
     negative ~nonrec_scope tp1 &&
     positive ~nonrec_scope tp2 &&
@@ -464,8 +464,8 @@ and negative : type k. nonrec_scope:_ -> k typ -> bool =
       (fun (lhs, rhs) ->
         negative ~nonrec_scope lhs &&
         positive ~nonrec_scope rhs)
-    constraints
-    
+      constraints
+
   | TArrow(tp1, tp2, eff) ->
     positive ~nonrec_scope tp1 &&
     negative ~nonrec_scope tp2 &&
