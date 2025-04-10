@@ -13,6 +13,7 @@ jobs:
         with:
           ocaml-compiler: 5.3.0
       - run: opam install dune
+      - run: opam install dune-glob
       - run: opam exec -- dune build
       - run: opam exec -- dune install
       - run: eval $(opam env) && ./test.sh dbl ./test/test_suite

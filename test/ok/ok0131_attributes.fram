@@ -1,0 +1,17 @@
+
+# no attributes
+let x = 10
+
+# pub
+pub let y = 10
+
+# empty attributes + pub
+@{}
+pub let z = 20
+
+# test ignores this statement
+@{test}
+pub let w = 20 + "sdadad"
+
+@{ignore a1 a2, ignore a3 a4 }
+let u = 30
