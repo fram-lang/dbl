@@ -19,7 +19,8 @@ type uvar = {
   uid   : UID.t;
   kind  : kind;
   state : uvar_state BRef.t;
-  scope : Scope.t BRef.t
+  scope : Scope.t BRef.t;
+  pos   : Position.t
 }
 
 and uvar_state =
@@ -85,11 +86,12 @@ module UVar = struct
   end
   include Ordered
 
-  let fresh ~scope kind =
+  let fresh ~pos ~scope kind =
     { uid   = UID.fresh ();
       kind  = kind;
       state = BRef.create UV_UVar;
-      scope = BRef.create scope
+      scope = BRef.create scope;
+      pos   = pos
     }
 
   let kind u = u.kind
@@ -120,6 +122,8 @@ module UVar = struct
 
   let in_scope u scope =
     Scope.mem (BRef.get u.scope) scope
+
+  let pos u = u.pos
 
   module Set = Set.Make(Ordered)
   module Map = Map.Make(Ordered)
