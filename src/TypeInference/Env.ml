@@ -223,6 +223,24 @@ let unit_adt =
     Module.adt_effect = Pure
   }
 
+let bool_adt = 
+  { Module.adt_args  = [];
+    Module.adt_proof = T.PE_Bool;
+    Module.adt_ctors = 
+      [ { ctor_name        = "False";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        };
+        { ctor_name        = "True";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        }; ];
+    Module.adt_type   = T.Type.t_bool;
+    Module.adt_effect = Pure
+  }
+
 let option_adt =
   let a = T.TVar.fresh ~scope:Scope.any T.Kind.k_type in
   { Module.adt_args  = [T.TNAnon, a];
@@ -251,6 +269,9 @@ let initial =
       T.BuiltinType.all in
   let env = add_adt env T.BuiltinType.tv_unit unit_adt in
   let env = add_ctor env "()" 0 unit_adt in
+  let env = add_adt env T.BuiltinType.tv_bool bool_adt in
+  let env = add_ctor env "False" 0 bool_adt in
+  let env = add_ctor env "True" 1 bool_adt in
   let env = add_adt env T.BuiltinType.tv_option option_adt in
   let env = add_ctor env "None" 0 option_adt in
   let env = add_ctor env "Some" 1 option_adt in

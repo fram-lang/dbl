@@ -25,6 +25,7 @@ type data_def =
 
 type expr =
   | EUnitPrf
+  | EBoolPrf
   | EOptionPrf
   | ENum      of int
   | ENum64    of int64

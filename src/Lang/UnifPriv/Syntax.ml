@@ -72,6 +72,7 @@ type data_def =
 
 type proof_expr =
   | PE_Unit
+  | PE_Bool
   | PE_Option of typ
   | PE_Var    of var * typ list
 

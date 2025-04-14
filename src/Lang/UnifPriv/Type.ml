@@ -13,6 +13,8 @@ let fresh_uvar ~pos ~scope kind = t_uvar (UVar.fresh ~pos ~scope kind)
 
 let t_unit = t_var BuiltinType.tv_unit
 
+let t_bool = t_var BuiltinType.tv_bool
+
 let t_option tp = t_app (t_var BuiltinType.tv_option) tp
 
 let t_pure_arrow sch tp = t_arrow sch tp Pure
