@@ -15,14 +15,14 @@ let unit_ctor =
 
 let false_ctor =
   { T.ctor_name        = "False";
-    T.ctor_targs        = [];
+    T.ctor_targs       = [];
     T.ctor_named       = [];
     T.ctor_arg_schemes = []
   }
 
 let true_ctor =
   { T.ctor_name        = "True";
-    T.ctor_targs        = [];
+    T.ctor_targs       = [];
     T.ctor_named       = [];
     T.ctor_arg_schemes = []
   }
@@ -50,7 +50,8 @@ let tr_proof_expr env (prf : S.proof_expr) =
     (T.EUnitPrf, T.Type.t_var T.BuiltinType.tv_unit, [unit_ctor], T.Pure)
 
   | PE_Bool -> 
-    (T.EBoolPrf, T.Type.t_var T.BuiltinType.tv_bool, [false_ctor; true_ctor], T.Pure)
+    let tp = T.Type.t_var T.BuiltinType.tv_bool in
+    (T.EBoolPrf, tp, [false_ctor; true_ctor], T.Pure)
 
   | PE_Option tp ->
     let tp = Type.tr_type env tp in

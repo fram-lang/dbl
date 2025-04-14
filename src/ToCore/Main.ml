@@ -14,8 +14,9 @@ let return x cont = cont x
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e with
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EFn _ | ETFun _ | ECAbs _ | ECtor _ | EExtern _ | ERepl _ | EReplExpr _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | ECtor _ | EExtern _ | ERepl _ 
+  | EReplExpr _ ->
     let^ v = tr_expr_v env e in
     T.EValue v
 
@@ -73,8 +74,8 @@ and tr_let_expr ~pure x env (e : S.expr) cont =
   | _ when pure ->
     T.ELetPure(x, tr_expr env e, cont ())
 
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
     T.ELetPure(x, tr_expr env e, cont ())
 
   | EApp _ | ETApp _ | ECApp _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _

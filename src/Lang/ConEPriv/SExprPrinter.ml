@@ -155,10 +155,10 @@ and tr_app e args =
   | EApp(e1, e2) -> tr_app e1 (tr_expr e2 :: args)
   | ETApp(e1, tp) -> tr_app e1 (List [ Sym "type"; tr_type tp ] :: args)
   | ECApp e1 -> tr_app e1 (Sym "constr" :: args)
-  
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
-  | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | EExtern _
+
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ 
+  | ERecCtx _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | EExtern _
   | ERepl _ | EReplExpr _ ->
     List (tr_expr e :: args)
 
@@ -180,8 +180,8 @@ and tr_defs e =
         tr_var x; tr_expr ret
       ] :: tr_defs body
 
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _
   | EMatch _ | EShift _ | EExtern _ | ERepl _ | EReplExpr _ ->
     [ tr_expr e ]
 

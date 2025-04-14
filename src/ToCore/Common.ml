@@ -41,8 +41,11 @@ let v_bool_prf =
       T.ctor_tvars     = [];
       T.ctor_arg_types = []
     } in
-  T.VExtern("__Bool_Proof__", T.TData(T.Type.t_bool, T.TEffPure, [ ctor_false; ctor_true ]))
-  
+  let data_tp = T.TData(
+    T.Type.t_bool,
+    T.TEffPure,
+    [ ctor_false; ctor_true ]) in
+  T.VExtern("__Bool_Proof__", data_tp)
 
 (** Proof that option is an ADT *)
 let v_option_prf =
