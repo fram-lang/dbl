@@ -62,6 +62,7 @@ let rename_var ren x =
 let rename_proof_expr ren (e : proof_expr) =
   match e with
   | PE_Unit        -> PE_Unit
+  | PE_Bool        -> PE_Bool
   | PE_Option tp   -> PE_Option(rename_type ren tp)
   | PE_Var(x, tps) -> PE_Var(rename_var ren x, List.map (rename_type ren) tps)
 

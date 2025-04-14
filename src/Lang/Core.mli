@@ -192,6 +192,9 @@ module Type : sig
   (** Unit type *)
   val t_unit : ttype
 
+  (** Bool type *)
+  val t_bool : ttype
+
   (** Option type *)
   val t_option : ttype -> ttype
 

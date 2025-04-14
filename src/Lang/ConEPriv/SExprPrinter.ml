@@ -101,6 +101,7 @@ let tr_data_def (dd : data_def) =
 let rec tr_expr (e : expr) =
   match e with
   | EUnitPrf   -> Sym "unit-prf"
+  | EBoolPrf   -> Sym "bool-prf"
   | EOptionPrf -> Sym "option-prf"
   | ENum n     -> Sym (string_of_int n)
   | ENum64 n   -> Sym (Int64.to_string n ^ "L")
@@ -155,7 +156,7 @@ and tr_app e args =
   | ETApp(e1, tp) -> tr_app e1 (List [ Sym "type"; tr_type tp ] :: args)
   | ECApp e1 -> tr_app e1 (Sym "constr" :: args)
   
-  | EUnitPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
   | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
   | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | EExtern _
   | ERepl _ | EReplExpr _ ->
@@ -179,7 +180,7 @@ and tr_defs e =
         tr_var x; tr_expr ret
       ] :: tr_defs body
 
-  | EUnitPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
   | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _
   | EMatch _ | EShift _ | EExtern _ | ERepl _ | EReplExpr _ ->
     [ tr_expr e ]

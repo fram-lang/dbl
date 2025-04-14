@@ -9,6 +9,9 @@ open TypeBase
 (** Unit type *)
 let t_unit = TVar BuiltinType.tv_unit
 
+(** Bool type *)
+let t_bool = TVar BuiltinType.tv_bool
+
 (** Option type *)
 let t_option arg =
   TApp(TVar BuiltinType.tv_option, arg)

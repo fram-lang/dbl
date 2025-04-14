@@ -25,7 +25,7 @@ let tr_data_def (dd : S.data_def) e =
 (** Translate expression *)
 let rec tr_expr (e : S.expr) =
   match e with
-  | EUnitPrf | EOptionPrf -> assert false
+  | EUnitPrf | EBoolPrf | EOptionPrf -> assert false
 
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _ | EFn _ | ECtor _
   | EExtern _ ->
@@ -71,7 +71,7 @@ let rec tr_expr (e : S.expr) =
 (** Translate expression as a value *)
 and tr_expr_v (e : S.expr) =
   match e with
-  | EUnitPrf | EOptionPrf -> assert false
+  | EUnitPrf | EBoolPrf | EOptionPrf -> assert false
 
   | ENum   n        -> return (T.VNum n)
   | ENum64 n        -> return (T.VNum64 n)

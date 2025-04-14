@@ -257,6 +257,9 @@ type proof_expr =
   | PE_Unit
     (** Proof that Unit is an ADT with only one constructor *)
 
+  | PE_Bool 
+    (** Proof that Bool is an ADT with True and False constructors *)
+
   | PE_Option of typ
     (** Proof that Option is an ADT with None and Some constructors. It
       expects a single type: the type of the Some parameter. *)
@@ -692,6 +695,9 @@ module Type : sig
   (** Unit type *)
   val t_unit : typ
 
+  (** Bool type *)
+  val t_bool : typ
+
   (** Option type *)
   val t_option : typ -> typ
 
@@ -839,6 +845,9 @@ module BuiltinType : sig
 
   (** Unit type *)
   val tv_unit : tvar
+
+  (** Bool type *)
+  val tv_bool : tvar
 
   (** Option type *)
   val tv_option : tvar

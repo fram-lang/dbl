@@ -2,8 +2,6 @@
  # See LICENSE for details.
  #}
 
-pub data Bool = False | True
-
 pub data rec List A = [] | (::) of A, List A
 
 pub data Pair X Y = (,) of X, Y

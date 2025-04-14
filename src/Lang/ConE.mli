@@ -121,6 +121,9 @@ type expr =
   | EUnitPrf
     (** ADT-shape proof for unit type *)
 
+  | EBoolPrf 
+    (** ADT-shape proof for bool type *)
+
   | EOptionPrf
     (** ADT-shape proof for option type *)
 
@@ -546,6 +549,9 @@ module BuiltinType : sig
 
   (** Unit type *)
   val tv_unit : tvar
+
+  (** Bool type *)
+  val tv_bool : tvar
 
   (** Option type *)
   val tv_option : tvar
