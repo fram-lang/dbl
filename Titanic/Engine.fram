@@ -1,0 +1,107 @@
+import /List
+
+import open Types
+import open Width
+import open Lines
+
+data State E X = State of
+  { get    : Unit ->[E] X
+  , put    : X ->[E] Unit
+  , update : {F} -> (X ->[E,F] X) ->[E,F] Unit
+  }
+
+parameter E_st
+parameter ~st : State E_st _
+
+let get x =
+  let (State { get }) = ~st in
+  get x
+
+let put x =
+  let (State { put }) = ~st in
+  put x
+
+let update f =
+  let (State { update }) = ~st in
+  update f
+
+handle ~st =
+  let get = effect x / r => fn s => r s  s
+  let put = effect s / r => fn _ => r () s
+  let update f = put (f (get ())) in
+    State { get, put, update }
+  return  x => fn _ => x
+  finally c => c ((0, 0), ([] : List Step), ([] : List Int))
+
+let getFlex () = 
+  let (fl, _, _) = get ()
+  in fl
+
+let putFlex fl =
+  let (_, sts, shs) = get ()
+  in put (fl, sts, shs)
+
+let getSteps () = 
+  let (_, sts, _) = get ()
+  in sts
+
+let putSteps sts =
+  let (fl, _, shs) = get ()
+  in put (fl, sts, shs)
+
+let getShifts () = 
+  let (_, _, shs) = get ()
+  in shs
+
+let putShifts shs =
+  let (fl, sts, _) = get ()
+  in put (fl, sts, shs)
+
+let bt f () = 
+  let st = get ()
+  let res = f ()
+  let _ = put st
+  in res
+
+pub let exampleComputation () = 
+  let _ = putFlex (0, 3)
+  let recComp () = 
+    (let _ = put ((0, 0), [], [])
+     in 7)
+  let res = bt recComp ()
+  let fl = getFlex ()
+  in (snd fl) * res
+
+let eLine n = LFill n " "
+
+let qCtx lines len = ctxBox lines (eLine len) len
+
+let rec toLines (size : Int) (offset : Int) (d : Doc) =
+  match d.tree with
+  | DEmpty => ctxBox [] LEmpty 0
+  | DStr str => qCtx [LStr str] str.length
+  | DColor col doc =>
+    let ctx = toLines size offset doc in 
+    ctxBox 
+      (List.map (fn (l : Line) => LColor col >. concat l >. concat LColorPop) ctx.lines)
+      ctx.fill
+      ctx.size
+  | DSeq ds =>
+    let rec iter size off ds = 
+      match ds with
+      | [] => ctxBox [] LEmpty 0
+      | d :: ds =>
+        let ctxHead = toLines size off d
+        let ctxTail = iter (size - ctxHead.size) (off + ctxHead.size) ds
+        let lines = linesFill (ctxHead.fill) (ctxHead.lines) (ctxTail.fill) (ctxTail.lines)
+        in ctxBox lines (ctxHead.fill.concat ctxTail.fill) (ctxHead.size + ctxTail.size)
+      end
+    in iter size offset ds
+  | _ => toLines 0 0 (doc DEmpty (fixedWidth 0))
+  end
+
+pub let showDoc (doc : Doc) =
+  let width = doc.width.minWidth
+  let ctx = toLines width 0 doc
+  let str = reduceLines ctx.lines
+  in printStrLn str
