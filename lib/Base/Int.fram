@@ -38,5 +38,5 @@ pub method shiftl  = (extern dbl_lslInt : Int -> Int -> Int)
 pub method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int)
 pub method ashiftr = (extern dbl_asrInt : Int -> Int -> Int)
 
-pub let max = (extern dbl_maxInt : Int)
-pub let min = (extern dbl_minInt : Int)
+pub let maxValue = (extern dbl_maxInt : Int)
+pub let minValue = (extern dbl_minInt : Int)
