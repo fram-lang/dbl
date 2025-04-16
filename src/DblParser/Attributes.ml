@@ -6,7 +6,6 @@
 
 open Lang.Surface
 
-
 let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
 
 (* ===== Public/Abstract ===== *)
@@ -185,9 +184,78 @@ let tr_record (args : string list node) (defs : Lang.Surface.def list) =
     dd :: sels
   | _ -> Error.fatal (Error.attribute_error args.pos "Record error")
 
-        module M = Map.Make(String)
+module M = Map.Make(String)
 
 type attribute_fun = string list node -> Lang.Surface.def list -> Lang.Surface.def list
+
+type attribute = string list node
+type attributes = attribute list
+
+let attr_name = function
+  | { data=name :: _; _ } -> name
+  | _ -> failwith "no name :("
+
+
+let fold_attrs (attrs : attributes) : attributes M.t =
+  let rec iter (acc : attributes M.t) = function
+    | [] -> acc
+    | attr :: attrs -> 
+      let name = attr_name attr in
+      let add_elem = function
+        | Some xs -> Some (attr :: xs)
+        | None    -> Some [attr] in
+      let acc' = M.update name add_elem acc in
+      iter acc' attrs
+  in iter M.empty []
+
+let attr_conflicts =
+  [ ("#pub", "#abstr") ]
+
+let check_conflicts (attrs : attributes M.t) =
+  let check (k1, k2) =
+    if M.mem k1 attrs && M.mem k2 attrs then
+      failwith "" in
+  List.iter check attr_conflicts
+
+let attr_unique =
+  [ "#pub"
+  ; "#abstr"
+  ; "#record"
+  ; "ignoreExistential"
+  ]
+
+let check_unique (attrs : attributes M.t) =
+  let check k =
+    match M.find_opt k attrs with
+    | None | Some [_] -> ()
+    | _ -> failwith "" in
+  List.iter check attr_unique
+
+let attr_ord = M.of_list
+  [ ("ignoreExistential", ["#record"])
+  ; ("#record", ["#abstr"; "#pub"])
+  ]
+
+let topo_sort (attrs : attributes M.t) : attributes =
+  let rec visit key (to_visit, stack) =
+    match M.find_opt key to_visit with
+    | Some xs -> 
+      let to_visit = M.remove key to_visit in
+      let req = Option.value (M.find_opt key attr_ord) ~default:[] in
+      let (to_visit, stack) = List.fold_right visit req (to_visit, stack) in
+      (to_visit, xs @ stack)
+    | None -> (to_visit, stack) in
+  let rec visit_all (attrs, stack) =
+    match M.choose_opt attrs with
+    | None -> stack
+    | Some (key, _) -> visit_all (visit key (attrs, stack)) in
+  visit_all (attrs, [])
+
+type attribute_resolver = 
+  string list node -> 
+    Lang.Surface.def list -> 
+      string list node list -> 
+        (string list node list * Lang.Surface.def list)
 
 let attrs : attribute_fun M.t = 
   M.of_list
@@ -195,7 +263,6 @@ let attrs : attribute_fun M.t =
     ; ("#abstr",  make_visible true)
     ; ("test",    make_test)
     ; ("#record", tr_record)
-    ; ("ignore",  fun _ x -> x)
     ]
 
 let tr_attr (args : string list node) (data : Lang.Surface.def list) = 
