@@ -1,0 +1,109 @@
+import /List
+
+import open Width
+
+rec
+  pub data Doc = { tree : DocTree, width : Width }
+
+  pub let doc tree width = Doc { tree, width }
+
+  pub data DocTree =
+    | DEmpty
+    | DStr    of String
+    | DShift  of Doc
+    | DReset  of Doc
+    | DSeq    of List Doc
+    | DStack  of List Doc
+    | DLayout of Int, Doc
+    | DColor  of Color, Doc
+    | DBox    of Doc
+    | DFlex   of Int
+    | DExtra  of {type X}, String, X, (Int -> X ->> CtxBox)
+
+  pub data CtxBox = { lines : List Line
+                    , fill  : Line 
+                    , size  : Int 
+                    }
+
+  pub let ctxBox lines fill size = CtxBox { lines, fill, size }
+
+  pub let qCtx lines len = ctxBox lines (eLine len) len
+
+  pub data Color =
+    | Black
+    | Red
+    | Green
+    | Yellow
+    | Blue
+    | Magenta
+    | Cyan
+    | White
+
+  pub data Line =
+    | LStr   of String
+    | LChr   of Char
+    | LConc  of Line, Line
+    | LFill  of Int,  String
+    | LEmpty
+    | LColor of Color
+    | LColorPop
+
+  pub let eLine n = LFill n " "
+
+  pub method toString (c : Color) = 
+    match c with
+    | Black => "Black"
+    | Red   => "Red"
+    | Green => "Green"
+    | Yellow => "Yellow"
+    | Blue  => "Blue"
+    | Magenta => "Magenta"
+    | Cyan  => "Cyan"
+    | White => "White"
+    end
+
+  pub method toString (d : Doc) = 
+    "(" + d.width.toString + " -> " + d.tree.toString + ")"
+
+  pub method toString (dt : DocTree) = 
+    match dt with
+    | DEmpty => "Empty"
+    | DStr str => "Str " + str
+    | DShift doc => "&" + doc.toString
+    | DReset doc => "*" + doc.toString
+    | DSeq ds => "Seq " + List.foldRight (fn (e : Doc) a => e.toString + " " + a) ds ""
+    | DStack ds => "Stack " + List.foldRight (fn (e : Doc) a => e.toString + " " + a) ds ""
+    | DLayout n doc => "Layout " + n.toString + " " + doc.toString
+    | DFlex n => "Flex " + n.toString
+    | DBox d => "Box " + d.toString
+    | _ => "?"
+    end
+
+  pub method toString {type X, method toString : X ->> String} (self : List X) =
+    "[" + List.foldRight (fn (e : X) a => e.toString + ", " + a) self "" + "]"
+  
+  pub data SValue =
+    | SStr   of String
+    | SInt   of Int
+    | SColor of Color
+  
+  pub data ArgDict    = { args : List (Pair String SValue) }
+  pub data CoreStyle  = { name : String, args : ArgDict, interp : List CoreInterp}
+  pub data CoreInterp = { num : Int, style : CoreStyle }
+
+  pub method toString (s : SValue) =
+    match s with
+    | SStr str => "'" + str + "'"
+    | SInt i   => i.toString
+    | SColor c => c.toString
+    end
+
+  pub method toString (s : ArgDict) = 
+    "{" + List.foldRight (fn ((x, y) : Pair String SValue) acc => x + ":" + y.toString + ", " + acc) s.args "}"
+
+  pub method toString (s : CoreStyle) =
+    "(" + s.name + " " + s.args.toString + " " + s.interp.toString + ")"
+  
+  pub method toString (s : CoreInterp) =
+    "(" + s.num.toString + " " + s.style.toString + ")"
+end

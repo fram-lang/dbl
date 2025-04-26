@@ -1,0 +1,247 @@
+import /List
+
+import open Types
+import open Combinators
+
+data Fail E = 
+  { fail : {type X} -> String ->[E] X
+  , bt   : Unit ->[E] Bool
+  }
+
+let runFail {E, type X} (calc : {E} -> Fail E ->[E, _] X) =
+  handle fail =
+    Fail 
+      { fail = effect msg => Left msg
+      , bt   = effect _ / r => 
+        match r True with
+        | Left _ => r False
+        | Right x => Right x
+        end 
+      }
+    return x => Right x
+  in calc fail
+
+{#
+handle (fail : Fail [Fail_E]) / Fail_E = 
+  Fail 
+    { fail = effect msg => Left msg
+    , bt   = effect _ / r => 
+      match r True with
+      | Left _ => r False
+      | Right x => Right x
+      end 
+    }
+  return x => Right x
+#}
+
+let rec bts {E} calc (f : Fail E) =
+  match calc with
+  | [] => f.fail ""
+  | (x : Fail _ ->> _) :: xs =>
+    if f.bt()
+      then x f
+      else bts xs f
+  end
+
+let rec lookup {E} (key : String) xs (f : Fail E) =
+  match xs with
+  | [] => f.fail ("Cant find element " + key)
+  | (x, v) :: xs =>
+    if key == x then
+      v
+    else
+      lookup key xs f
+  end
+
+let getSStr {E} key (args : ArgDict) (f : Fail E) = 
+  match lookup key args.args f with
+  | SStr str => str
+  | _ => f.fail "Type mismatch"
+  end
+
+let getSStrI {E} key args (dfl : String) (f : Fail E) = 
+  if f.bt() then
+    bts [ getSStr "im" args, getSStr key args] f
+  else
+    dfl
+
+let getSCol {E} key (args : ArgDict) (f : Fail E) = 
+  match lookup key args.args f with
+  | SColor col => col
+  | _ => f.fail "Type mismatch"
+  end
+
+let getSColI {E} key args (dfl : Color) (f : Fail E) = 
+  if f.bt() then
+    bts [ getSCol "im" args, getSCol key args] f
+  else
+    dfl
+
+let getSNum {E} key (args : ArgDict) (f : Fail E) = 
+  match lookup key args.args f with
+  | SInt i => i
+  | _ => f.fail "Type mismatch"
+  end
+
+let getSNumI {E} key args (dfl : Int) (f : Fail E) = 
+  if f.bt() then
+    bts [ getSNum "im" args, getSNum key args] f
+  else
+    dfl
+
+let assertSingle {E} (xs : List CoreInterp) (f : Fail E) =
+  match xs with
+  | [x] => x.style
+  | _ => f.fail "Arrity mismatch"
+  end
+
+let checkName {E} (name : String) (style : CoreStyle) (f : Fail E) =
+  if name == style.name 
+    then ()
+    else f.fail ("Unexpected name: " + style.name + ". Expected " + name + ".")
+
+{# =============== Common Style ================== #}
+let rec fmtLift {E, type X}
+                (cont  : CoreStyle -> Fail E -> X ->[E] Doc) 
+                (style : CoreStyle) 
+                (f     : Fail E) 
+                (val   : X) =
+  let name = style.name in
+  if name == "box" then
+    (let tail = assertSingle style.interp f in
+     ppBox (fmtLift cont tail f val))
+  else if name == "color" then
+    (let color = getSColI "col" style.args White f
+     let tail = assertSingle style.interp f
+     in ppColor color (fmtLift cont tail f val))
+  else if name == "shift" then
+    (let tail = assertSingle style.interp f in
+     ppShift (fmtLift cont tail f val))
+  else if name == "reset" then
+    (let tail = assertSingle style.interp f in
+     ppReset (fmtLift cont tail f val))
+  else if name == "string" then
+    (let val = getSStrI "str" style.args "" f in
+     ppStr val)
+  else if name == "line" then
+    ppLine
+  else if name == "sep" then
+    ppSep
+  else if name == "flex" then
+    (let flex = getSNumI "flex" style.args 1 f in
+     ppFlex flex)
+  else if name == "layout" then
+    (let tail = assertSingle style.interp f
+     let size = getSNumI "size" style.args 80 f
+     in ppLayout size (fmtLift cont tail f val))
+  else if name == "inter" then
+    (let orient = getSStrI "orient" style.args "ver" f
+     let mapF (f : Fail _) (p : X) (elem: CoreInterp) =
+       if elem.num == 0 then
+         fmtLift (fn _ _ _ => ppEmpty) elem.style f val
+       else if elem.num == 1 then
+         fmtLift cont elem.style f val
+       else
+         f.fail "Interpolation error"
+     let elems = List.map (mapF f val) style.interp
+     in if orient == "ver" then
+       ppStack elems
+     else
+       ppSeq elems)
+  else
+    cont style f val
+
+{# =============== Unit =============== #}
+pub method styled {E} (self : Unit) style (f : Fail E) =
+  let formatSelf style (f : Fail _) self =
+    let _ = checkName "unit" style f
+    in ppEmpty
+  in fmtLift formatSelf style f ()
+
+{# =============== Bool =============== #}
+pub method styled {E} (self : Bool) style (f : Fail E) =
+  let formatSelf (style : CoreStyle) (f : Fail _) self =
+    let _ = checkName "bool" style f
+    let fmt = getSStrI "fmt" style.args "dfl" f
+    in if fmt == "dfl" then
+      if self then ppStr "True" else ppStr "False"
+    else if fmt == "num" then
+      if self then ppStr "0" else ppStr "1"
+    else
+      f.fail "Unknown format"
+  in fmtLift formatSelf style f self
+
+{# =============== Int =============== #}
+pub method styled {E} (self : Int) (style : CoreStyle) (f : Fail E) =
+  let formatSelf (style : CoreStyle) (f : Fail _) (self : Int) = 
+    let _ = checkName "int" style f
+    let fmt = getSStrI "fmt" style.args "n" f in
+    if fmt == "n" then
+      ppStr self.toString
+    else if fmt == "x" then
+      ppStr "hex not implemented yet"
+    else
+      f.fail ("Unknown format " + fmt)
+  in fmtLift formatSelf style f self
+
+
+{# =============== List =============== #}
+pub method styled {E, type X, method styled : X -> CoreStyle -> Fail E ->[E] _} (self : List X) (style : CoreStyle) (f : Fail E) =
+  let formatSelf (style : CoreStyle) (f : Fail _) (self : List X) =
+    let _ = checkName "list" style f
+    let orient = getSStrI "orient" style.args "hor" f in
+    let tl = assertSingle style.interp f
+    let elems = (List.map (fn (x : X) => x.styled tl f) self)
+    in if orient == "ver" then
+      ppStack elems
+    else if orient == "hor" then
+      ppSeq elems
+    else
+      f.fail "Unknown orientation"
+  in fmtLift formatSelf style f self
+
+{# =============== Pairs =============== #}
+pub method styled { E
+                  , type X
+                  , type Y
+                  , method styled : X -> CoreStyle -> Fail E ->[E] _
+                  , method styled : Y -> CoreStyle -> Fail E ->[E] _
+                  } 
+                  (self : Pair X Y) 
+                  (style : CoreStyle) 
+                  (f : Fail E) 
+                  =
+  let formatSelf (style : CoreStyle) (f : Fail _) (self : Pair X Y) =
+    let _ = checkName "pair" style f
+    let orient = getSStrI "orient" style.args "hor" f in
+    let mapF (f : Fail _) (p : Pair X Y) (elem: CoreInterp) =
+      if elem.num == 0 then
+        ().styled elem.style f
+      else if elem.num == 1 then
+        (fst p).styled elem.style f
+      else if elem.num == 2 then
+        (snd p).styled elem.style f
+      else
+        f.fail "Interpolation error"
+    in
+    let elems = (List.map (mapF f self) style.interp)
+    in if orient == "ver" then
+      ppStack elems
+    else if orient == "hor" then
+      ppSeq elems
+    else
+      f.fail "Unknown orientation"
+  in fmtLift formatSelf style f self
+
+pub let runStyled {type X, method styled : {E} -> X -> CoreStyle -> Fail E ->[E] _} (v : X) (sty : CoreStyle) = 
+  handle fail =
+    Fail 
+      { fail = effect msg => Left msg
+      , bt   = effect _ / r => 
+        match r True with
+        | Left _ => r False
+        | Right x => Right x
+        end 
+      }
+    return x => Right x
+  in v.styled sty fail
