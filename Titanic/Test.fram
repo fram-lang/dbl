@@ -1,8 +1,0 @@
-import Engine 
-
-
-pub module Test
-  pub let test _ = printStrLn "Hello world"
-
-end
-
