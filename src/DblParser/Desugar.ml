@@ -63,6 +63,7 @@ let scheme_wildcard pos =
 module RawTypes = struct
   let unit = Raw.TVar(with_nowhere (NPName "Unit"), None)
   let bool = Raw.TVar(with_nowhere (NPName "Bool"), None)
+  let string = Raw.TVar(with_nowhere (NPName "String"), None)
 end
 
 type ty_def =
@@ -288,7 +289,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EVar _
   | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _
   | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _
-  | EList (_ :: _) | EPub _ | EMethodCall _ ->
+  | EList (_ :: _) | EPub _ | EMethodCall _ | ECStr (_, _) ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -350,9 +351,9 @@ and tr_annot_pattern ~public (p : Raw.expr) =
     end
   | EAnnot(p, sch) -> tr_pattern ~public p, Some (tr_scheme_expr sch)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
-  | ENum _ | ENum64 _ | EStr _ | EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
+  | ENum _ | ENum64 _ | EStr _ |  EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
-  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ ->
+  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ | ECStr (_, _) ->
     tr_pattern ~public p, None
 
 and tr_named_pattern ~public (fld : Raw.field) =
@@ -417,7 +418,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       LP_Fun(id, ps)
 
     | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | ECtor _ | ESelect _
-    | EList _ ->
+    | ECStr (_, _) | EList _ ->
       LP_Pat(tr_pattern ~public p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
@@ -427,7 +428,8 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
     end
 
   | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _
-  | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
+  | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ 
+  | ECStr (_, _) ->
     LP_Pat (tr_pattern ~public p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -492,14 +494,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _
     | EApp _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _
     | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
-    | EList (_ :: _) | EPub _ | EMethodCall _ ->
+    | EList (_ :: _) | EPub _ | EMethodCall _ | ECStr (_, _) ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
-  | EMethodCall _ ->
+  | EMethodCall _ | ECStr (_, _) ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_poly_expr_def (e : Raw.expr) =
@@ -514,7 +516,8 @@ and tr_poly_expr_def (e : Raw.expr) =
 
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EApp _ | EMethodCall _ | EDefs _
   | EMatch _ | EHandler _ | EEffect _ | EExtern _ | EAnnot _ | EIf _
-  | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _ | EPub _ ->
+  | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _ | EPub _ 
+  | ECStr (_, _) ->
     make (PE_Expr (tr_expr e))
 
 and tr_expr (e : Raw.expr) =
@@ -528,19 +531,25 @@ and tr_expr (e : Raw.expr) =
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
   | ECStr (s, xs) ->
-    let makeToFormatted e fmt =
-      let fmt' = match fmt with
-        | Some x -> with_nowhere (Raw.EApp (with_nowhere (Raw.ECtor "Some"), [x]))
-        | None   -> with_nowhere (Raw.ECtor "None") 
-      in with_nowhere (Raw.EApp (with_nowhere (Raw.EMethod (e, "toFormatted")), [fmt']))
-    in 
-    let rec reduceToList = function
-      | (e, f, s) :: tl -> 
-        (makeToFormatted e f) :: (with_nowhere (Raw.EStr s)) :: reduceToList tl
-      | [] -> []
-    in
-    let strs = (with_nowhere @@ Raw.EList ((with_nowhere (Raw.EStr s)) :: reduceToList xs)) in
-    tr_expr (with_nowhere @@ Raw.EApp (with_nowhere (Raw.EExtern "dbl_strListCat"), [strs]))
+    let tr_format (expr : Raw.expr) (fmt : Raw.expr option) = 
+      match fmt with
+      | None -> 
+        let method_name = { pos = expr.pos; data = "toString" } in
+        let method_call = Raw.EMethodCall (expr, method_name, []) in
+        { pos = expr.pos; data = method_call}
+      | Some format ->
+        let method_name = { pos = expr.pos; data = "format" } in
+        let method_call = Raw.EMethodCall (expr, method_name, [format]) in
+        { pos = expr.pos; data = method_call } in
+    let tr_string str = with_nowhere (Raw.EStr str) in
+    let rec flat_interp = function
+      | (expr, fmt, str) :: xs 
+        -> tr_format expr fmt :: tr_string str :: flat_interp xs
+      | [] -> [] in
+    let arg_list = make (Raw.EList (tr_string s :: flat_interp xs)) in
+    let expr = make (Raw.EApp (make (Raw.EExtern "dbl_strListCat"), [arg_list]))
+      in let annot = annot_tp expr RawTypes.string in 
+    tr_expr annot
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
   | EApp(e1, es)   ->
     begin match collect_fields ~ppos:e1.pos es with

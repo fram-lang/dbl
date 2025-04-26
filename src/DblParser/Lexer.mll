@@ -174,6 +174,10 @@ rule token = parse
   | '}'  {
       if !open_cbrackets = 0 then
         let buf = Buffer.create 32 in
+        let _ = match Stack.pop_opt cbrackets_stack with
+          | Some x -> open_cbrackets := x
+          | _ -> Error.fatal (Error.unmatched_closing_bracket
+            (Position.of_lexing 0 lexbuf.Lexing.lex_start_p)) in
         string_token false lexbuf.Lexing.lex_start_p buf lexbuf
       else
         let () = open_cbrackets := !open_cbrackets - 1 in
@@ -204,9 +208,6 @@ and string_token beg pos buf = parse
       string_token beg pos buf lexbuf
     }
   | '"' {
-      let _ = match Stack.pop_opt cbrackets_stack with
-        | Some x -> open_cbrackets := x
-        | _ -> open_cbrackets := 0 in
       lexbuf.Lexing.lex_start_p <- pos;
       if beg then
         YaccParser.STR  (Buffer.contents buf)
