@@ -1,0 +1,9 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+pub data rec List A = [] | (::) of A, List A
+
+pub data Pair X Y = (,) of X, Y
+
+pub data Either X Y = Left of X | Right of Y

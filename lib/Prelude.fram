@@ -1,10 +1,20 @@
-pub data Bool = False | True
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
-pub data Option A = None | Some of A
+import /Base/Types
+import /Base/Operators
+import /Base/Assert
+import /Base/Bool
+import /Base/Option
+import /Base/Int
+import /Base/Int64
+import /Base/Char
+import /Base/String
 
-pub data rec List A = [] | (::) of A, List A
-
-pub data Pair X Y = (,) of X, Y
+pub open Types
+pub open Operators
+pub open Assert
 
 pub let id x = x
 
@@ -15,108 +25,13 @@ pub let snd (_, y) = y
 
 pub let not b = if b then False else True
 
-pub method toString = if self then "True" else "False"
-
-pub method toString {self : String} = self
-
-pub method fn (+) = add
-pub method fn (-) = sub
-pub method fn (%) = mod
-pub method fn (/) = div
-pub method fn ( * ) = mul
-
-pub method fn (==) = equal
-pub method fn (!=) = neq
-pub method fn (>)  = gt
-pub method fn (>=) = ge
-pub method fn (<)  = lt
-pub method fn (<=) = le
-
-pub method fn (&&&) = land
-pub method fn (^^^) = lxor
-pub method fn (|||) = lor
-pub method fn (<<)  = shiftl
-pub method fn (>>)  = shiftr
-pub method fn (>>>) = ashiftr
-
-pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool) self
-pub method neq   = (extern dbl_neqInt : Int -> Int -> Bool) self
-pub method gt    = (extern dbl_gtInt  : Int -> Int -> Bool) self
-pub method lt    = (extern dbl_ltInt  : Int -> Int -> Bool) self
-pub method ge    = (extern dbl_geInt  : Int -> Int -> Bool) self
-pub method le    = (extern dbl_leInt  : Int -> Int -> Bool) self
-
-pub method toString = (extern dbl_intToString : Int -> String) self
-
-pub method add = (extern dbl_addInt : Int -> Int -> Int) self
-pub method sub = (extern dbl_subInt : Int -> Int -> Int) self
-pub method mul = (extern dbl_mulInt : Int -> Int -> Int) self
-
-pub method div {`re : {type X} -> Unit ->[|_] X} (n : Int) =
-  if n.equal 0 then `re ()
-  else (extern dbl_divInt : Int -> Int -> Int) self n
-
-pub method mod {`re : {type X} -> Unit ->[|_] X} (n : Int) =
-  if n.equal 0 then `re ()
-  else (extern dbl_modInt : Int -> Int -> Int) self n
-
-pub method land = (extern dbl_andInt : Int -> Int -> Int) self
-pub method lor  = (extern dbl_orInt  : Int -> Int -> Int) self
-pub method lxor = (extern dbl_xorInt : Int -> Int -> Int) self
-
-pub method shiftl  = (extern dbl_lslInt : Int -> Int -> Int) self
-pub method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int) self
-pub method ashiftr = (extern dbl_asrInt : Int -> Int -> Int) self
-
-pub method add = (extern dbl_strCat : String -> String -> String) self
-
-pub method equal = (extern dbl_eqStr  : String -> String -> Bool) self
-pub method neq   = (extern dbl_neqStr : String -> String -> Bool) self
-pub method gt    = (extern dbl_gtStr  : String -> String -> Bool) self
-pub method lt    = (extern dbl_ltStr  : String -> String -> Bool) self
-pub method ge    = (extern dbl_geStr  : String -> String -> Bool) self
-pub method le    = (extern dbl_leStr  : String -> String -> Bool) self
-
-pub method length = (extern dbl_strLen : String -> Int) self
-pub method get {`re : {type X} -> Unit ->[|_] X, self : String} (n : Int) =
-  if n >= 0 && n < self.length then
-    (extern dbl_strGet : String -> Int -> Char) self n
-  else `re ()
-
-pub method makeString {`re : {type X} -> Unit ->[|_] X, self : String}
-    (n : Int) =
-  if n >= 0 && n < 256 then
-    (extern dbl_strMake : Int -> String) n
-  else `re ()
-
-pub method toList {self : String} =
-  let getChar = extern dbl_strGet : String -> Int -> Char in
-  let rec iter (n : Int) acc = 
-    if n == 0 then 
-      acc
-    else 
-      iter (n - 1) (getChar self (n - 1) :: acc) 
-  in iter self.length []
-
 pub let charListToStr = (extern dbl_chrListToStr : List Char -> String)
 
-pub method code {self : Char} = 
-  extern dbl_chrCode : Char -> Int
-
-pub let chr {`re : {type X} -> Unit ->[|_] X} (n : Int) = 
+pub let chr {~onError : Unit ->[_] Char} (n : Int) =
   if n >= 0 && n < 256 then
     (extern dbl_intToChr : Int -> Char) n
   else
-    `re ()
-
-pub method equal = (extern dbl_eqInt  : Char -> Char -> Bool) self
-pub method neq   = (extern dbl_neqInt : Char -> Char -> Bool) self
-pub method gt    = (extern dbl_gtInt  : Char -> Char -> Bool) self
-pub method lt    = (extern dbl_ltInt  : Char -> Char -> Bool) self
-pub method ge    = (extern dbl_geInt  : Char -> Char -> Bool) self
-pub method le    = (extern dbl_leInt  : Char -> Char -> Bool) self
-
-pub method toString = (extern dbl_chrToString : Char -> String) self
+    ~onError ()
 
 pub let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
 pub let printStr   = extern dbl_printStr   : String ->[IO] Unit
@@ -125,3 +40,9 @@ pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
 pub let readLine = extern dbl_readLine : Unit ->[IO] String
 
 pub let exit {type X} = extern dbl_exit : Int ->[IO] X
+
+pub module Int64
+  pub let zero = 0L
+  pub let one  = 1L
+  pub let ofInt (n : Int) = n.toInt64
+end

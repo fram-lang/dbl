@@ -1,7 +1,7 @@
-implicit `a
+parameter ~a
 
-let foo = `a
+let foo = ~a
 
 let _ =
-  let `a = () in
+  let ~a = () in
   foo

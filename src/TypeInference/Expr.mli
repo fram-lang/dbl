@@ -5,15 +5,15 @@
 (** Type-inference for expressions and related syntactic categories *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
-(** Infer type of an expression. The effect of an expression is always in
-  the check mode. However, pure expressions may returns an information that
-  they are pure (see [ret_effect] type). *)
-val infer_expr_type : tcfix:tcfix ->
-  Env.t -> S.expr -> T.effrow -> T.expr * T.typ * ret_effect
+(** Infer the type of an expression. When the expression is applied to some
+  arguments, the [?app_type] parameter, if provided, specifies the type of
+  the application. *)
+val infer_expr_type : tcfix:tcfix -> ?app_type:T.typ ->
+  'st Env.t -> S.expr -> infer expr_result
 
-(** Check type and effect of an expression. Returns also information about
-  the purity of an expression. *)
+(** Check the type of an expression. *)
 val check_expr_type : tcfix:tcfix ->
-  Env.t -> S.expr -> T.typ -> T.effrow -> T.expr * ret_effect
+  'st Env.t -> S.expr -> T.typ -> check expr_result

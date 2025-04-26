@@ -6,149 +6,155 @@
 
 open Common
 
-type t
+(** Environments, indexed with their current state. See [Common] module for
+  details. *)
+type 'st t
 
-(** Additional information about type variables used to pretty printing *)
-type pp_info = {
-  pp_base_name : string;
-    (** Default name used as a base for a name generation *)
+(** Initial environment *)
+val initial : closed t
 
-  pp_names     : S.tvar S.path list;
-    (** List of names assigned to a type variable (empty for anonymous types) *)
+(* ========================================================================= *)
 
-  pp_pos       : Position.t option
-    (** Position of the binding place *)
-}
-
-(** Empty environment *)
-val empty : t
-
-(** Extend an environment with a polymorphic variable *)
-val add_poly_var : ?public:bool -> t -> S.var -> T.scheme -> t * T.var
-
-(** Extend an environment with a monomorphic variable *)
-val add_mono_var : ?public:bool -> t -> S.var -> T.typ -> t * T.var
-
-(** Extend an environment with a polymorphic named implicit.
-  The last parameter is a function called on each use of implicit parameter *)
-val add_poly_implicit :
-  ?public:bool -> t -> S.iname -> T.scheme -> (Position.t -> unit) -> t * T.var
-
-(** Extend an environment with a monomorphic named implicit.
-  The last parameter is a function called on each use of implicit parameter *)
-val add_mono_implicit :
-  ?public:bool -> t -> S.iname -> T.typ -> (Position.t -> unit) -> t * T.var
-
-(** Extend an environment with a variable labeled with "label". Such a
-  variable always have a label type. All components of the label type should
-  be passed as a parameters. *)
-val add_the_label : t -> T.effect -> T.typ -> T.effrow -> t * T.var
-
-(** Extend an environment with information that given identifier when used
-  as function is a method of given name. *)
-val add_method_fn : public:bool -> t -> S.var -> S.method_name -> t
-
-(** Extend an environment with a named type variable. The optional position
+(** Extend the environment with a named type variable. The optional position
   should point to the place of binding in the source code. *)
 val add_tvar :
-  ?pos:Position.t -> ?public:bool -> t -> S.tvar -> T.kind -> t * T.tvar
+  ?pos:Position.t -> ?public:bool ->
+    'st t -> S.tvar -> T.kind -> 'st t * T.tvar
 
-(** Extend an environment with a type variable labeled with "effect". Such
-  a type always have [effect] kind. The optional position should point to
-  the place of binding in the source code. *)
-val add_the_effect : ?pos:Position.t -> t -> t * T.tvar
-
-(** Extend an environment with an anonymous type variable. The optional
+(** Extend the environment with an anonymous type variable. The optional
   position should point to the place of binding in the source code. The
   optional name is used for pretty-printing purposes. *)
 val add_anon_tvar :
-  ?pos:Position.t -> ?name:string -> t -> T.kind -> t * T.tvar
+  ?pos:Position.t -> ?pp_uid:PPTree.uid -> ?name:string ->
+    'st t -> T.kind -> 'st t * T.tvar
 
-(** Extend an environment with a type alias. *)
-val add_type_alias : ?public:bool -> t -> S.tvar -> T.typ -> t
+(** Extend the environment with an alias for an existing type variable.
+  This type variable should be present in the environment's scope *)
+val add_tvar_alias :
+  ?pos:Position.t -> ?public:bool ->
+    'st t -> S.tvar -> T.tvar -> 'st t
 
-(** Extend an environment with an alias labeled with "effect". Given type
-  must have the [effect] kind. *)
-val add_the_effect_alias : t -> T.typ -> t
+(** Extend the environment with a polymorphic value *)
+val add_val :
+  ?public:bool -> 'st t -> Name.t -> T.scheme -> 'st t * T.var
 
-(** Assign ADT definition to given type variable. *)
-val add_data : t -> T.tvar -> Module.adt_info -> t
+(** Extend the environment with a polymorphic named implicit. *)
+val add_implicit :
+  ?public:bool -> 'st t -> S.iname -> T.scheme -> 'st t * T.var
 
-(** Add constructor of given name and index to the environment *)
-val add_ctor : ?public:bool -> t -> string -> int -> Module.adt_info -> t
+(** Extend the environment with a monomorphic "label" implicit. Usually, it has
+  a label type, but it must be stated explicitly, e.g., by
+  [add_the_label env (T.Type.t_label tp)] *)
+val add_the_label : 'st t -> T.typ -> 'st t * T.var
 
-(** Add a method associated with given type variable (owner). Method must have
+(** Add a method associated with given type (owner). Method must have
   arrow type, where the head type variable of an argument is the same
   as the owner *)
-val add_poly_method :
-  ?public:bool -> t -> T.tvar -> S.method_name -> T.scheme -> t * T.var
+val add_method :
+  ?public:bool ->
+    'st t -> Name.method_owner -> S.method_name -> T.scheme -> 'st t * T.var
 
-(** Lookup for variable-like identifier. Returns [None] if variable is not
-  bound. *)
-val lookup_var : t -> S.var S.path -> Module.var_info option
+(** Assign ADT definition to given type variable. For abstract datatype,
+  the [public] flag should be set to [false]. *)
+val add_adt : ?public:bool -> 'st t -> T.tvar -> Module.adt_info -> 'st t
 
-(** Lookup for Unif representation, a scheme, and "on-use" function of a named
-  implicit. Returns [None] if implicit is not bound. *)
-val lookup_implicit :
-  t -> S.var S.path -> (T.var * T.scheme * (Position.t -> unit)) option
+(** Add constructor of given name and index to the environment *)
+val add_ctor :
+  ?public:bool -> 'st t -> string -> int -> Module.adt_info -> 'st t
 
-(** Extend an environment with the label of a given scheme. *)
-val add_the_label_sch : t -> T.scheme -> t * Var.t
+(* ========================================================================= *)
 
-(** Lookup for variable labeled with "label". On success, returns the variable
-  together with its label-type components *)
-val lookup_the_label : t -> (T.var * T.effect * T.typ * T.effrow) option
+(** Enter a new scope *)
+val enter_scope : 'st t -> 'st t * Scope.t
+
+(** Enter a new section of parameter declarations. *)
+val enter_section : 'st t -> ('st, sec) opn t
+
+(** Leave the section of parameter declarations *)
+val leave_section : ('st, sec) opn t -> 'st t
+
+(** Extend environment with a declaration of a type parameter *)
+val declare_type : pos:Position.t ->
+  ('st, sec) opn t -> T.tname -> S.tvar -> T.kind -> ('st, sec) opn t
+
+(** Extend environment with a declaration of a value parameter. The meaning of
+  parameters is the following.
+  - [free_types] -- type variables that occurs freely in the scheme of this
+    parameter, and should be separately instantiated for each use.
+  - [used_types] -- previously declared type UIDs, together with the type
+    variables used as them in the scheme of this parameter.
+  - [name] -- the name of the parameter, that will be visible in the
+    generalized scheme.
+  - [local_name] -- then name of the parameter used in the environment. *)
+val declare_val : pos:Position.t -> ('st, sec) opn t ->
+  free_types:T.tvar list -> used_types:(UID.t * T.tvar) list ->
+    name:Name.t -> local_name:Name.t -> T.scheme_expr -> ('st, sec) opn t
+
+(** Enter the scope where declared parameters are visible. Returns a list of
+  parameters, that should be passed to one of [end_generalize_*] functions,
+  when the scope is left. These functions are defined in [ParamGen] module. *)
+val begin_generalize : ('st, sec) opn t -> exp t * ParamEnv.param_list
+
+(** Try to access type parameter and return its status. *)
+val check_type_param : pos:Position.t ->
+  'st t -> UID.t -> (T.tname, T.tvar) ParamEnv.param_status
+
+(** Try to access value parameter and return its status. *)
+val check_val_param : pos:Position.t ->
+  'st t -> UID.t -> (Name.t, T.var * T.scheme) ParamEnv.param_status
+
+(* ========================================================================= *)
+
+(** Create a new module on top of the module stack. *)
+val enter_module : 'st t -> ('st, modl) opn t
+
+(** Finalize a module definition and add it to the outer module with the
+  given name. *)
+val leave_module : public:bool -> ('st, modl) opn t -> S.module_name -> 'st t
+
+(** Introduce the given module's identifiers into scope with visibility
+  specified by [~public]. *)
+val open_module : public:bool -> 'st t -> closed Module.t -> 'st t
+
+(* ========================================================================= *)
+
+(** Lookup for Unif representation of a type variable. *)
+val lookup_tvar : 'st t -> S.tvar -> Module.type_info option
+
+(** Lookup for a value with given name. *)
+val lookup_val : 'st t -> Name.t -> Module.val_info option
+
+(** Lookup for variable-like identifier. *)
+val lookup_var : 'st t -> S.var -> Module.val_info option
+
+(** Lookup for implicit value *)
+val lookup_implicit : 'st t -> S.iname -> Module.val_info option
+
+(** Lookup for implicit "label" variable. *)
+val lookup_the_label : 'st t -> Module.val_info option
+
+(** Lookup for method associated with given owner *)
+val lookup_method :
+  'st t -> Name.method_owner -> S.iname -> Module.val_info option
 
 (** Lookup for a constructor of ADT. Returns [None] if there is no constructor
   with given name. On success return the index of the constructor and
   full information about ADT *)
-val lookup_ctor : t -> S.ctor_name S.path -> (int * Module.adt_info) option
-
-(** Lookup for Unif representation of a type variable. Returns [None] if
-  variable is not bound. *)
-val lookup_tvar : t -> S.tvar S.path -> T.typ option
-
-(** Lookup for a module of the given name. *)
-val lookup_module : t -> S.module_name S.path -> Module.t option
-
-(** Lookup for the effect variable labeled with "effect". It should always
-  have an effect kind. *)
-val lookup_the_effect : t -> T.typ option
+val lookup_ctor : 'st t -> S.ctor_name -> (int * Module.adt_info) option
 
 (** Lookup for ADT definition assigned for given type variable *)
-val lookup_adt : t -> T.tvar -> Module.adt_info option
+val lookup_adt : 'st t -> T.tvar -> Module.adt_info option
 
-(** Lookup for method associated with given type variable *)
-val lookup_method : t -> T.tvar -> S.method_name -> (T.var * T.scheme) option
+(** Lookup for a module of the given name. *)
+val lookup_module : 'st t -> S.module_name -> closed Module.t option
 
-(** Lookup for pretty-printing information about type variable *)
-val lookup_tvar_pp_info : t -> T.tvar -> pp_info option
+(* ========================================================================= *)
 
-(** Increase the level of the environment's scope. The level should be
-  increased for each place, when implicit type generalization can occur. *)
-val incr_level : t -> t
+(** Get the current scope *)
+val scope : 'st t -> Scope.t
 
-(** Get current scope *)
-val scope : t -> T.scope
+(** Get the type pretty-printing tree *)
+val pp_tree : 'st t -> PPTree.t
 
-(** Refresh all named parameters from a given scheme and extend the scope of
-  the environment by adding all named parameters present in the refreshed
-  scheme. *)
-val extend_scope : t -> T.scheme -> t * T.scheme
-
-(** Get a level of given environment *)
-val level : t -> int
-
-(** Create a fresh unification variable in current scope *)
-val fresh_uvar : t -> T.kind -> T.typ
-
-(** Create a new module on top of the module stack. *)
-val enter_module : t -> t
-
-(** Finalize a module definition and add it to the outer module with the
-  given name. *)
-val leave_module : t -> public:bool -> S.module_name -> t
-
-(** Introduce the given module's identifiers into scope with visibility
-  specified by [~public]. *)
-val open_module : t -> public:bool -> Module.t -> t
+(** Create a fresh unification variable in the current scope *)
+val fresh_uvar : pos:Position.t -> 'st t -> T.kind -> T.typ

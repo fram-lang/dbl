@@ -23,6 +23,10 @@ let cmd_args_options = Arg.align
     Arg.Rest (fun arg -> args := arg :: !args),
     "[CMD_ARG]... Pass remaining arguments to the interpreted program";
 
+    "-dcone",
+    Arg.Set Pipeline.dump_cone,
+    " Dump internal ConE representation";
+
     "-dcore",
     Arg.Set Pipeline.dump_core,
     " Dump internal Core representation";
@@ -46,6 +50,16 @@ let cmd_args_options = Arg.align
     "-I",
     Arg.String (fun p -> cli_local_search_dirs := p :: !cli_local_search_dirs),
     " Add a path to local search directories";
+
+    "-no-error-context",
+    Arg.Clear DblConfig.display_error_context,
+    " Do not print piece of code with error, just filename:line:character";
+
+    "-color",
+    Arg.Symbol (
+      [ "always"; "never"; "auto"; ],
+      (fun s -> DblConfig.print_colors_of_string s)),
+    " Use colors when printing Errors.";
   ]
 
 let fname = ref None
@@ -69,3 +83,4 @@ let _ =
     | Some fname -> Pipeline.run_file fname
   with
   | InterpLib.Error.Fatal_error -> exit 1
+  | Eval.Runtime_error -> exit 2

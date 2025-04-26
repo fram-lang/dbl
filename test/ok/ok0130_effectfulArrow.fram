@@ -1,0 +1,7 @@
+
+data Eff E = { op : Int ->[E] Int }
+
+let foo (f : _ ->> _) = f 42
+
+let t {~e : Eff _} ()  = foo (~e.op)
+

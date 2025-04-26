@@ -1,0 +1,9 @@
+parameter X
+parameter Y : type -> type
+parameter type Z
+parameter E : effect
+parameter x
+parameter y : Y Z
+parameter ?opt
+parameter ~named : X ->[E] Z
+parameter method m : X -> X ->[] Z

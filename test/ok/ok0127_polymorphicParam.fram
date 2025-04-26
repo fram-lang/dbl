@@ -1,0 +1,3 @@
+parameter ~id : {T} -> T -> T
+
+let id = ~id

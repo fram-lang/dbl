@@ -1,0 +1,6 @@
+
+let zero = Int64.one + Int64.one.neg
+
+let _ = (zero == 0L)
+
+

@@ -4,113 +4,49 @@
 
 (** Basic operations on types *)
 
+open UnifCommon
 open TypeBase
 
 let view = TypeBase.view
 
-let fresh_uvar ~scope kind = t_uvar TVar.Perm.id (UVar.fresh ~scope kind)
+let fresh_uvar ~pos ~scope kind = t_uvar (UVar.fresh ~pos ~scope kind)
 
 let t_unit = t_var BuiltinType.tv_unit
 
-let t_pure_arrows tps tp = List.fold_right t_pure_arrow tps tp
+let t_bool = t_var BuiltinType.tv_bool
+
+let t_option tp = t_app (t_var BuiltinType.tv_option) tp
+
+let t_pure_arrow sch tp = t_arrow sch tp Pure
+
+let t_pure_arrows schs tp = List.fold_right t_pure_arrow schs tp
 
 let t_apps tp tps = List.fold_left t_app tp tps
 
 let rec kind tp =
   match view tp with
-  | TUVar(_, u) -> UVar.kind u
-  | TVar      x -> TVar.kind x
-  | TEffect   _ -> KindBase.k_effect
-  | TEffrow   _ -> KindBase.k_effrow
-  | TPureArrow _ | TArrow _ | THandler _ | TLabel _ -> KindBase.k_type
+  | TEffect -> Kind.k_effect
+  | TUVar u -> UVar.kind u
+  | TVar  x -> TVar.kind x
+  | TArrow _ | THandler _ | TLabel _ -> Kind.k_type
   | TApp(tp, _) ->
-    begin match KindBase.view (kind tp) with
+    begin match Kind.view (kind tp) with
     | KArrow(_, k) -> k
-    | KType | KEffect | KEffrow | KUVar _ ->
+    | KType | KEffect | KUVar _ ->
       failwith "Internal kind error"
     end
 
-let refresh_scheme sch =
-  let (sub, tvars) = Subst.add_named_tvars Subst.empty sch.sch_targs in
-  let ims =
-    List.map
-      (fun (name, isch) -> (Subst.in_name sub name, Subst.in_scheme sub isch))
-      sch.sch_named
-  in
-  { sch_targs = tvars;
-    sch_named = ims;
-    sch_body  = Subst.in_type sub sch.sch_body
-  }
-
-let open_effrow_up ~scope eff =
-  let (xs, ee) = effrow_view eff in
-  match ee with
-  | EEClosed ->
-    t_effrow xs (EEUVar(TVar.Perm.id, UVar.fresh ~scope KindBase.k_effrow))
-  | EEUVar _ | EEVar _ | EEApp _ -> eff
-
-let rec open_down ~scope tp =
-  match view tp with
-  | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
-  | TPureArrow(sch, tp2) ->
-    t_pure_arrow (open_scheme_up ~scope sch) (open_down ~scope tp2)
-  | TArrow(sch, tp2, eff) ->
-    t_arrow (open_scheme_up ~scope sch) (open_down ~scope tp2) eff
-  | THandler(a, tp, tp0, eff0) ->
-    t_handler a (open_down ~scope:(Scope.add scope a) tp) tp0 eff0
-
-  | TEffect _ | TEffrow _ ->
-    failwith "Internal kind error"
-
-and open_scheme_down ~scope sch =
-  let sch = refresh_scheme sch in
-  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
-  { sch_targs = sch.sch_targs;
-    sch_named =
-      List.map (fun (name, isch) -> (name, open_scheme_up ~scope isch))
-        sch.sch_named;
-    sch_body  = open_down ~scope sch.sch_body
-  }
-
-and open_up ~scope tp =
-  match view tp with
-  | TUVar _ | TVar _ | TLabel _ | TApp _ -> tp
-  | TPureArrow(sch, tp2) ->
-    t_pure_arrow (open_scheme_down ~scope sch) (open_up ~scope tp2)
-  | TArrow(sch, tp2, eff) ->
-    t_arrow
-      (open_scheme_down ~scope sch)
-      (open_up          ~scope tp2)
-      (open_effrow_up   ~scope eff)
-  | THandler(a, tp, tp0, eff0) ->
-    t_handler a (open_up ~scope:(Scope.add scope a) tp) tp0 eff0
-
-  | TEffect _ | TEffrow _ ->
-    failwith "Internal kind error"
-
-and open_scheme_up ~scope sch =
-  let sch = refresh_scheme sch in
-  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
-  { sch_targs = sch.sch_targs;
-    sch_named =
-      List.map (fun (name, isch) -> (name, open_scheme_down ~scope isch))
-        sch.sch_named;
-    sch_body   = open_up ~scope sch.sch_body
-  }
-
 let rec contains_uvar u tp =
   match view tp with
-  | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> false
-  | TUVar(_, u') | TEffrow(_, EEUVar(_, u')) -> UVar.equal u u'
-  | TPureArrow(sch, tp2) ->
+  | TEffect | TVar _ -> false
+  | TUVar u' -> UVar.equal u u'
+  | TArrow(sch, tp2, _) ->
     scheme_contains_uvar u sch || contains_uvar u tp2
-  | TArrow(sch, tp2, eff) ->
-    scheme_contains_uvar u sch || contains_uvar u tp2 || contains_uvar u eff
-  | THandler(_, tp, tp0, eff0) ->
-    contains_uvar u tp || contains_uvar u tp0 || contains_uvar u eff0
-  | TLabel(eff, tp0, eff0) ->
-    contains_uvar u eff || contains_uvar u tp0 || contains_uvar u eff0
-  | TEffrow(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
+  | THandler(_, tp, itp, otp) ->
+    contains_uvar u tp || contains_uvar u itp || contains_uvar u otp
+  | TLabel tp0 ->
+    contains_uvar u tp0
+  | TApp(tp1, tp2) ->
     contains_uvar u tp1 || contains_uvar u tp2
 
 and scheme_contains_uvar u sch =
@@ -119,18 +55,18 @@ and scheme_contains_uvar u sch =
 
 let rec collect_uvars tp uvs =
   match view tp with
-  | TVar _ | TEffect _ | TEffrow(_, (EEClosed | EEVar _)) -> uvs
-  | TUVar(_, u) | TEffrow(_, EEUVar(_, u)) -> UVar.Set.add u uvs
-  | TEffrow(_, EEApp(tp1, tp2)) | TApp(tp1, tp2) ->
-    collect_uvars tp1 (collect_uvars tp2 uvs)
-  | TPureArrow(sch, tp2) ->
+  | TEffect | TVar _ -> uvs
+  | TUVar u -> UVar.Set.add u uvs
+  | TArrow(sch, tp2, _) ->
     collect_scheme_uvars sch (collect_uvars tp2 uvs)
-  | TArrow(sch, tp2, eff) ->
-    collect_scheme_uvars sch (collect_uvars tp2 (collect_uvars eff uvs))
-  | THandler(_, tp, tp0, eff0) ->
-    collect_uvars tp (collect_uvars tp0 (collect_uvars eff0 uvs))
-  | TLabel(eff, tp0, eff0) ->
-    collect_uvars eff (collect_uvars tp0 (collect_uvars eff0 uvs))
+  | THandler(_, tp, itp, otp) ->
+    uvs
+    |> collect_uvars tp
+    |> collect_uvars itp
+    |> collect_uvars otp
+  | TLabel tp0 -> collect_uvars tp0 uvs
+  | TApp(tp1, tp2) ->
+    collect_uvars tp1 (collect_uvars tp2 uvs)
 
 and collect_scheme_uvars sch uvs =
   let uvs =
@@ -155,63 +91,139 @@ let scheme_uvars sch = collect_scheme_uvars sch UVar.Set.empty
 
 exception Escapes_scope of tvar
 
-let shrink_var_scope ~scope x =
-  if Scope.mem scope x then ()
+let shrink_var_scope ~tvars ~scope x =
+  if TVar.in_scope x scope then ()
+  else if TVar.Set.mem x tvars then ()
   else raise (Escapes_scope x)
 
-let shrink_uvar_scope ~scope p u =
-  UVar.filter_scope u (Scope.level scope)
-    (fun x -> Scope.mem scope (TVar.Perm.apply p x))
+let add_named_tvars ~tvars tvs =
+  List.fold_left (fun tvars (_, x) -> TVar.Set.add x tvars) tvars tvs
 
-let rec shrink_effrow_end_scope ~scope ee =
-  match ee with
-  | EEClosed -> ()
-  | EEUVar(p, u) -> shrink_uvar_scope ~scope p u
-  | EEVar  x -> shrink_var_scope ~scope x
-  | EEApp(tp1, tp2) ->
-    shrink_scope ~scope tp1;
-    shrink_scope ~scope tp2
-
-and shrink_scope ~scope tp =
+(** Shrink scopes of unification variables in given type and check if all
+  type variables fit in given scope. The [tvars] set contains all type
+  variables that are bound in the type, so they may appear even if they are
+  outside of the scope. *)
+let rec shrink_scope ~tvars ~scope tp =
   match view tp with
-  | TUVar(p, u) -> shrink_uvar_scope ~scope p u
-  | TVar  x -> shrink_var_scope  ~scope x
-  | TEffect xs ->
-    TVar.Set.iter (shrink_var_scope ~scope) xs
-  | TEffrow(xs, ee) ->
-    TVar.Set.iter (shrink_var_scope ~scope) xs;
-    shrink_effrow_end_scope ~scope ee
-  | TPureArrow(sch, tp2) ->
-    shrink_scheme_scope ~scope sch;
-    shrink_scope ~scope tp2
-  | TArrow(sch, tp2, eff) ->
-    shrink_scheme_scope ~scope sch;
-    shrink_scope ~scope tp2;
-    shrink_scope ~scope eff
-  | THandler(a, tp, tp0, eff0) ->
-    let scope = Scope.add scope a in
-    shrink_scope ~scope tp;
-    shrink_scope ~scope tp0;
-    shrink_scope ~scope eff0
-  | TLabel(eff, tp0, eff0) ->
-    shrink_scope ~scope eff;
-    shrink_scope ~scope tp0;
-    shrink_scope ~scope eff0
+  | TEffect -> ()
+  | TUVar u -> UVar.shrink_scope u scope
+  | TVar  x -> shrink_var_scope ~tvars ~scope x
+  | TArrow(sch, tp2, _) ->
+    shrink_scheme_scope ~tvars ~scope sch;
+    shrink_scope ~tvars ~scope tp2
+  | THandler(a, tp, itp, otp) ->
+    shrink_scope ~tvars ~scope otp;
+    let tvars = TVar.Set.add a tvars in
+    shrink_scope ~tvars ~scope tp;
+    shrink_scope ~tvars ~scope itp
+  | TLabel tp0 -> shrink_scope ~tvars ~scope tp0
   | TApp(tp1, tp2) ->
-    shrink_scope ~scope tp1;
-    shrink_scope ~scope tp2
+    shrink_scope ~tvars ~scope tp1;
+    shrink_scope ~tvars ~scope tp2
 
-and shrink_scheme_scope ~scope sch =
-  let scope = List.fold_left Scope.add_named scope sch.sch_targs in
-  List.iter (fun (_, isch) -> shrink_scheme_scope ~scope isch)
+and shrink_scheme_scope ~tvars ~scope sch =
+  let tvars = add_named_tvars ~tvars sch.sch_targs in
+  List.iter (fun (_, isch) -> shrink_scheme_scope ~tvars ~scope isch)
     sch.sch_named;
-  shrink_scope ~scope sch.sch_body
+  shrink_scope ~tvars ~scope sch.sch_body
 
 let try_shrink_scope ~scope tp =
-  (* TODO: set backtracking point *)
-  match shrink_scope ~scope tp with
+  match shrink_scope ~tvars:TVar.Set.empty ~scope tp with
   | () -> Ok ()
   | exception Escapes_scope x -> Error x
+
+(* ========================================================================= *)
+
+let ctor_is_positive ~scope ~args ~nonrec_scope ctor =
+  (** Check if the scope of unification variable [u] fits in [nonrec_scope],
+    assuming that the unification variable fits in [scope]. *)
+  let uvar_fits_in_scope u =
+    Scope.mem (Scope.inter (UVar.scope u) scope) nonrec_scope
+  in
+
+  (** Check if type variable [x] fits in [nonrec_scope] extended with [tvars],
+    assuming that the type variable fits in [scope] extended with [tvars]. *)
+  let tvar_fits_in_scope ~tvars x =
+    Scope.mem (Scope.inter (TVar.scope x) scope) nonrec_scope ||
+    TVar.Set.mem x tvars
+  in
+
+  (** Check if all type variables and all scopes of unification variables fit
+    in [nonrec_scope] extended with [tvars] assuming that the type fits [scope]
+    extended with [tvars]. *)
+  let rec fits_in_scope ~tvars tp =
+    match view tp with
+    | TEffect -> true
+    | TUVar u -> uvar_fits_in_scope u
+    | TVar  x -> tvar_fits_in_scope ~tvars x
+    | TArrow(sch, tp, _) ->
+      scheme_fits_in_scope ~tvars sch && fits_in_scope ~tvars tp
+    | THandler(x, tp, itp, otp) ->
+      fits_in_scope ~tvars otp &&
+      begin
+        let tvars = TVar.Set.add x tvars in
+        fits_in_scope ~tvars tp &&
+        fits_in_scope ~tvars itp
+      end
+    | TLabel tp0 -> fits_in_scope ~tvars tp0
+    | TApp(tp1, tp2) ->
+      fits_in_scope ~tvars tp1 && fits_in_scope ~tvars tp2
+
+  and scheme_fits_in_scope ~tvars sch =
+    let tvars = add_named_tvars ~tvars sch.sch_targs in
+    List.for_all (named_scheme_fits_in_scope ~tvars) sch.sch_named &&
+    fits_in_scope ~tvars sch.sch_body
+
+  and named_scheme_fits_in_scope ~tvars (_, sch) =
+    scheme_fits_in_scope ~tvars sch
+  in
+
+  (** Check if all type variables on non positive (or non negative, when [pol]
+    flag is set to [false]) positions and all scopes of unification variables
+    fit in given scope. *)
+  let rec is_positive ~pol ~tvars tp =
+    match view tp with
+    | TEffect -> true
+    | TVar  x ->
+      if pol then true
+      else fits_in_scope ~tvars tp
+    | TUVar u -> fits_in_scope ~tvars tp
+    | TArrow(sch, tp, _) ->
+      scheme_is_negative ~pol ~tvars sch && is_positive ~pol ~tvars tp
+    | THandler(x, tp, itp, otp) ->
+      is_positive ~pol ~tvars otp &&
+      begin
+        let tvars = TVar.Set.add x tvars in
+        is_positive ~pol ~tvars tp &&
+        is_negative ~pol ~tvars itp
+      end
+    | TLabel _ ->
+      fits_in_scope ~tvars tp
+    | TApp(tp1, tp2) ->
+      is_positive ~pol ~tvars tp1 && fits_in_scope ~tvars tp2
+
+  and scheme_is_positive ~pol ~tvars sch =
+    let tvars = add_named_tvars ~tvars sch.sch_targs in
+    List.for_all (named_scheme_is_negative ~pol ~tvars) sch.sch_named &&
+    is_positive ~pol ~tvars sch.sch_body
+
+  and named_scheme_is_positive ~pol ~tvars (_, sch) =
+    scheme_is_positive ~pol ~tvars sch
+
+  and is_negative ~pol ~tvars tp =
+    is_positive ~pol:(not pol) ~tvars tp
+
+  and scheme_is_negative ~pol ~tvars sch =
+    scheme_is_positive ~pol:(not pol) ~tvars sch
+
+  and named_scheme_is_negative ~pol ~tvars (_, sch) =
+    scheme_is_negative ~pol ~tvars sch
+  in
+
+  let tvars = add_named_tvars ~tvars:TVar.Set.empty args in
+  let tvars = add_named_tvars ~tvars ctor.ctor_targs in
+  List.for_all (named_scheme_is_positive ~pol:true ~tvars) ctor.ctor_named &&
+  List.for_all (scheme_is_positive ~pol:true ~tvars) ctor.ctor_arg_schemes
 
 (* ========================================================================= *)
 
@@ -221,7 +233,12 @@ let mono_scheme tp =
     sch_body  = tp
   }
 
-let scheme_is_monomorphic sch =
+let scheme_to_type sch =
   match sch with
-  | { sch_targs = []; sch_named = []; sch_body = _ } -> true
-  | _ -> false
+  | { sch_targs = []; sch_named = []; sch_body } -> Some sch_body
+  | _ -> None
+
+let scheme_is_monomorphic sch =
+  match scheme_to_type sch with
+  | Some _ -> true
+  | None   -> false

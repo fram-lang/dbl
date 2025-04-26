@@ -5,361 +5,252 @@
 (** Type-inference for definitions *)
 
 open Common
+open BiDirectional
 open TypeCheckFix
 
-(** Information about the label used by a handler *)
-type label_info =
-  { l_expr : T.expr;
-      (** Expression that evaluates to the label *)
-
-    l_ctx : T.expr -> T.expr;
-      (** Context that generates fresh label when necessary *)
-
-    l_eff : T.effect;
-      (** Effect provided by this label *)
-
-    l_sub : T.tvar -> T.subst;
-      (** Substitution generating function, used to instantiate capability *)
-
-    l_delim_tp : T.typ;
-      (** Type of the delimiter *)
-
-    l_delim_eff : T.effrow
-      (** Effect of the delimiter *)
-  }
-
-(** Check if given expression is a monomorphic variable *)
-let is_monomorphic_var env (e : S.expr) =
-  match e.data with
-  | EPoly(p, _, _) ->
-    let sch_opt =
-      match p.data with
-      | EVar x ->
-        begin match Env.lookup_var env x with
-        | None | Some (VI_Ctor _) | Some (VI_MethodFn _) -> None
-        | Some (VI_Var(_, sch)) -> Some sch
-        end
-      | EImplicit name ->
-        Option.map (fun (_, sch, _) -> sch) (Env.lookup_implicit env name)
-      | EMethod _ -> None
-    in
-    begin match sch_opt with
-    | Some { sch_targs = []; sch_named = []; sch_body = _ } -> true
-    | _ -> false
-    end
-  | _ -> false
+let switch_to_check_mode (type dir) ~pos env (req : (T.typ, dir) request) :
+    T.typ * (T.typ, dir) response =
+  match req with
+  | Infer ->
+    let tp = Env.fresh_uvar ~pos env T.Kind.k_type in
+    (tp, Infered tp)
+  | Check tp -> (tp, Checked)
 
 (* ------------------------------------------------------------------------- *)
-(** Shrink scope of type response. On error, raise escaping scope error
-  for given position *)
-let type_resp_in_scope (type dir) ~env ~pos ~scope
-    (resp : (T.typ, dir) response) : (T.typ, dir) response =
-  match resp with
-  | Infered tp ->
-    (* TODO: tp can be raised to some supertype in the scope *)
-    begin match T.Type.try_shrink_scope ~scope tp with
-    | Ok   () -> Infered tp
-    | Error x ->
-      Error.fatal (Error.type_escapes_its_scope ~pos ~env x)
-    end
-  | Checked -> Checked
-
-(* ------------------------------------------------------------------------- *)
-(** Check let-definition *)
-let check_let ~tcfix ~pos env ienv body eff =
+let check_def : type st dir. tcfix:tcfix ->
+  (st, sec) opn Env.t -> S.def -> (T.typ, dir) request ->
+    st def_cont -> dir expr_result =
+  fun ~tcfix env def req cont ->
   let open (val tcfix : TCFix) in
-  let (body_env, ims) = ImplicitEnv.begin_generalize env ienv in
-  let (body, tp, r_eff) = infer_expr_type body_env body eff in
-  (* Purity restriction: check if r_eff is pure. If so, then generalize type
-    of an expression *)
-  match r_eff with
-  | Pure ->
-    let (targs, ims) = ImplicitEnv.end_generalize_pure ims (T.Type.uvars tp) in
-    (* TODO: make sure that names do not overlap *)
-    let (body, sch) = ExprUtils.generalize ~pos targs ims body tp in
-    (sch, body, Pure)
-  | Impure ->
-    ImplicitEnv.end_generalize_impure ~env:body_env ~pos:body.pos ims tp;
-    let sch = T.Scheme.of_type tp in
-    (sch, body, Impure)
-
-(* ------------------------------------------------------------------------- *)
-
-let add_label_effect env eff_opt =
-  match eff_opt with
-  | None     -> Env.add_the_effect env
-  | Some arg -> Type.check_type_arg env arg T.Kind.k_effect
-
-(* ========================================================================= *)
-(** Check expression put into REPL *)
-let check_repl_expr ~tcfix env ienv e eff =
-  let open (val tcfix : TCFix) in
-  let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
-  let (e, tp, r_eff) = infer_expr_type env e eff in
-  ImplicitEnv.end_generalize_impure ~pos:e.pos ~env:env1 ims tp;
-  let pp_ctx = Pretty.empty_context () in
-  (e, Pretty.type_to_string pp_ctx env tp, r_eff)
-
-(* ------------------------------------------------------------------------- *)
-let check_def : type dir. tcfix:tcfix ->
-  Env.t -> ImplicitEnv.t -> S.def ->
-    (T.typ, dir) request -> T.effrow -> def_cont ->
-      T.expr * (T.typ, dir) response * ret_effect =
-  fun ~tcfix env ienv def req eff cont ->
-  let open (val tcfix : TCFix) in
-  let make (e : T.expr) data =
-    { T.pos  = Position.join def.pos e.pos;
+  let make (rest : _ expr_result) data =
+    { T.pos  = Position.join def.pos rest.er_expr.pos;
+      T.pp   = Env.pp_tree env;
+      T.data = data
+    } in
+  let make_local data =
+    { T.pos  = def.pos;
+      T.pp   = Env.pp_tree env;
       T.data = data
     } in
   let pos = def.pos in
+  let pp = Env.pp_tree env in
   match def.data with
-  | DLetId(id, e1) ->
-    let (sch, e1, r_eff1) = check_let ~tcfix ~pos env ienv e1 eff in
-    let (env, ienv, x) =
-      ImplicitEnv.add_poly_id ~pos env ienv id sch in
-    let (e2, resp, r_eff2) = cont.run env ienv req eff in
-    (make e2 (T.ELet(x, sch, e1, e2)), resp, ret_effect_join r_eff1 r_eff2)
-
-  | DLetFun(id, targs, nargs, body) ->
-    let (body_env, tvars2) = Type.tr_named_type_args env targs in 
-    let (body_env, ims1) = ImplicitEnv.begin_generalize body_env ienv in
-    let (body_env, ims2, r_eff1) =
-      Pattern.infer_named_arg_schemes body_env nargs in
-    let (body, tp, r_eff2) = infer_expr_type body_env body T.Effect.pure in
-    begin match ret_effect_join r_eff1 r_eff2 with
-    | Pure -> ()
-    | Impure -> Error.report (Error.func_not_pure ~pos:def.pos)
-    end;
-    (* TODO: check if [tp] is in proper scope (ims2 may bind some types) *)
-    let (ims2, body) = ExprUtils.inst_args_match ims2 body tp T.Effect.pure in
-    let (tvars1, ims1) =
-      ImplicitEnv.end_generalize_pure ims1 (T.Type.uvars tp) in
-    let (body, sch) =
-      ExprUtils.generalize ~pos (tvars1 @ tvars2) (ims1 @ ims2) body tp in
-    let (env, ienv, x) =
-      ImplicitEnv.add_poly_id ~pos env ienv id sch in
-    let (e2, resp, r_eff) = cont.run env ienv req eff in
-    (make e2 (T.ELet(x, sch, body, e2)), resp, r_eff)
-
-  | DLetPat(pat, e1) ->
-    let scope = Env.scope env in
-    let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
-    let (e1, tp, r_eff1) = infer_expr_type env1 e1 eff in
-    ImplicitEnv.end_generalize_impure ~env:env1 ~pos:e1.pos ims tp;
-    let (env, pat, names, r_eff2) =
-      Pattern.check_type ~env ~scope pat tp in
-    let ienv = ImplicitEnv.shadow_names ienv names in
-    let (e2, resp, r_eff3) = cont.run env ienv req eff in
-    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
-    let res_tp = bidir_result req resp in
-    (make e2 (T.EMatch(e1, [(pat, e2)], res_tp, eff)), resp,
-      ret_effect_joins [ r_eff1; r_eff2; r_eff3 ])
-
-  | DMethodFn(public, x, method_name) ->
-    let env = Env.add_method_fn ~public env x method_name in
-    cont.run env ienv req eff
-
-  | DLabel(eff_opt, pat) ->
-    let scope = Env.scope env in
-    let tp0  = Env.fresh_uvar env T.Kind.k_type in
-    let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
-    let (env, l_eff) = add_label_effect env eff_opt in
-    let l_tp = T.Type.t_label (T.Type.t_var l_eff) tp0 eff0 in
-    let (env, pat, names, _) =
-      Pattern.check_type ~env ~scope:(Env.scope env) pat l_tp in
-    let ienv = ImplicitEnv.shadow_names ienv names in
-    let (e2, resp, _) = cont.run env ienv req eff in
-    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
-    let res_tp = bidir_result req resp in
-    let x = Var.fresh ~name:"lbl" () in
-    let dd =
-      T.DD_Label { tvar = l_eff; var = x; delim_tp = tp0; delim_eff = eff0 }
-    in
-    (make e2 (T.EData([dd],
-      (make e2 (T.EMatch({ def with data = T.EVar x},
-        [(pat, e2)], res_tp, eff))))),
-      resp, Impure)
-
-  | DHandlePat
-    { label; effect = eff_opt; cap_pat = pat; capability = eh;
-      ret_clauses = rcs; fin_clauses = fcs } ->
-    let env0 = env in
-    let (lbl, env) =
-      match label with
-      | None ->
-        let (env, l_eff) = Env.add_the_effect env in
-        let env =
-          Type.check_type_alias_binder_opt env eff_opt (T.Type.t_var l_eff) in
-        let tp0  = Env.fresh_uvar env T.Kind.k_type in
-        let eff0 = Env.fresh_uvar env T.Kind.k_effrow in
-        let (env, x) = Env.add_the_label env (T.Type.t_var l_eff) tp0 eff0 in
-        let ctx e =
-          let dd = T.DD_Label {
-              tvar = l_eff; var = x;
-              delim_tp = tp0; delim_eff = eff0
-            } in
-          { T.pos  = Position.join def.pos e.T.pos;
-            T.data = T.EData([dd], e)
-          }
-        in
-        { l_expr      = { T.pos = def.pos; T.data = T.EVar x };
-          l_ctx       = ctx;
-          l_eff       = T.Type.t_var l_eff;
-          l_sub       =
-            (* It might be tempting to use [T.Subst.rename_to_fresh] here, but
-              we cannot ensure that this freshly generated type variable do
-              not appear in component of the handler type (and it is easy to
-              find counter-example). However, for monomorphic handlers it
-              could be done better. *)
-            (fun a ->
-              if is_monomorphic_var env eh then
-                T.Subst.rename_to_fresh T.Subst.empty a l_eff
-              else
-                T.Subst.add_type T.Subst.empty a (T.Type.t_var l_eff));
-          l_delim_tp  = tp0;
-          l_delim_eff = eff0
-        }, env
-      | Some le ->
-        let (env', ims) = ImplicitEnv.begin_generalize env ienv in
-        let (le, le_tp, _) = infer_expr_type env' le eff in
-        ImplicitEnv.end_generalize_impure ~env:env' ~pos:le.pos ims le_tp;
-        begin match Unification.as_label env le_tp with
-        | L_Label(l_eff, tp0, eff0) ->
-          let env = Type.check_type_alias_binder_opt env eff_opt l_eff in
-          let env = Env.add_the_effect_alias env l_eff in
-          let (env, l_var) = Env.add_the_label env l_eff tp0 eff0 in
-          let ctx e =
-            { T.pos  = Position.join def.pos e.T.pos;
-              T.data = T.ELet(l_var, T.Scheme.of_type le_tp, le, e)
-            } in
-          { l_expr      = { le with data = T.EVar l_var };
-            l_ctx       = ctx;
-            l_eff       = l_eff;
-            l_sub       = (fun a -> T.Subst.add_type T.Subst.empty a l_eff);
-            l_delim_tp  = tp0;
-            l_delim_eff = eff0
-          }, env
-
-        | L_NoEffect ->
-          Error.fatal (Error.unbound_the_effect ~pos:le.pos)
-
-        | L_No ->
-          Error.fatal (Error.expr_not_label ~pos:le.pos ~env le_tp)
-        end
-    in
-    let env_f = env in
-    let (env_h, ims) = ImplicitEnv.begin_generalize env ienv in
-    let (eh, eh_tp, _) = infer_expr_type env_h eh eff in
-    (* TODO: effect capability may have a scheme instead of type *)
-    ImplicitEnv.end_generalize_impure ~env:env_h ~pos:eh.pos ims eh_tp;
-    begin match Unification.to_handler env eh_tp with
-    | H_Handler(a, cap_tp, res_tp, res_eff) ->
-      let sub = lbl.l_sub a in
-      let cap_tp  = T.Type.subst sub cap_tp  in
-      let res_tp  = T.Type.subst sub res_tp  in
-      let res_eff = T.Type.subst sub res_eff in
-      Error.check_unify_result ~pos:def.pos
-        (Unification.unify_type env lbl.l_delim_tp res_tp)
-        ~on_error:(Error.delim_type_mismatch ~env lbl.l_delim_tp res_tp);
-      Error.check_unify_result ~pos:def.pos
-        (Unification.unify_type env lbl.l_delim_eff res_eff)
-        ~on_error:(Error.delim_effect_mismatch ~env lbl.l_delim_eff res_eff);
-      let (env, pat, names, _) =
-        Pattern.check_type ~env ~scope:(Env.scope env) pat cap_tp in
-      let ienv = ImplicitEnv.shadow_names ienv names in
-      let (ret_x, body_tp, ret_body) =
-        MatchClause.check_return_clauses ~tcfix env rcs res_tp res_eff in
-      let body_eff = T.Effect.cons_eff lbl.l_eff res_eff in
-      let (body, Checked, _) = cont.run env ienv (Check body_tp) body_eff in
-      let (x, body) = ExprUtils.arg_match pat body body_tp body_eff in
-      let pos = Position.join def.pos body.pos in
-      Error.check_unify_result ~pos
-        (Unification.subeffect env0 res_eff eff)
-        ~on_error:(Error.expr_effect_mismatch ~env:env0 res_eff eff);
-      let e =
-        make body (T.EHandle
-          { label      = lbl.l_expr;
-            effect     = lbl.l_eff;
-            cap_var    = x;
-            body       = body;
-            capability = eh;
-            ret_var    = ret_x;
-            ret_body   = ret_body;
-            result_tp  = res_tp;
-            result_eff = res_eff
-          }) in
-      let (e, tp, r_eff) =
-        MatchClause.check_finally_clauses ~tcfix env_f fcs e res_tp req eff in
-      (lbl.l_ctx e, tp, r_eff)
-
-    | H_No ->
-      Error.fatal (Error.expr_not_handler ~pos:eh.pos ~env eh_tp)
+  | DLetId(public, id, body) ->
+    let (body_env, params) = Env.begin_generalize env in
+    begin match PolyExpr.infer_def_scheme ~tcfix body_env body with
+    | PPure(body, sch, cs) ->
+      let cs = ConstrSolve.solve_partial cs in
+      let (targs, named, cs) =
+        ParamGen.end_generalize_pure ~pos params (Name.scheme_uvars sch) cs in
+      let (body, sch) = ExprUtils.generalize ~pos ~pp targs named body sch in
+      let name = NameUtils.tr_ident ~pos ~pp id sch in
+      let (env, x) = Env.add_val ~public env name sch in
+      let rest = cont.run env req in
+      { er_expr   = make rest (T.ELetPoly(x, body, rest.er_expr));
+        er_type   = rest.er_type;
+        er_effect = rest.er_effect;
+        er_constr = cs @ rest.er_constr
+      }
+    | PImpure body ->
+      let body_tp = expr_result_type body in
+      ParamGen.end_generalize_impure params (T.Type.uvars body_tp);
+      let sch = T.Scheme.of_type body_tp in
+      let name = NameUtils.tr_ident ~pos ~pp id sch in
+      let (env, x) = Env.add_val ~public env name sch in
+      let rest = cont.run env req in
+      { er_expr   = make rest (T.ELetMono(x, body.er_expr, rest.er_expr));
+        er_type   = rest.er_type;
+        er_effect = T.Effect.join body.er_effect rest.er_effect;
+        er_constr = body.er_constr @ rest.er_constr
+      }
     end
 
-  | DImplicit(n, args, sch) ->
-    let (env1, ims) = ImplicitEnv.begin_generalize env ienv in
-    let (env1, args1) = Type.tr_named_type_args env1 args in
-    let sch = Type.tr_scheme env1 sch in
-    let (args2, ims) =
-      ImplicitEnv.end_generalize_pure ims (T.Scheme.uvars sch) in
-    assert (List.is_empty ims);
-    let args = args1 @ args2 in
-    let ienv = ImplicitEnv.declare_implicit ienv n args sch in
-    cont.run env ienv req eff
+  | DLetPat(pat, body) ->
+    (* Pattern may introduce type variables. We switch to check-mode in
+      order to make sure that they don't escape their scope. *)
+    let (tp, resp) = switch_to_check_mode ~pos:body.pos env req in
+    let (body_env, params) = Env.begin_generalize env in
+    let body = infer_expr_type body_env body in
+    let body_tp = expr_result_type body in
+    let (penv, pat, pat_eff) = Pattern.check_type env pat body_tp in
+    let (env, _, _, ren) = PartialEnv.extend env [] penv in
+    let pat = T.Ren.rename_pattern ren pat in
+    let rest = cont.run env (Check tp) in
+    let eff = T.Effect.joins [ body.er_effect; pat_eff; rest.er_effect ] in
+    let expr = make rest
+      (T.EMatch(body.er_expr, [(pat, rest.er_expr)], tp, eff)) in
+    { er_expr   = expr;
+      er_type   = resp;
+      er_effect = eff;
+      er_constr = body.er_constr @ rest.er_constr
+    }
 
-  | DData(public, name, args, ctors) ->
-    let scope = Env.scope env in
-    let (data_env, args) = Type.tr_named_type_args env args in
-    let kind  = DataType.kind args in
+  | DLabel(eff, pat) ->
+    let (tp, resp) = switch_to_check_mode ~pos env req in
+    let delim_tp = Env.fresh_uvar ~pos:pat.pos env T.Kind.k_type in
+    let (env, _) = Env.enter_scope env in
+    let (env, name, x) = Type.check_type_arg env eff T.Kind.k_effect in
+    let (env, pat, pat_eff) =
+      Pattern.check_type_ext env pat (T.Type.t_label delim_tp) in
+    let rest = cont.run env (Check tp) in
+    let rest_eff = T.Effect.join pat_eff rest.er_effect in
+    let lx = Var.fresh ~name:"lbl" () in
+    let dd = T.DD_Label
+      { tvar     = x;
+        var      = lx;
+        delim_tp = delim_tp;
+        annot    = make_local (T.TE_Type delim_tp)
+      } in
+    let expr =
+      make rest (T.EData([dd],
+        make rest (T.EMatch(
+          make_local (T.EInst(make_local (T.EVar lx), [], [])),
+          [(pat, rest.er_expr)], tp, rest_eff)))) in
+    { er_expr   = expr;
+      er_type   = resp;
+      er_effect = Impure;
+      er_constr = rest.er_constr
+    }
+
+  | DHandlePat(pat, heff, hexp) ->
+    let env0 = env in
+    let (hexp_env, params) = Env.begin_generalize env in
+    let hexp = infer_expr_type hexp_env hexp in
+    let hexp_tp = expr_result_type hexp in
+    ParamGen.end_generalize_impure params (T.Type.uvars hexp_tp);
+    begin match Unification.to_handler ~pos env hexp_tp with
+    | H_Handler(a, cap_tp, tp_in, tp_out) ->
+      let (env, scope) = Env.enter_scope env in
+      let (env, name, eff_tvar) =
+        Type.check_type_arg env heff T.Kind.k_effect in
+      let sub = T.Subst.rename_tvar (T.Subst.empty ~scope) a eff_tvar in
+      let cap_tp = T.Type.subst sub cap_tp in
+      let tp_in  = T.Type.subst sub tp_in in
+      let (env, pat, _) = Pattern.check_type_ext env pat cap_tp in
+      let rest = cont.run env (Check tp_in) in
+      let hx = Var.fresh ~name:"cap" () in
+      let expr =
+        make rest (T.EHandle(eff_tvar, hx, hexp.er_expr,
+          make rest (T.EMatch(
+            make_local (T.EInst(make_local (T.EVar hx), [], [])),
+            [(pat, rest.er_expr)], tp_in, Impure)))) in
+      let resp : (_, dir) response =
+        match req with
+        | Infer    -> Infered tp_out
+        | Check tp ->
+          let pp = Env.pp_tree env0 in
+          Error.check_unify_result ~pos
+            (Unification.subtype env0 tp_out tp)
+            ~on_error:(Error.expr_type_mismatch ~pp tp_out tp);
+          Checked
+      in
+      { er_expr   = expr;
+        er_type   = resp;
+        er_effect = Impure;
+        er_constr = hexp.er_constr @ rest.er_constr
+      }
+    | H_No ->
+      Error.fatal (Error.expr_not_handler ~pos:hexp.er_expr.pos ~pp hexp_tp)
+    end
+
+  | DTypeParam(name, x, kind) ->
+    let kind = Type.tr_kind kind in
+    let name = tr_tname name in
+    let env = Env.declare_type ~pos env name x kind in
+    cont.run env req
+
+  | DValParam(name, x, sch) ->
+    let (sch_env, params) = Env.begin_generalize env in
+    let sch =
+      match sch with
+      | Some sch -> Type.tr_scheme sch_env sch
+      | None     ->
+        let tp = make_local (T.TE_Type (Env.fresh_uvar ~pos:pos env T.Kind.k_type)) in
+        T.SchemeExpr.of_type_expr tp
+    in
+    let env = ParamGen.end_generalize_declare ~pos params env name x sch in
+    cont.run env req
+
+  | DData { public_tp; public_ctors; tvar=name; args; ctors } ->
+    let (tp, resp) = switch_to_check_mode ~pos env req in
+    let nonrec_scope = Env.scope env in
+    let (penv, args) = Type.tr_named_type_args args in
+    let kind = DataType.kind args in
+    let (data_env, _, args, _) = PartialEnv.extend env args penv in
     let ctors = DataType.check_ctor_decls ~data_targs:args data_env ctors in
-    let (env, x) = Env.add_tvar ~pos env ~public name kind in
-    let (env, dd) = DataType.finalize_check env x ~name args ctors in 
-    let (e, resp, r_eff) = cont.run env ienv req eff in
-    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
-    (make e (T.EData([dd], e)), resp, r_eff)
+    let (env, _) = Env.enter_scope env in
+    let (env, x) = Env.add_tvar ~pos ~public:public_tp env name kind in
+    let (env, dd) =
+      DataType.finalize_check ~nonrec_scope ~public:public_ctors
+        env x ~name args ctors in
+    let rest = cont.run env (Check tp) in
+    { er_expr   = make rest (T.EData([dd], rest.er_expr));
+      er_type   = resp;
+      er_effect = rest.er_effect;
+      er_constr = rest.er_constr
+    }
+
+  | DBlock defs ->
+    let env = Env.enter_section env in
+    check_defs env defs req
+      { run = fun env req ->
+        cont.run (Env.leave_section env) req }
 
   | DRec defs ->
-    let scope = Env.scope env in
-    let (env, dds, fds, r_eff1) =
-      RecDefs.check_rec_defs ~tcfix env ienv defs in
-    let (e2, resp, r_eff2) = cont.run env ienv req eff in
-    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
-    let r_eff = ret_effect_join r_eff1 r_eff2 in
-    (make e2 (T.EData(dds, make e2 (T.ELetRec(fds, e2)))), resp, r_eff)
+    let env = Env.enter_section env in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
+    let result = RecDefs.check_rec_defs ~tcfix ~pos env defs in
+    let env = Env.leave_section result.rec_env in
+    let rest = cont.run env (Check tp) in
+    { er_expr   =
+        make rest (T.EData(result.rec_dds,
+          make rest (T.ELetRec
+            { targs = result.rec_targs;
+              named = result.rec_named;
+              defs  = result.rec_fds;
+              body  = rest.er_expr
+            })));
+      er_type   = resp;
+      er_effect = T.Effect.join result.rec_eff rest.er_effect;
+      er_constr = result.rec_constr @ rest.er_constr
+    }
 
   | DModule(public, name, defs) ->
     let env = Env.enter_module env in
-    check_defs env ImplicitEnv.empty defs req eff
-      { run = fun env _ req eff ->
+    let env = Env.enter_section env in
+    check_defs env defs req
+      { run = fun env req ->
+        let env = Env.leave_section env in
         let env = Env.leave_module env ~public name in
-        cont.run env ienv req eff }
+        cont.run env req }
 
   | DOpen(public, path) ->
-    begin match Env.lookup_module env path with
-    | Some m ->
-      let env = Env.open_module env ~public m in
-      cont.run env ienv req eff
-    | None ->
-      Error.report (Error.unbound_module ~pos path);
-      cont.run env ienv req eff
-    end
+    let m = ModulePath.lookup_module env path in
+    let env = Env.open_module ~public env m in
+    let rest = cont.run env req in
+    (* We call `make` in order to have correct position and PPTree. *)
+    { rest with er_expr = make rest rest.er_expr.data }
 
-  | DReplExpr e1 ->
-    let scope = Env.scope env in
-    let (e1, tp1, r_eff1) = check_repl_expr ~tcfix env ienv e1 eff in
-    let (e, resp, r_eff2) = cont.run env ienv req eff in
-    let resp = type_resp_in_scope ~env ~pos:def.pos ~scope resp in
-    (make e (T.EReplExpr(e1, tp1, e)), resp, ret_effect_join r_eff1 r_eff2)
+  | DReplExpr e ->
+    let (body_env, params) = Env.begin_generalize env in
+    let expr = infer_expr_type body_env e in
+    let tp = expr_result_type expr in
+    ParamGen.end_generalize_impure params (T.Type.uvars tp);
+    let rest = cont.run env req in
+    { er_expr   = make rest (T.EReplExpr(expr.er_expr, rest.er_expr));
+      er_type   = rest.er_type;
+      er_effect = T.Effect.join expr.er_effect rest.er_effect;
+      er_constr = expr.er_constr @ rest.er_constr
+    }
 
 (* ------------------------------------------------------------------------- *)
-let check_defs : type dir. tcfix:tcfix ->
-  Env.t -> ImplicitEnv.t -> S.def list ->
-    (T.typ, dir) request -> T.effrow -> def_cont ->
-      T.expr * (T.typ, dir) response * ret_effect =
-  fun ~tcfix env ienv defs req eff cont ->
+let check_defs : type st dir. tcfix:tcfix ->
+  (st, sec) opn Env.t -> S.def list -> (T.typ, dir) request ->
+    st def_cont -> dir expr_result =
+  fun ~tcfix env defs req cont ->
   let open (val tcfix : TCFix) in
   match defs with
-  | [] -> cont.run env ienv req eff
+  | [] -> cont.run env req
   | def :: defs ->
-    check_def env ienv def req eff
-      { run = fun env ienv req eff -> check_defs env ienv defs req eff cont }
+    check_def env def req
+      { run = fun env req -> check_defs env defs req cont }

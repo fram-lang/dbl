@@ -1,7 +1,7 @@
-implicit `id
+parameter ~id
 
-let id = fn x => `id (`id x)
+let id = fn x => ~id (~id x)
 
 let _ =
-  let `id = fn y => y in
+  let ~id = fn y => y in
   id ()

@@ -14,27 +14,47 @@ type error_class =
 
 let err_counter = ref 0
 
+let repl_input = Buffer.create 512
+
 let incr_error_counter () =
   err_counter := !err_counter + 1
 
+let color_printer_generator color s =
+  if not !DblConfig.display_colors
+  then s
+  else TextRangePrinting.color_string color s
+
 let report ?pos ~cls msg =
-  let name =
+  let module Color = TextRangePrinting in
+  let name, color =
     match cls with
     | FatalError ->
       incr_error_counter ();
-      "fatal error"
+      "fatal error", Color.Red
     | Error ->
       incr_error_counter ();
-      "error"
-    | Warning -> "warning"
-    | Note    -> "note"
+      "error", Color.Red
+    | Warning -> "warning", Color.Yellow
+    | Note    -> "note", Color.Teal
   in
-  match pos with
-  | None ->
-    Printf.eprintf "%s: %s\n" name msg
-  | Some pos ->
+  let name = Color.color_string color name in
+  let text_range =
+    if !DblConfig.display_error_context
+    then Option.bind pos
+      (TextRangePrinting.get_text_range
+        ~repl_input:(Buffer.contents repl_input)
+        ~color)
+    else None
+  in
+  match pos, text_range with
+  | Some pos, None ->
     Printf.eprintf "%s: %s: %s\n"
       (Position.to_string pos) name msg
+  | _, Some pos ->
+    Printf.eprintf "%s: %s\n%s\n"
+      name msg pos
+  | None, _ ->
+    Printf.eprintf "%s: %s\n" name msg
 
 let assert_no_error () =
   if !err_counter <> 0 then

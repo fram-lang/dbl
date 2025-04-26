@@ -1,0 +1,9 @@
+rec
+  data A = A | B
+  data Vec X = { x : X, y : X }
+end
+
+let checkPure (f : _ -> _) = ()
+
+let _ = checkPure (fn (c : Vec Unit) => c.x)
+let _ = checkPure (fn (c : Vec Unit) => c.y)

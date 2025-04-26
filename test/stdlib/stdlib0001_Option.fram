@@ -1,0 +1,7 @@
+let _ =
+  assert ((None).unwrapOr 0 == 0);
+  assert ((Some 42).unwrapOr 0 == 42);
+  assert ((Some 42).unwrap == 42);
+  let ~onError () = 0 in
+  assert ((None).unwrapErr == 0);
+  assert ((Some 42).unwrapErr == 42)

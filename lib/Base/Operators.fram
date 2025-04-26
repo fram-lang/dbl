@@ -1,0 +1,31 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+parameter T
+parameter type U
+parameter type E
+
+pub let (- .) {method neg : T ->[E] U} (x : T) = x.neg
+
+pub let (+) {method add : T -> U} (x : T) = x.add
+pub let (-) {method sub : T -> U} (x : T) = x.sub
+pub let (%) {method mod : T -> U} (x : T) = x.mod
+pub let (/) {method div : T -> U} (x : T) = x.div
+pub let (*) {method mul : T -> U} (x : T) = x.mul
+
+pub let (==) {method equal : T -> U} (x : T) = x.equal
+pub let (!=) {method neq   : T -> U} (x : T) = x.neq
+pub let (>)  {method gt    : T -> U} (x : T) = x.gt
+pub let (>=) {method ge    : T -> U} (x : T) = x.ge
+pub let (<)  {method lt    : T -> U} (x : T) = x.lt
+pub let (<=) {method le    : T -> U} (x : T) = x.le
+
+pub let (&&&) {method land    : T -> U} (x : T) = x.land
+pub let (^^^) {method lxor    : T -> U} (x : T) = x.lxor
+pub let (|||) {method lor     : T -> U} (x : T) = x.lor
+pub let (<<)  {method shiftl  : T -> U} (x : T) = x.shiftl
+pub let (>>)  {method shiftr  : T -> U} (x : T) = x.shiftr
+pub let (>>>) {method ashiftr : T -> U} (x : T) = x.ashiftr
+
+pub let (:=) {method set : T -> U} (x : T) = x.set

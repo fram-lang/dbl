@@ -15,7 +15,7 @@ type expr =
   | ELet of var * expr * expr
     (** Let-expression *)
 
-  | ELetRec of (var * value) list * expr
+  | ELetRec of (var * expr) list * expr
     (** Mutually recursive let-definitions *)
 
   | EApp of value * value
@@ -49,6 +49,9 @@ type expr =
 and value =
   | VNum of int
     (** Integer literal *)
+
+  | VNum64 of int64
+    (** 64 bit integer literal *)
 
   | VStr of string
     (** String literal *)

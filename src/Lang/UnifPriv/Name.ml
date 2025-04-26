@@ -11,13 +11,13 @@ module Ordered = struct
 
   let compare n1 n2 =
     match n1, n2 with
-    | NLabel, NLabel -> 0
-    | NLabel, _      -> -1
-    | _,      NLabel -> 1
-
     | NVar x1, NVar x2 -> String.compare x1 x2
     | NVar _,  _       -> -1
     | _,       NVar _  -> 1
+
+    | NOptionalVar x1, NOptionalVar x2 -> String.compare x1 x2
+    | NOptionalVar _,  _       -> -1
+    | _,       NOptionalVar _  -> 1
 
     | NMethod n1, NMethod n2 -> String.compare n1 n2
     | NMethod _, _ -> -1
@@ -28,11 +28,11 @@ end
 
 let equal n1 n2 =
   match n1, n2 with
-  | NLabel, NLabel -> true
-  | NLabel, _      -> false
-
   | NVar x1, NVar x2 -> x1 = x2
   | NVar _, _ -> false
+
+  | NOptionalVar x1, NOptionalVar x2 -> x1 = x2
+  | NOptionalVar _, _ -> false
 
   | NMethod n1, NMethod n2 -> n1 = n2
   | NMethod _, _ -> false
@@ -42,8 +42,6 @@ let equal n1 n2 =
 
 let assoc n xs =
   List.find_map (fun (m, v) -> if equal n m then Some v else None) xs
-
-let subst = Subst.in_name
 
 module Set = Set.Make(Ordered)
 module Map = Map.Make(Ordered)

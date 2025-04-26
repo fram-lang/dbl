@@ -4,27 +4,20 @@
 
 (** Type substitutions *)
 
+open UnifCommon
 open TypeBase
 
 type t = {
-  perm : TVar.Perm.t;
-    (** Permutation of type variables, applied before type substitution. *)
-
-  sub  : typ TVar.Map.t
-    (** Simultaneous substitution *)
+  sub   : typ TVar.Map.t;
+  scope : Scope.t
 }
 
-let empty =
-  { perm = TVar.Perm.id;
-    sub  = TVar.Map.empty
-  }
-
-let rename_to_fresh sub x y =
-  { sub with perm = TVar.Perm.swap_with_fresh_r sub.perm x y }
+let empty ~scope =
+  { sub = TVar.Map.empty; scope }
 
 let add_tvar sub x =
-  let y = TVar.clone x in
-  (rename_to_fresh sub x y, y)
+  let y = TVar.clone ~scope:sub.scope x in
+  { sub with sub = TVar.Map.add x (t_var y) sub.sub }, y
 
 let add_named_tvar sub (n, x) =
   let (sub, x) = add_tvar sub x in
@@ -39,84 +32,53 @@ let add_named_tvars sub xs =
 let add_type sub x tp =
   { sub with sub = TVar.Map.add x tp sub.sub }
 
+let rename_tvar sub x y =
+  add_type sub x (t_var y)
+
 let is_empty sub =
-  TVar.Perm.is_identity sub.perm && TVar.Map.is_empty sub.sub
+  TVar.Map.is_empty sub.sub
 
-(** Returns a new permutation attached to (modified in place) unification
-  variable *)
-let in_uvar sub p u =
-  let p = TVar.Perm.compose sub.perm p in
-  UVar.filter_scope u
-    (UVar.level u)
-    (fun x -> not (TVar.Map.mem (TVar.Perm.apply p x) sub.sub));
-  p
+let enter_scope sub =
+  { sub with scope = Scope.enter sub.scope }
 
-let in_name sub n =
-  match n with
-  | NLabel | NVar _ | NImplicit _ | NMethod _ -> n
-
-(* Substitute in variable of kind [effect]. Since kind [effect] can contain
-  only ground effects, substituted type is always (in some sense) a set of
-  type variables. These type variables are added to a set [ys]. *)
-let in_effvar sub x ys =
-  let x = TVar.Perm.apply sub.perm x in
-  match TVar.Map.find_opt x sub.sub with
-  | None     -> TVar.Set.add x ys
-  | Some eff -> TVar.Set.union (effect_view eff) ys
-
-let rec in_effrow_end sub ee =
-  match ee with
-  | EEClosed -> (TVar.Set.empty, ee)
-  | EEUVar(p, u) ->
-    (TVar.Set.empty, EEUVar(in_uvar sub p u, u))
-  | EEVar x  ->
-    let x = TVar.Perm.apply sub.perm x in
-    begin match TVar.Map.find_opt x sub.sub with
-    | None     -> (TVar.Set.empty, EEVar x)
-    | Some eff -> effrow_view eff
-    end
-  | EEApp(tp1, tp2) ->
-    (TVar.Set.empty, EEApp(in_type_rec sub tp1, in_type_rec sub tp2))
-
-and in_type_rec sub tp =
+let rec in_type_rec sub tp =
   match TypeBase.view tp with
-  | TUVar(p, u) ->
-    let p = in_uvar sub p u in
-    t_uvar p u
+  | TEffect -> tp
+  | TUVar u ->
+    (* We allow unification variables to have a scope that contains variables
+      bound inside the type traversed by the substitution. However, each time
+      when we close a unification variable inside the binder we treat it in a
+      way that it has a scope that is outside the binder. Therefore, during
+      substitution we need to shrink the scope of the unification variable. *)
+    UVar.shrink_scope u sub.scope;
+    tp
   | TVar x ->
-    let x = TVar.Perm.apply sub.perm x in
     begin match TVar.Map.find_opt x sub.sub with
-    | None    -> t_var x
     | Some tp -> tp
+    | None ->
+      assert (TVar.in_scope x sub.scope);
+      tp
     end
-  | TEffect xs ->
-    t_effect (TVar.Set.fold (in_effvar sub) xs TVar.Set.empty)
-  | TEffrow(xs, ee) ->
-    let (ys, ee) = in_effrow_end sub ee in
-    t_effrow (TVar.Set.fold (in_effvar sub) xs ys) ee
-  | TPureArrow(sch, tp2) ->
-    t_pure_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2)
   | TArrow(sch, tp2, eff) ->
-    t_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2) (in_type_rec sub eff)
-  | THandler(a, tp, tp0, eff0) ->
-    let (sub, a) = add_tvar sub a in
-    t_handler a (in_type_rec sub tp)
-      (in_type_rec sub tp0) (in_type_rec sub eff0)
-  | TLabel(eff, tp0, eff0) ->
-    t_label (in_type_rec sub eff) (in_type_rec sub tp0) (in_type_rec sub eff0)
+    t_arrow (in_scheme_rec sub sch) (in_type_rec sub tp2) eff
+  | THandler(a, tp, itp, otp) ->
+    let otp = in_type_rec sub otp in
+    let (sub, a) = add_tvar (enter_scope sub) a in
+    t_handler a (in_type_rec sub tp) (in_type_rec sub itp) otp
+  | TLabel tp0 ->
+    t_label (in_type_rec sub tp0)
   | TApp(tp1, tp2) ->
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
 
 and in_scheme_rec sub sch =
-  let (sub, tvars) = add_named_tvars sub sch.sch_targs in
-  let named = List.map (in_named_scheme_rec sub) sch.sch_named in
+  let (sub, tvars) = add_named_tvars (enter_scope sub) sch.sch_targs in
   { sch_targs = tvars;
-    sch_named = named;
+    sch_named = List.map (in_named_scheme_rec sub) sch.sch_named;
     sch_body  = in_type_rec sub sch.sch_body
   }
 
 and in_named_scheme_rec sub (n, sch) =
-  (in_name sub n, in_scheme_rec sub sch)
+  (n, in_scheme_rec sub sch)
 
 let in_type sub tp =
   if is_empty sub then tp
@@ -133,10 +95,10 @@ let in_named_scheme sub nsch =
 let in_ctor_decl sub ctor =
   if is_empty sub then ctor
   else
-    let (sub, tvs) = add_named_tvars sub ctor.ctor_targs in
+    let (sub, tvs) = add_named_tvars (enter_scope sub) ctor.ctor_targs in
     let named = List.map (in_named_scheme sub) ctor.ctor_named in
     { ctor_name        = ctor.ctor_name;
       ctor_targs       = tvs;
       ctor_named       = named;
       ctor_arg_schemes = List.map (in_scheme_rec sub) ctor.ctor_arg_schemes
-  }
+    }

@@ -1,41 +1,38 @@
-(* This example demonstrates the use of effect handlers 
-  to implement a backtracking search for Pythagorean triples. *)
+{# This example demonstrates the use of effect handlers 
+  to implement a backtracking search for Pythagorean triples. #}
 
 import List
 
 data Triples = Triple of Int, Int, Int
 
-(* The standard backtracking effect. *)
-data BT (effect E) = BT of
+{# The standard backtracking effect. #}
+data BT E =
   { flip : Unit ->[E] Bool
   , fail : {type X} -> Unit ->[E] X
   }
 
-method flip {E, self = BT { flip } : BT E} = flip
-method fail {E, self = BT { fail } : BT E} = fail
-
-(* The method `choose` on `BT` non-deterministically selects a number
-  from a given range. *)
-method choose {E, self : BT E} =
+{# The method `choose` on `BT` non-deterministically selects a number
+  from a given range. #}
+method choose {E} (self : BT E) =
   let rec choose (a: Int) (b: Int) =
     if a >= b  then self.fail ()
     else if self.flip () then a
     else choose (a + 1) b
   in choose
 
-(* The method `triples` generates a Pythagorean triple. *)
-method triples {E, self : BT E} (n : Int) =
+{# The method `triples` generates a Pythagorean triple. #}
+method triples {E} (self : BT E) (n : Int) =
   let a = self.choose 1 n in
   let b = self.choose a n in
   let c = self.choose b n in
   if a * a + b * b == c * c then Triple a b c
   else self.fail ()
 
+parameter E_bt
+parameter ~bt : BT E_bt
 
-implicit `bt {E_bt} : BT E_bt
-
-(* The function `takeFirst` returns the first triple found. *)
-let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
+{# The function `takeFirst` returns the first triple found. #}
+let takeFirst (f : {E} -> BT E -> Int ->[E,_] _) (n: Int) =
   handle bt = BT { flip = effect () / r =>
     match r True with
     | None   => r False
@@ -46,8 +43,8 @@ let takeFirst (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
   return x => Some x
   in f bt n
 
-(* The function `takeAll` returns list of all triples found. *)
-let takeAll (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
+{# The function `takeAll` returns list of all triples found. #}
+let takeAll (f : {E} -> BT E -> Int ->[E,_] _) (n: Int) =
   handle bt = BT
     { flip = effect () / r => List.append (r True) (r False)
     , fail = effect () => []
@@ -55,7 +52,7 @@ let takeAll (f : {effect=E} -> BT E -> Int ->[E|_] _) (n: Int) =
   return x => [x]
   in f bt n
 
-(* Printing utilities *)
+{# Printing utilities #}
 let printTriple t = 
   match t with
   | Triple a b c => printStrLn ( 
@@ -69,15 +66,15 @@ let rec printList xs =
                        printList xs
   end
 
-(* Main program *)
+{# Main program #}
 let maxValue = 25
 
 let _ = printStrLn "First triple only:"
-let _ =  match takeFirst (fn `bt => `bt.triples) maxValue with
+let _ =  match takeFirst (fn ~bt => ~bt.triples) maxValue with
   | None => printStrLn "None"
   | Some t => printTriple t
   end
 
 let _ = printStrLn "All triples:"
-let _ =  let res = takeAll (fn `bt => `bt.triples) maxValue
+let _ =  let res = takeAll (fn ~bt => ~bt.triples) maxValue
   in printList res

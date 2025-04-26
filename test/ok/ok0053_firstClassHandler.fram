@@ -1,4 +1,4 @@
-let hId = handler effect x / r => r x
+let hId = handler effect x / r => r x end
 
 handle id with hId
 
