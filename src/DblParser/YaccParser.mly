@@ -432,17 +432,17 @@ expr_300
 ;
 
 expr_simple
-: LID                { make (EVar $1)     }
-| TLID               { make (EImplicit $1)}
-| UNDERSCORE         { make EWildcard     }
-| NUM                { make (ENum $1)     }
-| BSTR str_interp    { make (ECStr ($1, $2)) }    
-| NUM64              { make (ENum64 $1)   }
-| STR                { make (EStr $1)     }
-| CHR                { make (EChr $1)     }
-| BR_OPN BR_CLS      { make EUnit         }
-| BR_OPN expr BR_CLS { make (EParen $2)   }
-| SBR_OPN SBR_CLS    { make (EList [])    }
+: LID                { make (EVar $1)          }
+| TLID               { make (EImplicit $1)     }
+| UNDERSCORE         { make EWildcard          }
+| NUM                { make (ENum $1)          }
+| BSTR str_interp    { make (EInterp ($1, $2)) }    
+| NUM64              { make (ENum64 $1)        }
+| STR                { make (EStr $1)          }
+| CHR                { make (EChr $1)          }
+| BR_OPN BR_CLS      { make EUnit              }
+| BR_OPN expr BR_CLS { make (EParen $2)        }
+| SBR_OPN SBR_CLS    { make (EList [])         }
 | SBR_OPN expr_comma_sep SBR_CLS { make (EList $2)       }
 | KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END

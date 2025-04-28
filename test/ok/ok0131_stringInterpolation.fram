@@ -7,16 +7,23 @@ method toString (self : String) = self
 
 let printStrLn = (extern dbl_printStrLn : String -> Unit)
 
-method format (self : String) (fmt: String) =
-    if fmt.equal "dummyFormat" then
-      "DummyFormat"
-    else
-      "UnknownFormat"
+method format (self : String) (fmt : Option String) =
+    match fmt with
+    | None     => self
+    | Some fmt =>
+      if fmt.equal "dummyFormat" then
+        "DummyFormat"
+      else
+        "UnknownFormat"
+    end
 
 let _ = printStrLn "Normal String"
-let _ = printStrLn "String with interpolation : \{"Interpolated"}"
+
+let _ = printStrLn "String with single interpolation : \{"Interpolated"}"
+
 let _ = printStrLn "String with 2 interpolations : \{
   "Interpolated1"} : \{"Interpolated2"}"
+
 let _ = printStrLn "Interpolated with formats : \{
     "Interpolated1" | "dummyFormat"
   } : \{

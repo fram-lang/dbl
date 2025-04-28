@@ -289,7 +289,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EVar _
   | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _
   | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _
-  | EList (_ :: _) | EPub _ | EMethodCall _ | ECStr (_, _) ->
+  | EList (_ :: _) | EPub _ | EMethodCall _ | EInterp (_, _) ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -303,7 +303,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | ENum64 _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
-  | ECStr _     -> Error.fatal (Error.desugar_error p.pos)
+  | EInterp _   -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern ~public p).data
   | EVar      x -> make (PId(public, IdVar x))
   | EBOpID    n -> make (PId(public, IdVar (tr_bop_id (make n))))
@@ -353,7 +353,7 @@ and tr_annot_pattern ~public (p : Raw.expr) =
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
   | ENum _ | ENum64 _ | EStr _ |  EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
-  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ | ECStr (_, _) ->
+  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ | EInterp (_, _) ->
     tr_pattern ~public p, None
 
 and tr_named_pattern ~public (fld : Raw.field) =
@@ -418,7 +418,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       LP_Fun(id, ps)
 
     | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | ECtor _ | ESelect _
-    | ECStr (_, _) | EList _ ->
+    | EInterp (_, _) | EList _ ->
       LP_Pat(tr_pattern ~public p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
@@ -429,7 +429,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
 
   | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _
   | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ 
-  | ECStr (_, _) ->
+  | EInterp (_, _) ->
     LP_Pat (tr_pattern ~public p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -494,14 +494,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _
     | EApp _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _
     | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
-    | EList (_ :: _) | EPub _ | EMethodCall _ | ECStr (_, _) ->
+    | EList (_ :: _) | EPub _ | EMethodCall _ | EInterp (_, _) ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
-  | EMethodCall _ | ECStr (_, _) ->
+  | EMethodCall _ | EInterp (_, _) ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_poly_expr_def (e : Raw.expr) =
@@ -517,7 +517,7 @@ and tr_poly_expr_def (e : Raw.expr) =
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EApp _ | EMethodCall _ | EDefs _
   | EMatch _ | EHandler _ | EEffect _ | EExtern _ | EAnnot _ | EIf _
   | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _ | EPub _ 
-  | ECStr (_, _) ->
+  | EInterp (_, _) ->
     make (PE_Expr (tr_expr e))
 
 and tr_expr (e : Raw.expr) =
@@ -530,16 +530,17 @@ and tr_expr (e : Raw.expr) =
   | ENum64 n -> make (ENum64 n)
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
-  | ECStr (s, xs) ->
+  | EInterp (s, xs) ->
     let tr_format (expr : Raw.expr) (fmt : Raw.expr option) = 
-      match fmt with
-      | None -> 
-        let method_name = { pos = expr.pos; data = "toString" } in
-        let method_call = Raw.EMethodCall (expr, method_name, []) in
-        { pos = expr.pos; data = method_call}
-      | Some format ->
-        let method_name = { pos = expr.pos; data = "format" } in
-        let method_call = Raw.EMethodCall (expr, method_name, [format]) in
+      let format = match fmt with
+      | None   -> 
+        { pos = expr.pos; data = Raw.ECtor "None" }
+      | Some fmt ->  
+        { pos = expr.pos
+        ; data = Raw.EApp (with_nowhere (Raw.ECtor "Some"), [fmt]) }
+        in
+      let method_name = { pos = expr.pos; data = "format" } in
+      let method_call = Raw.EMethodCall (expr, method_name, [format]) in
         { pos = expr.pos; data = method_call } in
     let tr_string str = with_nowhere (Raw.EStr str) in
     let rec flat_interp = function
@@ -548,7 +549,7 @@ and tr_expr (e : Raw.expr) =
       | [] -> [] in
     let arg_list = make (Raw.EList (tr_string s :: flat_interp xs)) in
     let expr = make (Raw.EApp (make (Raw.EExtern "dbl_strListCat"), [arg_list]))
-      in let annot = annot_tp expr RawTypes.string in 
+    in let annot = annot_tp expr RawTypes.string in 
     tr_expr annot
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
   | EApp(e1, es)   ->
