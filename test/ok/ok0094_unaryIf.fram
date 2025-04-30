@@ -10,4 +10,4 @@ let _ =
     else printStr "FAIL";
   printStrLn "ess!"
 
-// @stdout:Success!
+# @stdout:Success!

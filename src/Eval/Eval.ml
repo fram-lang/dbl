@@ -4,6 +4,8 @@
 
 open Value
 
+exception Runtime_error = External.Runtime_error
+
 (** Evaluator *)
 (* ========================================================================= *)
 
@@ -45,13 +47,13 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     eval_expr env e1 (fun v ->
     eval_expr (Env.extend env x v) e2 cont)
   | ELetRec(rds, e2) ->
-    let env = Env.begin_fix env in
-    let (env, fxs) =
+    let (env, rds) =
       List.fold_left_map
-        (fun env (x, v) -> (Env.extend env x (eval_value env v), env))
+        (fun env (x, e) ->
+          let (env, box) = Env.extend_box env x in
+          (env, (box, e)))
         env rds in
-    List.iter (Env.update_fix env) fxs;
-    eval_expr env e2 cont
+    eval_rec_defs env rds (fun env -> eval_expr env e2 cont)
   | EApp(v1, v2) ->
     begin match eval_value env v1 with
     | VFn f -> f (eval_value env v2) cont
@@ -90,10 +92,18 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     end
   | ERepl func -> eval_repl env func cont
   | EReplExpr(e1, tp, e2) ->
-    Printf.printf ": %s\n" tp;
+    Printf.printf ": %s\n%!" tp;
     eval_expr env e1 (fun v1 ->
       Printf.printf "= %s\n" (to_string v1);
       eval_expr env e2 cont)
+
+and eval_rec_defs env rds cont =
+  match rds with
+  | [] -> cont env
+  | (box, e) :: rds ->
+    eval_expr env e (fun v ->
+    Env.update_box box v;
+    eval_rec_defs env rds cont)
 
 and eval_value env (v : Lang.Untyped.value) =
   match v with

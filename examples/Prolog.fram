@@ -1,46 +1,46 @@
-(* This example implements a simplified version of Prolog and serves to
-  illustrate the combination of implicit parameters and effect capabilities. *)
+{# This example implements a simplified version of Prolog and serves to
+  illustrate the combination of implicit parameters and effect capabilities. #}
 
 import List
 
-(* Prolog terms and clauses are fairly standard. Here variables are
-  identified by integers and functors by strings. *)
+{# Prolog terms and clauses are fairly standard. Here variables are
+  identified by integers and functors by strings. #}
 data rec Term = TVar of Int | TFun of String, List Term
 
 data Clause = Cl of Term, List Term
 
-(* The signature of the standard reader effect, with a single operation
+{# The signature of the standard reader effect, with a single operation
   used to obtain a value of type X. While we do not need to wrap functions
-  `{effect=E} -> Unit ->[E] X` in a data type to use them as capabilities,
-  this improves readability and allows us to define methods on the type. *)
-data Reader (effect E) X = Reader of (Unit ->[E] X)
+  `{E} -> Unit ->[E] X` in a data type to use them as capabilities, this
+  improves readability and allows us to define methods on the type. #}
+data Reader E X = Reader of (Unit ->[E] X)
 
-(* We expose the `ask` operation of `Reader` as a method. *)
-method ask {E, self = Reader ask : Reader E _} = ask
+{# We expose the `ask` operation of `Reader` as a method. #}
+method ask {E} (Reader ask : Reader E _) = ask
 
-(* The standard state effect, with its accompanying methods. *)
-data State (effect E) X = State of
+{# The standard state effect, with its accompanying methods. #}
+data State E X = State of
   { get : Unit ->[E] X
   , put : X ->[E] Unit
   }
 
-method get {E, self = State { get } : State E _} = get
-method put {E, self = State { put } : State E _} = put
+method get {E} (State { get } : State E _) = get
+method put {E} (State { put } : State E _) = put
 
-method update {E, self : State E _} f = self.put (f (self.get ()))
+method update {E} (self : State E _) f = self.put (f (self.get ()))
 
-(* The standard backtracking effect. *)
-data BT (effect E) = BT of
+{# The standard backtracking effect. #}
+data BT E = BT of
   { flip : Unit ->[E] Bool
   , fail : {type X} -> Unit ->[E] X
   }
 
-method flip {E, self = BT { flip } : BT E} = flip
-method fail {E, self = BT { fail } : BT E} = fail
+method flip {E} (BT { flip } : BT E) = flip
+method fail {E} (BT { fail } : BT E) = fail
 
-(* The method `choose` on `BT` non-deterministically selects an element
-  from a list. *)
-method choose {E, self : BT E} =
+{# The method `choose` on `BT` non-deterministically selects an element
+  from a list. #}
+method choose {E} (self : BT E) =
   let rec choose xs =
     match xs with
     | []      => self.fail ()
@@ -48,16 +48,16 @@ method choose {E, self : BT E} =
     end
   in choose
 
-(* The `Fresh` effect is used to model the generation of fresh variable
-  identifiers in the evaluator. *)
-data Fresh (effect E) X = Fresh of (Unit ->[E] X)
+{# The `Fresh` effect is used to model the generation of fresh variable
+  identifiers in the evaluator. #}
+data Fresh E X = Fresh of (Unit ->[E] X)
 
-method fresh {E, self = Fresh fresh : Fresh E _} = fresh
+method fresh {E} (Fresh fresh : Fresh E _) = fresh
 
-(* ========================================================================= *)
+{# ========================================================================= #}
 
-(* The standard state handler, defined as a higher order function. *)
-let hState init (f : {effect=E} -> State E _ ->[E|_] _) =
+{# The standard state handler, defined as a higher order function. #}
+let hState init (f : {E} -> State E _ ->[E,_] _) =
   handle st = State
     { get = effect () / r => fn s => r s  s
     , put = effect s  / r => fn _ => r () s
@@ -66,9 +66,9 @@ let hState init (f : {effect=E} -> State E _ ->[E|_] _) =
   finally f => f init
   in f st
 
-(* A handler for backtracking which returns the first result wrapped in Some,
-  or None if no result is available. *)
-let hBT (f : {effect=E} -> BT E ->[E|_] _) =
+{# A handler for backtracking which returns the first result wrapped in Some,
+  or None if no result is available. #}
+let hBT (f : {E} -> BT E ->[E,_] _) =
   handle bt = BT
     { flip = effect () / r =>
       match r True with
@@ -80,11 +80,11 @@ let hBT (f : {effect=E} -> BT E ->[E|_] _) =
   return x => Some x
   in f bt
 
-(* ========================================================================= *)
-(* The following few functions on lists require a notion of equality, which is
-  passed as the implicit parameter `~eq`. *)
+{# ========================================================================= #}
+{# The following few functions on lists require a notion of equality, which is
+  passed as the implicit parameter `~eq`. #}
 
-implicit ~eq
+parameter ~eq
 
 let rec nub xs =
   match xs with
@@ -101,11 +101,11 @@ let rec assoc x xs =
   | (y, v) :: xs => if ~eq x y then Some v else assoc x xs
   end
 
-(* ========================================================================= *)
-(* Methods on terms and clauses that are useful for implementing variable
-  refreshing. *)
+{# ========================================================================= #}
+{# Methods on terms and clauses that are useful for implementing variable
+  refreshing. #}
 
-method vars =
+method vars self =
   let ~eq (x : Int) = x.equal in
   let rec vars t =
     match t with
@@ -114,11 +114,11 @@ method vars =
     end
   in vars self
 
-method vars { self = Cl t ts } =
+method vars (Cl t ts) =
   let ~eq (x : Int) = x.equal in
   union t.vars (unions (List.map (fn (t : Term) => t.vars) ts))
 
-method rename sub =
+method rename self sub =
   let ~eq (x : Int) = x.equal in
   let rec rename t =
     match t with
@@ -131,18 +131,19 @@ method rename sub =
     end
   in rename self
 
-method rename { self = Cl t ts } sub =
+method rename (Cl t ts) sub =
   Cl (t.rename sub) (List.map (fn (t : Term) => t.rename sub) ts)
 
-(* ========================================================================= *)
+{# ========================================================================= #}
 
-(* The instantiation of unification variables is represented using `State`
+{# The instantiation of unification variables is represented using `State`
   containing an association list of instantiations. As this effect is pervasive
   throughout our implementation, we declare it as an implicit, so that it and
-  the associated effect variable E_st are generalized automatically. *)
-implicit ~st {E_st} : State E_st (List (Pair Int Term))
+  the associated effect variable E_st are generalized automatically. #}
+parameter E_st
+parameter ~st : State E_st (List (Pair Int Term))
 
-(* We also define a pair of functions that let us modify and read `~st`. *)
+{# We also define a pair of functions that let us modify and read `~st`. #}
 
 let setVar (x : Int) t = ~st.update (fn xs => (x, t) :: xs)
 
@@ -150,11 +151,11 @@ let getVar x =
   let ~eq (x : Int) = x.equal in
   assoc x (~st.get ())
 
-(* The `view` method on terms can be used to view the outer-most shape of a
+{# The `view` method on terms can be used to view the outer-most shape of a
   term, accounting for the instantiation of unification variables.
   In a realistic implementation we would keep terms that haven't been viewed
-  abstract to prevent accidentally pattern-matching on them. *)
-method rec view {self : Term} =
+  abstract to prevent accidentally pattern-matching on them. #}
+method rec view (self : Term) =
   match self with
   | TVar x    =>
     match getVar x with
@@ -167,35 +168,38 @@ method rec view {self : Term} =
   | TFun f ts => self
   end
 
-(* As with `~st`, the capability to generate fresh identifiers ~fresh is also
-  declared implicit. *)
-implicit ~fresh {E_fresh} : Fresh E_fresh Int
+{# As with `~st`, the capability to generate fresh identifiers ~fresh is also
+  declared implicit. #}
+parameter E_fresh
+parameter ~fresh : Fresh E_fresh Int
 
-(* To further reduce verbosity, we define a function `fresh` to call the
-  `fresh` method of the implicit capability. *)
+{# To further reduce verbosity, we define a function `fresh` to call the
+  `fresh` method of the implicit capability. #}
 let fresh () = ~fresh.fresh ()
 
-(* We attach additional `refresh` methods to terms and clauses, which replace
-  all the variables in terms with fresh unification variables. *)
+{# We attach additional `refresh` methods to terms and clauses, which replace
+  all the variables in terms with fresh unification variables. #}
 
-method refresh {self : Term} =
+method refresh (self : Term) =
   self.rename (List.map (fn x => (x, fresh ())) self.vars)
 
-method refresh {self : Clause} =
+method refresh (self : Clause) =
   self.rename (List.map (fn x => (x, fresh ())) self.vars)
 
-(* ========================================================================= *)
+{# ========================================================================= #}
 
-(* Finally, we make the interpreter's knowledge base and the backtracking
+{# Finally, we make the interpreter's knowledge base and the backtracking
   capability implicit as well. The knowledge base is represented as a reader
-  effect providing a simple list of clauses. *)
-implicit ~kb {E_kb} : Reader E_kb (List Clause)
-implicit ~bt {E_bt} : BT E_bt
+  effect providing a simple list of clauses. #}
+parameter E_kb
+parameter ~kb : Reader E_kb (List Clause)
+parameter E_bt
+parameter ~bt : BT E_bt
 
 let fail () = ~bt.fail ()
 
-(* Check whether a variable occurs in a term. *)
-method occurs (x : Int) =
+{# Check whether a variable occurs in a term. #}
+method occurs self (x : Int) =
   let rec occurs (t : Term) =
     match t.view with
     | TVar y    => x == y
@@ -203,7 +207,7 @@ method occurs (x : Int) =
     end
   in occurs self
 
-(* Attempt to unify two terms, and signal the need to backtrack on failure. *)
+{# Attempt to unify two terms, and signal the need to backtrack on failure. #}
 let rec unify (t1 : Term) (t2 : Term) =
   match t1.view, t2.view with
   | TVar x, TVar y =>
@@ -217,24 +221,24 @@ let rec unify (t1 : Term) (t2 : Term) =
     else fail ()
   end
 
-(* Retrieve some clause from the knowledge base non-deterministically. *)
+{# Retrieve some clause from the knowledge base non-deterministically. #}
 let kbChoose () = ~bt.choose (~kb.ask ())
 
-(* Try to derive a term using the knowledge base. *)
+{# Try to derive a term using the knowledge base. #}
 let rec eval (t : Term) =
   let Cl t' ts = (kbChoose ()).refresh in
   let _ = unify t t' in
   List.iter eval ts
 
-(* Perform a query by substituting fresh unification variables in a term and
-  calling the `eval` function. *)
+{# Perform a query by substituting fresh unification variables in a term and
+  calling the `eval` function. #}
 let query (t : Term) = eval t.refresh
 
-(* ========================================================================= *)
-(* Below we finally install some handlers for the interpreter and show its
-  use on a simple hardcoded query. *)
+{# ========================================================================= #}
+{# Below we finally install some handlers for the interpreter and show its
+  use on a simple hardcoded query. #}
 
-(* Example database. *)
+{# Example database. #}
 let kb = [Cl (TFun "f" [TVar 0, TVar 0]) []]
 
 handle ~kb = Reader (fn () => kb)
@@ -247,7 +251,7 @@ let _ =
   match
     hBT (fn ~bt =>
     hState [] (fn ~st =>
-	(* Example query. *)
+	{# Example query. #}
     query (TFun "f" [TFun "a" [], TFun "a" []])))
   with
   | Some _ => printStrLn "Yes."

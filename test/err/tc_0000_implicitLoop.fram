@@ -1,5 +1,5 @@
-implicit ~n
+parameter ~n
 let ~n = ~n
 let _ = ~n
 
-// @stderr: infinite loop
+# @stderr: infinite loop

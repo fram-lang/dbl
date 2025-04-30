@@ -33,7 +33,7 @@ let add_tvars sub xs =
 let rec in_type_rec : type k. t -> k typ -> k typ =
   fun sub tp ->
   match tp with
-  | TUVar _ | TEffPure -> tp
+  | TEffPure -> tp
   | TEffJoin(eff1, eff2) ->
     TEffJoin(in_type_rec sub eff1, in_type_rec sub eff2)
   | TVar x ->
@@ -46,19 +46,25 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
   | TForall(x, tp) ->
     let (sub, x) = add_tvar sub x in
     TForall(x, in_type_rec sub tp)
+  | TGuard(cs, tp) ->
+    TGuard(List.map (in_constr_rec sub) cs, in_type_rec sub tp)
   | TLabel lbl ->
-    let effect = in_type_rec sub lbl.effect in
+    let effct = in_type_rec sub lbl.effct in
     let (sub, tvars) = add_tvars sub lbl.tvars in
     TLabel
-      { effect; tvars;
+      { effct; tvars;
         val_types = List.map (in_type_rec sub) lbl.val_types;
         delim_tp  = in_type_rec sub lbl.delim_tp;
         delim_eff = in_type_rec sub lbl.delim_eff
       }
-  | TData(tp, ctors) ->
-    TData(in_type_rec sub tp, List.map (in_ctor_type_rec sub) ctors)
+  | TData(tp, eff, ctors) ->
+    TData(in_type_rec sub tp, in_type_rec sub eff,
+      List.map (in_ctor_type_rec sub) ctors)
   | TApp(tp1, tp2) ->
     TApp(in_type_rec sub tp1, in_type_rec sub tp2)
+
+and in_constr_rec sub (eff1, eff2) =
+  (in_type_rec sub eff1, in_type_rec sub eff2)
 
 and in_ctor_type_rec sub ctor =
   let (sub, tvars) = add_tvars sub ctor.ctor_tvars in

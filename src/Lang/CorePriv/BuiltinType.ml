@@ -18,6 +18,12 @@ let tv_string = TVar.fresh KType
 (** Unit type *)
 let tv_unit = TVar.fresh KType
 
+(** Bool_type *)
+let tv_bool = TVar.fresh KType
+
+(** Option type *)
+let tv_option = TVar.fresh (KArrow(KType, KType))
+
 (** IO effect *)
 let tv_io = TVar.fresh KEffect
 
@@ -31,5 +37,7 @@ let all =
     "String", TVar.Ex tv_string;
     "Char",   TVar.Ex tv_int;
     "Unit",   TVar.Ex tv_unit;
+    "Bool",   TVar.Ex tv_bool;
+    "Option", TVar.Ex tv_option;
     "IO",     TVar.Ex tv_io;
     "#NTerm", TVar.Ex tv_nterm ]

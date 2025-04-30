@@ -1,0 +1,8 @@
+let foo (f : Unit ->[] Unit) =
+  match f () with x => x end
+
+let checkPure (f : _ -> _) = ()
+
+let _ = checkPure foo
+
+# @stderr::6:19-21: error:

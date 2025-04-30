@@ -1,10 +1,12 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
- *)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 import /Base/Types
 import /Base/Operators
+import /Base/Assert
 import /Base/Bool
+import /Base/Option
 import /Base/Int
 import /Base/Int64
 import /Base/Char
@@ -12,6 +14,7 @@ import /Base/String
 
 pub open Types
 pub open Operators
+pub open Assert
 
 pub let id x = x
 
@@ -24,11 +27,11 @@ pub let not b = if b then False else True
 
 pub let charListToStr = (extern dbl_chrListToStr : List Char -> String)
 
-pub let chr {~re : {type X} -> Unit ->[|_] X} (n : Int) = 
+pub let chr {~onError : Unit ->[_] Char} (n : Int) =
   if n >= 0 && n < 256 then
     (extern dbl_intToChr : Int -> Char) n
   else
-    ~re ()
+    ~onError ()
 
 pub let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
 pub let printStr   = extern dbl_printStr   : String ->[IO] Unit

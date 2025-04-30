@@ -1,10 +1,6 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
- *)
-
-pub data Bool = False | True
-
-pub data Option A = None | Some of A
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 pub data rec List A = [] | (::) of A, List A
 

@@ -48,27 +48,27 @@ end
 
 (** Types, indexed by a type-represented kind *)
 type _ typ =
-  | TUVar : UID.t * 'k kind -> 'k typ
-    (** UVar type kept for pretty printing *)
-
   | TEffPure : keffect typ
     (** Pure effect *)
 
-  | TEffJoin : effect * effect -> keffect typ
+  | TEffJoin : effct * effct -> keffect typ
     (** Join of two effects. Avoid using this constructor directly: Function
       [Effect.join] provides similar functionalily, but removes duplicates. *)
 
   | TVar  : 'k tvar -> 'k typ
     (** Type variable *)
 
-  | TArrow  : ttype * ttype * effect -> ktype typ
+  | TArrow  : ttype * ttype * effct -> ktype typ
     (** Arrow type *)
 
   | TForall : 'k tvar * ttype -> ktype typ
     (** Polymorphic type *)
 
+  | TGuard : constr list * ttype -> ktype typ
+    (** Type of constraint abstraction *)
+
   | TLabel : (** Type of the first class label *)
-    { effect    : effect;
+    { effct     : effct;
         (** The effect of this label *)
 
       tvars     : TVar.ex list;
@@ -80,18 +80,23 @@ type _ typ =
       delim_tp  : ttype;
         (** Type of the delimiter *)
 
-      delim_eff : effect
+      delim_eff : effct
         (** Effect of the delimiter *)
     } -> ktype typ
 
-  | TData    : ttype * ctor_type list -> ktype typ
+  | TData    : ttype * effct * ctor_type list -> ktype typ
     (** Proof of the shape of ADT.
       
       Algebraic data type (ADTs) are just abstract types, but each operation
       on them like constructors or pattern-matching requires additional
       computationally irrelevant parameter of type that describes the shape
       of ADTs. This approach simplifies many things, e.g., mutually recursive
-      types are not recursive at all! *)
+      types are not recursive at all!
+
+      The element of type [TData(tp, eff, ctors)] is a witness that type [tp]
+      has constructors [ctors]. The effect [eff] is an effect of
+      pattern-matching: its pure for positively recursive types,
+      and impure for other types (because it may lead to non-termination). *)
 
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
     (** Type application *)
@@ -100,7 +105,10 @@ type _ typ =
 and ttype = ktype typ
 
 (** Effects *)
-and effect = keffect typ
+and effct = keffect typ
+
+(** Constraints *)
+and constr = keffect typ * keffect typ
 
 (** ADT constructor type *)
 and ctor_type = {
@@ -130,8 +138,13 @@ type data_def =
       args  : TVar.ex list;
         (** List of type parameters of this ADT. *)
 
-      ctors : ctor_type list
+      ctors : ctor_type list;
         (** List of constructors. *)
+
+      positive : bool
+        (** A flag indicating if the type is positively recursive (in
+          particular, not recursive at all) and therefore can be deconstructed
+          without performing NTerm effect. *)
     }
 
   | DD_Label of (** Label *)
@@ -150,7 +163,7 @@ type data_def =
       delim_tp  : ttype;
         (** Type of the delimiter *)
 
-      delim_eff : effect
+      delim_eff : effct
         (** Effect of the delimiter *)
     }
 
@@ -179,6 +192,12 @@ module Type : sig
   (** Unit type *)
   val t_unit : ttype
 
+  (** Bool type *)
+  val t_bool : ttype
+
+  (** Option type *)
+  val t_option : ttype -> ttype
+
   (** Existential version of type representation, where its kind is packed *)
   type ex = Ex : 'k typ -> ex
 end
@@ -188,10 +207,10 @@ end
 module Effect : sig
   (** Join of two effects. Same as TEffJoin constructor, but removes
     duplicates. *)
-  val join : effect -> effect -> effect
+  val join : effct -> effct -> effct
 
   (** Effect of possible non-termination *)
-  val nterm : effect
+  val nterm : effct
 end
 
 (* ========================================================================= *)
@@ -217,9 +236,15 @@ type expr =
   | ELetIrr of var * expr * expr
     (** Let expression, that binds computationally irrelevant expression *)
 
-  | ELetRec of (var * ttype * value) list * expr
-    (** Mutually recursive let-definitions. Recursive values must be
-      productive. See [CorePriv.WellTypedInvariant] for details. *)
+  | ELetRec of (var * ttype * expr) list * expr
+    (** Mutually recursive let-definitions. Recursive expressions must be
+      pure and productive, i.e., they can recursively refer to themselves
+      or other mutually recursive definitions only under [ERecCtx] marker. *)
+
+  | ERecCtx of expr
+    (** Marker for recursive context. It has [NTerm] effect, and from this
+      point, all recursive calls are allowed. It is used to ensure that
+      recursive definitions are productive. *)
 
   | EApp of value * value
     (** Function application *)
@@ -227,10 +252,13 @@ type expr =
   | ETApp : value * 'k typ -> expr
     (** Type application *)
 
+  | ECApp of value
+    (** Instantiation of a constraint abstraction *)
+
   | EData of data_def list * expr
     (** Mutually recursive datatype definitions *)
 
-  | EMatch  of expr * value * match_clause list * ttype * effect
+  | EMatch  of expr * value * match_clause list * ttype * effct
     (** Shallow pattern matching. The first parameter is the proof that the
       type of the matched value is an ADT *)
 
@@ -243,7 +271,7 @@ type expr =
     (** Reset-0 operator parametrized by runtime tag, list of types and values
       stored at this delimiter, body, and the return clause *)
 
-  | ERepl of (unit -> expr) * ttype * effect
+  | ERepl of (unit -> expr) * ttype * effct
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.
       The second and third parameters are type and effect of an expression
@@ -272,6 +300,9 @@ and value =
 
   | VTFun : 'k tvar * expr -> value
     (** Type function *)
+
+  | VCAbs of constr list * expr
+    (** Constraint abstraction *)
 
   | VCtor of expr * int * Type.ex list * value list
     (** Fully-applied constructor of ADT. The meaning of the parameters

@@ -1,28 +1,28 @@
-(* This file is part of DBL, released under MIT license.
- * See LICENSE for details.
- *)
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
 
 import open Types
 
-pub method toString = if self then "True" else "False"
+pub method toString self = if self then "True" else "False"
 
-pub method neg =
+pub method neg self =
   if self then False else True
 
-pub method equal (oth : Bool) =
+pub method equal self (oth : Bool) =
   if self then oth else oth.neg
 
-pub method neq (oth : Bool) =
+pub method neq self (oth : Bool) =
   if self then oth.neg else oth
 
-pub method gt (oth : Bool) =
+pub method gt self (oth : Bool) =
   self && oth.neg
 
-pub method lt {self : Bool} oth =
+pub method lt (self : Bool) oth =
   self.neg && oth
 
-pub method ge (oth : Bool) =
+pub method ge self (oth : Bool) =
   self || oth.neg
 
-pub method le {self : Bool} oth =
+pub method le (self : Bool) oth =
   self.neg || oth

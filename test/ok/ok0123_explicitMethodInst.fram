@@ -1,0 +1,26 @@
+data A = A
+data B = B
+data C = C
+data D = D
+
+let foo
+  { method m : A -> A
+  , method m : B -> B
+  , method m : C -> C
+  , method mm : D -> D
+  } = ()
+
+module M
+  pub method m (_ : A) = A
+end
+
+module N
+  pub method m (_ : A) = B
+  pub method m (_ : B) = B
+end
+
+method m (_ : A) = C
+method m (_ : B) = C
+method m (_ : C) = C
+
+let _ = foo {module N, module M, method mm = fn x => x}

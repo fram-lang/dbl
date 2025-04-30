@@ -1,6 +1,5 @@
-pub data Option A = None | Some of A
-pub method add = (extern dbl_addInt : Int -> Int -> Int) self
-pub method fn (+) = add
+pub method add = (extern dbl_addInt : Int -> Int -> Int)
+pub let (+) {T, type U, method add : T -> U} (x : T) = x.add
 
 let f {?x} = x
 let a = f

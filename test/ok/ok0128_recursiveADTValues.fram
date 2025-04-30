@@ -1,0 +1,11 @@
+data Bool = False | True
+data rec Nat = Z | S of Nat
+data Pair A B = (,) of A, B
+
+let fst (x, _) = x
+let snd (_, y) = y
+
+let rec p =
+  ( (fn n => match n with Z => False | S n => fst p n end)
+  , (fn n => match n with Z => True  | S n => snd p n end)
+  )

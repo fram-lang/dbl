@@ -1,1 +1,0 @@
-let theLabel {effect} {label=x} = x
