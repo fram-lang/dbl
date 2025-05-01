@@ -72,6 +72,7 @@ let check_def : type st dir. tcfix:tcfix ->
     let (body_env, params) = Env.begin_generalize env in
     let body = infer_expr_type body_env body in
     let body_tp = expr_result_type body in
+    ParamGen.end_generalize_impure params (T.Type.uvars body_tp);
     let (penv, pat, pat_eff) = Pattern.check_type env pat body_tp in
     let (env, _, _, ren) = PartialEnv.extend env [] penv in
     let pat = T.Ren.rename_pattern ren pat in
