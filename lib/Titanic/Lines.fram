@@ -1,0 +1,99 @@
+import /List
+
+import open Types
+
+pub method concat = LConc
+
+pub let rec linesFill (f1 : Line) (ls1 : List Line) (f2 : Line) (ls2 : List Line) =
+  match ls1, ls2 with
+  | [],        []        => []
+  | l1 :: ls1, []        => l1.concat f2 :: linesFill f1 ls1 f2 ls2
+  | [],        l2 :: ls2 => f1.concat l2 :: linesFill f1 ls1 f2 ls2
+  | l1 :: ls1, l2 :: ls2 => l1.concat l2 :: linesFill f1 ls1 f2 ls2
+  end
+
+pub let alignLines (size : Int) csize (lines : List Line) =
+  List.map (fn (l : Line) => l.concat (LFill (size - csize) " ")) lines
+
+data Flat =
+  | FPop
+  | FPush of Color
+  | FChr  of Char
+  | FStr  of String
+
+let rec flatLine (line : Line) tail =
+  match line with
+  | LStr str => FStr str :: tail
+  | LChr chr => FChr chr :: tail
+  | LConc l1 l2 => flatLine l1 (flatLine l2 tail)
+  | LFill n s =>
+    let str = List.map FChr s.toList
+    let rec repeat (n : Int) = 
+      if n <= 0 
+        then tail
+        else str.append (repeat (n - 1))
+    in repeat n
+  | LEmpty => tail
+  | LColor c => FPush c :: tail
+  | LColorPop => FPop :: tail
+  end
+
+data ColorStack E = 
+  { push   : Color ->[E] Unit
+  , popTop : Unit  ->[E] Color
+  }
+
+parameter E_CS
+parameter ~cs : ColorStack E_CS
+
+let colorCode c =
+  match c with
+  | Black   => "\027[30m"
+  | Red     => "\027[31m"
+  | Green   => "\027[32m"
+  | Yellow  => "\027[33m"
+  | Blue    => "\027[34m"
+  | Magenta => "\027[35m"
+  | Cyan    => "\027[36m"
+  | White   => "\027[37m"
+  end
+
+let rec resolveColors cs =
+  match cs with
+  | [] => []
+  | FPush c :: cs =>
+    let _ = ~cs.push c in
+    FStr (colorCode c) :: resolveColors cs
+  | FPop :: cs =>
+    let color = ~cs.popTop () in
+    FStr (colorCode color) :: resolveColors cs
+  | x :: cs => x :: resolveColors cs
+  end
+
+let runColorResolver line =
+  handle ~cs =
+    ColorStack 
+      { push   = effect c / r => fn st => r () (c :: st)
+      , popTop = effect _ / r => fn st => match st with
+      | []           => r White []
+      | [x]          => r White []
+      | x :: y :: xs => r y (y :: xs)
+      end
+      }
+    return x  => fn _ => x
+    finally c => c []
+  in resolveColors line
+
+let flatToString cs = 
+  let rec iter cs = 
+    match cs with
+    | FChr x :: tl => x :: iter tl
+    | FStr s :: tl => s.toList + iter tl
+    | _      :: tl => iter tl
+    | [] => []
+    end
+  in (charListToStr (iter cs)) : String
+
+pub let reduceLines lines = 
+  let flats = List.map (fn (l : Line) => flatToString (runColorResolver (flatLine (l.concat (LChr '\n')) []))) lines
+  in List.foldRight (fn l (r : String) => l + r) (flats : List String) ""

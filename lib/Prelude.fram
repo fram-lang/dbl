@@ -46,3 +46,20 @@ pub module Int64
   pub let one  = 1L
   pub let ofInt (n : Int) = n.toInt64
 end
+
+method rec toBase (val : Int) (base : Int) (tail : List Char) =
+  if val == 0 then
+    tail
+  else 
+    (let (digit : Int) = val % base
+     let (shift : Int) = val / base
+     let ~onError = fn _ => '0'
+     let code = if digit < 10 then
+       chr ('0'.code + digit)
+     else
+       chr ('A'.code + digit - 10)
+     in shift.toBase base (code :: tail))
+
+pub method toBase2  (val : Int) = "0b" + charListToStr (val.toBase 2  [])
+pub method toBase8  (val : Int) = "0"  + charListToStr (val.toBase 8  [])
+pub method toBase16 (val : Int) = "0x" + charListToStr (val.toBase 16 [])

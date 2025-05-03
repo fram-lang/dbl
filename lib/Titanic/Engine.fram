@@ -1,0 +1,256 @@
+import /List
+
+import open Types
+import open Width
+import open Lines
+import open Combinators
+
+data State E X =
+  { get    : Unit ->[E] X
+  , put    : X ->[E] Unit
+  , update : {F} -> (X ->[E,F] X) ->[E,F] Unit
+  }
+
+handle (state : State [E_ST] (Pair (Pair (Pair Int Int) (List Step)) (List Int))) / E_ST =
+  let get = effect x / r => fn s => r s  s
+  let put = effect s / r => fn _ => r () s
+  let update f = put (f (get ())) in
+    State { get, put, update }
+  return  x => fn _ => x
+  finally c => c ((0, 0), ([] : List Step), ([] : List Int))
+
+let get x = state.get x
+
+let put x =
+  state.put x
+
+let update f =
+  state.update f
+
+let getFlex () = 
+  let (fl, _, _) = state.get ()
+  in fl
+
+let putFlex fl =
+  let (_, sts, shs) = state.get ()
+  in state.put (fl, sts, shs)
+
+let getSteps () = 
+  let (_, sts, _) = state.get ()
+  in sts
+
+let putSteps sts =
+  let (fl, _, shs) = state.get ()
+  in state.put (fl, sts, shs)
+
+let getShifts () = 
+  let (_, _, shs) = state.get ()
+  in shs
+
+let putShifts shs =
+  let (fl, sts, _) = state.get ()
+  in state.put (fl, sts, shs)
+
+let bt f () = 
+  let st = state.get ()
+  let res = f ()
+  let _ = state.put st
+  in res
+
+pub let exampleComputation () = 
+  let _ = putFlex (0, 3)
+  let recComp () = 
+    (let _ = put ((0, 0), [], [])
+     in 7)
+  let res = bt recComp ()
+  let fl = getFlex ()
+  in (snd fl) * res
+
+let nextShift () = 
+  match getShifts () with
+  | x :: _ => x
+  | _ => 0
+  end
+
+let updateSpread (offset : Int) (step : Step) =
+  let ns = nextShift () in
+  putFlex (populateSpread (ns - offset) step)
+
+{# Takes spread state and assgins a pread to an eleemnt #}
+let assignSpread (n : Int) = 
+  let spread = getFlex ()
+  let (size, ns) = assignSpreadState n spread
+  let _ = putFlex ns
+  in size
+
+let popShift () = 
+  match getShifts () with
+  | x :: tl => 
+    let _ = putShifts tl 
+    in x
+  | [] => 0
+  end
+
+let popSpread nextShift size = 
+  match getSteps () with
+  | [] => putFlex (0, 0)
+  | [x] => putFlex (snd (assignSpreadState size x.toPair))
+  | x :: xs => 
+    putSteps xs;
+    putFlex (snd (assignSpreadState nextShift x.toPair))
+  end
+
+let popSteps () =
+  match getSteps () with
+  | [] => ()
+  | [x] => putSteps []
+  | x :: xs => putSteps xs
+  end
+
+let recalculateSpread offset =
+  match get () with
+  # case 1 - tail 
+  | (_, [scale], sh1 :: sh2 :: shifts) =>
+    let rec lastElem xs =
+      match xs with
+      | [x] => (x : Int)
+      | _ :: tl => lastElem tl
+      | [] => assert False; 0
+      end
+      let totalSize = lastElem (sh2 :: shifts) - offset
+    in putFlex (populateSpread totalSize scale)
+  # case 2 - scale between shifts
+  | (_, scale :: scales, sh1 :: shifts) =>
+    putFlex (populateSpread (sh1 - offset) scale)
+  | _ => ()
+  end
+
+let rec toLines (size : Int) (offset : Int) (d : Doc) =
+  match d.tree with
+  | DEmpty => ctxBox [] LEmpty 0
+  | DStr str => qCtx [LStr str] str.length
+  | DColor col doc =>
+    let ctx = toLines size offset doc in 
+    ctxBox 
+      (List.map (fn (l : Line) => LColor col >. concat l >. concat LColorPop) ctx.lines)
+      ctx.fill
+      ctx.size
+  | DSeq ds =>
+    let rec iter size off ds = 
+      match ds with
+      | [] => ctxBox [] LEmpty 0
+      | d :: ds =>
+        let ctxHead = toLines size off d
+        let ctxTail = iter (size - ctxHead.size) (off + ctxHead.size) ds
+        let lines = linesFill (ctxHead.fill) (ctxHead.lines) (ctxTail.fill) (ctxTail.lines)
+        in ctxBox lines (ctxHead.fill.concat ctxTail.fill) (ctxHead.size + ctxTail.size)
+      end
+    in iter size offset ds
+
+    {#
+      Reset is responsible for shift positioning
+
+      It takes declared minimal width and flex posibility of every group of elements
+      between shifts and calculates offests. Result is non negotiable by
+      anchored elements and besided shift pop, it may be altered only by other reset.
+    #}
+  | DReset doc =>
+    let shifts = allocateShift AMFloat size doc.width
+    let recComp () =
+      let _ = putSteps doc.width.steps
+      let _ = putShifts shifts
+      let _ = updateSpread offset doc.width.singleStep
+      in toLines (List.foldLeft (+) 0 shifts) 0 doc
+    in bt recComp ()
+  
+  {#
+    Shift calculates offset till the next shift and prepends required amound of blank characters
+
+    It recalculates local spread points to fix uneven flex distribution provided by resets
+  #}
+  | DShift d =>
+    let shift = popShift ()
+    let _ = popSteps ()
+    let _ = recalculateSpread offset
+    let missingShift = shift - offset
+    let ctx = toLines (size - missingShift) (offset + missingShift) d
+    let lines = linesFill (eLine missingShift) [] ctx.fill ctx.lines
+    in ctxBox lines ctx.fill (missingShift + ctx.size)
+  
+  {#
+    Stacks elemets on top of each other
+
+    each line recalculates spread points to fix uneven flex distribution provided by resets
+  #}
+  | DStack ds =>
+    let size' = assignSpread (d.width.singleStep.flex)
+    let rec iter (ds : List Doc) =
+      match ds with
+      | [] => []
+      | d :: ds =>
+        let proc () =
+          let _ = putSteps d.width.steps
+          let _ = recalculateSpread offset
+          in toLines size offset d
+        in bt proc () :: iter ds
+      end
+    let ctxs = iter ds
+    let maxs = List.foldRight (fn (x : CtxBox) y => x.size.max y) ctxs 0
+    let aligned = List.map (fn (ctx : CtxBox) => alignLines maxs ctx.size ctx.lines) ctxs
+    in qCtx (List.concat aligned) maxs
+
+  | DLayout size doc => toLines size offset doc
+  | DFlex n => 
+    let s = assignSpread n in
+    qCtx [LFill s " "] s
+  | DBox doc =>
+    let ctx = toLines (size - 2) (offset + 1) doc
+    let w = ctx.size
+    let mapped = List.map (fn (l : Line) => LStr "│" >. concat l >. concat (LStr "│")) ctx.lines
+    let topLine    = LStr "╭" >. concat (LFill w "─") >. concat (LStr "╮")
+    let bottomLine = LStr "╰" >. concat (LFill w "─") >. concat (LStr "╯")
+    in qCtx ([topLine] + mapped + [bottomLine]) (w + 2)
+  | DExtra _ arg cont =>
+    let size' = assignSpread (d.width.singleStep.flex) + d.width.singleStep.fixed
+    in cont size' arg
+  end
+
+pub let showDoc (doc : Doc) =
+  let width = doc.width.minWidth
+  let ctx = toLines width 0 doc
+  let str = reduceLines ctx.lines
+  in printStrLn str
+
+let _ = printStrLn (allocateShift AMFloat 27 (fixedWidth 18 >. shift >. addFixed 9)).toString
+# let _ = let (x, y) = (populateSpread 20 (fixedWidth 8 >. addFlex 20 >. singleStep))
+#         in printStrLn (x.toString + " " + y.toString)
+
+pub let debugDoc (d : Doc) =
+  let ident d = ppStr "  " <+> d
+  let rec showWidth sh =
+    match sh with
+    | WShift s1 s2 tl => 
+      ppShift (ppSeq [ppStr ("  Shift " + s1.toString + " " + s2.toString), showWidth tl])
+    | WFixed s =>
+      ppShift (ppStr ("  Fixed " + s.toString))
+    end
+  rec
+    let showTree f tree =
+      match tree with
+      | DEmpty     => f (ppStr "Empty")
+      | DColor c d => f (ppStr ("Color " + c.toString)) /+/ ident (showDoc d)
+      | DBox d     => f (ppStr "Box") /+/ ident (showDoc d)
+      | DStr s     => f (ppStr ("Str " + s))
+      | DShift d   => f (ppStr "Shift") /+/ ident (showDoc d)
+      | DReset d   => f (ppStr "Reset") /+/ ident (showDoc d)
+      | DSeq ds    => ppStack (f (ppStr "Seq") :: List.map (fn x => ident (showDoc x)) ds)
+      | DStack ds  => ppStack (f (ppStr "Stack") :: List.map (fn x => ident (showDoc x)) ds)
+      | DFlex n    => f (ppStr ("Flex " + n.toString))
+      | DLayout n d => f (ppStr ("Lay " + n.toString)) /+/ ident (showDoc d)
+      | DExtra name _ _ => f (ppStr name)
+      end
+    let showDoc (d : Doc) =
+      showTree (fn x => x <+> showWidth d.width) d.tree
+  end
+  in ppReset (showDoc d)
+
