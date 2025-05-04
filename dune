@@ -2,6 +2,14 @@
   (dev
 	(flags -w +9)))
 
+; This is needed to make the language server optional
+; Now, running `dune build` is equivalent to `dune build @install` instead of `dune build @all`
+; If something doesn't build as expected, this might be the reason
+(alias
+ (name default)
+ (deps
+  (alias install)))
+
 (install
  (section lib)
  (files (glob_files_rec (lib/*.fram with_prefix stdlib))))
