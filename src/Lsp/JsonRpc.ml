@@ -33,7 +33,7 @@ let send_error state ?id code message =
 (* ------------------------------------------------------------------------- *)
 (* Main function *)
 
-let rec run state handle_request handle_notification =
+let run state handle_request handle_notification =
 
   (* Handle messages in a loop *)
   let rec loop state =

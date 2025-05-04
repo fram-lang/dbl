@@ -59,7 +59,8 @@ let type_check path =
   try
     DblParser.Main.parse_file ~use_prelude:true path
     |> TypeInference.Main.tr_program
-    |> ToCore.Main.tr_program ~repl_mode:false
+    |> EffectInference.Main.tr_program ~solve_all:true
+    |> ToCore.Main.tr_program
     |> ignore;
   with
     InterpLib.Error.Fatal_error -> ()

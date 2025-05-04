@@ -9,8 +9,12 @@ If you want to configure `framls` for use with your code editor please visit
 Building
 --------
 
-`framls` is built together with DBL when running `dune build` and is
-available as `framls` binary.
+`framls` is optional and is only built if you have installed the required dependencies:
+```
+opam install uri yojson
+```
+
+Running `dune build` should now build both the `dbl` and `framls` binaries
 
 Basics
 ------

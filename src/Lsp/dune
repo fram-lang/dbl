@@ -1,5 +1,12 @@
 (executable
   (name framls)
-  (modes byte exe)
   (public_name framls)
-  (libraries yojson uri dblParser interpLib typeInference toCore))
+  (optional)
+  (libraries
+    yojson
+    uri
+    dblParser
+    interpLib
+    typeInference
+    toCore
+    effectInference))
