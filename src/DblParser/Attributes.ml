@@ -8,9 +8,12 @@ open Lang.Surface
 
 let map_node f (n : 'a node) = {pos = n.pos; data = f n.data}
 
+let attr_name (Raw.Attribute (name, _)) = name
+let attr_args (Raw.Attribute (_, args)) = args
+
 module M = Map.Make(String)
 
-type attribute = string list node
+type attribute = Raw.attribute
 type attributes = attribute list
 
 type attr_resolver = 
@@ -62,9 +65,11 @@ let make_visible ~is_abstract args attrs ds =
     | other -> other
     end def
   in 
-  match args.data with
-  | [_] -> (attrs, List.map make_vis_def ds)
-  | _ -> Error.fatal (Error.attribute_error args.pos "Too many arguments applied to visibility attribute")
+  match attr_args args.data with
+  | [] -> (attrs, List.map make_vis_def ds)
+  | xs -> 
+    Error.fatal 
+      (Error.attribute_argument_arity_mismatch args.pos 0 (List.length xs))
 
 let public_attribute : attr_conf = {
   name      = "#pub";
@@ -85,13 +90,14 @@ let abstr_attribute : attr_conf = {
 (* ===== Test ===== *)
 
 let make_test args attrs defs =
-  match args.data with
-  | _ :: tags ->
-    if DblConfig.test_active tags then
-      (attrs, defs)
-    else
-      ([], [])
-  | _ -> Error.fatal (Error.attribute_error args.pos "Test attribute expects only 1 optional parameter")
+  (* Collect all test attrs and treat as single attribute*) 
+  let (labels, attrs) = 
+    List.partition (fun a -> attr_name a.data = "test") attrs in
+  let tags = List.concat_map (fun e -> attr_args e.data) (args :: labels) in
+  if DblConfig.test_active tags then
+    (attrs, defs)
+  else
+    ([], [])
 
 let test_attribute : attr_conf = {
   name      = "test";
@@ -170,15 +176,20 @@ let tr_record args attrs (defs : Lang.Surface.def list) =
       in
       new_named_type_args, pattern_gen
   in
-  match (args.data, defs) with
-  | ([_], [{data=DData data; pos=pos}]) ->
+  match (attr_args args.data, defs) with
+  | (["ignoreExistential"], [{data=DData data; pos=pos}])
+  | ([],                    [{data=DData data; pos=pos}]) ->
     let dd = {pos=pos; data=DData data} in
     let method_named_args, pattern_gen =
       generate_accessor_method_pattern data.args data.tvar in
     let cd_named_args = (List.hd data.ctors).data.cd_named_args in
-    let sels = List.filter_map (create_accessor_method method_named_args pattern_gen) cd_named_args in
+    let sels = 
+      List.filter_map 
+      (create_accessor_method method_named_args pattern_gen) cd_named_args in
     (attrs, dd :: sels)
-  | _ -> Error.fatal (Error.attribute_error args.pos "Record error")
+  | (xs, _) -> 
+    Error.fatal 
+      (Error.attribute_argument_arity_mismatch args.pos 0 (List.length xs))
 
 let record_attribute : attr_conf = {
   name      = "#record";
@@ -188,12 +199,22 @@ let record_attribute : attr_conf = {
   resolver  = tr_record
 }
 
+(* Existential attribute adds an argument to record attribute *)
+let tr_existential args attrs defs = 
+  let add_arg attr =
+    if attr_name attr.data = "#record" then
+      { pos = args.pos; 
+        data = Raw.Attribute ("#record", ["ignoreExistential"]) }
+    else
+      attr in
+  (List.map add_arg attrs, defs)
+
 let ignore_existential_attribute : attr_conf = {
   name      = "ignoreExistential";
   is_unique = true;
   preceeds  = ["#record"];
   conflicts = [];
-  resolver  = fun _ -> failwith "not implemented"
+  resolver  = tr_existential
 }
 
 let attributes = 
@@ -206,10 +227,6 @@ let attributes =
   ] in 
   xs |> List.map (fun e -> (e.name, e))|> M.of_list
 
-let attr_name = function
-  | { data=name :: _; _ } -> name
-  | _ -> failwith "no name :("
-
 (* Topologically sorts attributes 
    and runs checks on them *)
 let parse_attributes (attrs : attributes) =
@@ -220,7 +237,7 @@ let parse_attributes (attrs : attributes) =
     let rec iter (acc : attributes M.t) = function
       | [] -> acc
       | attr :: attrs -> 
-        let name = attr_name attr in
+        let name = attr_name attr.data in
         let add_elem = function
           | Some xs -> Some (attr :: xs)
           | None    -> Some [attr] in
@@ -230,14 +247,19 @@ let parse_attributes (attrs : attributes) =
 
   (* checks if attribute matches decalted configuration *)
   let static_check conf curr_attrs other_attrs =
+    let first = List.hd curr_attrs in
     (* uniquness check *)
     let _ = match (curr_attrs, conf.is_unique) with
-    | [x], true -> ()
-    | _, false  -> ()
-    | _ -> failwith "not unique" in
+    | ([], true) | ([_], true) | (_, false)  -> ()
+    | (_, true) -> 
+      Error.fatal 
+        (Error.attribute_not_unique first.pos conf.name) in
     (* conflicts check *)
     List.iter 
-      (fun c -> if M.mem c other_attrs then failwith "conflict error") 
+      (fun c -> 
+        if M.mem c other_attrs then 
+          Error.fatal 
+            (Error.attribute_conflict first.pos conf.name c)) 
       conf.conflicts
   in
 
@@ -247,7 +269,9 @@ let parse_attributes (attrs : attributes) =
     | None -> (to_visit, stack)
     | Some xs ->
       begin match M.find_opt key attributes with
-      | None -> failwith "unknown attribute"
+      | None -> 
+        Error.fatal
+          (Error.unknown_attribute (List.hd xs).pos key)
       | Some conf ->
         let to_visit = M.remove key to_visit in
         let _ = static_check conf xs to_visit in
@@ -270,9 +294,9 @@ let tr_attrs (attrs : attributes) (defs : Lang.Surface.def list) =
   let rec iter attrs defs = 
     match attrs with
     | []      -> defs
-    | x :: xs ->
-      let name = attr_name x in
+    | attr :: attrs ->
+      let name = attr_name attr.data in
       let resolver = (M.find name attributes).resolver in
-      let (attrs, defs) = resolver x xs defs in
+      let (attrs, defs) = resolver attr attrs defs in
       iter attrs defs in
   iter sorted defs

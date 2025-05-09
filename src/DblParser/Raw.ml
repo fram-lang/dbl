@@ -124,7 +124,9 @@ and ctor_decl_data =
     (** Declaration of a constructor *)
 
 (** Attributes *)
-type attributes = (string list) node list
+type attribute = attribute_data node
+and attribute_data = Attribute of string * string list 
+  (* Atributes constructor with expicit name *)
 
 (** Expressions *)
 type expr = expr_data node
@@ -231,7 +233,7 @@ and match_clause_data =
 and field = (type_expr, expr) field_data node
 
 (** Definitions *)
-and def = (attributes * def_data) node
+and def = (attribute list * def_data) node
 and def_data =
   | DLet of expr * expr
     (** Let-definition *)

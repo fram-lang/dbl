@@ -491,14 +491,14 @@ field_list
 /* ========================================================================= */
 
 data_vis
-: /* empty */ { []                }
-| KW_PUB      { [ make ["#pub"]]   }
-| KW_ABSTR    { [ make ["#abstr"]] }
+: /* empty */ { [] }
+| KW_PUB      { [ make (Attribute("#pub",   [])) ] }
+| KW_ABSTR    { [ make (Attribute("#abstr", [])) ] }
 ;
 
 pub
-: /* empty */ { []              }
-| KW_PUB      { [ make ["#pub"]] }
+: /* empty */ { [] }
+| KW_PUB      { [ make (Attribute("#pub", [])) ] }
 ;
 
 rec_opt
@@ -506,14 +506,18 @@ rec_opt
 | KW_REC      { true  }
 ;
 
-lids
-: LID         { [ $1 ]   }
-| LID lids    { $1 :: $2 }
+attr_args
+: /* empty */   { []       }
+| LID attr_args { $1 :: $2 }
 ;
 
+attr
+: LID attr_args { make (Attribute($1, $2)) }
+; 
+
 attrs
-: lids COMMA attrs { make $1 :: $3 }
-| lids             { [make $1]     }
+: attr COMMA attrs { $1 :: $3 }
+| attr             { [ $1 ]   }
 ;
 
 def
@@ -531,9 +535,9 @@ def_base
 | KW_PARAMETER field 
     { ([], DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
-    { ($1, make_def $3  (DData($4, $7))) }
+    { ($1, make_def $3 (DData($4, $7))) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
-    { ($1, make_def $3  (DRecord($4, $7))) }
+    { ($1, make_def $3 (DRecord($4, $7))) }
 | pub KW_LABEL rec_opt expr_100 effect_var_opt
     { ($1, make_def $3 (DLabel($4, $5))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses

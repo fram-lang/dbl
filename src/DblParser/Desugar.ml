@@ -642,7 +642,7 @@ and tr_explicit_inst (fld : Raw.field) =
 
 and tr_def (pos : Position.t) (def : Raw.def_data) =
   let make data = { data = data; pos = pos } in
-  let make_attr data = (([] : Raw.attributes), data) in 
+  let make_attr data = (([] : Raw.attribute list), data) in 
   match def with
   | DLet(p, e) ->
     make_attr 
@@ -679,7 +679,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     | TD_Id(cd_name, args) ->
       let args = List.map tr_named_type_arg args in
       let ctors = [ make { cd_name; cd_named_args; cd_arg_schemes = [] } ] in
-      let record_attr = [make ["#record"]] in
+      let record_attr = [make (Raw.Attribute ("#record", []))] in
       let expr = DData { 
         public_tp=false; 
         public_ctors=false; 

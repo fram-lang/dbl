@@ -43,4 +43,6 @@ let test_tagless = ref false
 let test_active (tags : string list) =
   match tags with
   | [] -> !test_tagless
-  | _ -> List.exists (fun s -> List.exists (fun g -> Dune_glob.V1.test g s) !test_globs) tags
+  | _ -> 
+    List.exists 
+      (fun s -> List.exists (fun g -> Dune_glob.V1.test g s) !test_globs) tags

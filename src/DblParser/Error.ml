@@ -61,9 +61,6 @@ let invalid_lexer_directive ?msg pos =
 let desugar_error pos =
   (Some pos, "Syntax error. This construction cannot be used in this context")
 
-let attribute_error pos msg =
-  (Some pos, msg)
-
 let reserved_binop_error pos op =
   (Some pos,
     Printf.sprintf
@@ -82,6 +79,20 @@ let invalid_pattern_arg pos =
 
 let impure_scheme pos =
   (Some pos, "Syntax error. Type schemes must be pure")
+
+let attribute_conflict pos att1 att2 =
+  (Some pos, "Conflicting attributes: " ^ att1 ^ " and " ^ att2)
+
+let attribute_not_unique pos att =
+  (Some pos, "Multiple definitions of " ^ att ^ " attribute")
+
+let attribute_argument_arity_mismatch pos expected actual =
+  (Some pos, 
+    "Attribute expected " ^ Int.to_string expected 
+      ^ " arguments. Got: " ^ Int.to_string actual)
+
+let unknown_attribute pos name = 
+  (Some pos, "Unknown attribute " ^ name)
 
 let finally_before_return_clause pos =
   (Some pos, "Finally clause before return clause")
