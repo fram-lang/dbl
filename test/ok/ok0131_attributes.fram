@@ -13,5 +13,5 @@ pub let z = 20
 @{test}
 pub let w = 20 + "sdadad"
 
-@{ignore a1 a2, ignore a3 a4 }
+@{test a1 a2, test a3 a4 }
 let u = 30

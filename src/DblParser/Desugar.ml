@@ -642,34 +642,37 @@ and tr_explicit_inst (fld : Raw.field) =
 
 and tr_def (pos : Position.t) (def : Raw.def_data) =
   let make data = { data = data; pos = pos } in
-  let make_attr data = (([] : Raw.attributes), make data) in 
+  let make_attr data = (([] : Raw.attributes), data) in 
   match def with
   | DLet(p, e) ->
-    [ match tr_let_pattern p with
-      | LP_Id id ->
-        make_attr (DLetId(false, id, tr_poly_expr_def e))
-      | LP_Fun(id, args) ->
-        make_attr (DLetId(false, id, tr_poly_function ~pos args (tr_expr e)))
-      | LP_Pat p ->
-        make_attr (DLetPat(p, tr_expr e))
-    ]
+    make_attr 
+      [ match tr_let_pattern p with
+        | LP_Id id ->
+          make (DLetId(false, id, tr_poly_expr_def e))
+        | LP_Fun(id, args) ->
+          make (DLetId(false, id, tr_poly_function ~pos args (tr_expr e)))
+        | LP_Pat p ->
+          make (DLetPat(p, tr_expr e))
+      ]
   | DMethod(p, e) ->
-    [ match tr_let_pattern p with
-      | LP_Id (IdVar x) ->
-        make_attr (DLetId(false, IdMethod x, tr_poly_expr_def e))
-      | LP_Fun(IdVar x, args) ->
-        make_attr (DLetId(false,
-          IdMethod x, tr_poly_function ~pos args (tr_expr e)))
-      | LP_Id (IdImplicit _ | IdMethod _)
-      | LP_Fun((IdImplicit _ | IdMethod _), _)
-      | LP_Pat _ ->
-        Error.fatal (Error.desugar_error p.pos)
-    ]
+    make_attr 
+      [ match tr_let_pattern p with
+        | LP_Id (IdVar x) ->
+          make (DLetId(false, IdMethod x, tr_poly_expr_def e))
+        | LP_Fun(IdVar x, args) ->
+          make (DLetId(false,
+            IdMethod x, tr_poly_function ~pos args (tr_expr e)))
+        | LP_Id (IdImplicit _ | IdMethod _)
+        | LP_Fun((IdImplicit _ | IdMethod _), _)
+        | LP_Pat _ ->
+          Error.fatal (Error.desugar_error p.pos)
+      ]
   | DParam fld ->
-    [ match tr_param_decl fld with
-      | Either.Left (x, y, k)    -> make_attr (DTypeParam(x, y, k))
-      | Either.Right (x, y, sch) -> make_attr (DValParam(x, y, sch))
-    ]
+    make_attr 
+      [ match tr_param_decl fld with
+        | Either.Left (x, y, k)    -> make (DTypeParam(x, y, k))
+        | Either.Right (x, y, sch) -> make (DValParam(x, y, sch))
+      ]
   | DRecord (tp, flds) ->
     let cd_named_args = List.map tr_scheme_field flds in
     begin match tr_type_def tp [] with
@@ -677,35 +680,48 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       let args = List.map tr_named_type_arg args in
       let ctors = [ make { cd_name; cd_named_args; cd_arg_schemes = [] } ] in
       let record_attr = [make ["#record"]] in
-        [(record_attr, make (DData { public_tp=false; public_ctors=false; tvar = cd_name; args; ctors }))]
+      let expr = DData { 
+        public_tp=false; 
+        public_ctors=false; 
+        tvar = cd_name; 
+        args; ctors 
+      } in
+      (record_attr, [make expr])
     end
   | DData(tp, cs) ->
-    [ match tr_type_def tp [] with
-      | TD_Id(tvar, args) ->
-        let args = List.map tr_named_type_arg args in
-        let ctors = List.map tr_ctor_decl cs in
-        make_attr (DData { public_tp=false; public_ctors=false; tvar; args; ctors })
-    ]
+    make_attr 
+      [ match tr_type_def tp [] with
+        | TD_Id(tvar, args) ->
+          let args = List.map tr_named_type_arg args in
+          let ctors = List.map tr_ctor_decl cs in
+          make (DData { 
+            public_tp=false; 
+            public_ctors=false; 
+            tvar; 
+            args; 
+            ctors 
+          })
+      ]
   | DLabel(pat, eff_opt) ->
     let pat = tr_pattern ~public:false pat in
     let eff = tr_type_arg_opt pos eff_opt in
-    [ make_attr (DLabel (eff, pat)) ]
+    make_attr [ make (DLabel (eff, pat)) ]
   | DHandle(pat, eff_opt, body, hcs) ->
     let pat = tr_pattern ~public:false pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     let body = { body with data = EHandler(body, rcs, fcs) } in
-    [ make_attr (DHandlePat(pat, eff, body)) ]
+    make_attr [ make (DHandlePat(pat, eff, body)) ]
   | DHandleWith(pat, eff_opt, body) ->
     let pat = tr_pattern ~public:false pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
-    [ make_attr (DHandlePat(pat, eff, body)) ]
+    make_attr [ make (DHandlePat(pat, eff, body)) ]
   | DModule(x, defs) ->
-    [ make_attr @@ DModule(false, x, tr_defs defs) ]
+    make_attr [ make @@ DModule(false, x, tr_defs defs) ]
   | DOpen(path) -> 
-    [ make_attr @@ DOpen(false, path) ]
+    make_attr [ make @@ DOpen(false, path) ]
   
   | DRec(defs) when List.for_all node_is_rec_data defs ->
     (* This case is a quick fix to make most record accessors
@@ -713,16 +729,19 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     (* TODO: Remove when more robust solution is implemented *)
     let dds, accessors = tr_defs defs
       |> List.partition node_is_data_def in
-    (DRec dds) :: List.map (fun x -> x.data) accessors |> List.map make_attr
+    let dds = 
+      (DRec dds) :: List.map (fun x -> x.data) accessors 
+      |> List.map make in
+    make_attr dds
   
   | DRec(defs) ->
-    [ make_attr @@ DRec (tr_defs defs) ]
+    make_attr [ make @@ DRec (tr_defs defs) ]
 
 and tr_defs (defs : Raw.def list) = 
   let map_def def = 
     let (attrs, (def_data : Raw.def_data)) = def.data in 
-    let def_list : (Raw.attributes * Lang.Surface.def_data node) list = tr_def def.pos def_data in
-    Attributes.tr_attrs_ext attrs def_list
+    let (nattrs, def_list) = tr_def def.pos def_data in
+    Attributes.tr_attrs (attrs @ nattrs) def_list
   in
   List.concat_map map_def defs 
 
