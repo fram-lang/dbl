@@ -1,0 +1,285 @@
+import /List
+import /Prelude
+
+import open Types
+import open Combinators
+
+pub data Fail E = 
+  { fail : {type X} -> String ->[E] X
+  , bt   : Unit ->[E] Bool
+  }
+
+parameter E_F
+parameter ~f : Fail [E_F]
+
+let rec bts calc () =
+  match calc with
+  | [] => ~f.fail ""
+  | (x : Unit ->> _) :: xs =>
+    if ~f.bt()
+      then x ()
+      else bts xs ()
+  end
+
+let rec lookup (key : String) xs () =
+  match xs with
+  | [] => ~f.fail ("Cant find element " + key)
+  | (x, v) :: xs =>
+    if key == x then
+      v
+    else
+      lookup key xs ()
+  end
+
+let getSStr key (args : ArgDict) () = 
+  match lookup key args.args () with
+  | SStr str => str
+  | _ => ~f.fail "Type mismatch"
+  end
+
+let getSStrI key args (dfl : String) () = 
+  if ~f.bt() then
+    bts [ getSStr "im" args, getSStr key args] ()
+  else
+    dfl
+
+let getSCol key (args : ArgDict) () = 
+  match lookup key args.args () with
+  | SColor col => col
+  | _ => ~f.fail "Type mismatch"
+  end
+
+let getSColI key args (dfl : Color) () = 
+  if ~f.bt() then
+    bts [ getSCol "im" args, getSCol key args] ()
+  else
+    dfl
+
+let getSNum key (args : ArgDict) () = 
+  match lookup key args.args () with
+  | SInt i => i
+  | _ => ~f.fail "Type mismatch"
+  end
+
+let getSNumI key args (dfl : Int) () = 
+  if ~f.bt() then
+    bts [ getSNum "im" args, getSNum key args] ()
+  else
+    dfl
+
+let assertSingle (xs : List CoreInterp) () =
+  match xs with
+  | [x] => x.style
+  | _ => ~f.fail "Arrity mismatch"
+  end
+
+let checkName (name : String) (style : CoreStyle) () =
+  if name == style.name 
+    then ()
+    else ~f.fail ("Unexpected name: " + style.name + ". Expected " + name + ".")
+
+{# =============== Common Style ================== #}
+let rec fmtLift {type X, E}
+                (cont  : CoreStyle -> X ->[E] Doc) 
+                (style : CoreStyle) 
+                (val   : X) =
+  let name = style.name in
+  if name == "box" then
+    (let tail = assertSingle style.interp () in
+     ppBox (fmtLift cont tail val))
+  else if name == "color" then
+    (let color = getSColI "col" style.args White ()
+     let tail = assertSingle style.interp ()
+     in ppColor color (fmtLift cont tail val))
+  else if name == "shift" then
+    (let tail = assertSingle style.interp () in
+     ppShift (fmtLift cont tail val))
+  else if name == "reset" then
+    (let tail = assertSingle style.interp () in
+     ppReset (fmtLift cont tail val))
+  else if name == "string" then
+    (let val = getSStrI "str" style.args "" () in
+     ppStr val)
+  else if name == "line" then
+    ppLine
+  else if name == "sep" then
+    ppSep
+  else if name == "flex" then
+    (let flex = getSNumI "flex" style.args 1 () in
+     ppFlex flex)
+  else if name == "layout" then
+    (let tail = assertSingle style.interp ()
+     let size = getSNumI "size" style.args 80 ()
+     in ppLayout size (fmtLift cont tail val))
+  else if name == "inter" then
+    (let orient = getSStrI "orient" style.args "ver" ()
+     let mapF (p : X) (elem: CoreInterp) =
+       if elem.num == 0 then
+         fmtLift (fn _ _ => ppEmpty) elem.style val
+       else if elem.num == 1 then
+         fmtLift cont elem.style val
+       else
+         ~f.fail "Interpolation error"
+     let elems = List.map (mapF val) style.interp
+     in if orient == "ver" then
+       ppStack elems
+     else
+       ppSeq elems)
+  else
+    cont style val
+
+pub module FInt
+  pub let formatted (self : Int) (style : CoreStyle) =
+    handle (~f : Fail [_])= 
+      Fail 
+        { fail = effect msg => Left msg
+        , bt   = effect _ / r => 
+          match r True with
+          | Left _ => r False
+          | Right x => Right x
+          end 
+        }
+      return x => Right x
+      finally c => c
+    in
+    let formatSelf (style : CoreStyle) (self : Int) = 
+      let _ = checkName "int" style ()
+      let fmt = getSStrI "fmt" style.args "d" () in
+      if fmt == "d" then
+        ppStr self.toString
+      else if fmt == "x" then
+        ppStr self.toBase16
+      else if fmt == "o" then
+        ppStr self.toBase8
+      else if fmt == "b" then
+        ppStr self.toBase2
+      else
+        ~f.fail ("Unknown format " + fmt)
+    in fmtLift formatSelf style self
+end
+
+module FUnit
+  pub let formatted (self : Unit) style =
+    handle (~f : Fail [_])= 
+      Fail 
+        { fail = effect msg => Left msg
+        , bt   = effect _ / r => 
+          match r True with
+          | Left _ => r False
+          | Right x => Right x
+          end 
+        }
+      return x => Right x
+      finally c => c
+    in
+    let formatSelf style self =
+      let _ = checkName "unit" style ()
+      in ppEmpty
+    in fmtLift formatSelf style ()
+end
+
+module FBool
+  pub let formatted (self : Bool) style =
+    handle (~f : Fail [_])= 
+      Fail 
+        { fail = effect msg => Left msg
+        , bt   = effect _ / r => 
+          match r True with
+          | Left _ => r False
+          | Right x => Right x
+          end 
+        }
+      return x => Right x
+      finally c => c
+    in
+    let formatSelf (style : CoreStyle) self =
+      let _ = checkName "bool" style ()
+      let fmt = getSStrI "fmt" style.args "dfl" ()
+      in if fmt == "dfl" then
+        if self then ppStr "True" else ppStr "False"
+      else if fmt == "num" then
+        if self then ppStr "0" else ppStr "1"
+      else
+        ~f.fail "Unknown format"
+    in fmtLift formatSelf style self
+end
+
+pub module FPair
+  pub let formatted {type X, type Y}
+                  (fmtT1 : X -> CoreStyle ->[] Either String Doc)
+                  (fmtT2 : Y -> CoreStyle ->[] Either String Doc)
+                  (self : Pair X Y) 
+                  (style : CoreStyle) =
+    handle (~f : Fail [E_F]) / E_F = 
+      Fail 
+        { fail = effect msg => Left msg
+        , bt   = effect _ / r => 
+          match r True with
+          | Left _ => r False
+          | Right x => Right x
+          end 
+        }
+      return x => Right x
+      finally c => c
+    in
+    let formatSelf (style : CoreStyle) (self : Pair X Y) =
+      let _ = checkName "pair" style ()
+      let orient = getSStrI "orient" style.args "hor" () in
+      let lift v = match v with
+      | Right x => x
+      | Left msg => ~f.fail msg
+      end
+      let mapF (p : Pair X Y) (elem: CoreInterp) =
+        if elem.num == 0 then
+          lift (FUnit.formatted () elem.style)
+        else if elem.num == 1 then
+          lift (fmtT1 (fst p) elem.style)
+        else if elem.num == 2 then
+          lift (fmtT2 (snd p) elem.style)
+        else
+          ~f.fail "Interpolation error"
+      in
+      let elems = List.map (mapF self) style.interp
+      in if orient == "ver" then
+        ppStack elems
+      else if orient == "hor" then
+        ppSeq elems
+      else
+        ~f.fail "Unknown orientation"
+  in fmtLift formatSelf style self
+end
+
+pub module FList 
+  pub let formatted {type X} (fmtT : X -> CoreStyle ->[] Either String Doc) (self : List X) (style : CoreStyle) =
+    handle (~f : Fail [E_F]) / E_F = 
+      Fail 
+        { fail = effect msg => Left msg
+        , bt   = effect _ / r => 
+          match r True with
+          | Left _ => r False
+          | Right x => Right x
+          end 
+        }
+      return x => Right x
+      finally c => c
+    in
+    let formatSelf (style : CoreStyle) (self : List X) =
+      let _ = checkName "list" style ()
+      let orient = getSStrI "orient" style.args "hor" () in
+      let tl = assertSingle style.interp ()
+      let elems = 
+        (List.map 
+          (fn (x : X) => 
+            match fmtT x tl with 
+            | Left m => ~f.fail m
+            | Right x => x
+            end) 
+          self)
+      in if orient == "ver" then
+        ppStack elems
+      else if orient == "hor" then
+        ppSeq elems
+      else
+        ~f.fail "Unknown orientation"
+    in fmtLift formatSelf style self
+end
