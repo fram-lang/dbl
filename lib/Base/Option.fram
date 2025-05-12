@@ -4,6 +4,8 @@
 
 import open /Base/Types
 import open /Base/Assert
+import open /Base/String
+import open /Base/Operators
 
 {## For `Some x` returns `x`, otherwise the provided argument is returned. ##}
 pub method unwrapOr self default =
@@ -28,4 +30,21 @@ pub method unwrap {?msg} self =
   match self with
   | None   => runtimeError (msg.unwrapOr "Called `unwrap` on `None`")
   | Some x => x
+  end
+
+pub method toString
+  { type X, method toString : X ->> String }
+  (self : Option X) =
+  match self with
+  | None => "None"
+  | Some x => "Some " + x.toString
+  end
+
+pub method format
+  { type X, method format : X -> Option Unit ->> String }
+  (self : Option X)
+  (fmt : Option Unit) =
+  match self with
+  | None => "None"
+  | Some x => "Some " + x.format None
   end

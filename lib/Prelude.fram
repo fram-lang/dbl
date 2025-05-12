@@ -11,6 +11,10 @@ import /Base/Int
 import /Base/Int64
 import /Base/Char
 import /Base/String
+import /Base/Unit
+import /Base/Either
+import /Base/List
+import /Base/Pair
 
 pub open Types
 pub open Operators

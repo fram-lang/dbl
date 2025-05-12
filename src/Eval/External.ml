@@ -110,6 +110,7 @@ let extern_map =
     "dbl_intToString", int_fun (fun n -> VStr (string_of_int n));
     "dbl_strCat",     str_fun (fun s1 -> str_fun (fun s2 -> VStr(s1 ^ s2)));
     "dbl_strListCat", list_fun to_string_raw (fun xs -> VStr (String.concat "" xs));
+    "dbl_strRepr",    str_fun (fun s -> VStr ("\"" ^ String.escaped s ^ "\""));
     "dbl_eqStr",   str_cmpop ( = );
     "dbl_neqStr",  str_cmpop ( <> );
     "dbl_gtStr",   str_cmpop ( > );

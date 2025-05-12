@@ -1,0 +1,21 @@
+
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+import open /Base/Types
+import open /Base/String
+import open /Base/Operators
+
+pub method toString 
+  { type X, method toString : X ->> String
+  , type Y, method toString : Y ->> String } 
+  ((x, y) : Pair X Y) =
+    "(" + x.toString + ", " + y.toString + ")"
+
+pub method format
+  { type X, method format : X -> Option Unit ->> String 
+  , type Y, method format : Y -> Option Unit ->> String }
+  ((x, y) : Pair X Y)
+  (fmt : Option Unit) =
+    "(" + x.format None + ", " + y.format None + ")"
