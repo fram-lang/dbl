@@ -20,12 +20,6 @@ pub method add = (extern dbl_addInt : Int -> Int -> Int)
 pub method sub = (extern dbl_subInt : Int -> Int -> Int)
 pub method mul = (extern dbl_mulInt : Int -> Int -> Int)
 
-pub method rec pow (self : Int) (n : Int) =
-  if n < 0 then 0
-  else if n == 0 then 1
-  else if n % 2 == 0 then (self.mul self).pow (n / 2)
-  else self.mul ((self.mul self).pow (n / 2))
-
 pub method div (self : Int) (n : Int) =
   assert {msg="Division by zero"} (n != 0);
   (extern dbl_divInt : Int -> Int -> Int) self n
@@ -33,6 +27,12 @@ pub method div (self : Int) (n : Int) =
 pub method mod (self : Int) (n : Int) =
   assert {msg="Division by zero"} (n != 0);
   (extern dbl_modInt : Int -> Int -> Int) self n
+
+pub method rec pow (self : Int) (n : Int) =
+  if n < 0 then 0
+  else if n == 0 then 1
+  else if n % 2 == 0 then (self.mul self).pow (n / 2)
+  else self.mul ((self.mul self).pow (n / 2))
 
 pub method neg (self : Int) = 0 - self
 
