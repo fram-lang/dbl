@@ -18,9 +18,17 @@ pub method neg = (extern dbl_negInt64 : Int64 -> Int64)
 pub method add = (extern dbl_addInt64 : Int64 -> Int64 -> Int64)
 pub method sub = (extern dbl_subInt64 : Int64 -> Int64 -> Int64)
 pub method mul = (extern dbl_mulInt64 : Int64 -> Int64 -> Int64)
+
+pub method rec pow (self : Int64) (n : Int64) =
+  if n < 0L then 0L
+  else if n == 0L then 1L
+  else if n % 2L == 0L then (self.mul self).pow (n / 2L)
+  else self.mul ((self.mul self).pow (n / 2L))
+
 pub method div (self : Int64) (n : Int64) =
   assert {msg="Division by zero"} (n.neq 0L);
   (extern dbl_divInt64 : Int64 -> Int64 -> Int64) self n
+
 pub method mod (self : Int64) (n : Int64) =
   assert {msg="Division by zero"} (n.neq 0L);
   (extern dbl_modInt64 : Int64 -> Int64 -> Int64) self n
