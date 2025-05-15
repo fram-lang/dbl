@@ -14,8 +14,8 @@ pub method toString
     "(" + x.toString + ", " + y.toString + ")"
 
 pub method format
-  { type X, method format : X -> Option Unit ->> String 
-  , type Y, method format : Y -> Option Unit ->> String }
+  { type X, type XFmt, method format : X -> Option XFmt ->> String 
+  , type Y, type YFmt, method format : Y -> Option YFmt ->> String }
   ((x, y) : Pair X Y)
   (fmt : Option Unit) =
     "(" + x.format None + ", " + y.format None + ")"

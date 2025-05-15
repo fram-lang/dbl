@@ -19,7 +19,7 @@ pub method toString
   "[" + iter self
 
 pub method format
-  { type X, method format : X -> Option Unit ->> String }
+  { type X, type XFmt, method format : X -> Option XFmt ->> String }
   (self : List X) 
   (fmt : Option Unit) =
   let rec iter (xs : List X) =
