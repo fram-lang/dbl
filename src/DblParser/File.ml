@@ -30,6 +30,7 @@ let parse_defs ?pos fname =
         { lexbuf.Lexing.lex_curr_p with
           Lexing.pos_fname = fname
         };
+      Lexer.reset ();
       try YaccParser.file Lexer.token lexbuf with
       | Parsing.Parse_error ->
         Error.fatal (Error.unexpected_token
