@@ -1,0 +1,274 @@
+import /List
+
+method padding 
+  (self : String) 
+  (size : Option Int) 
+  (fill : Option Char) 
+  (alignLeft : Option Bool) =
+
+    let size = size.unwrapOr 0
+    let fill = fill.unwrapOr ' '
+    let alignLeft = alignLeft.unwrapOr False
+
+    let _  = assert {msg="Negative padding"} (size >= 0)
+
+    let df = size - self.length
+    let df = if df < 0 then 0 else df
+    let rec padding df = 
+      if 0 == df then
+        []
+      else
+        fill :: padding (df - 1)
+    let padding = charListToStr (padding df) in
+    if alignLeft then
+      self + padding
+    else
+      padding + self
+
+let rec strListCat (xs : List String) =
+  match xs with
+  | [] => ""
+  | x :: xs => x + strListCat xs
+  end
+
+parameter X
+parameter Y
+parameter XFmt
+parameter YFmt
+
+{# Unit #}
+
+pub data UnitFmt = UnitFmt of { ?unit : String
+                              , ?size : Int
+                              , ?fill : Char
+                              , ?alignLeft : Bool }
+
+pub method format () (fmt : Option UnitFmt) =
+  let UnitFmt {unit, size, fill, alignLeft} = fmt.unwrapOr UnitFmt in
+  let ctor = unit.unwrapOr "()" in
+  ctor.padding size fill alignLeft
+
+{# Int #}
+
+pub data IntFmt = IntFmt of { ?base : Int
+                            , ?prefix : String 
+                            , ?size : Int
+                            , ?fill : Char
+                            , ?alignLeft : Bool }
+
+pub method format (self : Int) (fmt : Option IntFmt) =
+  let IntFmt {base, prefix}          = fmt.unwrapOr IntFmt
+  let IntFmt {size, fill, alignLeft} = fmt.unwrapOr IntFmt
+  let base = base.unwrapOr 10
+  let prefix = prefix.unwrapOr ""
+  let _ = assert {msg="Int base out of bounds"} (2 <= base && base <= 36)
+  let (self, prefix) = 
+    if base == 10 && self < 0 then
+      (-self, prefix + "-")
+    else
+      (self, prefix)
+  let rec iter (n : Int) acc = 
+    if n == 0 then
+      acc
+    else
+     (let digit = n % base
+      let shift = n / base
+      let ~onError = fn _ => ' '
+      let c = 
+        if digit <= 9 then
+          chr ('0'.code + digit)
+        else 
+          chr ('A'.code + digit - 10)
+      in iter shift (c :: acc))
+  let (num : String) = prefix + charListToStr (iter self []) in
+  num.padding size fill alignLeft
+
+{# Char #}
+
+pub data CharFmt = CharFmt of { ?escape : Bool
+                              , ?asInt : IntFmt 
+                              , ?size : Int
+                              , ?fill : Char
+                              , ?alignLeft : Bool }
+
+let specialReprs =
+  [ ('\"', "\\\"")
+  , ('\'', "'"  )
+  , ('\0', "\\0")
+  , ('\n', "\\n")
+  , ('\b', "\\b")
+  , ('\t', "\\t")
+  , ('\r', "\\r")
+  , ('\v', "\\v")
+  , ('\a', "\\a")
+  , ('\f', "\\f")
+  ]
+
+pub let charRepr (x : Char) = 
+  let matchEsc (chr, repr) = 
+    if x == chr then Some repr else None in
+  match List.findMap matchEsc specialReprs with
+  | Some c => c
+  | None =>
+   (let code = x.code in
+    if 32 <= code && code <= 127 then
+      x.toString
+    else
+      code.format (Some (IntFmt {base=16, prefix="\\x"})))
+  end
+
+pub method format (self : Char) (fmt : Option CharFmt) =
+  let CharFmt {escape, asInt}         = fmt.unwrapOr CharFmt
+  let CharFmt {size, fill, alignLeft} = fmt.unwrapOr CharFmt in
+  match asInt with
+    | Some fmt => self.code.format asInt
+    | None =>
+      let (res : String) = 
+        if escape.unwrapOr True == False then
+          self.unescaped
+        else
+         (let escape = charRepr self in
+          "'" + escape + "'")
+      in res.padding size fill alignLeft
+  end
+
+{# String #}
+
+pub data StringFmt = StringFmt of { ?escape : Bool 
+                                  , ?size : Int 
+                                  , ?fill : Char
+                                  , ?alignLeft : Bool }
+
+pub method format (self : String) (fmt : Option StringFmt) =
+  let StringFmt {escape, size, fill, alignLeft} = fmt.unwrapOr StringFmt in
+  if escape.unwrapOr True == False then
+    self.padding size fill alignLeft
+  else
+   (let xs = self.toList.map charRepr
+    let res = "\"" + strListCat xs + "\"" in
+    (res : String).padding size fill alignLeft)
+
+
+{# Bool #}
+
+pub data BoolFmt = BoolFmt of { ?true : String
+                              , ?false : String
+                              , ?size : Int
+                              , ?fill : Char
+                              , ?alignLeft : Bool }
+
+pub method format (self : Bool) (fmt : Option BoolFmt) =
+  let BoolFmt {true, false}           = fmt.unwrapOr BoolFmt 
+  let BoolFmt {size, fill, alignLeft} = fmt.unwrapOr BoolFmt
+  let (ctor : String) = 
+    if self then 
+      true.unwrapOr "True"
+    else
+      false.unwrapOr "False" in
+  ctor.padding size fill alignLeft
+
+{# List #}
+
+pub data ListFmt A = ListFmt of { ?opn : String
+                                , ?sep : String
+                                , ?cls : String
+                                , ?inner : A
+                                , ?size : Int 
+                                , ?fill : Char 
+                                , ?alignLeft : Bool }
+
+pub method format
+  { method format : X -> Option XFmt ->> String }
+  (self : List X) 
+  (fmt : Option (ListFmt XFmt)) =
+    let ListFmt {opn, sep, cls, inner}  = fmt.unwrapOr ListFmt
+    let ListFmt {size, fill, alignLeft} = fmt.unwrapOr ListFmt
+    let opn = opn.unwrapOr "["
+    let sep = sep.unwrapOr ", "
+    let cls = cls.unwrapOr "]"
+    let rec iter (xs : List X) =
+      match xs with
+      | [] => cls
+      | [x] => x.format inner + cls
+      | x :: xs => x.format inner + sep + iter xs
+      end in
+    let (xs : String) = opn + iter self in
+    xs.padding size fill alignLeft
+
+{# Option #}
+
+pub data OptionFmt A = OptionFmt of { ?some : String 
+                                    , ?none : String
+                                    , ?inner : A
+                                    , ?size : Int
+                                    , ?fill : Char
+                                    , ?alignLeft : Bool }
+
+pub method format 
+  { method format : X -> Option XFmt ->> String }
+  (self : Option X)
+  (fmt : Option (OptionFmt XFmt)) =
+  let OptionFmt {some, none, inner}     = fmt.unwrapOr OptionFmt
+  let OptionFmt {size, fill, alignLeft} = fmt.unwrapOr OptionFmt
+  let (str : String) =
+    match self with
+    | None => none.unwrapOr "None"
+    | Some x => some.unwrapOr "Some " + x.format inner
+    end in
+  str.padding size fill alignLeft
+
+{# Pair #}
+
+pub data PairFmt A B = PairFmt of { ?opn : String 
+                                  , ?sep : String
+                                  , ?cls : String
+                                  , ?fst : A
+                                  , ?snd : B
+                                  , ?size : Int
+                                  , ?fill : Char
+                                  , ?alignLeft : Bool }
+
+pub method format
+  { method format : X -> Option XFmt ->> String
+  , method format : Y -> Option YFmt ->> String }
+  ((v1, v2) : Pair X Y)
+  (fmt : Option (PairFmt XFmt YFmt)) =
+    let PairFmt {opn, sep, cls}         = fmt.unwrapOr PairFmt
+    let PairFmt {fst, snd}              = fmt.unwrapOr PairFmt
+    let PairFmt {size, fill, alignLeft} = fmt.unwrapOr PairFmt
+    let fst = v1.format fst 
+    let snd = v2.format snd
+    let opn = opn.unwrapOr "("
+    let sep = sep.unwrapOr ", "
+    let cls = cls.unwrapOr ")"
+    let res = opn + fst + sep + snd + cls in
+    (res : String).padding size fill alignLeft
+
+{# Either #}
+
+pub data EitherFmt A B = EitherFmt of { ?left : String 
+                                      , ?right : String
+                                      , ?innerL : A
+                                      , ?innerR : B
+                                      , ?size : Int
+                                      , ?fill : Char
+                                      , ?alignLeft : Bool }
+
+pub method format
+  { method format : X -> Option XFmt ->> String
+  , method format : Y -> Option YFmt ->> String }
+  (self : Either X Y)
+  (fmt : Option (EitherFmt XFmt YFmt)) =
+    let EitherFmt {size, fill, alignLeft} = fmt.unwrapOr EitherFmt
+    let (res : String) = 
+      match self with
+      | Left x =>
+       (let EitherFmt {left, innerL} = fmt.unwrapOr EitherFmt
+        let left = left.unwrapOr "Left " in
+        left + x.format innerL)
+      | Right y =>
+       (let EitherFmt {right, innerR} = fmt.unwrapOr EitherFmt
+        let right = right.unwrapOr "Right " in
+        right + y.format innerR)
+      end in
+    res.padding size fill alignLeft
