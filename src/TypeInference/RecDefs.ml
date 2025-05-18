@@ -88,6 +88,10 @@ let rec prepare_rec_data env (def : S.def) =
         })
     in (env, def)
 
+  | DType _ ->
+    (* TODO: recursive type aliases are not supported, yet *)
+    Error.fatal (Error.invalid_rec_def ~pos:def.pos)
+
   | DBlock defs | DRec defs ->
     let (env, defs) = List.fold_left_map prepare_rec_data env defs in
     (env, make (D1_Section defs))
@@ -565,6 +569,9 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
 
     | EData(dds, e) ->
       make (T.EData(dds, update_expr e))
+
+    | ETypeAlias(a, tp, e) ->
+      make (T.ETypeAlias(a, tp, update_expr e))
 
     | EMatchEmpty(prf, e, tp, Pure) ->
       make (T.EMatchEmpty(prf, update_expr e, tp, Pure))

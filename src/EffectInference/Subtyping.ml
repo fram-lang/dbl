@@ -54,6 +54,10 @@ let rec type_equiv ~origin env tp1 tp2 =
   | TEffect _, _ | _, TEffect _ ->
     effect_equiv' ~origin env (T.Type.to_effect tp1) (T.Type.to_effect tp2)
 
+  | TAlias(id1, _), TAlias(id2, _) when id1 = id2 -> ()
+  | TAlias(_, tp1), _ -> type_equiv ~origin env tp1 tp2
+  | _, TAlias(_, tp2) -> type_equiv ~origin env tp1 tp2
+
   | TVar x, TVar y -> assert (T.TVar.equal x y)
   | TVar _, _ ->
     failwith "Internal type error"
@@ -148,6 +152,10 @@ let subceffect' ~origin env (eff1 : T.ceffect) (eff2 : T.ceffect) =
 
 let rec subtype ~origin env tp1 tp2 =
   match T.Type.view tp1, T.Type.view tp2 with
+  | TAlias(id1, _), TAlias(id2, _) when id1 = id2 -> ()
+  | TAlias(_, tp1), _ -> subtype ~origin env tp1 tp2
+  | _, TAlias(_, tp2) -> subtype ~origin env tp1 tp2
+
   | (TVar _ | TLabel _ | TApp _), _ -> type_equiv ~origin env tp1 tp2
 
   | TArrow(sch1, tp1, eff1), TArrow(sch2, tp2, eff2) ->
@@ -260,6 +268,9 @@ let rec type_shape env tp =
 
   | TApp(tp1, tp2) ->
     T.Type.t_app (type_shape env tp1) (type_shape env tp2)
+
+  | TAlias(_, tp) ->
+    type_shape env tp
 
 and scheme_shape env (sch : T.scheme) =
   match sch.sch_targs with
