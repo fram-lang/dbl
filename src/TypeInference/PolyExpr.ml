@@ -25,6 +25,10 @@ let plug_inst_context ctx expr =
   | Empty     -> expr
   | InstCtx f -> f expr
 
+(** Partially solve method constraints in the expression result. *)
+let partial_solve_constrs er =
+  { er with er_constr = ConstrSolve.solve_partial er.er_constr }
+
 (* ------------------------------------------------------------------------- *)
 (** Context of a method call, returned by [infer_poly_scheme] *)
 let method_call_ctx pos env self =
@@ -89,7 +93,7 @@ let infer_use_scheme ~tcfix ?app_type env (e : S.poly_expr_use) =
     (Empty, poly_expr, sch)
 
   | EMethod(self, name) ->
-    let self = infer_expr_type env self in
+    let self = infer_expr_type env self |> partial_solve_constrs in
     let self_tp = expr_result_type self in
     let (poly_expr, sch) = lookup_method ~pos env self_tp name in
     (method_call_ctx pos env self, poly_expr, sch)
