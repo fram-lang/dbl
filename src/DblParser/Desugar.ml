@@ -713,6 +713,15 @@ and tr_def ?(public=false) (def : Raw.def) =
     let pat = tr_pattern ~public pat in
     let eff = tr_type_arg_opt def.pos eff_opt in
     [ make (DLabel (eff, pat)) ]
+  | DType(pub, tp, body) ->
+    let public_tp = public || pub in
+    [ match tr_type_def tp [] with
+      | TD_Id(tvar, []) ->
+        let body = tr_type_expr body in
+        make (DType { public_tp; tvar; body })
+      | TD_Id(_, _ :: _) ->
+        Error.fatal (Error.type_alias_with_args pos)
+    ]
   | DHandle(pub, pat, eff_opt, body, hcs) ->
     let public = public || pub in
     let pat = tr_pattern ~public pat in

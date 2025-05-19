@@ -15,8 +15,9 @@ type kuvar = UnifCommon.Kind.kuvar
 module KUVar = UnifCommon.Kind.KUVar
 module Kind  = UnifCommon.Kind
 
-module TVar = UnifCommon.TVar
-module Name = UnifPriv.Name
+module TVar    = UnifCommon.TVar
+module TyAlias = UnifPriv.TyAlias
+module Name    = UnifPriv.Name
 
 module Effect = UnifPriv.Effect
 

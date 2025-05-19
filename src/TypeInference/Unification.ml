@@ -69,14 +69,19 @@ let kind_to_arrow k =
 
   | KType | KEffect -> None
 
-let set_uvar env u tp =
+let rec set_uvar env u tp =
   if T.Type.contains_uvar u tp then
-    raise Error
+    begin match T.Type.view tp with
+    | TUVar u2 when T.UVar.equal u u2 -> ()
+    | TAlias(_, tp) -> set_uvar env u tp
+    | _ -> raise Error
+    end
   else
-    let scope = T.UVar.raw_set u tp in
-    match T.Type.try_shrink_scope ~scope tp with
-    | Ok   () -> ()
-    | Error e -> raise (Escapes_scope (Env.pp_tree env, e))
+    let scope = T.UVar.scope u in
+    match T.Type.shrink_scope ~scope tp with
+    | Ok   tp -> T.UVar.raw_set u tp
+    | Error escaping_tvar ->
+      raise (Escapes_scope (Env.pp_tree env, escaping_tvar))
 
 let rec unify_named_type_args env sub1 sub2 args1 args2 =
   match args1, args2 with
@@ -105,9 +110,12 @@ and unify env tp1 tp2 =
       function. *)
     assert false
 
-  | TUVar u1, TUVar u2 when T.UVar.equal u1 u2 -> ()
   | TUVar u, _ -> set_uvar env u tp2
   | _, TUVar u -> set_uvar env u tp1
+
+  | TAlias(a1, _), TAlias(a2, _) when T.TyAlias.equal a1 a2 -> ()
+  | TAlias(_, tp1), _ -> unify env tp1 tp2
+  | _, TAlias(_, tp2) -> unify env tp1 tp2
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
@@ -163,10 +171,12 @@ let rec check_subtype env tp1 tp2 =
   | TEffect, _ | _, TEffect ->
     failwith "Internal kind error"
 
-  | TUVar u1, TUVar u2 when T.UVar.equal u1 u2 -> ()
-
   | TUVar u, _ -> set_uvar env u tp2
   | _, TUVar u -> set_uvar env u tp1
+
+  | TAlias(a1, _), TAlias(a2, _) when T.TyAlias.equal a1 a2 -> ()
+  | TAlias(_, tp1), _ -> check_subtype env tp1 tp2
+  | _, TAlias(_, tp2) -> check_subtype env tp1 tp2
 
   | TVar x, TVar y ->
     if T.TVar.equal x y then ()
@@ -238,7 +248,7 @@ let subscheme env sch1 sch2 =
   | exception Error -> Unify_Fail []
   | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
-let to_arrow ~pos env tp =
+let rec to_arrow ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
     let sch = T.Scheme.of_type (Env.fresh_uvar ~pos env T.Kind.k_type) in
@@ -248,22 +258,26 @@ let to_arrow ~pos env tp =
 
   | TArrow(tp1, tp2, eff) -> Arr_Arrow(tp1, tp2, eff)
 
+  | TAlias(_, tp) -> to_arrow ~pos env tp
+
   | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
 
   | TEffect ->
     failwith "Internal kind error"
 
-let from_arrow env tp =
+let rec from_arrow env tp =
   match T.Type.view tp with
   | TUVar _ -> Arr_UVar
   | TArrow(tp1, tp2, eff) -> Arr_Arrow(tp1, tp2, eff)
 
   | TVar _ | THandler _ | TLabel _ | TApp _ -> Arr_No
 
+  | TAlias(_, tp) -> from_arrow env tp
+
   | TEffect ->
     failwith "Internal kind error"
 
-let to_handler ~pos env tp =
+let rec to_handler ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
     let (env1, _) = Env.enter_scope env in
@@ -277,12 +291,14 @@ let to_handler ~pos env tp =
   | THandler(a, tp, tp_in, tp_out) ->
     H_Handler(a, tp, tp_in, tp_out)
 
+  | TAlias(_, tp) -> to_handler ~pos env tp
+
   | TVar _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
   | TEffect ->
     failwith "Internal kind error"
 
-let from_handler ~pos env tp =
+let rec from_handler ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
     let (env1, _) = Env.enter_scope env in
@@ -296,12 +312,14 @@ let from_handler ~pos env tp =
   | THandler(a, tp, tp_in, tp_out) ->
     H_Handler(a, tp, tp_in, tp_out)
 
+  | TAlias(_, tp) -> from_handler ~pos env tp
+
   | TVar _ | TArrow _ | TLabel _ | TApp _ -> H_No
 
   | TEffect ->
     failwith "Internal kind error"
 
-let to_label ~pos env tp =
+let rec to_label ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->
     let tp0 = Env.fresh_uvar ~pos env T.Kind.k_type in
@@ -309,6 +327,8 @@ let to_label ~pos env tp =
     L_Label tp0
 
   | TLabel delim_tp -> L_Label delim_tp
+
+  | TAlias(_, tp) -> to_label ~pos env tp
 
   | TVar _ | TArrow _ | THandler _ | TApp _ -> L_No
 

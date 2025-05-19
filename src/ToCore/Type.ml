@@ -81,6 +81,9 @@ let rec tr_type env tp =
   | TEffect eff ->
     T.Type.Ex (tr_effect env eff)
 
+  | TAlias(_, tp) ->
+    tr_type env tp
+
 and tr_ttype env tp : T.ttype =
   let (Ex tp) = tr_type env tp in
   match T.Type.kind tp with

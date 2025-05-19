@@ -395,6 +395,11 @@ and infer_type : type ed.
       (Env.constraints env) res_tp eff;
     (T.EData(dds, e2), res_tp, eff_resp)
 
+  | ETypeAlias(a, tp, e2) ->
+    let tp  = Type.tr_type_expr env tp in
+    let env = Env.add_type_alias env a tp in
+    infer_type env e2 eff_req
+
   | EMatchEmpty(prf, e1, tp, eff) ->
     let (prf, tp1, ctors, match_eff) = ProofExpr.tr_proof_expr env prf in
     assert (List.is_empty ctors);

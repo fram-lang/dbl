@@ -34,6 +34,12 @@ val add_tvar_alias :
   ?pos:Position.t -> ?public:bool ->
     'st t -> S.tvar -> T.tvar -> 'st t
 
+(** Extend the environment with a type alias. The optional position
+  should point to the place of binding in the source code. *)
+val add_type_alias :
+  ?pos:Position.t -> ?public:bool ->
+    'st t -> S.tvar -> T.typ -> 'st t * T.ty_alias
+
 (** Extend the environment with a polymorphic value *)
 val add_val :
   ?public:bool -> 'st t -> Name.t -> T.scheme -> 'st t * T.var

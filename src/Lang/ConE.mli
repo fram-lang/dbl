@@ -421,6 +421,9 @@ module Type : sig
     | TApp     of typ * typ
       (** Type application *)
 
+    | TAlias   of PPTree.uid * typ
+      (** Type alias. The UID is used only for pretty-printing. *)
+
   (** Regular type variable *)
   val t_var : tvar -> typ
 
@@ -447,6 +450,9 @@ module Type : sig
 
   (** Effect *)
   val t_effect : effct -> typ
+
+  (** Type alias. The UID is used only for pretty-printing. *)
+  val t_alias : PPTree.uid -> typ -> typ
 
   (** Reveal the top-most constructor of the type. *)
   val view : typ -> type_view

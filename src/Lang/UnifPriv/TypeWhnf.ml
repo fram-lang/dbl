@@ -34,3 +34,4 @@ let rec whnf tp =
     | Whnf_Effect | Whnf_Arrow _ | Whnf_Handler _ | Whnf_Label _ ->
       failwith "Internal kind error"
     end
+  | TAlias(_, tp) -> whnf tp

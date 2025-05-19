@@ -42,6 +42,7 @@ type type_view =
     }
   | TEffect  of effct
   | TApp     of typ * typ
+  | TAlias   of PPTree.uid * typ
 
 type ctor_decl =
   { ctor_name        : string;
@@ -61,6 +62,7 @@ val t_handler     : tvar -> typ -> typ -> effct -> typ -> effct -> typ
 val t_effect      : effct -> typ
 val t_app         : typ -> typ -> typ
 val t_apps        : typ -> typ list -> typ
+val t_alias       : PPTree.uid -> typ -> typ
 
 val view : typ -> type_view
 

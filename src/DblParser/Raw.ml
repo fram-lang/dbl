@@ -251,6 +251,9 @@ and def_data =
   | DLabel of is_public * expr * type_expr option
     (** Creating a new label *)
 
+  | DType of is_public * type_expr * type_expr
+    (** Type alias *)
+
   | DHandle of is_public * expr * type_expr option * expr * h_clause list
     (** Effect handler *)
 

@@ -1,0 +1,5 @@
+let f x =
+  type T = _
+  let id (y : T) = y
+  in
+  id x

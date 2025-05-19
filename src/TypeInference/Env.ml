@@ -93,6 +93,17 @@ let add_tvar_alias ?pos ?(public=false) (Env env) name x =
     pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.pp_uid x)
   }
 
+let add_type_alias ?pos ?(public=false) (Env env) name tp =
+  let x = T.TyAlias.fresh ~scope:env.scope () in
+  let tp = T.Type.t_alias x tp in
+  let env =
+    Env { env with
+      cur_module =
+        Module.add_type_alias ~public env.cur_module name tp;
+      pp_tree = PPTree.add ~public ?pos env.pp_tree name (T.TyAlias.pp_uid x)
+    } in
+  (env, x)
+
 (* ========================================================================= *)
 
 let add_val ?(public=false) (Env env) name sch =

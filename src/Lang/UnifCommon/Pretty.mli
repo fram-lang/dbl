@@ -34,6 +34,7 @@ type type_tree =
     }
   | PP_TEffect    of effect_tree list
   | PP_TApp       of type_tree * type_tree
+  | PP_TAlias     of PPTree.uid * type_tree
 
 (** Internal printable representation of type schemes *)
 and scheme_tree =

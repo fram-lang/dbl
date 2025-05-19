@@ -1,0 +1,8 @@
+type T = Int
+let id (x : T) = x
+let _ = id 42
+
+data U X = C of X
+let a = C 42
+let g (x : U T) = x
+let _ = g a

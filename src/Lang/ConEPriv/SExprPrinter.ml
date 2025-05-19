@@ -38,6 +38,8 @@ let rec tr_type tp =
   | TEffect eff ->
     List [Sym "effect"; Effct.to_sexpr eff]
   | TApp _ -> tr_type_app tp []
+  | TAlias (PP_UID uid, tp) ->
+    List [Sym "alias"; Sym (UID.to_string uid); tr_type tp]
 
 and tr_arrow tp =
   match view tp with
@@ -50,7 +52,7 @@ and tr_type_app tp args =
   match view tp with
   | TApp(tp1, tp2) -> tr_type_app tp1 (tr_type tp2 :: args)
 
-  | TVar _ | TArrow _ | TLabel _ | THandler _ | TEffect _ ->
+  | TVar _ | TArrow _ | TLabel _ | THandler _ | TEffect _ | TAlias _ ->
     List (Sym "app" :: tr_type tp :: args)
 
 and tr_scheme sch =

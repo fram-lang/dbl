@@ -39,8 +39,9 @@ let rec tr_type tp =
         out_tp  = tr_type   h.out_tp;
         out_eff = tr_effect h.out_eff
       }
-  | TEffect eff    -> PP_TEffect (tr_effect eff)
-  | TApp(tp1, tp2) -> PP_TApp(tr_type tp1, tr_type tp2)
+  | TEffect eff     -> PP_TEffect (tr_effect eff)
+  | TApp(tp1, tp2)  -> PP_TApp(tr_type tp1, tr_type tp2)
+  | TAlias(uid, tp) -> PP_TAlias(uid, tr_type tp)
 
 and tr_scheme sch =
   { ppsch_targs = sch.sch_targs;

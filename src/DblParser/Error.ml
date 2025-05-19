@@ -80,6 +80,9 @@ let invalid_pattern_arg pos =
 let impure_scheme pos =
   (Some pos, "Syntax error. Type schemes must be pure")
 
+let type_alias_with_args pos =
+  (Some pos, "Type aliases cannot have type arguments")
+
 let finally_before_return_clause pos =
   (Some pos, "Finally clause before return clause")
 

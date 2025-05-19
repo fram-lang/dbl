@@ -57,6 +57,9 @@ module Env : sig
   (** Lookup a type variable representation *)
   val lookup_tvar : t -> TVar.t -> PPTree.pp_result
 
+  (** Lookup a type alias representation *)
+  val lookup_type_alias : t -> PPTree.uid -> PPTree.pp_result
+
   (** Add a string to the output *)
   val print_string : t -> string -> unit
 
@@ -105,6 +108,9 @@ end = struct
         | None -> result
         end
       end
+
+  let lookup_type_alias env uid =
+    PPTree.lookup env.pp_tree uid
 
   let print_string env str =
     Buffer.add_string env.buffer str
@@ -209,6 +215,7 @@ type type_tree =
     }
   | PP_TEffect    of effect_tree list
   | PP_TApp       of type_tree * type_tree
+  | PP_TAlias     of PPTree.uid * type_tree
 
 and scheme_tree =
   { ppsch_targs : (Names.tname * TVar.t) list;
@@ -255,6 +262,11 @@ let rec fresh_for_type env name (tp : type_tree) =
   | PP_TEffect eff -> fresh_for_effects env name eff
   | PP_TApp(tp1, tp2) ->
     fresh_for_type env name tp1 && fresh_for_type env name tp2
+  | PP_TAlias(uid, tp) ->
+    begin match Env.lookup_type_alias env uid with
+    | Found name' -> name <> name'
+    | _ -> fresh_for_type env name tp
+    end
 
 and fresh_for_scheme env name (sch : scheme_tree) =
   let { ppsch_targs = _; ppsch_named = named; ppsch_body = body } = sch in
@@ -369,6 +381,12 @@ let rec print_type env (tp : type_tree) prec =
       print_type env tp1 10;
       Env.print_string env " ";
       print_type env tp2 11)
+
+  | PP_TAlias(uid, tp) ->
+    begin match Env.lookup_type_alias env uid with
+    | Found name -> Env.print_string env name
+    | _ -> print_type env tp prec
+    end;
 
 and print_scheme env (sch : scheme_tree) prec =
   match sch.ppsch_targs, sch.ppsch_named with

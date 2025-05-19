@@ -24,7 +24,7 @@ let end_generalize_pure ~pos params uvs cs =
     else
       begin match T.Kind.view (T.UVar.kind u) with
       | KEffect ->
-        let _ : Scope.t = T.UVar.raw_set u T.Type.t_effect in
+        T.UVar.raw_set u T.Type.t_effect;
         false
       | _ ->
         T.UVar.shrink_scope u scope;
