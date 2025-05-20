@@ -2,46 +2,51 @@
  # See LICENSE for details.
  #}
 
-## # Os interaction
-
 import open Mutable
 import List
 
+{# ========================================================================= #}
+## ## Os interaction
+
+abstr data OsErr = OsErr of String
+pub method toString (OsErr msg) = msg
+
 {## Get the command line arguments. ##}
-pub let argv = (extern dbl_argv : Unit -> ConstArray String) ()
+pub let argv = (extern dbl_argv : Unit -> List String) ()
 
 {## Get the value of an environment variable. ##}
-pub let getEnv = (extern dbl_getEnv : String -> Option String)
+pub let getEnv = (extern dbl_getEnv : String ->[IO] Option String)
 
 {## Check if a file exists. ##}
 pub let fileExists = (extern dbl_fileExists : String ->[IO] Bool)
 
 {## Check if a file is a directory. ##}
-pub let isDirectory { ~onError } name =
-  if fileExists name
-  then (extern dbl_isDirectory : String ->[IO] Bool) name
-  else ~onError ()
+pub let isDirectory =
+  (extern dbl_isDirectory : String ->[IO] Result Bool OsErr)
 
 {## Check if a file is a regular file. ##}
-pub let isRegularFile { ~onError } name =
-  if fileExists name
-  then (extern dbl_isRegularFile : String ->[IO] Bool) name
-  else ~onError ()
+pub let isRegularFile =
+  (extern dbl_isRegularFile : String ->[IO] Result Bool OsErr)
 
 {## Remove a file. ##}
-pub let removeFile = (extern dbl_removeFile : String ->[IO] Unit)
+pub let removeFile =
+  (extern dbl_removeFile : String ->[IO] Result Unit OsErr)
 
 {## Rename a file. ##}
-pub let renameFile = (extern dbl_renameFile : String -> String ->[IO] Unit)
+pub let renameFile =
+  (extern dbl_renameFile : String -> String ->[IO] Result Unit OsErr)
 
 {## Change the current directory. ##}
-pub let changeDirectory = (extern dbl_changeDirectory : String ->[IO] Unit)
+pub let changeDirectory =
+  (extern dbl_changeDirectory : String ->[IO] Result Unit OsErr)
 
-{## Create a directory. ##}
-pub let makeDirectory = (extern dbl_makeDirectory : String -> Int ->[IO] Unit)
+{## Create a directory with a given permissions. ##}
+pub let makeDirectory =
+  (extern dbl_makeDirectory : String -> Int ->[IO] Result Unit OsErr)
 
 {## Remove a directory. ##}
-pub let removeDirectory = (extern dbl_removeDirectory : String ->[IO] Unit)
+pub let removeDirectory =
+  (extern dbl_removeDirectory : String ->[IO] Result Unit OsErr)
 
 {## Get the current directory. ##}
 pub let getCurrentDirectory =
@@ -49,7 +54,7 @@ pub let getCurrentDirectory =
 
 {## Read a directory. ##}
 pub let readDirectory =
-  (extern dbl_readDirectory : String ->[IO] ConstArray String)
+  (extern dbl_readDirectory : String ->[IO] Result (List String) OsErr)
 
 {## @type Time
   A date and time. ##}
@@ -66,15 +71,18 @@ pub data Time =
 pub let getUnixTime = (extern dbl_getUnixTime : Unit ->[IO] Int)
 
 {## Get the current time in Time type. ##}
-pub let getTime { ~onError } () =
-  let is_leap (year : Int) = (year % 4 == 0 && year % 100 > 0) || (year % 400 == 0)
+pub let getTime () =
+  let is_leap (year : Int) =
+    (year % 4 == 0 && year % 100 > 0) || (year % 400 == 0)
   let days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
   let days_in_month_sum =
     [31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
   let rec calculate_year_and_days (days_since_epoch : Int) year =
     let days_in_current_year = if is_leap year then 366 else 365 in
     if days_since_epoch >= days_in_current_year then
-      calculate_year_and_days (days_since_epoch - days_in_current_year) (year + 1)
+      calculate_year_and_days
+        (days_since_epoch - days_in_current_year)
+        (year + 1)
     else
       (year, days_since_epoch)
   let calculate_month_and_days (days : Int) is_leap =
@@ -82,7 +90,7 @@ pub let getTime { ~onError } () =
       let x = x + (if i >= 2 && is_leap then 1 else 0) in
       if days < x then Some (i - 1) else None
     in
-    let `onError () = 0 in
+    let ~onError () = 0 in
     let month = List.findMapiErr f days_in_month_sum in
     (month, days - (days_in_month_sum.nthErr month))
   in
@@ -105,4 +113,4 @@ pub let getTime { ~onError } () =
 
   let is_leap = is_leap year in
   let (month, day) = calculate_month_and_days days is_leap in
-  Time{ year, month, day, hour, minute, second }
+  Time { year, month, day, hour, minute, second }
