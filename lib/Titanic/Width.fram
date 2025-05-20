@@ -1,0 +1,136 @@
+import /Base/Int
+import /List
+
+pub data Step = { fixed : Int, flex : Int }
+
+pub method toPair (s : Step) = (s.fixed, s.flex)
+
+pub data rec Width =
+  | WShift of Step, Step, Width
+  | WFixed of Step
+
+pub data AllocMode = AMFloat | AMSparse
+
+let emptyStep = Step { fixed = 0, flex = 0 }
+
+method max (s1 : Step) (s2 : Step) = 
+  Step { fixed = s1.fixed.max s2.fixed,  flex = s1.flex.max s2.flex }
+
+method add (s1 : Step) (s2 : Step) =
+  Step { fixed = s1.fixed + s2.fixed,  flex = s1.flex + s2.flex }
+
+let fixedStep w = Step { fixed = w, flex = 0 }
+let flexStep f  = Step { fixed = 0, flex = f } 
+
+pub let fixedWidth v = WFixed (fixedStep v)
+
+pub method addFlex w f = 
+  match w with
+  | WShift s1 s2 tl => WShift (s1 + (flexStep f)) (s2 + (flexStep f)) tl
+  | WFixed s1 => WFixed (s1 + (flexStep f))
+  end
+
+pub method addFixed w v = 
+  match w with
+  | WFixed s => WFixed (s + fixedStep v)
+  | WShift s1 s2 tl => WShift (s1 + fixedStep v) (s2 + fixedStep v) tl
+  end
+
+# pointless programming
+pub method shift = WShift emptyStep emptyStep
+
+method rec asStep (w : Width) =
+  match w with
+  | WFixed s => s
+  | WShift s1 s2 tl => s2.max (s1 + tl.asStep)
+  end
+
+pub method reset (w : Width) = WFixed (w.asStep)
+
+pub method singleStep w =
+  match w with
+  | WFixed s => s
+  | WShift s _ _ => s
+  end
+
+pub method minWidth (w : Width) = w.asStep.fixed
+
+pub method rec steps (w : Width) = 
+  match w with
+  | WFixed s => [s]
+  | WShift s _ tl => s :: tl.steps
+  end
+
+pub method rec seq (s1 : Width) (s2 : Width) =
+  match (s1, s2) with
+  | (WFixed s1, WFixed s2) => WFixed (s1 + s2)
+  | (WFixed s1, WShift f b tl) => WShift (s1 + f) (s1 + b) tl
+  | (WShift f b tl, w) => WShift f b (tl.seq w)
+  end
+
+pub method rec stack (w1 : Width) (w2 : Width) =
+  match (w1, w2) with
+  | (WFixed s1, WFixed s2) => WFixed (s1.max s2)
+  | (WFixed s1, WShift f b tl) => WShift f (s1.max b) tl
+  | (WShift f b tl, WShift f' b' tl') => WShift (f.max f') (b.max b') (tl.stack tl')
+  | (WShift f b tl, WFixed s) => WShift f (b.max s) tl
+  end
+
+pub let rec allocateShift (mode : AllocMode) (max : Int) (width : Width) =
+  match mode with
+  | AMSparse => List.map (fn (s : Step) => s.fixed) width.steps
+  | AMFloat =>
+    let steps = width.steps
+    let flexs = List.map (fn (s : Step) => s.flex) steps
+    let totFlex = List.foldLeft (+) 0 flexs
+    in if 0 == totFlex then
+      allocateShift AMSparse max width
+    else  
+      (let fixes = List.map (fn (s : Step) => s.fixed) steps
+       let totFix = List.foldLeft (+) 0 fixes
+        
+       let toSpend = max - totFix
+       let avgSpend = toSpend / totFlex
+       let leftover = toSpend % totFlex
+
+       let ~onError () = []
+       
+       let rec allocate (leftover : Int) (xs : List (Pair Int Int)) =
+        match xs with
+        | (x, _) :: [] => [x + leftover]
+        | (x, y) :: xs =>
+          (let alloc = leftover.min y 
+           in (x + alloc) :: (allocate (leftover - alloc) xs))
+        | _ => []
+        end
+       let rec prefixSum (xs : List Int) = 
+        match xs with
+        | x :: y :: xs => x :: prefixSum ((x + y) :: xs)
+        | [x] => [x]
+        | []  => []
+        end
+       in prefixSum (allocate leftover (List.map2 (fn x y => (x + (avgSpend * y), y)) fixes flexs)))
+  end
+
+pub let populateSpread (size : Int) (step : Step) =
+  let extra = size - step.fixed in
+  if extra <= 0 || step.flex == 0 then
+    (0, 0)
+  else
+    (let perPoint = extra / step.flex
+     let overflow = extra % step.flex
+     in (perPoint, overflow))
+
+pub let assignSpreadState (n : Int) (perPoint, overflow) =
+  let over = n.min overflow
+  let size = n * perPoint + over
+  in (size, (perPoint, overflow - over))
+
+pub method toString (self : Step) =
+  "(" + self.fixed.toString + "/" + self.flex.toString + ")"
+
+pub method rec toString (self : Width) =
+  match self with
+  | WFixed s => "Fixed " + s.toString
+  | WShift s1 s2 tl => "(Shift " + s1.toString + " " + s2.toString + " " + tl.toString + ")"
+  end
