@@ -10,7 +10,11 @@ exception Runtime_error
 (* ========================================================================= *)
 
 let runtime_error msg =
-  Printf.eprintf "Runtime error: %s\n%!" msg;
+  Printf.eprintf "runtime error: %s!\n" msg;
+  raise Runtime_error
+
+let runtime_error_with_postion file line msg =
+  Printf.eprintf "runtime error at %s:%d:\n%s!\n" file line msg;
   raise Runtime_error
 
 let pure_fun f = VFn (fun v cont -> cont (f v))
@@ -77,7 +81,10 @@ let int64_cmpop op = int64_fun2 (fun x y -> of_bool (op x y))
 let str_cmpop op = str_fun (fun s1 -> str_fun (fun s2 -> of_bool (op s1 s2)))
 
 let extern_map =
-  [ "dbl_runtimeError", str_fun runtime_error;
+  [ "dbl_runtimeError", str_fun (fun fname -> 
+                          int_fun (fun line -> 
+                            str_fun (fun msg -> 
+                              runtime_error_with_postion fname line msg)));
     "dbl_magic",       pure_fun Fun.id;
     "dbl_maxInt",      VNum Int.max_int;
     "dbl_minInt",      VNum Int.min_int;
