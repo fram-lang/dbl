@@ -86,14 +86,14 @@ and type_expr_data =
     (** Effect: list of simple effects *)
 
   | TPureArrow of scheme_expr * type_expr
-    (** Pure function: a function without effects, that always terminates *)
+    (** Pure function: a function without effects that always terminates *)
 
   | TArrow of scheme_expr * type_expr * type_expr
     (** Effectful function: the last parameter is an effect *)
 
   | THandler of (** First-class handler *)
     { effct    : tvar;
-        (** Effect variable bound by this handler (it bound in [cap_type],
+        (** Effect variable bound by this handler (it's bound in [cap_type],
           [in_type], and [in_eff] *)
 
       cap_type : type_expr;
@@ -176,7 +176,7 @@ and pattern_data =
     (** Wildcard pattern -- it matches everything *)
 
   | PId of is_public * ident
-    (** Pattern that binds an identifier*)
+    (** Pattern that binds an identifier *)
 
   | PCtor of ctor_name path * named_pattern list * pattern list
     (** ADT constructor pattern *)
@@ -292,10 +292,10 @@ and inst_data =
     (** Explicit instantiation of a value-level name *)
 
   | IModule of module_name path
-    (** Explicit instantiation, that takes values from given module *)
+    (** Explicit instantiation that takes values from given module *)
 
   | IOpen
-    (** Explicit instantiation, that takes values from the environment *)
+    (** Explicit instantiation that takes values from the environment *)
 
 (** Local definitions *)
 and def = def_data node

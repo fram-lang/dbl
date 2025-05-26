@@ -6,7 +6,7 @@
 
 open Common
 
-(** Environments, indexed with their current state. See [Common] module for
+(** Environments indexed with their current state. See [Common] module for
   details. *)
 type 'st t
 
@@ -47,8 +47,8 @@ val add_implicit :
   [add_the_label env (T.Type.t_label tp)] *)
 val add_the_label : 'st t -> T.typ -> 'st t * T.var
 
-(** Add a method associated with given type (owner). Method must have
-  arrow type, where the head type variable of an argument is the same
+(** Add a method associated with given type (owner). The method must have
+  an arrow type, where the head type variable of an argument is the same
   as the owner *)
 val add_method :
   ?public:bool ->
@@ -80,10 +80,10 @@ val declare_type : pos:Position.t ->
 (** Extend environment with a declaration of a value parameter. The meaning of
   parameters is the following.
   - [free_types] -- type variables that occurs freely in the scheme of this
-    parameter, and should be separately instantiated for each use.
+    parameter and should be separately instantiated for each use.
   - [used_types] -- previously declared type UIDs, together with the type
     variables used as them in the scheme of this parameter.
-  - [name] -- the name of the parameter, that will be visible in the
+  - [name] -- the name of the parameter that will be visible in the
     generalized scheme.
   - [local_name] -- then name of the parameter used in the environment. *)
 val declare_val : pos:Position.t -> ('st, sec) opn t ->
@@ -91,7 +91,7 @@ val declare_val : pos:Position.t -> ('st, sec) opn t ->
     name:Name.t -> local_name:Name.t -> T.scheme_expr -> ('st, sec) opn t
 
 (** Enter the scope where declared parameters are visible. Returns a list of
-  parameters, that should be passed to one of [end_generalize_*] functions,
+  parameters that should be passed to one of [end_generalize_*] functions
   when the scope is left. These functions are defined in [ParamGen] module. *)
 val begin_generalize : ('st, sec) opn t -> exp t * ParamEnv.param_list
 

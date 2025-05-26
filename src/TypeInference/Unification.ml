@@ -101,7 +101,7 @@ let rec unify_at_kind env tp1 tp2 k =
 and unify env tp1 tp2 =
   match T.Type.view tp1, T.Type.view tp2 with
   | TEffect, _ | _, TEffect ->
-    (* To unify types that may possibly be effects, use [unify_at_kind]
+    (* To unify types that may possibly be effects use [unify_at_kind]
       function. *)
     assert false
 

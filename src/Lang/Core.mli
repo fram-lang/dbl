@@ -33,7 +33,7 @@ module TVar : sig
   (** Create a fresh type variable of given kind *)
   val fresh : 'k kind -> 'k tvar
 
-  (** Create exact copy (with different UID) of a type variable *)
+  (** Create an exact copy (with different UID) of a type variable *)
   val clone : 'k tvar -> 'k tvar
 
   (** Get the kind of given type variable *)
@@ -305,7 +305,7 @@ and value =
     (** Constraint abstraction *)
 
   | VCtor of expr * int * Type.ex list * value list
-    (** Fully-applied constructor of ADT. The meaning of the parameters
+    (** Fully-applied constructor of an ADT. The meaning of the parameters
       is the following.
       - Computationally irrelevant proof that given that the type of the
         whole expression is an ADT.
