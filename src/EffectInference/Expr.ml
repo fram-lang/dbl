@@ -6,7 +6,7 @@
 
 open Common
 
-(** Build a response for effect-checking, when returning a pure effect. *)
+(** Build a response for effect-checking when returning a pure effect. *)
 let return_pure (type ed) (req : (T.ceffect, ed) request) :
     (T.ceffect, ed) response =
   match req with
@@ -91,7 +91,7 @@ let instantiate_constraints ~origin sub cs =
     cs
 
 (** Infer a scheme of a polymorphic expression. This function is slightly more
-  general than [infer_scheme]: it takes additional list of named parameters,
+  general than [infer_scheme]: it takes additional list of named parameters
   that should be abstracted after abstracting all type parameters. *)
 let rec tr_poly_expr env named (e : S.poly_expr) =
   match e.data with

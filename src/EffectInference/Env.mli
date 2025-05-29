@@ -64,7 +64,7 @@ val lookup_var : t -> S.var -> var_info
 (** Lookup an ADT in the environment. *)
 val lookup_adt : t -> S.var -> adt_info
 
-(** Enter a new scope. The returned environment has own set of constraints.
+(** Enter a new scope. The returned environment has its own set of constraints.
   When the scope is exited, the constraints should be obtained using
   [constraints] function, and (after some processing) should be added to
   the parent environment. *)

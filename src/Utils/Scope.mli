@@ -49,5 +49,5 @@ val strict_subset : t -> t -> bool
   used in the second scope. *)
 val mem : t -> t -> bool
 
-(** Pretty-print a scope as S-expression. *)
+(** Pretty-print a scope as an S-expression. *)
 val to_sexpr : t -> SExpr.t

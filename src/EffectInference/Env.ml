@@ -36,7 +36,7 @@ type t =
 
     rec_vars : (T.var * T.scheme) list option;
     (** List of variables defined in a recursive block, or [None] if the
-      environment is not in a recursive block, or recursive block was
+      environment is not in a recursive block or recursive block was
       committed *)
 
     sat_solver : (T.tvar * origin) IncrSAT.Solver.t;
