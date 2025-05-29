@@ -43,7 +43,7 @@ val generalize :
 val generalize_constr : T.tvar list -> T.constr list -> T.expr -> T.expr
 
 (** Build a function that represents a constructor of a given type, assuming
-  that it has given a list of constructors. *)
+  that it has a given list of constructors. *)
 val mk_ctor :
   prf:T.expr -> idx:int -> T.typ -> T.ctor_decl list -> T.expr * T.scheme
 
