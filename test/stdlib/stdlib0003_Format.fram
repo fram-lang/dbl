@@ -2,82 +2,84 @@ import open Format
 
 # Unit
 let _ = 
-  assert (().format None == "()");
+  assert (().format == "()");
   let fmt = UnitFmt {unit="Unit"} in
-  assert (().format (Some fmt) == "Unit");
+  assert (().format {fmt} == "Unit");
   let fmt = UnitFmt {size=5, fill='#', alignLeft=True} in
-  assert (().format (Some fmt) == "()###");
+  assert (().format {fmt} == "()###");
   let fmt = UnitFmt {size=4, fill='?', unit="U"} in
-  assert (().format (Some fmt) == "???U")
+  assert (().format {fmt} == "???U")
 
 # Bool
 let _ = 
-  assert ((True).format None == "True");
-  assert ((False).format None == "False");
+  assert ((True).format == "True");
+  assert ((False).format == "False");
   let fmt = BoolFmt {true="#t", false="#f", size=3} in
-  assert ((True).format (Some fmt) == " #t");
-  assert ((False).format (Some fmt) == " #f")
+  assert ((True).format {fmt} == " #t");
+  assert ((False).format {fmt} == " #f")
 
 # Int
 let _ = 
-  assert (10.format None == "10");
-  assert ((-10 : Int).format None == "-10");
+  assert (10.format == "10");
+  assert ((-10).format == "-10");
+  assert ((-10).format {prec=10} == "(-10)");
+  assert ((-10).format {prec=10, fmt=IntFmt{parenths=False}} == "-10");
   let (num : Int) = ((15 * 36 + 27) * 36 + 10) * 36 + 22
-  let fmt = IntFmt { prefix="36x", base=36} in
-  assert (num.format (Some fmt) == "36xFRAM")
+  let fmt = IntFmt {prefix="36x", base=36} in
+  assert (num.format {fmt} == "36xFRAM")
 
 # Char
 let _ =
-  assert ('a'.format None == "'a'");
-  assert ('\xFF'.format None == "'\\xFF'");
+  assert ('a'.format == "'a'");
+  assert ('\xFF'.format == "'\\xFF'");
   let fmt = CharFmt {escape=False, size=3} in
-  assert ('\n'.format (Some fmt) == "  \n");
+  assert ('\n'.format {fmt} == "  \n");
   let fmt = CharFmt {asInt=IntFmt {base=16, prefix="\\x"}} in
-  assert (' '.format (Some fmt) == "\\x20")
+  assert (' '.format {fmt} == "\\x20")
 
 # String
 let _ =
-  assert ("abc".format None == "\"abc\"");
-  assert ("\n\t\r".format None == "\"\\n\\t\\r\"");
+  assert ("abc".format == "\"abc\"");
+  assert ("\n\t\r".format == "\"\\n\\t\\r\"");
   let fmt = StringFmt {escape=False} in
-  assert ("\n\t\r".format (Some fmt) == "\n\t\r")
+  assert ("\n\t\r".format {fmt} == "\n\t\r")
 
 # List
 let _ = 
-  assert ([True, False].format None == "[True, False]");
+  assert ([True, False].format == "[True, False]");
   let fmt = ListFmt 
     { opn="[| ", cls=" |]", sep=" "
     , inner = BoolFmt {true="1", false="0"}} in
-  assert ([True, False].format (Some fmt) == "[| 1 0 |]")
+  assert ([True, False].format {fmt} == "[| 1 0 |]")
 
 # Option
 let _ =
-  assert ((Some ()).format None == "Some ()");
-  assert ((None : Option Unit).format None == "None");
+  assert ((Some ()).format == "Some ()");
+  assert ((None : Option Unit).format == "None");
   let fmt = OptionFmt 
     { some = "S", none = "N"
     , inner = UnitFmt {unit = "U"}} in
-  assert ((Some ()).format (Some fmt) == "SU")
+  assert ((Some ()).format {fmt} == "SU")
 
 # Either
 let _ =
-  assert ((Left 10   : Either Int String).format None == "Left 10");
-  assert ((Right "a" : Either Int String).format None == "Right \"a\"");
+  assert ((Left 10   : Either Int String).format == "Left 10");
+  assert ((Right "a" : Either Int String).format == "Right \"a\"");
   let fmt = EitherFmt
     { left="L ", right="R "
     , innerL=IntFmt {prefix="(dec)"}
     , innerR=StringFmt {escape=False} } in
-  assert ((Left 10   : Either Int String).format (Some fmt) == "L (dec)10");
-  assert ((Right "a" : Either Int String).format (Some fmt) == "R a")
+  assert ((Left 10   : Either Int String).format {fmt} == "L (dec)10");
+  assert ((Right "a" : Either Int String).format {fmt} == "R a")
 
 # Pair
 let _ =
-  assert (((), 'a').format None == "((), 'a')");
+  assert (((), 'a').format == "((), 'a')");
   let fmt = PairFmt
     { opn="<|", sep="+", cls="|>"
     , fst=UnitFmt{unit="UNIT"}
     , snd=CharFmt{escape=False} } in
-  assert (((), 'a').format (Some fmt) == "<|UNIT+a|>")
+  assert (((), 'a').format {fmt} == "<|UNIT+a|>")
 
 # Everything at once
 let _ =
@@ -91,7 +93,8 @@ let _ =
         { left="L", right="R"
         , innerL=IntFmt {base=2}
         , innerR=OptionFmt
-          { none = "N", some ="S"
-          , inner = BoolFmt {true="T", false="F"}}}}} in
-  assert (d.format None == "(\"abc\", [Left 10, Right Some True, Right None])");
-  assert (d.format (Some fmt) == "{abc, [|L1010, RST, RN|]}")
+          { none="N", some="S"
+          , parenths=False
+          , inner=BoolFmt {true="T", false="F"}}}}} in
+  assert (d.format == "(\"abc\", [Left 10, Right (Some True), Right None])");
+  assert (d.format {fmt} == "{abc, [|L1010, RST, RN|]}")
