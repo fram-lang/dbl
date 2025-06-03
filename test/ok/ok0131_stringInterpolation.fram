@@ -1,31 +1,12 @@
-pub data Bool = False | True
-pub data Option A = None | Some of A
-pub data rec List A = [] | (::) of A, List A
+data rec List A = [] | (::) of A, List A
 
-method equal (self : String ) = (extern dbl_eqStr  : String -> String -> Bool) self
-method toString (self : String) = self
+data UnitFmt = UnitFmt of { ?unit : String }
 
-let printStrLn = (extern dbl_printStrLn : String -> Unit)
+method format {?prec : Int, ?fmt : UnitFmt} () =
+  match fmt with
+  | Some (UnitFmt {unit=Some name}) => name
+  | _ => "()"
+  end
 
-method format (self : String) (fmt : Option String) =
-    match fmt with
-    | None     => self
-    | Some fmt =>
-      if fmt.equal "dummyFormat" then
-        "DummyFormat"
-      else
-        "UnknownFormat"
-    end
-
-let _ = printStrLn "Normal String"
-
-let _ = printStrLn "String with single interpolation : \{"Interpolated"}"
-
-let _ = printStrLn "String with 2 interpolations : \{
-  "Interpolated1"} : \{"Interpolated2"}"
-
-let _ = printStrLn "Interpolated with formats : \{
-    "Interpolated1" | "dummyFormat"
-  } : \{
-    "Interpolated2" | "UnknownFormat"
-  }"
+let _ = "unformatted \{ () }"
+let _ = "formatted   \{ () | UnitFmt {unit="UNIT"}}"

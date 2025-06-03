@@ -539,9 +539,10 @@ and tr_expr (e : Raw.expr) =
         { pos = expr.pos
         ; data = Raw.EApp (with_nowhere (Raw.ECtor "Some"), [fmt]) }
         in
-      let method_name = { pos = expr.pos; data = "format" } in
-      let method_call = Raw.EMethodCall (expr, method_name, [format]) in
-        { pos = expr.pos; data = method_call } in
+      let fld = make (Raw.FldNameVal (Raw.NOptionalVar "fmt", format)) in
+      let mth = make (Raw.EMethod (expr, "format")) in
+      let record = with_nowhere (Raw.ERecord [fld]) in
+        with_nowhere (Raw.EApp (mth, [record])) in
     let tr_string str = with_nowhere (Raw.EStr str) in
     let rec flat_interp = function
       | (expr, fmt, str) :: xs 

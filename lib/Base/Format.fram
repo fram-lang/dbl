@@ -1,0 +1,110 @@
+import open /Base/Types
+import open /Base/Int
+import open /Base/Char
+import open /Base/String
+import open /Base/Option
+import open /Base/Int64
+import open /Base/Operators
+
+parameter X
+parameter XFmt
+
+parameter Y
+parameter YFmt
+
+## ## Unit
+
+pub method format {?prec : Int, ?fmt : Unit} () = "()"
+
+## ## Int
+
+pub method format {?prec : Int, ?fmt : Unit} (self : Int) =
+  if prec.unwrapOr 0 >= 6 && self < 0 then
+    "(" + self.toString + ")"
+  else
+    self.toString
+
+## ## Int64
+
+pub method format {?prec : Int, ?fmt : Unit} (self : Int64) =
+  if prec.unwrapOr 0 >= 6 && self < 0L then
+    "(" + self.toString + ")"
+  else
+    self.toString
+
+## ## Bool
+
+pub method format {?prec : Int, ?fmt : Unit} self =
+  if self then
+    "True"
+  else
+    "False"
+
+## ## Char
+
+pub method format {?prec : Int, ?fmt : Unit} (self : Char) =
+  "'" + self.toString + "'"
+
+## ## String
+
+pub method format {?prec : Int, ?fmt : Unit} (self : String) =
+  self.toString
+
+## ## List
+
+pub method format 
+  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
+  , ?prec : Int
+  , ?fmt : Unit } 
+  (self : List X) = 
+    let rec iter (xs : List X) =
+      match xs with
+      | [] => "]"
+      | [x] => x.format + "]"
+      | x :: xs => x.format + ", " + iter xs
+      end in
+    "[" + iter self
+
+## ## Option
+
+pub method format
+  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
+  , ?prec : Int
+  , ?fmt : Unit }
+  (self : Option X) = 
+    match self with
+    | None => "None"
+    | Some x =>
+      if prec.unwrapOr 0 >= 10 then
+        "(Some " + x.format {prec=10} + ")"
+      else
+        "Some " + x.format {prec=10}
+    end
+
+## ## Pair
+
+pub method format
+  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
+  , method format : {?prec : Int, ?fmt : YFmt} -> Y ->> String
+  , ?prec : Int
+  , ?fmt : Unit }
+  ((x, y) : Pair X Y) =
+    "(" + x.format + ", " + y.format + ")"
+
+## ## Either
+
+pub method format
+  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
+  , method format : {?prec : Int, ?fmt : YFmt} -> Y ->> String
+  , ?prec : Int
+  , ?fmt : Unit }
+  (self : Either X Y) =
+    let str =
+      match self with
+      | Left x  => "Left "  + x.format {prec=10}
+      | Right y => "Right " + y.format {prec=10}
+      end in
+    if prec.unwrapOr 0 >= 10 then
+      "(" + str + ")"
+    else
+      str

@@ -37,8 +37,6 @@ pub method pred (self : Int64) = self - 1L
 
 pub method toString = (extern dbl_int64ToString : Int64 -> String)
 
-pub method format (self : Int64) (fmt : Option Unit) = self.toString
-
 pub method toIntErr { ~onError } (self : Int64) =
   if self <= Int.maxValue.toInt64 && self >= Int.minValue.toInt64 then
     (extern dbl_int64ToInt : Int64 -> Int) self

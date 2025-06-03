@@ -31,5 +31,3 @@ pub method toList (self : String) =
   in iter self.length []
 
 pub method toString = (extern dbl_strRepr : String -> String)
-
-pub method format (self : String) (fmt : Option Unit) = self.toString

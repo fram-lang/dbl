@@ -6,8 +6,6 @@ import open Types
 
 pub method toString self = if self then "True" else "False"
 
-pub method format (self : Bool) (fmt : Option Unit) = self.toString
-
 pub method neg self =
   if self then False else True
 
