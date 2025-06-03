@@ -4,14 +4,14 @@
 
 ## # List operations
 
-## Check if a list is empty.
+## Checks if a list is empty.
 pub let isEmpty xs =
   match xs with
   | [] => True
   | _  => False
   end
 
-## Return the length of a list (number of elements).
+## Returns the length of a list (number of elements).
 pub let length xs =
   let rec lengthAux xs (res : Int) =
     match xs with
@@ -20,36 +20,46 @@ pub let length xs =
     end
   in lengthAux xs 0
 
-## Return the first element of a list or `None` if it's empty.
+## Returns the first element of a list or `None` if it's empty.
 pub let hd xs =
   match xs with
   | []      => None
   | x :: xs => Some x
   end
 
-## Return the first element of a list or call `~onError` if it's empty.
+{##
+  Returns the first element of a list or calls `~onError` if it's empty.
+
+  @param ~onError Fallback function for an empty list.
+ ##}
 pub let hdErr { ~onError } xs =
   match xs with
   | []      => ~onError ()
   | x :: xs => x
   end
 
-## Return the list without its first element or `None` if it's empty.
+## Returns the list without its first element or `None` if it's empty.
 pub let tl xs =
   match xs with
   | []      => None
   | x :: xs => Some xs
   end
 
-## Return the list without its first element or call `~onError` if it's empty
+{##
+  Returns the list without its first element or calls `~onError` if it's empty.
+
+  @param ~onError Fallback function for an empty list.
+ ##}
 pub let tlErr { ~onError } xs =
   match xs with
   | []      => ~onError ()
   | x :: xs => xs
   end
 
-{## Return the n-th element of a list or `None` if n is negative or the list
-  is too short. The first element is at position 0. ##}
+{##
+ Returns the n-th element of a list or `None` if n is negative or the list
+  is too short. The first element is at position 0.
+ ##}
 pub let nth xs (n : Int) =
   let rec nthAux xs (n : Int) =
     match xs with
@@ -58,8 +68,12 @@ pub let nth xs (n : Int) =
     end
   in if n < 0 then None else nthAux xs n
 
-{## Return the n-th element of a list or call `~onError` if n is negative
-  or the list is too short. The first element is at position 0. ##}
+{##
+  Returns the n-th element of a list or calls `~onError` if n is negative
+  or the list is too short. The first element is at position 0.
+
+  @param ~onError Fallback function for an empty list or negative index.
+ ##}
 pub let nthErr { ~onError } xs (n : Int) =
   let rec nthErrAux xs (n : Int) =
     match xs with
@@ -68,42 +82,50 @@ pub let nthErr { ~onError } xs (n : Int) =
     end
   in if n < 0 then ~onError () else nthErrAux xs n
 
-## `apppend xs ys` appends `ys` to `xs`.
+## Appends `ys` to `xs`.
 pub let rec append xs ys =
   match xs with
   | []      => ys
   | x :: xs => x :: append xs ys
   end
 
-## `revAppend xs ys` reverses `xs` and appends it to `ys`
+## Reverses the first argument and appends it to the second argument.
 pub let rec revAppend xs acc =
   match xs with
   | []      => acc
   | x :: xs => revAppend xs (x :: acc)
   end
 
-## Return the given list reversed.
+## Returns the given list reversed.
 pub let rev xs = revAppend xs []
 
-{## Concatenate a list of lists. The elements of the given list are appended
-  to each other consecutively. ##}
+{##
+  Concatenates a list of lists. The elements of the given list are appended
+  to each other consecutively.
+ ##}
 pub let rec concat xss =
   match xss with
   | []        => []
   | xs :: xss => append xs (concat xss)
   end
 
-{## `map f xs` applies `f` to elements of `xs` and returns a list
-  constructed from the results of these applications. ##}
+{##
+  `map f xs` applies `f` to elements of `xs` and returns a list
+  constructed from the results of these applications.
+ ##}
 pub let rec map f xs =
   match xs with
   | []      => []
   | x :: xs => f x :: map f xs
   end
 
-{## Same as `List.map`, but it takes an additional optional parameter `i`
-  whose default value is 0 and `f` takes an additional argument `i` which is
-  incremented with every consecutive application. ##}
+{##
+  Same as `List.map` but it takes an additional optional parameter `i` which is
+  incremented with every consecutive application of `f`, which itself takes an
+  additional argument.
+
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec mapi { ?i : Int } f xs =
   match i with
   | None   => mapi {i = 0} f xs
@@ -114,9 +136,13 @@ pub let rec mapi { ?i : Int } f xs =
     end
   end
 
-{## `map2 f xs ys` returns a list constructed by applying `f` to consecutive
+{##
+ `map2 f xs ys` returns a list constructed by applying `f` to consecutive
   pairs of elements from `xs` and `ys.
-  Calls `~onError` if the lists have different lengths. ##}
+  Calls `~onError` if the lists have different lengths.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let map2 { ~onError } f xs ys =
   let rec map2Aux xs ys =
     match xs, ys with
@@ -136,9 +162,13 @@ pub let rec revMapAppend f xs ys =
 ## `revMap f xs` returns `f` mapped onto reversed `xs`.
 pub let revMap f xs = revMapAppend f xs []
 
-{## `revMap2 f xs ys` returns a list constructed by applying `f` to consecutive
+{##
+  `revMap2 f xs ys` returns a list constructed by applying `f` to consecutive
   pairs of elements from reversed `xs` and `ys`.
-  Calls `~onError` if the lists have different lengths. ##}
+  Calls `~onError` if the lists have different lengths.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let revMap2 { ~onError } f xs ys =
   let rec revMap2Aux acc xs ys =
     match xs, ys with
@@ -155,9 +185,13 @@ pub let rec filter p xs =
   | x :: xs => if p x then x :: filter p xs else filter p xs
   end
 
-{## Same as `List.filter`, but it takes an additional optional parameter `i`
-  whose default value is 0 and `p` takes an additional argument `i` which is
-  incremented with every consecutive application. ##}
+{##
+  Same as `List.filter` but it takes an additional optional parameter `i`
+  which is incremented with every consecutive application of `p`, which itself
+  takes an additional argument.
+
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec filteri { ?i : Int } p xs =
   match i with
   | None   => filteri {i = 0} p xs
@@ -170,8 +204,10 @@ pub let rec filteri { ?i : Int } p xs =
     end
   end
 
-{## Same as `List.filter`, but `f` returns an `Option`. Returns a list of
-  arguments on which `f` returned `Some`. ##}
+{##
+  Same as `List.filter` but `f` returns an `Option`. Returns a list of
+  arguments on which `f` returned `Some`.
+ ##}
 pub let rec filterMap f xs =
   match xs with
   | []      => []
@@ -182,7 +218,11 @@ pub let rec filterMap f xs =
     end
   end
 
-## Same as `List.filterMap` and `List.filteri`.
+{##
+  Same as `List.filterMap` and `List.filteri`.
+
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec filterMapi { ?i : Int } f xs =
   match i with
   | None   => filterMapi {i = 0} f xs
@@ -200,14 +240,16 @@ pub let rec filterMapi { ?i : Int } f xs =
 ## `concatMap f xs` maps `f` onto `xs` and then concatenates the result.
 pub let concatMap f xs = concat (map f xs)
 
-## Return prefix of length n of a list or the list itself if its shorter than n.
+{##
+  Returns prefix of length n of a list or the list itself if its shorter than n.
+ ##}
 pub let rec take (n : Int) xs =
   match xs with
   | []      => []
   | x :: xs => if n == 0 then [] else x :: take (n - 1) xs
   end
 
-## Return suffix of a list after n elements or `[]` if its shorter than n,
+## Returns suffix of a list after n elements or `[]` if its shorter than n.
 pub let rec drop (n : Int) xs =
   if n <= 0 then xs else
     match xs with
@@ -215,14 +257,14 @@ pub let rec drop (n : Int) xs =
     | x :: xs => drop (n - 1) xs
     end
 
-## Return the longest prefix of a list whose elements satisfy `p`.
+## Returns the longest prefix of a list whose elements satisfy `p`.
 pub let rec takeWhile p xs =
   match xs with
   | []      => []
   | x :: xs => if p x then x :: takeWhile p xs else []
   end
 
-## Return the longest suffix of a list whose first element satisfies `p`.
+## Returns the longest suffix of a list whose first element satisfies `p`.
 pub let rec dropWhile p xs =
   match xs with
   | []       => []
@@ -236,9 +278,13 @@ pub let rec iter f xs =
   | x :: xs => f x; iter f xs
   end
 
-{## Same as `List.iter`, but it takes an additional optional parameter `i`
-  whose default value is 0 and `f` takes and additional argument `i` which
-  is incremented with every consecutive application. ##}
+{##
+  Same as `List.iter` but it takes an additional optional parameter `i`
+  which is incremented with every consecutive application of `f`, which itself
+  takes an additional argument.
+
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec iteri { ?i : Int } f xs =
   match i with
   | None   => iteri {i = 0} f xs
@@ -249,8 +295,12 @@ pub let rec iteri { ?i : Int } f xs =
     end
   end
 
-{## Apply a function to consecutive pairs of elements of the given lists.
-  Calls `~onError` if the lists have different lengths. ##}
+{##
+  Applies a function to consecutive pairs of elements of the given lists.
+  Calls `~onError` if the lists have different lengths.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let iter2 { ~onError } f xs ys =
   let rec iter2Aux xs ys =
     match xs, ys with
@@ -260,9 +310,13 @@ pub let iter2 { ~onError } f xs ys =
     end
   in iter2Aux xs ys
 
-{## `init n f` returns a list of n elements constructed by applying `f` to
+{##
+  `init n f` returns a list of n elements constructed by applying `f` to
   the index of current element. Optional parameter `i` sets the value of the
-  starting index which by default is 0. ##}
+  starting index which by default is 0.
+
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec init { ?i : Int } (len : Int) f =
   match i with
   | None    => init {i = 0} len f
@@ -287,9 +341,13 @@ pub let rec foldRight f xs acc =
   | x :: xs => f x (foldRight f xs acc)
   end
 
-{## `foldLeft2 f init xs ys` works same as `List.foldLeft` but `f` is
+{##
+  `foldLeft2 f init xs ys` works the same as `List.foldLeft` but `f` is
   applied to consecutive pairs of elements from `xs` and `ys`.
-  Calls `~onError` if the lists have different lengths. ##}
+  Calls `~onError` if the lists have different lengths.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let foldLeft2 { ~onError } f acc xs ys =
   let rec foldLeft2Aux acc xs ys =
     match xs, ys with
@@ -299,7 +357,11 @@ pub let foldLeft2 { ~onError } f acc xs ys =
     end
   in foldLeft2Aux acc xs ys
 
-## Same as `List.foldRight` and `List.foldLeft2`.
+{##
+  Same as `List.foldRight` and `List.foldLeft2`.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let foldRight2 { ~onError } f xs ys acc =
   let rec foldRight2Aux xs ys acc =
     match xs, ys with
@@ -309,15 +371,19 @@ pub let foldRight2 { ~onError } f xs ys acc =
     end
   in foldRight2Aux xs ys acc
 
-## Check if all elements of a list satisfy a predicate.
+## Checks if all elements of a list satisfy a predicate.
 pub let rec forAll p xs =
   match xs with
   | []      => True
   | x :: xs => p x && forAll p xs
   end
 
-{## Check if all consecutive pairs of elements of the given lists satisfy `p`.
-  Calls `~onError` if the lists have different lengths. ##}
+{##
+  Checks if all consecutive pairs of elements of the given lists satisfy `p`.
+  Calls `~onError` if the lists have different lengths.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let forAll2 { ~onError } p xs ys =
   let rec forAll2Aux xs ys =
     match xs, ys with
@@ -327,16 +393,20 @@ pub let forAll2 { ~onError } p xs ys =
     end
   in forAll2Aux xs ys
 
-## Check if a list contains an element which satisfies a predicate.
+## Checks if a list contains an element which satisfies a predicate.
 pub let rec exists p xs =
   match xs with
   | []      => False
   | x :: xs => p x || exists p xs
   end
 
-{## Check if there exists a pair of elements at the same position in the given
-  lists that satisfies `p`.
-  Calls `~onError` if the lists have different lengths. ##}
+{##
+  Checks if there exists a pair of elements at the same position
+  in the given lists that satisfies `p`.
+  Calls `~onError` if the lists have different lengths.
+
+  @param ~onError Fallback function for lists of different lengths.
+ ##}
 pub let exists2 { ~onError } p xs ys =
   let rec exists2Aux xs ys =
     match xs, ys with
@@ -346,16 +416,22 @@ pub let exists2 { ~onError } p xs ys =
     end
   in exists2Aux xs ys
 
-{## Return the first element of a list that satisfies `p` or `None` if
-  there is no such element. ##}
+{##
+  Returns the first element of a list that satisfies `p` or `None` if
+  there is no such element.
+ ##}
 pub let rec find p xs =
   match xs with
   | []      => None
   | x :: xs => if p x then Some x else find p xs
   end
 
-{## Return the first element of a list that satisfies `p` or call `~onError` if
-  there is no such element. ##}
+{##
+  Returns the first element of a list that satisfies `p` or calls `~onError` if
+  there is no such element.
+
+  @param ~onError Fallback function in case the predicate is not satisfied.
+ ##}
 pub let findErr { ~onError } p xs =
   let rec findErrAux p xs =
     match xs with
@@ -364,8 +440,10 @@ pub let findErr { ~onError } p xs =
     end
   in findErrAux p xs
 
-{## Return the index of the first element of a list that satisfies `p` or `None`
-  if there is no such element. ##}
+{##
+  Returns the index of the first element of a list that satisfies `p` or `None`
+  if there is no such element.
+ ##}
 pub let findIndex p xs =
   let rec findIndexAux (i : Int) xs =
     match xs with
@@ -374,8 +452,12 @@ pub let findIndex p xs =
     end
   in findIndexAux 0 xs
 
-{## Return the index of the first element of a list that satisfies `p` or call
-  `~onError` if there is no such element. ##}
+{##
+  Returns the index of the first element of a list that satisfies `p` or calls
+  `~onError` if there is no such element.
+
+  @param ~onError Fallback function in case the predicate is not satisfied.
+ ##}
 pub let findIndexErr { ~onError } p xs =
   let rec findIndexErrAux (i : Int) xs =
     match xs with
@@ -384,8 +466,10 @@ pub let findIndexErr { ~onError } p xs =
     end
   in findIndexErrAux 0 xs
 
-{## Return the first value returned as `Some v` after application of `f` to an
-  element of the given list or `None` if there is no such result. ##}
+{##
+  Returns the first value returned as `Some v` after application of `f` to an
+  element of the given list or `None` if there is no such result.
+ ##}
 pub let rec findMap f xs =
   match xs with
   | []      => None
@@ -396,8 +480,12 @@ pub let rec findMap f xs =
     end
   end
 
-{## Return the first value  returned as `Some v` after application of `f` to an
-  element of the given list or call `~onError` if there is no such result. ##}
+{##
+  Return sthe first value returned as `Some v` after application of `f` to an
+  element of the given list or calls `~onError` if there is no such result.
+
+  @param ~onError Fallback function in case the all results are `None`.
+ ##}
 pub let findMapErr { ~onError } f xs =
   let rec findMapErrAux f xs =
     match xs with
@@ -410,9 +498,13 @@ pub let findMapErr { ~onError } f xs =
     end
   in findMapErrAux f xs
 
-{## Same as `List.findMap`, but it takes an additional optional parameter `i`
-  whose default value is 0 and `f` takes an additional argument `i` which is
-  incremented with every consecutive application. ##}
+{##
+  Same as `List.findMap` but it takes an additional optional parameter `i`
+  which is incremented with every consecutive application of `f`, which itself
+  takes and additional argument.
+
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec findMapi { ?i : Int } f xs =
   match i with
   | None   => findMapi {i = 0} f xs
@@ -427,9 +519,14 @@ pub let rec findMapi { ?i : Int } f xs =
     end
   end
 
-{## Same as `List.findMapErr`, but it takes an additional optional parameter `i`
-  whose default value is 0 and `f` takes an additional argument `i` which is
-  incremented with every consecutive application. ##}
+{##
+  Same as `List.findMapErr` but it takes an additional optional parameter `i`
+  which is incremented with every consecutive application of `f`, which itself
+  takes and additional argument.
+
+  @param ~onError Fallback function in case all results are `None`.
+  @param ?i Initial value of the iterator index. Defaults to 0.
+ ##}
 pub let rec findMapiErr { ~onError, ?i : Int } f xs =
   match i with
   | None   => findMapiErr {i = 0} f xs
@@ -444,9 +541,11 @@ pub let rec findMapiErr { ~onError, ?i : Int } f xs =
     end
   end
 
-{## Return a pair whose first element is the same as `List.foldLeft` and its
+{##
+  Returns a pair whose first element is the same as `List.foldLeft` and its
   second element is a new list. `f` returns a pair of values, first being the
-  new accumulator and second being a value added to the list in the result. ##}
+  new accumulator and second being a value added to the list in the result.
+ ##}
 pub let foldLeftMap f acc xs =
   let rec foldLeftMapAux acc l_acc xs =
     match xs with
@@ -457,8 +556,10 @@ pub let foldLeftMap f acc xs =
     end
   in foldLeftMapAux acc [] xs
 
-{## Same as `List.foldLeftMap`, but `f` returns an `Option` and the accumulator
-  and constructed list are updated when the result of `f` is not `None`. ##}
+{##
+  Same as `List.foldLeftMap` but `f` returns an `Option` and the accumulator
+  and constructed list are updated when the result of `f` is not `None`.
+ ##}
 pub let foldLeftFilterMap f acc xs =
   let rec foldLeftFilterMapAux acc l_acc xs =
     match xs with
@@ -478,7 +579,7 @@ pub let foldLeftConcatMap f acc xs =
 
 ## ## Operations on lists containing comparable elements
 
-## Check if a list contains an element equal to the given value.
+## Checks if a list contains an element equal to the given value.
 pub let mem
   { E, method equal : E -> E ->[] Bool }
   (v : E) (xs : List E) =
@@ -489,8 +590,10 @@ pub let mem
     end
   in memAux xs
 
-{## Check if two lists have the same lengths and their elements at equal
-  positions are equal. ##}
+{##
+  Checks if two lists have the same lengths and their elements at equal
+  positions are equal.
+ ##}
 pub let equal
   { E, method equal : E -> E ->[] Bool }
   (xs : List E) (ys : List E) =
@@ -502,52 +605,53 @@ pub let equal
     end
   in equalAux xs ys
 
-# method versions of these functions
-implicit ~onError
+{# method versions of these functions #}
+parameter ~onError
 
-pub method isEmpty = isEmpty self
-pub method length = length self
-pub method hd = hd self
-pub method hdErr = hdErr self
-pub method tl = tl self
-pub method tlErr = tlErr self
-pub method nth n = nth self n
-pub method nthErr n = nthErr self n
-pub method append ys = append self ys
-pub method add ys = append self ys
-pub method revAppend ys = revAppend self ys
-pub method rev = rev self
-pub method concat = concat self
-pub method map f = map f self
-pub method mapi { ?i : Int } f = mapi { ?i = i } f self
-pub method revMapAppend f ys = revMapAppend f self ys
-pub method revMap f = revMap f self
-pub method filter p = filter p self
-pub method filteri { ?i : Int } p = filteri { ?i = i } p self
-pub method filterMap f = filterMap f self
-pub method concatMap f = concatMap f self
-pub method drop n = drop n self
-pub method takeWhile p = takeWhile p self
-pub method dropWhile p = dropWhile p self
-pub method iteri { ?i : Int } f = iteri { ?i = i } f self
-pub method foldLeft f acc = foldLeft f acc self
-pub method foldRight f acc = foldRight f self acc
-pub method forAll p = forAll p self
-pub method exists p = exists p self
-pub method find p = find p self
-pub method findErr p = findErr p self
-pub method findIndex p = findIndex p self
-pub method findIndexErr p = findIndexErr p self
-pub method findMap f = findMap f self
-pub method findMapErr f = findMapErr f self
-pub method findMapi { ?i : Int } f = findMapi { ?i = i } f self
-pub method findMapiErr { ?i : Int } f = findMapiErr { ?i = i } f self
-pub method foldLeftMap f acc = foldLeftMap f acc self
-pub method foldLeftFilterMap f acc = foldLeftFilterMap f acc self
-pub method foldLeftConcatMap f acc = foldLeftConcatMap f acc self
-pub method mem { E, method equal : E -> E ->[] Bool } v =
+pub method isEmpty = isEmpty
+pub method length = length
+pub method hd = hd
+pub method hdErr = hdErr
+pub method tl = tl
+pub method tlErr = tlErr
+pub method nth = nth
+pub method nthErr = nthErr
+pub method append = append
+pub method add = append
+pub method revAppend = revAppend
+pub method rev = rev
+pub method concat = concat
+pub method map self f = map f self
+pub method mapi { ?i : Int } self f = mapi { ?i = i } f self
+pub method revMapAppend self f ys = revMapAppend f self ys
+pub method revMap self f = revMap f self
+pub method filter self p = filter p self
+pub method filteri { ?i : Int } self p = filteri { ?i = i } p self
+pub method filterMap self f = filterMap f self
+pub method concatMap self f = concatMap f self
+pub method drop self n = drop n self
+pub method takeWhile self p = takeWhile p self
+pub method dropWhile self p = dropWhile p self
+pub method iter self f = iter f self
+pub method iteri { ?i : Int } self f = iteri { ?i = i } f self
+pub method foldLeft self f acc = foldLeft f acc self
+pub method foldRight self f acc = foldRight f self acc
+pub method forAll self p = forAll p self
+pub method exists self p = exists p self
+pub method find self p = find p self
+pub method findErr self p = findErr p self
+pub method findIndex self p = findIndex p self
+pub method findIndexErr self p = findIndexErr p self
+pub method findMap self f = findMap f self
+pub method findMapErr self f = findMapErr f self
+pub method findMapi { ?i : Int } self f = findMapi { ?i = i } f self
+pub method findMapiErr { ?i : Int } self f = findMapiErr { ?i = i } f self
+pub method foldLeftMap self f acc = foldLeftMap f acc self
+pub method foldLeftFilterMap self f acc = foldLeftFilterMap f acc self
+pub method foldLeftConcatMap self f acc = foldLeftConcatMap f acc self
+pub method mem { E, method equal : E -> E ->[] Bool } self v =
   mem {E} v self
-pub method equal { E, method equal : E -> E ->[] Bool } xs =
+pub method equal { E, method equal : E -> E ->[] Bool } self xs =
   equal {E} self xs
-pub method neq { E, method equal : E -> E ->[] Bool } xs =
+pub method neq { E, method equal : E -> E ->[] Bool } self xs =
   not (equal {E} self xs)
