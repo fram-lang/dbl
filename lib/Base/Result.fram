@@ -1,0 +1,31 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+import open /Base/Types
+import open /Base/Assert
+
+{## For `Ok x` returns `x`, otherwise the provided argument is returned. ##}
+pub method unwrapOr self default =
+  match self with
+  | Err _ => default
+  | Ok x  => x
+  end
+
+{## For `Ok x` returns `x`, otherwise the function `~onError` is called and
+  its result returned. ##}
+pub method unwrapErr {~onError} self =
+  match self with
+  | Err _ => ~onError ()
+  | Ok x  => x
+  end
+
+{## This method should only be called on `Ok x` values, in which case it
+  returns `x`. When applied to `Err e` the entire program crashes irrecoverably
+  with a runtime error. The resulting error message can be optionally specified
+  with `?msg`. ##}
+pub method unwrap {?msg} self =
+  match self with
+  | Err _ => runtimeError (msg.unwrapOr "Called `unwrap` on `Err`")
+  | Ok x  => x
+  end
