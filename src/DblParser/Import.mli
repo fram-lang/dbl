@@ -15,7 +15,7 @@ val import_set_empty : import_set
     required by the importer. *)
 val import_one : import_set -> Raw.import -> import_set * Lang.Surface.def list
 
-(** Parse a list of imports and their dependencies, and return the list of
+(** Parse a list of imports and their dependencies and return the list of
     definitions required by the importer. *)
 val import_many :
   import_set -> Raw.import list -> import_set * Lang.Surface.def list

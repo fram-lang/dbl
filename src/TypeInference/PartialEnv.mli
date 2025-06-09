@@ -50,7 +50,7 @@ val add_implicit :
     t -> S.iname -> T.var -> T.scheme -> t
 
 (** Add a method (the owner must exists) to the environment. It cannot shadow
-  an existing methods. *)
+  existing methods. *)
 val add_method :
   public:S.is_public -> pos:Position.t -> pp:PPTree.t ->
     t -> Name.method_owner -> S.method_name -> T.var -> T.scheme -> t

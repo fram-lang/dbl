@@ -4,7 +4,7 @@
 
 (** Reporting errors related to parsing *)
 
-(** Abstract representation of error *)
+(** Abstract representation of errors *)
 type t
 
 (** Raise fatal error and abort the compilation *)

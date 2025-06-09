@@ -179,7 +179,7 @@ type expr =
     (** Mutually recursive datatype definitions *)
 
   | ECtor of expr * int * typ list * expr list
-    (** Fully applied ADT constructor. The first argument is the ADt shape
+    (** Fully applied ADT constructor. The first argument is the ADT shape
       proof, and the second argument is the index of the constructor. The
       remaining arguments are the constructor arguments. *)
 
@@ -250,11 +250,11 @@ module TVar : sig
   (** Create fresh type variable of the effect kind. *)
   val fresh_eff : scope:Scope.t -> tvar
 
-  (** Fresh type variable, that uses metadata (ppuid, kind) from the given
+  (** Fresh type variable that uses the metadata (ppuid, kind) from the given
     Unif type variable *)
   val clone_unif : scope:Scope.t -> UnifCommon.TVar.t -> tvar
 
-  (** Fresh type variable that uses metadata from the given type variable *)
+  (** Fresh type variable that uses the metadata from the given type variable *)
   val clone : scope:Scope.t -> tvar -> tvar
 
   (** Check equality of type variables *)
@@ -288,13 +288,13 @@ module GVar : sig
   (** Update a scope of generalizable variable. The new scope should be
     an ancestor of the current one. Additionally, the list [tvars] of "bound"
     variables might be passed (all of them must have effect kind). The
-    generalizable variable is substituted with effect [Y,X1?p1, ..., Xn?pn]
+    generalizable variable is substituted with effect [Y,X1?p1, ..., Xn?pn],
     where [Y] is a fresh generalizable variable at the new scope, [X1...Xn]
     are those "bound" variables that are in the current scope of a
     generalizable variable. Each of them appears conditionally as described
-    by formulas [p1,...,pn], that are pairwise distinct fresh propositional
+    by formulas [p1,...,pn] that are pairwise distinct fresh propositional
     variables. Function returns [Y] variable, which might be the same as
-    the current one, when there are no bound variables to add. *)
+    the current one when there are no bound variables to add. *)
   val update_scope : scope:Scope.t -> tvars:tvar list -> gvar -> gvar
 
   (** Globally substitute an effect for a given generalizable variable.
@@ -330,7 +330,7 @@ module Effct : sig
   (** Join of two effects *)
   val join : effct -> effct -> effct
 
-  (** Create effect that is equal to the given effect, when the formula is
+  (** Create an effect that is equal to the given effect when the formula is
     satisfied, and equal to the pure effect when the formula is not satisfied.
     *)
   val guard : effct -> formula -> effct
@@ -361,7 +361,7 @@ module Effct : sig
   (** Apply the substitution to the effect. *)
   val subst : subst -> effct -> effct
 
-  (** Pretty-print the effect as S-expression. *)
+  (** Pretty-print the effect as an S-expression. *)
   val to_sexpr : effct -> SExpr.t
 end
 
@@ -391,7 +391,7 @@ module Type : sig
       (** Arrow type *)
 
     | TLabel   of effct * typ * effct
-      (** Label type with the delimited effect, and the type type and effect
+      (** Label type with the delimited effect, and the type and effect
         of the delimiter. *)
 
     | THandler of (** Handler type *)
@@ -480,7 +480,7 @@ module Scheme : sig
   (** Convert a type to a monomorphic scheme *)
   val of_type : typ -> scheme
 
-  (** Convert scheme to monomorphic type. Returns [None], when the scheme is
+  (** Convert scheme to monomorphic type. Returns [None] when the scheme is
     polymorphic. *)
   val to_type : scheme -> typ option
 
@@ -591,7 +591,7 @@ module Pretty : sig
   val pp_scheme : ctx -> PPTree.t -> scheme -> string
 
   (** Pretty-print additional information about printing context, e.g.,
-    locations of binders of anonymous types. *)
+    the locations of binders of anonymous types. *)
   val additional_info : ctx -> string
 end
 

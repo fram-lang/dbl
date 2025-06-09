@@ -47,9 +47,10 @@ let rec in_type_rec sub tp =
   | TUVar u ->
     (* We allow unification variables to have a scope that contains variables
       bound inside the type traversed by the substitution. However, each time
-      when we close a unification variable inside the binder we treat it in a
-      way that it has a scope that is outside the binder. Therefore, during
-      substitution we need to shrink the scope of the unification variable. *)
+      we close a unification variable inside the binder we treat it in a
+      way that causes the variable to have a scope that is outside the binder. 
+      Therefore, during substitution we need to shrink the scope of the
+      unification variable. *)
     UVar.shrink_scope u sub.scope;
     tp
   | TVar x ->

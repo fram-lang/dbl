@@ -70,7 +70,7 @@ val lookup_adt : t -> S.var -> adt_info
 (** Lookup a type alias in the environment. *)
 val lookup_type_alias : t -> S.ty_alias -> T.typ
 
-(** Enter a new scope. The returned environment has own set of constraints.
+(** Enter a new scope. The returned environment has its own set of constraints.
   When the scope is exited, the constraints should be obtained using
   [constraints] function, and (after some processing) should be added to
   the parent environment. *)
