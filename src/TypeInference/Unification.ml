@@ -73,7 +73,11 @@ let rec set_uvar env u tp =
   if T.Type.contains_uvar u tp then
     begin match T.Type.view tp with
     | TUVar u2 when T.UVar.equal u u2 -> ()
-    | TAlias(_, tp) -> set_uvar env u tp
+    | TAlias(_, tp) ->
+      (* If the type is an alias that contains the unification variable, we
+        unfold the alias, because it can be an alias to the unification
+        variable itself. *)
+      set_uvar env u tp
     | _ -> raise Error
     end
   else

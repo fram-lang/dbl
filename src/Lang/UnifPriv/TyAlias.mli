@@ -20,5 +20,5 @@ val pp_uid : t -> PPTree.uid
 (** Check if an alias can be used in a given scope *)
 val in_scope : t -> Scope.t -> bool
 
-(** Finite map from type variables *)
+(** Finite map from type aliases *)
 module Map : Map.S with type key = t
