@@ -19,6 +19,12 @@ type uvar
 (** Type variables *)
 type tvar = UnifCommon.TVar.t
 
+(** Type aliases.
+
+  Type aliases are similar to type variables, but we cannot substitute for
+  them. *)
+type ty_alias
+
 (** Name of a named type parameter *)
 type tname = UnifCommon.Names.tname =
   | TNAnon
@@ -373,6 +379,9 @@ and expr_data =
   | EData of data_def list * expr
     (** Definition of mutually recursive ADTs. *)
 
+  | ETypeAlias of ty_alias * type_expr * expr
+    (** Definition of a type alias. *)
+
   | EMatchEmpty of proof_expr * expr * typ * effct
     (** Pattern-matching of an empty type. The first parameter is an
       irrelevant expression that is a witness that the type of the second
@@ -568,6 +577,24 @@ module TVar : sig
 end
 
 (* ========================================================================= *)
+(** Operations on type aliases *)
+module TyAlias : sig
+  (** Create fresh type alias. Optionally, a unique identifier used by the
+    pretty-printer can be provided. If omitted, it will be the same as the
+    freshly generated unique identifier of the alias. *)
+  val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> unit -> ty_alias
+
+  (** Check type aliases for equality *)
+  val equal : ty_alias -> ty_alias -> bool
+
+  (** Get the unique identifier for pretty-printing *)
+  val pp_uid : ty_alias -> PPTree.uid
+
+  (** Finite map from type aliases *)
+  module Map : Map.S with type key = ty_alias
+end
+
+(* ========================================================================= *)
 (** Operations on unification variables *)
 module UVar : sig
   type t = uvar
@@ -584,9 +611,8 @@ module UVar : sig
   (** Get a scope of a unification variable *)
   val scope : t -> Scope.t
 
-  (** Set a unification variable without checking any constraints. It returns
-    expected scope of set type. *) 
-  val raw_set : t -> typ -> Scope.t
+  (** Set a unification variable without checking any constraints. *)
+  val raw_set : t -> typ -> unit
 
   (** Promote unification variable to fresh type variable *)
   val fix : t -> tvar
@@ -664,6 +690,9 @@ module Type : sig
     | TApp of typ * typ
       (** Type application *)
 
+    | TAlias   of ty_alias * typ
+      (** Type alias. It contains the unfolded type. *)
+
   (** Head of a neutral type *)
   type neutral_head =
     | NH_UVar of uvar
@@ -728,6 +757,9 @@ module Type : sig
   (** Type application to multiple arguments *)
   val t_apps : typ -> typ list -> typ
 
+  (** Type alias. It contains the unfolded type. *)
+  val t_alias : ty_alias -> typ -> typ
+
   (** Fresh unification variable (packed as type) *)
   val fresh_uvar : pos:Position.t -> scope:Scope.t -> kind -> typ
 
@@ -757,7 +789,7 @@ module Type : sig
   (** Ensure that given type fits given scope. It changes scope constraints
     of unification variables accordingly. On error, it returns escaping type
     variable. *)
-  val try_shrink_scope : scope:Scope.t -> typ -> (unit, tvar) result
+  val shrink_scope : scope:Scope.t -> typ -> (typ, tvar) result
 end
 
 (* ========================================================================= *)

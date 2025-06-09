@@ -340,6 +340,17 @@ and def_data =
         (** List of constructors *)
     }
 
+  | DType of (** Type alias *)
+    { public_tp : is_public;
+        (** A flag indicating that the type is public *)
+
+      tvar      : tvar;
+        (** Type variable that represents this type alias *)
+
+      body      : type_expr
+        (** Body of the type alias *)
+    }
+
   | DBlock of def list
     (** Block of definitions that share parameter declarations *)
 

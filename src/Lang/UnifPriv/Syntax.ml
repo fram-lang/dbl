@@ -116,6 +116,7 @@ and expr_data =
     }
   | ERecCtx     of expr
   | EData       of data_def list * expr
+  | ETypeAlias  of ty_alias * type_expr * expr
   | EMatchEmpty of proof_expr * expr * typ * effct
   | EMatch      of expr * match_clause list * typ * effct
   | EMatchPoly  of poly_expr * pattern * expr * typ * effct
