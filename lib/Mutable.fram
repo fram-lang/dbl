@@ -248,6 +248,80 @@ pub method iteri {E} (self : Array E _) f =
 pub method iter {E} (self : Array E _) f =
   self.iteri (fn _ => f)
 
+
+{## Perform right fold on array.
+  `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
+##}
+pub method foldRight {E, self : Array E _} f init =
+  let rec loop (i : Int) =
+    if i >= self.length then init
+    else f (unsafeGetArray {E} self i) (loop (i + 1))
+  in 
+  loop 0
+
+{## Perform left fold on array.
+  `a.foldLeft f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
+##}
+pub method foldLeft {E, self : Array E _} f init =
+  let rec loop (i: Int) acc = 
+    if i >= self.length then acc
+    else loop (i + 1) (f acc (unsafeGetArray {E} self i))
+  in
+  loop 0 init
+
+{## Map a function over an array.
+ `arr.map f` maps function `f` over array `arr`
+##}
+pub method map {E, self : Array E _} f =
+  let rec loop (i: Int) =
+    if i >= self.length then ()
+    else (
+      self.at i := (f (unsafeGetArray {E} self i));
+      loop (i + 1))
+  in
+  loop 0
+
+{## Concatenate two arrays.
+  `a.concatenate b` returns new array with elements from `a` followed by elements from `b`
+##}
+pub method concatenate {E, self : Array E _} (other : Array E _) =
+  let result = unsafeMakeArray {E} (self.length + other.length)
+  let rec loopset (i: Int) (j: Int) (source : Array E _) =
+    if i >= source.length then ()
+    else (
+      result.at j := (unsafeGetArray {E} source i);
+      loopset (i + 1) (j + 1) source)
+  in
+  loopset 0 0 self;
+  loopset 0 (self.length) other;
+  result
+
+{## Reverse an array.
+  `a.reverse` returns new array with elements in reversed order
+##}
+pub method reverse {E, self: Array E _} =
+  let n = self.length in
+  let result = unsafeMakeArray {E} n in
+  let rec loopset (i: Int) =
+    if i >= n then ()
+    else (
+      result.at (n - (i + 1)) := (unsafeGetArray {E} self i);
+      loopset (i + 1) )
+  in
+  loopset 0;
+  result
+
+{## Check if any element of an array satisfy a condition.
+  `a.exists f` returns `True` if function `f` returns `True` on any element of an array `a`,
+   otherwise it returns `False`
+##}
+pub method exists {E, self : Array E _} f =
+  let rec loop (i: Int) =
+    if i >= self.length then False
+    else (f (unsafeGetArray {E} self i)) || loop (i + 1)
+  in
+  loop 0
+
 {# ========================================================================= #}
 ## ## Immutable arrays
 
@@ -346,3 +420,35 @@ pub method iteri (self : ConstArray _) f =
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
 pub method iter (self : ConstArray _) f =
   self.iteri (fn _ => f)
+
+
+{## Perform right fold on immutable array.
+  `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
+##}
+pub method foldRight {self : ConstArray _} f init =
+  let rec loop (i : Int) =
+    if i >= self.length then init
+    else f (unsafeGetConstArray self i) (loop (i + 1))
+  in 
+  loop 0
+
+{## Perform left fold on immutable array.
+  `a.foldLeft f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
+##}
+pub method foldLeft {self : ConstArray  _} f init =
+  let rec loop (i: Int) acc = 
+    if i >= self.length then acc
+    else loop (i + 1) (f acc (unsafeGetConstArray self i))
+  in
+  loop 0 init
+
+{## Check if any element of an immutable array satisfy a condition.
+  `a.exists f` returns `True` if function `f` returns `True` on any element of an immutable array `a`,
+   otherwise it returns `False`
+##}
+pub method exists {E, self : ConstArray _} f =
+  let rec loop (i: Int) =
+    if i >= self.length then False
+    else (f (unsafeGetConstArray self i)) || loop (i + 1)
+  in
+  loop 0
