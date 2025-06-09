@@ -1,0 +1,12 @@
+(executable
+  (name framls)
+  (public_name framls)
+  (optional)
+  (libraries
+    yojson
+    uri
+    dblParser
+    interpLib
+    typeInference
+    toCore
+    effectInference))

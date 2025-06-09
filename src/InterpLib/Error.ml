@@ -24,7 +24,7 @@ let color_printer_generator color s =
   then s
   else TextRangePrinting.color_string color s
 
-let report ?pos ~cls msg =
+let report_to_stderr ?pos ~cls msg =
   let module Color = TextRangePrinting in
   let name, color =
     match cls with
@@ -55,6 +55,12 @@ let report ?pos ~cls msg =
       name msg pos
   | None, _ ->
     Printf.eprintf "%s: %s\n" name msg
+
+let report_impl = ref report_to_stderr
+
+let set_report_function f = report_impl := f
+
+let report ?pos ~cls msg = !report_impl ?pos ~cls msg
 
 let assert_no_error () =
   if !err_counter <> 0 then
