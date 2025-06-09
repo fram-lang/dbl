@@ -19,7 +19,7 @@ pub method format {?prec : Int, ?fmt : Unit} () = "()"
 ## ## Int
 
 pub method format {?prec : Int, ?fmt : Unit} (self : Int) =
-  if prec.unwrapOr 0 >= 6 && self < 0 then
+  if prec.unwrapOr 0 >= 150 && self < 0 then
     "(" + self.toString + ")"
   else
     self.toString
@@ -27,7 +27,7 @@ pub method format {?prec : Int, ?fmt : Unit} (self : Int) =
 ## ## Int64
 
 pub method format {?prec : Int, ?fmt : Unit} (self : Int64) =
-  if prec.unwrapOr 0 >= 6 && self < 0L then
+  if prec.unwrapOr 0 >= 150 && self < 0L then
     "(" + self.toString + ")"
   else
     self.toString
@@ -75,10 +75,10 @@ pub method format
     match self with
     | None => "None"
     | Some x =>
-      if prec.unwrapOr 0 >= 10 then
-        "(Some " + x.format {prec=10} + ")"
+      if prec.unwrapOr 0 >= 200 then
+        "(Some " + x.format {prec=200} + ")"
       else
-        "Some " + x.format {prec=10}
+        "Some " + x.format {prec=200}
     end
 
 ## ## Pair
@@ -101,10 +101,10 @@ pub method format
   (self : Either X Y) =
     let str =
       match self with
-      | Left x  => "Left "  + x.format {prec=10}
-      | Right y => "Right " + y.format {prec=10}
+      | Left x  => "Left "  + x.format {prec=200}
+      | Right y => "Right " + y.format {prec=200}
       end in
-    if prec.unwrapOr 0 >= 10 then
+    if prec.unwrapOr 0 >= 200 then
       "(" + str + ")"
     else
       str
