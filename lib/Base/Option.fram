@@ -4,6 +4,8 @@
 
 import open /Base/Types
 import open /Base/Assert
+import open /Base/String
+import open /Base/Operators
 
 {## For `Some x` returns `x`, otherwise the provided argument is returned. ##}
 pub method unwrapOr self default =
