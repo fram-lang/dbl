@@ -93,6 +93,17 @@ let add_tvar_alias ?pos ?(public=false) (Env env) name x =
     pp_tree    = PPTree.add ~public ?pos env.pp_tree name (T.TVar.pp_uid x)
   }
 
+let add_type_alias ?pos ?(public=false) (Env env) name tp =
+  let x = T.TyAlias.fresh ~scope:env.scope () in
+  let tp = T.Type.t_alias x tp in
+  let env =
+    Env { env with
+      cur_module =
+        Module.add_type_alias ~public env.cur_module name tp;
+      pp_tree = PPTree.add ~public ?pos env.pp_tree name (T.TyAlias.pp_uid x)
+    } in
+  (env, x)
+
 (* ========================================================================= *)
 
 let add_val ?(public=false) (Env env) name sch =
@@ -223,6 +234,24 @@ let unit_adt =
     Module.adt_effect = Pure
   }
 
+let bool_adt = 
+  { Module.adt_args  = [];
+    Module.adt_proof = T.PE_Bool;
+    Module.adt_ctors = 
+      [ { ctor_name        = "False";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        };
+        { ctor_name        = "True";
+          ctor_targs       = [];
+          ctor_named       = [];
+          ctor_arg_schemes = []
+        }; ];
+    Module.adt_type   = T.Type.t_bool;
+    Module.adt_effect = Pure
+  }
+
 let option_adt =
   let a = T.TVar.fresh ~scope:Scope.any T.Kind.k_type in
   { Module.adt_args  = [T.TNAnon, a];
@@ -251,6 +280,9 @@ let initial =
       T.BuiltinType.all in
   let env = add_adt env T.BuiltinType.tv_unit unit_adt in
   let env = add_ctor env "()" 0 unit_adt in
+  let env = add_adt env T.BuiltinType.tv_bool bool_adt in
+  let env = add_ctor env "False" 0 bool_adt in
+  let env = add_ctor env "True" 1 bool_adt in
   let env = add_adt env T.BuiltinType.tv_option option_adt in
   let env = add_ctor env "None" 0 option_adt in
   let env = add_ctor env "Some" 1 option_adt in
@@ -306,5 +338,5 @@ let scope (Env env) = env.scope
 
 let pp_tree (Env env) = env.pp_tree
 
-let fresh_uvar (Env env) kind =
-  T.Type.fresh_uvar ~scope:env.scope kind
+let fresh_uvar ~pos (Env env) kind =
+  T.Type.fresh_uvar ~pos ~scope:env.scope kind

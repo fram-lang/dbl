@@ -540,6 +540,8 @@ def_base
     { ($1, make_def $3 (DRecord($4, $7))) }
 | pub KW_LABEL rec_opt expr_100 effect_var_opt
     { ($1, make_def $3 (DLabel($4, $5))) }
+| pub KW_TYPE rec_opt ty_expr EQ ty_expr
+    { ($1, make_def $3 (DType($4, $6))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses
     { ($1, make_def $3 (DHandle($4, $5, $7, $8))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr

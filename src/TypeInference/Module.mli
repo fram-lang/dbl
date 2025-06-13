@@ -28,7 +28,7 @@ type adt_info = {
 
   adt_effect : T.effct
     (** An effect of pattern-matching on this type. Generally it is [Pure]
-      for strictly poisitively recursive types. *)
+      for positively recursive types. *)
 }
 
 (** Information about type *)

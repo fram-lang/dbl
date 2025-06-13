@@ -62,6 +62,7 @@ let make_visible ~is_abstract args attrs ds =
     | DOpen (_, pth) -> DOpen (true, pth)
     | DRec ds -> DRec (List.map make_vis_def ds) 
     | DBlock block -> DBlock (List.map make_vis_def block)
+    | DType ty -> DType {ty with public_tp = true}
     | other -> other
     end def
   in 

@@ -12,8 +12,8 @@ type reinst_list
 (** Empty reinstantiation list *)
 val no_reinst : reinst_list
 
-(** Imlicitly introduce all variables and named parameters, bound by given
-  scheme, to the environment. Returns extended environment, list of variables
+(** Imlicitly introduce all variables and named parameters bound by given
+  scheme to the environment. Returns extended environment, list of variables
   that could be reinstantiated, list of type variables, list of introduced
   named parameters, and the body of the scheme. *)
 val open_scheme : pos:Position.t -> 'st Env.t -> T.scheme ->

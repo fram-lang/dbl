@@ -19,6 +19,9 @@ let tv_char = TVar.fresh ~scope:Scope.initial Kind.k_type
 (** Unit type *)
 let tv_unit = TVar.fresh ~scope:Scope.initial Kind.k_type
 
+(** Bool type *)
+let tv_bool = TVar.fresh ~scope:Scope.initial Kind.k_type
+
 (** Option type *)
 let tv_option = TVar.fresh ~scope:Scope.initial
   (Kind.k_arrow Kind.k_type Kind.k_type)
@@ -33,5 +36,6 @@ let all =
     "String", tv_string;
     "Char",   tv_char;
     "Unit",   tv_unit;
+    "Bool",   tv_bool;
     "Option", tv_option;
     "IO",     tv_io ]

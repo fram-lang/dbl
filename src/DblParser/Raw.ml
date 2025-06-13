@@ -249,9 +249,11 @@ and def_data =
 
   | DLabel of expr * type_expr option
     (** Creating a new label *)
+  
+  | DType of type_expr * type_expr
+    (** Type alias *)
 
   | DHandle of expr * type_expr option * expr * h_clause list
-    (** Effect handler *)
 
   | DHandleWith of expr * type_expr option * expr
     (** Effect handler, with first-class handler *)

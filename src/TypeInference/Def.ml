@@ -8,13 +8,26 @@ open Common
 open BiDirectional
 open TypeCheckFix
 
-let switch_to_check_mode (type dir) env (req : (T.typ, dir) request) :
+let switch_to_check_mode (type dir) ~pos env (req : (T.typ, dir) request) :
     T.typ * (T.typ, dir) response =
   match req with
   | Infer ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     (tp, Infered tp)
   | Check tp -> (tp, Checked)
+
+let unfold_alias_in_type_resp (type dir) ~scope (resp : (T.typ, dir) response) :
+    (T.typ, dir) response =
+  match resp with
+  | Infered tp ->
+    begin match T.Type.shrink_scope ~scope tp with
+    | Ok tp -> Infered tp
+    | Error _ ->
+      (* Type aliases can be always unfolded, so they should never escape
+         their scope. *)
+      assert false
+    end
+  | Checked -> Checked
 
 (* ------------------------------------------------------------------------- *)
 let check_def : type st dir. tcfix:tcfix ->
@@ -68,10 +81,11 @@ let check_def : type st dir. tcfix:tcfix ->
   | DLetPat(pat, body) ->
     (* Pattern may introduce type variables. We switch to check-mode in
       order to make sure that they don't escape their scope. *)
-    let (tp, resp) = switch_to_check_mode env req in
+    let (tp, resp) = switch_to_check_mode ~pos:body.pos env req in
     let (body_env, params) = Env.begin_generalize env in
     let body = infer_expr_type body_env body in
     let body_tp = expr_result_type body in
+    ParamGen.end_generalize_impure params (T.Type.uvars body_tp);
     let (penv, pat, pat_eff) = Pattern.check_type env pat body_tp in
     let (env, _, _, ren) = PartialEnv.extend env [] penv in
     let pat = T.Ren.rename_pattern ren pat in
@@ -86,8 +100,8 @@ let check_def : type st dir. tcfix:tcfix ->
     }
 
   | DLabel(eff, pat) ->
-    let (tp, resp) = switch_to_check_mode env req in
-    let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
+    let delim_tp = Env.fresh_uvar ~pos:pat.pos env T.Kind.k_type in
     let (env, _) = Env.enter_scope env in
     let (env, name, x) = Type.check_type_arg env eff T.Kind.k_effect in
     let (env, pat, pat_eff) =
@@ -118,7 +132,7 @@ let check_def : type st dir. tcfix:tcfix ->
     let hexp = infer_expr_type hexp_env hexp in
     let hexp_tp = expr_result_type hexp in
     ParamGen.end_generalize_impure params (T.Type.uvars hexp_tp);
-    begin match Unification.to_handler env hexp_tp with
+    begin match Unification.to_handler ~pos env hexp_tp with
     | H_Handler(a, cap_tp, tp_in, tp_out) ->
       let (env, scope) = Env.enter_scope env in
       let (env, name, eff_tvar) =
@@ -165,14 +179,14 @@ let check_def : type st dir. tcfix:tcfix ->
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
       | None     ->
-        let tp = make_local (T.TE_Type (Env.fresh_uvar env T.Kind.k_type)) in
+        let tp = make_local (T.TE_Type (Env.fresh_uvar ~pos:pos env T.Kind.k_type)) in
         T.SchemeExpr.of_type_expr tp
     in
     let env = ParamGen.end_generalize_declare ~pos params env name x sch in
     cont.run env req
 
   | DData { public_tp; public_ctors; tvar=name; args; ctors } ->
-    let (tp, resp) = switch_to_check_mode env req in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
     let nonrec_scope = Env.scope env in
     let (penv, args) = Type.tr_named_type_args args in
     let kind = DataType.kind args in
@@ -190,6 +204,19 @@ let check_def : type st dir. tcfix:tcfix ->
       er_constr = rest.er_constr
     }
 
+  | DType { public_tp; tvar=name; body } ->
+    let scope = Env.scope env in
+    let (body, _) = Type.infer_kind env body in
+    let tp = T.TypeExpr.to_type body in
+    let (env, _) = Env.enter_scope env in
+    let (env, alias) = Env.add_type_alias ~pos ~public:public_tp env name tp in
+    let rest = cont.run env req in
+    { er_expr   = make rest (T.ETypeAlias(alias, body, rest.er_expr));
+      er_type   = unfold_alias_in_type_resp ~scope rest.er_type;
+      er_effect = rest.er_effect;
+      er_constr = rest.er_constr
+    }
+
   | DBlock defs ->
     let env = Env.enter_section env in
     check_defs env defs req
@@ -198,7 +225,7 @@ let check_def : type st dir. tcfix:tcfix ->
 
   | DRec defs ->
     let env = Env.enter_section env in
-    let (tp, resp) = switch_to_check_mode env req in
+    let (tp, resp) = switch_to_check_mode ~pos env req in
     let result = RecDefs.check_rec_defs ~tcfix ~pos env defs in
     let env = Env.leave_section result.rec_env in
     let rest = cont.run env (Check tp) in

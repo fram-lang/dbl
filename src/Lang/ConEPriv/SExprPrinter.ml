@@ -38,6 +38,8 @@ let rec tr_type tp =
   | TEffect eff ->
     List [Sym "effect"; Effct.to_sexpr eff]
   | TApp _ -> tr_type_app tp []
+  | TAlias (PP_UID uid, tp) ->
+    List [Sym "alias"; Sym (UID.to_string uid); tr_type tp]
 
 and tr_arrow tp =
   match view tp with
@@ -50,7 +52,7 @@ and tr_type_app tp args =
   match view tp with
   | TApp(tp1, tp2) -> tr_type_app tp1 (tr_type tp2 :: args)
 
-  | TVar _ | TArrow _ | TLabel _ | THandler _ | TEffect _ ->
+  | TVar _ | TArrow _ | TLabel _ | THandler _ | TEffect _ | TAlias _ ->
     List (Sym "app" :: tr_type tp :: args)
 
 and tr_scheme sch =
@@ -101,6 +103,7 @@ let tr_data_def (dd : data_def) =
 let rec tr_expr (e : expr) =
   match e with
   | EUnitPrf   -> Sym "unit-prf"
+  | EBoolPrf   -> Sym "bool-prf"
   | EOptionPrf -> Sym "option-prf"
   | ENum n     -> Sym (string_of_int n)
   | ENum64 n   -> Sym (Int64.to_string n ^ "L")
@@ -154,10 +157,10 @@ and tr_app e args =
   | EApp(e1, e2) -> tr_app e1 (tr_expr e2 :: args)
   | ETApp(e1, tp) -> tr_app e1 (List [ Sym "type"; tr_type tp ] :: args)
   | ECApp e1 -> tr_app e1 (Sym "constr" :: args)
-  
-  | EUnitPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
-  | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | EExtern _
+
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ 
+  | ERecCtx _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | EExtern _
   | ERepl _ | EReplExpr _ ->
     List (tr_expr e :: args)
 
@@ -179,8 +182,8 @@ and tr_defs e =
         tr_var x; tr_expr ret
       ] :: tr_defs body
 
-  | EUnitPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _
-  | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _
   | EMatch _ | EShift _ | EExtern _ | ERepl _ | EReplExpr _ ->
     [ tr_expr e ]
 

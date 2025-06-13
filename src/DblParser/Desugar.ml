@@ -71,7 +71,7 @@ type ty_def =
 
 type let_pattern =
   | LP_Id of ident
-    (** identifier *)
+    (** Identifier *)
 
   | LP_Fun of ident * Raw.expr list
     (** Function definition with list of formal type, named, and explicit
@@ -81,8 +81,8 @@ type let_pattern =
     (** Let definition with pattern-matching *)
 
 (** Apply function [f] to each element of [xs]. Function [f] returns elements
-  of [Either.t] type, that describes on which list the result should be put.
-  It warns, when elements of the right list appear before some element of the
+  of [Either.t] type that describe on which list the result should be put.
+  It warns when elements of the right list appear before some element of the
   left list using [warn] function. *)
 let rec map_either ~warn f xs =
   match xs with
@@ -262,7 +262,7 @@ let tr_ctor_decl (d : Raw.ctor_decl) =
 
 (* ========================================================================= *)
 
-(** collect fields of records from the prefix of given list of expressions.
+(** Collect fields of records from the prefix of given list of expressions.
   Returns collected fields, position of the last record-like construct
   (or accumulator [ppos] if there is no records in the prefix), and the rest
   of the expression list *)
@@ -337,7 +337,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
-(** Translate a pattern, separating out its annotation [Some sch] if present
+(** Translate a pattern, separating out its annotation [Some sch] if present,
     or returning [None] otherwise. *)
 and tr_annot_pattern (p : Raw.expr) =
   let pos = p.pos in
@@ -713,6 +713,15 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     let body = { body with data = EHandler(body, rcs, fcs) } in
     make_attr [ make (DHandlePat(pat, eff, body)) ]
+  | DType(tp, body) ->
+    make_attr
+      [ match tr_type_def tp [] with
+        | TD_Id(tvar, []) ->
+          let body = tr_type_expr body in
+          make (DType { public_tp=false; tvar; body })
+        | TD_Id(_, _ :: _) ->
+          Error.fatal (Error.type_alias_with_args pos)
+      ]
   | DHandleWith(pat, eff_opt, body) ->
     let pat = tr_pattern ~public:false pat in
     let eff = tr_type_arg_opt pos eff_opt in

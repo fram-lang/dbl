@@ -10,6 +10,7 @@ type kind = Kind.t
 
 type uvar
 type tvar = TVar.t
+type ty_alias = TyAlias.t
 
 type tname = Names.tname =
   | TNAnon
@@ -35,6 +36,7 @@ type type_view =
   | THandler of tvar * typ * typ * typ
   | TLabel   of typ
   | TApp     of typ * typ
+  | TAlias   of ty_alias * typ
 
 and scheme = {
   sch_targs : named_tvar list;
@@ -72,6 +74,9 @@ val t_label : typ -> typ
 (** Type application *)
 val t_app : typ -> typ -> typ
 
+(** Type alias. It contains the unfolded type. *)
+val t_alias : ty_alias -> typ -> typ
+
 (** Reveal a top-most constructor of a type *)
 val view : typ -> type_view
 
@@ -79,7 +84,7 @@ val view : typ -> type_view
 module UVar : sig
   type t = uvar
 
-  val fresh : scope:Scope.t -> kind -> uvar
+  val fresh : pos:Position.t -> scope:Scope.t -> kind -> uvar
 
   (** Get the kind of given unification variable *)
   val kind : t -> kind
@@ -90,9 +95,8 @@ module UVar : sig
 
   val scope : t -> Scope.t
 
-  (** Set a unification variable, without checking any constraints. It returns
-    expected scope of set type. *) 
-  val raw_set : t -> typ -> Scope.t
+  (** Set a unification variable, without checking any constraints. *)
+  val raw_set : t -> typ -> unit
 
   val fix : t -> tvar
 
@@ -101,6 +105,9 @@ module UVar : sig
   val shrink_scope : t -> Scope.t -> unit
 
   val in_scope : t -> Scope.t -> bool
+
+  (** Get position of variables first use *)
+  val pos : t -> Position.t
 
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t

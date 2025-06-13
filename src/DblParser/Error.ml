@@ -94,6 +94,9 @@ let attribute_argument_arity_mismatch pos expected actual =
 let unknown_attribute pos name = 
   (Some pos, "Unknown attribute " ^ name)
 
+let type_alias_with_args pos =
+  (Some pos, "Type aliases cannot have type arguments")
+
 let finally_before_return_clause pos =
   (Some pos, "Finally clause before return clause")
 

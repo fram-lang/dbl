@@ -16,7 +16,7 @@ type t = private {
 (** Create fresh variable *)
 val fresh : ?name:string -> unit -> t
 
-(** Return name of the variable, that is guaranteed to be unique, i.e, for
+(** Return name of the variable, that is guaranteed to be unique, i.e., for
   different variables, [unique_name] return different names *)
 val unique_name : t -> string
 
