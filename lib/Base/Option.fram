@@ -24,7 +24,7 @@ pub method unwrapErr {~onError} self =
   returns `x`. When applied to `None` the entire program crashes irrecoverably
   with a runtime error. The resulting error message can be optionally specified
   with `?msg`. ##}
-pub method unwrap {?msg} self =
+pub method unwrap {~__line__, ~__file__, ?msg} self =
   match self with
   | None   => runtimeError (msg.unwrapOr "Called `unwrap` on `None`")
   | Some x => x
