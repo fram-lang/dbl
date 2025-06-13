@@ -148,7 +148,7 @@ pub method format {?prec : Int, ?fmt : IntFmt} (self : Int) =
   # final result
   let num = prefix + charListToStr (iter self [])
   let parenths = Some (neg && (parenths.unwrapOr True))
-  let num = addParenths num 6 prec parenths in
+  let num = addParenths num 150 prec parenths in
   padding num size fill alignLeft
 
 ## ## Char
@@ -377,15 +377,15 @@ pub method format
     let OptionFmt {size, fill, alignLeft}       = fmt.unwrapOr OptionFmt
     let appInner (x : X) =
       match inner with
-      | Some fmt => x.format {prec=10, fmt}
-      | None     => x.format {prec=10}
+      | Some fmt => x.format {prec=200, fmt}
+      | None     => x.format {prec=200}
       end
     let str =
       match self with
       | None => none.unwrapOr "None"
       | Some x => 
         let str = some.unwrapOr "Some " + appInner x in
-        addParenths str 10 prec parenths
+        addParenths str 200 prec parenths
       end in
     padding str size fill alignLeft
 
@@ -489,16 +489,16 @@ pub method format
         let EitherFmt {left, innerL} = fmt.unwrapOr EitherFmt
         let left = left.unwrapOr "Left " in
         match innerL with
-        | Some fmt => left + x.format {prec=10, fmt}
-        | None     => left + x.format {prec=10}
+        | Some fmt => left + x.format {prec=200, fmt}
+        | None     => left + x.format {prec=200}
         end
       | Right y =>
         let EitherFmt {right, innerR} = fmt.unwrapOr EitherFmt
         let right = right.unwrapOr "Right " in
         match innerR with
-        | Some fmt => right + y.format {prec=10, fmt}
-        | None     => right + y.format {prec=10}
+        | Some fmt => right + y.format {prec=200, fmt}
+        | None     => right + y.format {prec=200}
         end
       end
-    let res = addParenths res 10 prec parenths in
+    let res = addParenths res 200 prec parenths in
     padding res size fill alignLeft
