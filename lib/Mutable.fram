@@ -459,3 +459,9 @@ pub method exists {E, self : ConstArray _} f =
     else (f (unsafeGetConstArray self i)) || loop (i + 1)
   in
   loop 0
+{## Check if all elements of an immutable array satisfy a condition.
+  `a.forall f` returns `False` if function `f` returns `False` on any element of the array `a`,
+  otherwise it returns `True`
+##}
+pub method forall {E, self : ConstArray _ } f =
+  not (self.exists (not f))
