@@ -10,8 +10,14 @@ pub let (- .) {method neg : T ->[E] U} (x : T) = x.neg
 
 pub let (+) {method add : T -> U} (x : T) = x.add
 pub let (-) {method sub : T -> U} (x : T) = x.sub
-pub let (%) {method mod : T -> U} (x : T) = x.mod
-pub let (/) {method div : T -> U} (x : T) = x.div
+pub let (%)
+  { ~__line__, ~__file__
+  , method mod : {~__line__, ~__file__} -> T -> U} (x : T) =
+    x.mod
+pub let (/)
+  { ~__line__, ~__file__
+  , method div : {~__line__, ~__file__} -> T -> U} (x : T) =
+    x.div
 pub let (*) {method mul : T -> U} (x : T) = x.mul
 
 pub let (==) {method equal : T -> U} (x : T) = x.equal

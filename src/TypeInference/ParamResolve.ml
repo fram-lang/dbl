@@ -219,12 +219,28 @@ and resolve_optional ~vset ~pos env rctx x sch =
 and resolve_implicit ~vset ~pos env rctx iname sch =
   let name = Name.NImplicit iname in
   match ModulePath.try_lookup_implicit ~pos env iname with
-  | None ->
-    Error.fatal (Error.cannot_resolve_implicit ~pos iname)
   | Some(x, x_sch) ->
     let vset = restrict_var ~vset ~pos ~pp:(Env.pp_tree env) x name in
     let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
     coerce_scheme ~vset ~pos ~name env e x_sch sch
+  | None ->
+    (* Special implicits *)
+    let pp = Env.pp_tree env in
+    let make data = T.{data; pos; pp} in
+    let (param, scheme) = match iname with
+      | "~__line__" -> 
+        (make (T.ENum pos.pos_start_line), BuiltinTypes.int_scheme)
+      | "~__file__" -> 
+        (make (T.EStr pos.pos_fname), BuiltinTypes.string_scheme)
+      | _ -> Error.fatal (Error.cannot_resolve_implicit ~pos iname) in
+    (* Check types *)
+    let (env, _, _, _, tp_out) = open_scheme ~pos env sch in
+    let (sub, _) = guess_types ~pos env scheme.sch_targs in
+    let tp_in = T.Type.subst sub scheme.sch_body in
+    Error.check_unify_result ~pos
+      (Unification.subtype env tp_in tp_out)
+      ~on_error:(Error.named_param_type_mismatch ~pp name tp_in tp_out);
+    (make (T.PF_Fun ([], [], param)), [])
 
 and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
   let self_tp =

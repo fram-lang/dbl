@@ -134,16 +134,18 @@ pub method length {E} =
 {## Get the nth element of an array.
 
   This function assumes that the given index is within array bounds. ##}
-pub method get {E, type T} (self : Array E T) (n : Int) =
+pub method get {E, type T, ~__line__, ~__file__} (self : Array E T) (n : Int) =
   assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
   unsafeGetArray {E} self n
 
 {## Set the nth element of an array.
 
   This function assumes that the given index is within array bounds. ##}
-pub method setAt {E, type T} (self : Array E T) (n : Int) v =
-  assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
-  unsafeSetArray {E} self n v
+pub method setAt
+  {E, type T, ~__line__, ~__file__}
+  (self : Array E T) (n : Int) v =
+    assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
+    unsafeSetArray {E} self n v
 
 {## Get the nth element of an array in order to write to it.
 
@@ -201,9 +203,11 @@ pub method toArray {E, ~mut : Mut E} (self : List _) =
 
   The size of the array provided to this method must be non-negative.
 ##}
-pub method pureInitArray {E} (self : Mut E) (n : Int) (f : _ ->[E] _) =
-  assert {msg="Array of negative size"} (n >= 0);
-  unsafeInitArray {E} n f
+pub method pureInitArray
+  {E, ~__line__, ~__file__}
+  (self : Mut E) (n : Int) (f : _ ->[E] _) =
+    assert {msg="Array of negative size"} (n >= 0);
+    unsafeInitArray {E} n f
 
 {## Same as `pureInitArray`, but it allows the function `f` to be impure. ##}
 pub method initArray {E} (self : Mut E) n f =
@@ -268,7 +272,7 @@ pub method length =
 {## Get the nth element of an immutable array.
 
   This function assumes that the given index is within array bounds. ##}
-pub method get {type T} (self : ConstArray T) (n : Int) =
+pub method get {type T, ~__line__, ~__file__} (self : ConstArray T) (n : Int) =
   assert {msg="Index out of bounds"} (n >= 0 && n < self.length);
   unsafeGetConstArray self n
 
