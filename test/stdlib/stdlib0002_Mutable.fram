@@ -150,3 +150,11 @@ let _ =
   assert((testarr3.foldLeft (fn a x => a+x) 0)==12);
   ()
 
+let arr0 = [4, 5, 6].toArray {~mut=ioMut}
+let ca2 = arr0.freeze
+
+let _ =
+  assert((ca2.foldLeft (fn a x => a-x) 0)==(-15));
+  assert((ca2.foldRight (fn x a => a-x) 0)==(-15));
+  ()
+

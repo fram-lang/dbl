@@ -427,7 +427,7 @@ pub method iter (self : ConstArray _) f =
 {## Perform right fold on immutable array.
   `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
 ##}
-pub method foldRight {self : ConstArray _} f init =
+pub method foldRight (self : ConstArray _) f init =
   let rec loop (i : Int) =
     if i >= self.length then init
     else f (unsafeGetConstArray self i) (loop (i + 1))
@@ -437,7 +437,7 @@ pub method foldRight {self : ConstArray _} f init =
 {## Perform left fold on immutable array.
   `a.foldLeft f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
 ##}
-pub method foldLeft {self : ConstArray  _} f init =
+pub method foldLeft (self : ConstArray  _) f init =
   let rec loop (i: Int) acc = 
     if i >= self.length then acc
     else loop (i + 1) (f acc (unsafeGetConstArray self i))
