@@ -107,6 +107,7 @@ let primes n =
     arr)
 
 let ptab = primes 10
+
 let _ =
   assert (ptab.get 0 == 2);
   assert (ptab.get 1 == 3);
@@ -119,3 +120,31 @@ let _ =
   assert (ptab.get 8 == 23);
   assert (ptab.get 9 == 29);
   ()
+
+let ca = [1,2,3,4].toConstArray
+
+let testarr = [1,2].toArray {~mut=ioMut}
+let testarr2 = [3,4].toArray {~mut=ioMut}
+let lst = ca.toList
+let lst2 = testarr.toList
+let process = testarr.map (fn x => x+1)
+let testarr3 = testarr.concatenate testarr2
+
+let testarr4 = testarr2.reverse
+let _ =
+  assert(lst.hdErr {~onError=(fn ()=> 2)} == 1);
+  assert(lst2.hdErr {~onError=(fn ()=> 2)} == 1);
+  assert((testarr.get 0)==2);
+  assert((testarr3.get 2)==3);
+  assert((testarr2.foldLeft (fn a x => a-x) 0)==(-7));
+  assert((testarr2.foldRight(fn x a => a-x) 0)==(-7));
+  assert((testarr.exists (fn x => x==2))==True);
+  assert((testarr.forall (fn x => x==2))==False);
+  assert((testarr.forall (fn x => x>0))==True);
+  assert((ca.exists (fn x => x>3 ))==True);
+  assert((ca.forall (fn x => x<5))==True);
+  assert((ca.exists (fn x => x<0))==False);
+  assert((ca.forall (fn x => x>1))==False);
+  assert((testarr4.get 0)==4);
+  ()
+
