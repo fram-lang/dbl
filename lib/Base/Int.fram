@@ -40,3 +40,10 @@ pub method ashiftr = (extern dbl_asrInt : Int -> Int -> Int)
 
 pub let maxValue = (extern dbl_maxInt : Int)
 pub let minValue = (extern dbl_minInt : Int)
+
+pub method abs (self : Int) =
+  if self < 0 then self.neg else self
+pub method min (self : Int) oth =
+  if self <= oth then self else oth
+pub method max (self : Int) oth =
+  if self >= oth then self else oth
