@@ -473,8 +473,8 @@ pub method exists (self : ConstArray _) f =
 pub method forall (self : ConstArray _) f =
   not (self.exists (fn x => (not (f x)) ))
 
-{## Create a new array from mapped elements of a const array.
-  `arr.map f` creates a new const array consisiting of elements (f x) where x are elements of arr. f must be pure.
+{## Create a new immutable array from mapped elements of an immutable array.
+  `arr.map f` creates a new immutable array consisiting of elements (f x) where x are elements of arr. f must be pure.
 ##}
 pub method map (self : ConstArray _) (f : _ ->[] _)=
   pureInitConstArray self.length
