@@ -126,7 +126,7 @@ let testarr = [1,2].toArray {~mut=ioMut}
 let testarr2 = [3,4].toArray {~mut=ioMut}
 let lst = ca.toList
 let lst2 = testarr.toList
-let process = testarr.map_inplace (fn x => x+1)
+let process = testarr.mapInPlace (fn x => x+1)
 let testarr3 = testarr.concat testarr2
 
 let testarr4 = testarr2.reverse

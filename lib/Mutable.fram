@@ -270,9 +270,9 @@ pub method foldLeft {E} (self : Array E _) f init =
   loop 0 init
 
 {## Map a function over an array.
- `arr.map_inplace f` maps function `f` over array `arr`
+ `arr.mapInPlace f` maps function `f` over array `arr`
 ##}
-pub method map_inplace {E} (self : Array E _) f =
+pub method mapInPlace {E} (self : Array E _) f =
   let rec loop (i: Int) =
     if i >= self.length then ()
     else (
