@@ -107,7 +107,6 @@ let primes n =
     arr)
 
 let ptab = primes 10
-
 let _ =
   assert (ptab.get 0 == 2);
   assert (ptab.get 1 == 3);
