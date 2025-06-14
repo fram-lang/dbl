@@ -203,7 +203,7 @@ type expr =
       an expression to evaluate, usually containing another REPL expression.
       *)
 
-  | EReplExpr of expr * string * expr
+  | EReplExpr of expr * string * expr * expr option
     (** Print type (second parameter), evaluate and print the first expression,
       then continue to the second expression. *)
 

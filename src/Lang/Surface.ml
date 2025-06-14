@@ -363,9 +363,9 @@ and def_data =
   | DOpen of is_public * module_name path
     (** Opening a module *)
 
-  | DReplExpr of expr
+  | DReplExpr of expr * bool
     (** Print type, evaluate, and print the expression, provided by a user in
-      REPL. *)
+      REPL. Second paramether specifies if printing uses method toString*)
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

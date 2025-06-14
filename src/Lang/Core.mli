@@ -277,8 +277,8 @@ type expr =
       The second and third parameters are type and effect of an expression
       returned by the function. *)
 
-  | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the first expression,
+  | EReplExpr of expr * string * expr * expr option
+    (** Print type (second parameter), evaluate and print the first expression (using fourth parameter if specified)),
       then continue to the second expression. *)
 
 (** Values *)
