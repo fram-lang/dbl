@@ -146,5 +146,6 @@ let _ =
   assert((ca.exists (fn x => x<0))==False);
   assert((ca.forall (fn x => x>1))==False);
   assert((testarr4.get 0)==4);
+  assert((testarr4.get 1)==3);
   ()
 

@@ -301,15 +301,10 @@ pub method concatenate {E} (self : Array E _) (other : Array E _) =
 ##}
 pub method reverse {E} (self: Array E _) =
   let n = self.length in
-  let result = unsafeMakeArray {E} n in
-  let rec loopset (i: Int) =
-    if i >= n then ()
-    else (
-      result.at (n - (i + 1)) := (unsafeGetArray {E} self i);
-      loopset (i + 1) )
-  in
-  loopset 0;
-  result
+  unsafeInitArray {E} n
+  (
+    fn i => (unsafeGetArray{E} self (n-(i+1) ) )
+  )
 
 {## Check if any element of an array satisfies a condition.
   `a.exists f` returns `True` if function `f` returns `True` on any element of an array `a`,
