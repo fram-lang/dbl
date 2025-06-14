@@ -126,7 +126,7 @@ let testarr = [1,2].toArray {~mut=ioMut}
 let testarr2 = [3,4].toArray {~mut=ioMut}
 let lst = ca.toList
 let lst2 = testarr.toList
-let process = testarr.map (fn x => x+1)
+let process = testarr.map_inplace (fn x => x+1)
 let testarr3 = testarr.concat testarr2
 
 let testarr4 = testarr2.reverse
@@ -151,9 +151,12 @@ let _ =
 
 let arr0 = [4, 5, 6].toArray {~mut=ioMut}
 let ca2 = arr0.freeze
-
+let arr1 = arr0.map (fn x=> x+1)
+let ca3 = ca2.map (fn x=> x+1)
 let _ =
   assert((ca2.foldLeft (fn a x => a-x) 0)==(-15));
   assert((ca2.foldRight (fn x a => a-x) 0)==(-15));
+  assert((arr1.foldLeft (fn a x => a-x) 0)== (-18));
+  assert((ca3.foldLeft (fn a x => a-x) 0)== (-18));
   ()
 
