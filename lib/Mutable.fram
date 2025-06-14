@@ -282,19 +282,19 @@ pub method map {E} (self : Array E _) f =
   loop 0
 
 {## Concatenate two arrays.
-  `a.concatenate b` returns new array with elements from `a` followed by elements from `b`
+  `a.concat b` returns new array with elements from `a` followed by elements from `b`
 ##}
-pub method concatenate {E} (self : Array E _) (other : Array E _) =
-  let result = unsafeMakeArray {E} (self.length + other.length)
-  let rec loopset (i: Int) (j: Int) (source : Array E _) =
-    if i >= source.length then ()
-    else (
-      result.at j := (unsafeGetArray {E} source i);
-      loopset (i + 1) (j + 1) source)
-  in
-  loopset 0 0 self;
-  loopset 0 (self.length) other;
-  result
+pub method concat {E} (self: Array E _ ) (other : Array E _) =
+  let a = self.length in
+  let b = other.length in
+  unsafeInitArray {E} (a+b) 
+  (
+    fn i =>
+    if i< a then
+      (unsafeGetArray {E} self i)
+    else
+      (unsafeGetArray {E} other (i-a))
+  )
 
 {## Reverse an array.
   `a.reverse` returns new array with elements in reversed order
