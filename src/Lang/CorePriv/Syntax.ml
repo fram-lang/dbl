@@ -40,7 +40,7 @@ type expr =
   | EShift    of value * TVar.ex list * var list * var * expr * ttype
   | EReset    of value * Type.ex list * value list * expr * var * expr
   | ERepl     of (unit -> expr) * ttype * effct
-  | EReplExpr of expr * string * expr
+  | EReplExpr of expr * string * expr * expr option
 
 and value =
   | VNum    of int
