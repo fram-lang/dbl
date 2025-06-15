@@ -120,17 +120,16 @@ let _ =
   assert (ptab.get 9 == 29);
   ()
 
-let ca = [1,2,3,4].toConstArray
-
-let testarr = [1,2].toArray {~mut=ioMut}
-let testarr2 = [3,4].toArray {~mut=ioMut}
-let lst = ca.toList
-let lst2 = testarr.toList
-let process = testarr.mapInPlace (fn x => x+1)
-let testarr3 = testarr.concat testarr2
-
-let testarr4 = testarr2.reverse
 let _ =
+  let ca = [1,2,3,4].toConstArray in
+  let testarr = [1,2].toArray {~mut=ioMut} in
+  let testarr2 = [3,4].toArray {~mut=ioMut} in
+  let lst = ca.toList in
+  let lst2 = testarr.toList in
+  testarr.mapInPlace (fn x => x+1);
+  let testarr3 = testarr.concat testarr2 in
+  let testarr4 = testarr2.reverse in
+
   assert(lst.hdErr {~onError=(fn ()=> 2)} == 1);
   assert(lst2.hdErr {~onError=(fn ()=> 2)} == 1);
   assert((testarr.get 0)==2);
@@ -149,11 +148,12 @@ let _ =
   assert((testarr3.foldLeft (fn a x => a+x) 0)==12);
   ()
 
-let arr0 = [4, 5, 6].toArray {~mut=ioMut}
-let ca2 = arr0.freeze
-let arr1 = arr0.map (fn x=> x+1)
-let ca3 = ca2.map (fn x=> x+1)
 let _ =
+  let arr0 = [4, 5, 6].toArray {~mut=ioMut} in
+  let ca2 = arr0.freeze in
+  let arr1 = arr0.map (fn x=> x+1) in
+  let ca3 = ca2.map (fn x=> x+1) in
+  
   assert((ca2.foldLeft (fn a x => a-x) 0)==(-15));
   assert((ca2.foldRight (fn x a => a-x) 0)==(-15));
   assert((arr1.foldLeft (fn a x => a-x) 0)== (-18));
