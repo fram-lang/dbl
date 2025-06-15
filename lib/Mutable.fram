@@ -296,12 +296,10 @@ pub method mapInPlace {E} (self : Array E _) f =
   `arr.map f` creates a new array consisiting of elements `(f x)` where `x` are elements of `arr`.
   `f` must be pure.
 ##}
-pub method map {E} (self : Array E _) (f : _ ->[] _)=
-  unsafeInitArray {E} self.length
-  (
+pub method map {E} (self : Array E _) (f : _ ->[] _) =
+  unsafeInitArray {E} self.length (
     fn i =>
-    (f (unsafeGetArray {E} self i))
-  )
+    (f (unsafeGetArray {E} self i)))
 
 {## 
   Concatenates two arrays.
@@ -311,13 +309,11 @@ pub method concat {E} (self: Array E _ ) (other : Array E _) =
   let a = self.length in
   let b = other.length in
   unsafeInitArray {E} (a+b) 
-  (
-    fn i =>
-    if i< a then
-      (unsafeGetArray {E} self i)
+    (fn i =>
+    if i < a then
+      unsafeGetArray {E} self i
     else
-      (unsafeGetArray {E} other (i-a))
-  )
+      unsafeGetArray {E} other (i-a))
 
 {## 
   Reverses an array.
