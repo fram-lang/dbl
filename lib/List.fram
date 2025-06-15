@@ -120,9 +120,8 @@ pub let rec map f xs =
   end
 
 {##
-  Same as `List.map` but it takes an additional optional parameter `i` which is
-  incremented with every consecutive application of `f`, which itself takes an
-  additional argument.
+  Same as `List.map` but its argument `f` takes an additional argument which
+  corresponds to index position of its first argument in `xs`.
 
   @param ?i Initial value of the iterator index. Defaults to 0.
  ##}
@@ -186,9 +185,8 @@ pub let rec filter p xs =
   end
 
 {##
-  Same as `List.filter` but it takes an additional optional parameter `i`
-  which is incremented with every consecutive application of `p`, which itself
-  takes an additional argument.
+  Same as `List.filter` but its argument `p` takes an additional argument which
+  corresponds to index position of its first argument in `xs`.
 
   @param ?i Initial value of the iterator index. Defaults to 0.
  ##}
@@ -257,14 +255,14 @@ pub let rec drop (n : Int) xs =
     | x :: xs => drop (n - 1) xs
     end
 
-## Returns the longest prefix of a list whose elements satisfy `p`.
+## Returns the longest prefix of a list of which elements satisfy `p`.
 pub let rec takeWhile p xs =
   match xs with
   | []      => []
   | x :: xs => if p x then x :: takeWhile p xs else []
   end
 
-## Returns the longest suffix of a list whose first element satisfies `p`.
+## Returns the longest suffix of a list of which first element satisfies `p`.
 pub let rec dropWhile p xs =
   match xs with
   | []       => []
@@ -467,7 +465,7 @@ pub let findIndexErr { ~onError } p xs =
   in findIndexErrAux 0 xs
 
 {##
-  Returns the first value returned as `Some v` after application of `f` to an
+  Returns the first non-`None` result from iteratively applying `f` to each
   element of the given list or `None` if there is no such result.
  ##}
 pub let rec findMap f xs =
@@ -481,7 +479,7 @@ pub let rec findMap f xs =
   end
 
 {##
-  Return sthe first value returned as `Some v` after application of `f` to an
+  Returns the first non-`None` value from iteratively applying `f` to each
   element of the given list or calls `~onError` if there is no such result.
 
   @param ~onError Fallback function in case the all results are `None`.
@@ -499,9 +497,8 @@ pub let findMapErr { ~onError } f xs =
   in findMapErrAux f xs
 
 {##
-  Same as `List.findMap` but it takes an additional optional parameter `i`
-  which is incremented with every consecutive application of `f`, which itself
-  takes and additional argument.
+  Same as `List.findMap` but its argument `f` takes an additional argument which
+  corresponds to index position of its first argument in `xs`.
 
   @param ?i Initial value of the iterator index. Defaults to 0.
  ##}
@@ -520,9 +517,8 @@ pub let rec findMapi { ?i : Int } f xs =
   end
 
 {##
-  Same as `List.findMapErr` but it takes an additional optional parameter `i`
-  which is incremented with every consecutive application of `f`, which itself
-  takes and additional argument.
+  Same as `List.findMapErr` but its argument `f` takes an additional argument which
+  corresponds to index position of its first argument in `xs`.
 
   @param ~onError Fallback function in case all results are `None`.
   @param ?i Initial value of the iterator index. Defaults to 0.
@@ -542,7 +538,7 @@ pub let rec findMapiErr { ~onError, ?i : Int } f xs =
   end
 
 {##
-  Returns a pair whose first element is the same as `List.foldLeft` and its
+  Returns a pair of which first element is the same as `List.foldLeft` and its
   second element is a new list. `f` returns a pair of values, first being the
   new accumulator and second being a value added to the list in the result.
  ##}
@@ -591,7 +587,7 @@ pub let mem
   in memAux xs
 
 {##
-  Checks if two lists have the same lengths and their elements at equal
+  Checks if two lists have the same lengths and their elements at corresponding
   positions are equal.
  ##}
 pub let equal
