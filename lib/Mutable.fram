@@ -503,7 +503,7 @@ pub method forall (self : ConstArray _) f =
   `(f x)` where `x` are elements of `arr`. 
   `f` must be pure.
 ##}
-pub method map (self : ConstArray _) (f : _ ->[] _)=
+pub method map (self : ConstArray _) (f : _ ->[] _) =
   pureInitConstArray self.length (
     fn i =>
       f (self.get i))
