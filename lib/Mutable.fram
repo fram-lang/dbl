@@ -247,7 +247,7 @@ pub method iteri {E} (self : Array E _) f =
   loop 0
 
 {## 
-Iterates function over all elements of an array.
+  Iterates function over all elements of an array.
 
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
 pub method iter {E} (self : Array E _) f =
@@ -293,27 +293,29 @@ pub method mapInPlace {E} (self : Array E _) f =
 
 {## 
   Creates a new array from mapped elements of an array.
-  `arr.map f` creates a new array consisiting of elements `(f x)` where `x` are elements of `arr`.
+  `arr.map f` creates a new array consisiting of 
+  elements `(f x)` where `x` are elements of `arr`.
   `f` must be pure.
 ##}
 pub method map {E} (self : Array E _) (f : _ ->[] _) =
   unsafeInitArray {E} self.length (
     fn i =>
-    (f (unsafeGetArray {E} self i)))
+      f (unsafeGetArray {E} self i))
 
 {## 
   Concatenates two arrays.
-  `a.concat b` returns new array with elements from `a` followed by elements from `b`
+  `a.concat b` returns new array with 
+  elements from `a` followed by elements from `b`
 ##}
 pub method concat {E} (self: Array E _ ) (other : Array E _) =
   let a = self.length in
   let b = other.length in
   unsafeInitArray {E} (a+b) 
     (fn i =>
-    if i < a then
-      unsafeGetArray {E} self i
-    else
-      unsafeGetArray {E} other (i-a))
+      if i < a then
+        unsafeGetArray {E} self i
+      else
+        unsafeGetArray {E} other (i-a))
 
 {## 
   Reverses an array.
@@ -321,15 +323,15 @@ pub method concat {E} (self: Array E _ ) (other : Array E _) =
 ##}
 pub method reverse {E} (self: Array E _) =
   let n = self.length in
-  unsafeInitArray {E} n
-  (
-    fn i => (unsafeGetArray{E} self (n-(i+1) ) )
-  )
+  unsafeInitArray {E} n (
+    fn i => 
+    (unsafeGetArray{E} self (n - i - 1 )))
 
 {## 
   Checks if any element of an array satisfies a condition.
-  `a.exists f` returns `True` if function `f` returns `True` on any element of an array `a`,
-   otherwise it returns `False`
+  `a.exists f` returns `True` if function `f` 
+  returns `True` on any element of an array `a`,
+  otherwise it returns `False`
 ##}
 pub method exists {E} (self : Array E _) f =
   let rec loop (i: Int) =
@@ -340,7 +342,8 @@ pub method exists {E} (self : Array E _) f =
 
 {## 
   Checks if all elements of an array satisfy a condition.
-  `a.forall f` returns `False` if function `f` returns `False` on any element of the array `a`,
+  `a.forall f` returns `False` if function `f`
+  returns `False` on any element of the array `a`,
   otherwise it returns `True`
 ##}
 pub method forall {E} (self : Array E _) f =
