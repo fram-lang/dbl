@@ -325,7 +325,7 @@ pub method reverse {E} (self: Array E _) =
   let n = self.length in
   unsafeInitArray {E} n (
     fn i => 
-    unsafeGetArray {E} self (n - i - 1 ))
+    unsafeGetArray {E} self (n - i - 1))
 
 {## 
   Checks if any element of an array satisfies a condition.
