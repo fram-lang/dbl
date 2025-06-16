@@ -325,7 +325,7 @@ pub method reverse {E} (self: Array E _) =
   let n = self.length in
   unsafeInitArray {E} n (
     fn i => 
-    (unsafeGetArray{E} self (n - i - 1 )))
+    unsafeGetArray {E} self (n - i - 1 ))
 
 {## 
   Checks if any element of an array satisfies a condition.
@@ -347,7 +347,7 @@ pub method exists {E} (self : Array E _) f =
   otherwise it returns `True`
 ##}
 pub method forall {E} (self : Array E _) f =
-  not (self.exists (fn x => (not (f x)) ))
+  not (self.exists (fn x => not (f x)))
 
 {# ========================================================================= #}
 ## ## Immutable arrays
@@ -453,7 +453,8 @@ pub method iter (self : ConstArray _) f =
 
 {## 
   Performs right fold on an immutable array.
-  `a.foldRight f init [a1, a2, ..., an]` is equivalent to `f a1 (f a2 (... (f an init) ...))` 
+  `a.foldRight f init [a1, a2, ..., an]` is 
+  equivalent to `f a1 (f a2 (... (f an init) ...))` 
 ##}
 pub method foldRight (self : ConstArray _) f init =
   let rec loop (i : Int) =
@@ -464,7 +465,8 @@ pub method foldRight (self : ConstArray _) f init =
 
 {## 
   Performs left fold on an immutable array.
-  `a.foldLeft f init [a1, a2, ..., an]` is equivalent to `f (... (f (f init a1) a2) ...) an` 
+  `a.foldLeft f init [a1, a2, ..., an]` is 
+  equivalent to `f (... (f (f init a1) a2) ...) an` 
 ##}
 pub method foldLeft (self : ConstArray  _) f init =
   let rec loop (i: Int) acc = 
@@ -475,7 +477,8 @@ pub method foldLeft (self : ConstArray  _) f init =
 
 {## 
   Checks if any element of an immutable array satisfies a condition.
-  `a.exists f` returns `True` if function `f` returns `True` on any element of an immutable array `a`,
+  `a.exists f` returns `True` if function 
+  `f` returns `True` on any element of an immutable array `a`,
    otherwise it returns `False`
 ##}
 pub method exists (self : ConstArray _) f =
@@ -487,19 +490,20 @@ pub method exists (self : ConstArray _) f =
 
 {## 
   Checks if all elements of an immutable array satisfy a condition.
-  `a.forall f` returns `False` if function `f` returns `False` on any element of the array `a`,
+  `a.forall f` returns `False` if function 
+  `f` returns `False` on any element of the array `a`,
   otherwise it returns `True`
 ##}
 pub method forall (self : ConstArray _) f =
-  not (self.exists (fn x => (not (f x)) ))
+  not (self.exists (fn x => not (f x)))
 
 {## 
   Creates a new immutable array from mapped elements of an immutable array.
-  `arr.map f` creates a new immutable array consisiting of elements `(f x)` where `x` are elements of `arr`. `f` must be pure.
+  `arr.map f` creates a new immutable array consisiting of elements 
+  `(f x)` where `x` are elements of `arr`. 
+  `f` must be pure.
 ##}
 pub method map (self : ConstArray _) (f : _ ->[] _)=
-  pureInitConstArray self.length
-  (
+  pureInitConstArray self.length (
     fn i =>
-    (f (self.get i))
-  )
+      f (self.get i))
