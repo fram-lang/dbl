@@ -33,7 +33,7 @@ module TVar : sig
   (** Create a fresh type variable of given kind *)
   val fresh : 'k kind -> 'k tvar
 
-  (** Create exact copy (with different UID) of a type variable *)
+  (** Create an exact copy (with different UID) of a type variable *)
   val clone : 'k tvar -> 'k tvar
 
   (** Get the kind of given type variable *)
@@ -95,7 +95,7 @@ type _ typ =
 
       The element of type [TData(tp, eff, ctors)] is a witness that type [tp]
       has constructors [ctors]. The effect [eff] is an effect of
-      pattern-matching: its pure for strictly positively recursive types,
+      pattern-matching: its pure for positively recursive types,
       and impure for other types (because it may lead to non-termination). *)
 
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
@@ -141,8 +141,8 @@ type data_def =
       ctors : ctor_type list;
         (** List of constructors. *)
 
-      strictly_positive : bool
-        (** A flag indicating if the type is strictly positively recursive (in
+      positive : bool
+        (** A flag indicating if the type is positively recursive (in
           particular, not recursive at all) and therefore can be deconstructed
           without performing NTerm effect. *)
     }
@@ -191,6 +191,9 @@ module Type : sig
 
   (** Unit type *)
   val t_unit : ttype
+
+  (** Bool type *)
+  val t_bool : ttype
 
   (** Option type *)
   val t_option : ttype -> ttype
@@ -302,7 +305,7 @@ and value =
     (** Constraint abstraction *)
 
   | VCtor of expr * int * Type.ex list * value list
-    (** Fully-applied constructor of ADT. The meaning of the parameters
+    (** Fully-applied constructor of an ADT. The meaning of the parameters
       is the following.
       - Computationally irrelevant proof that given that the type of the
         whole expression is an ADT.

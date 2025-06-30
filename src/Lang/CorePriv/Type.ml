@@ -9,6 +9,9 @@ open TypeBase
 (** Unit type *)
 let t_unit = TVar BuiltinType.tv_unit
 
+(** Bool type *)
+let t_bool = TVar BuiltinType.tv_bool
+
 (** Option type *)
 let t_option arg =
   TApp(TVar BuiltinType.tv_option, arg)
@@ -405,54 +408,85 @@ and subtype_in_scope scope (tp : ttype) =
     | _ -> None
     end
 
-(** Check if all types on non-strictly positive positions fits in given
+(** Check if all types on non-positive positions fits in given
   scope. *)
-let rec strictly_positive : type k. nonrec_scope:_ -> k typ -> bool =
+let rec positive : type k. nonrec_scope:_ -> k typ -> bool =
   fun ~nonrec_scope tp ->
   match tp with
   | TVar _ | TEffPure -> true
-  | TGuard _ | TLabel _ | TData _ ->
+  | TLabel _ | TData _ ->
     begin match type_in_scope nonrec_scope tp with
     | Some _ -> true
     | None   -> false
     end
 
+  | TGuard (constraints, tp) ->
+    positive ~nonrec_scope tp &&
+    List.for_all
+      (fun (lhs, rhs) ->
+        positive ~nonrec_scope lhs &&
+        negative ~nonrec_scope rhs)
+      constraints
+
   | TEffJoin(eff1, eff2) ->
-    strictly_positive ~nonrec_scope eff1 &&
-    strictly_positive ~nonrec_scope eff2
+    positive ~nonrec_scope eff1 &&
+    positive ~nonrec_scope eff2
 
   | TArrow(tp1, tp2, eff) ->
-    begin match
-      type_in_scope nonrec_scope tp1,
-      strictly_positive ~nonrec_scope tp2,
-      strictly_positive ~nonrec_scope eff
-    with
-    | Some _, true, true -> true
-    | _ -> false
-    end
+    negative ~nonrec_scope tp1 &&
+    positive ~nonrec_scope tp2 &&
+    positive ~nonrec_scope eff
 
   | TForall(a, tp) ->
-    strictly_positive ~nonrec_scope:(TVar.Set.add a nonrec_scope) tp
+    positive ~nonrec_scope:(TVar.Set.add a nonrec_scope) tp
 
   | TApp(tp1, tp2) ->
     begin match
-      strictly_positive ~nonrec_scope tp1,
+      positive ~nonrec_scope tp1,
       type_in_scope nonrec_scope tp2
     with
     | true, Some _ -> true
     | _ -> false
     end
 
-(** Check if all types on non-strictly positive positions fits in given
-  scope (for ADT constructors) *)
-let strictly_positive_ctor ~nonrec_scope ctor =
-  let nonrec_scope = add_tvars_to_scope ctor.ctor_tvars nonrec_scope in
-  List.for_all (strictly_positive ~nonrec_scope) ctor.ctor_arg_types
+(** Check if all types on non-negative positions fits in given
+  scope. *)
+and negative : type k. nonrec_scope:_ -> k typ -> bool =
+  fun ~nonrec_scope tp ->
+  match tp with
+  | TEffPure -> true
+  | TVar _  | TLabel _ | TData _ | TApp _ | TEffJoin _ ->
+    begin match type_in_scope nonrec_scope tp with
+    | Some _ -> true
+    | None   -> false
+    end
 
-(** Check if all types on non-strictly positive positions fits in given
+  | TGuard (constraints, tp) ->
+    negative ~nonrec_scope tp &&
+    List.for_all
+      (fun (lhs, rhs) ->
+        negative ~nonrec_scope lhs &&
+        positive ~nonrec_scope rhs)
+      constraints
+
+  | TArrow(tp1, tp2, eff) ->
+    positive ~nonrec_scope tp1 &&
+    negative ~nonrec_scope tp2 &&
+    negative ~nonrec_scope eff
+
+  | TForall(a, tp) ->
+    negative ~nonrec_scope:(TVar.Set.add a nonrec_scope) tp
+
+(** Check if all types on non-positive positions fits in given
+  scope (for ADT constructors) *)
+let positive_ctor ~nonrec_scope ctor =
+  let nonrec_scope = add_tvars_to_scope ctor.ctor_tvars nonrec_scope in
+  List.for_all (positive ~nonrec_scope) ctor.ctor_arg_types
+
+(** Check if all types on non-positive positions fits in given
   scope (for list of ADT constructors) *)
-let strictly_positive_ctors ~nonrec_scope ctors =
-  List.for_all (strictly_positive_ctor ~nonrec_scope) ctors
+let positive_ctors ~nonrec_scope ctors =
+  List.for_all (positive_ctor ~nonrec_scope) ctors
 
 type ex = Ex : 'k typ -> ex
 

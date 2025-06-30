@@ -124,7 +124,7 @@ let open_scheme_explicit ~pos env (sch : T.scheme) =
   variables. *)
 let guess_types ~pos env targs =
   let guess_type sub (_, x) =
-    let tp = Env.fresh_uvar env (T.TVar.kind x) in
+    let tp = Env.fresh_uvar ~pos env (T.TVar.kind x) in
     let tp_expr = { T.pos; T.pp = Env.pp_tree env; T.data = T.TE_Type tp } in
     (T.Subst.add_type sub x tp, tp_expr)
   in
@@ -144,7 +144,7 @@ let restrict_var ~vset ~pos ~pp x name =
 let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
   let make data = { T.pos; T.pp = Env.pp_tree env; T.data } in
   let (env, rctx, tvs, xs, tp_out) = open_scheme ~pos env sch_out in
-  (* Now, we do basically the same as in [instantiate], but we perform
+  (* Now we do basically the same as in [instantiate], but we perform
     unification just afeter guessing types, in order to get more precise
     types in resolving of named parameters. *)
   let (sub, tps) = guess_types ~pos env sch_in.sch_targs in

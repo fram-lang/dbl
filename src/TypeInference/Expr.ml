@@ -26,7 +26,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   let make data = T.{ pos; pp; data } in
   match e.data with
   | EMatch _ | EEffect _ | EExtern _ | ERepl _ ->
-    let tp = Env.fresh_uvar env T.Kind.k_type in
+    let tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let er = check_expr_type env e tp in
     { er with er_type = Infered tp }
 
@@ -71,7 +71,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
       (Inst.instantiate_poly_expr ~tcfix ~pos env e sch inst)
 
   | EFn(pat, body) ->
-    let tp2 = Env.fresh_uvar env T.Kind.k_type in
+    let tp2 = Env.fresh_uvar ~pos:body.pos env T.Kind.k_type in
     let (env, pat, sch_expr, eff1) = Pattern.infer_scheme_ext env pat in
     let sch = T.SchemeExpr.to_scheme sch_expr in
     let er_body = check_expr_type env body tp2 in
@@ -86,7 +86,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
   | EApp(e1, e2) ->
     let er1 = infer_expr_type ?app_type env e1 in
     let ftp = expr_result_type er1 in
-    begin match Unification.to_arrow env ftp with
+    begin match Unification.to_arrow ~pos:e1.pos env ftp with
     | Arr_UVar -> assert false
     | Arr_Arrow(sch, tp2, eff) ->
       begin match PolyExpr.check_def_scheme ~tcfix env e2 sch with
@@ -116,11 +116,10 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
       }
 
   | EHandler(cap, rcs, fcs) ->
-    let fin_tp = Env.fresh_uvar env T.Kind.k_type in
     (* TODO: effect and label could be named here *)
     let (env, _) = Env.enter_scope env in
     let (env, a) = Env.add_anon_tvar ~pos ~name:"E" env T.Kind.k_effect in
-    let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+    let delim_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
     let er_cap = infer_expr_type env cap in
     begin match er_cap.er_effect with
@@ -128,7 +127,8 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
     | Impure -> Error.report (Error.impure_handler ~pos)
     end;
     let cap_tp = expr_result_type er_cap in
-    let body_tp = Env.fresh_uvar env T.Kind.k_type in
+    let body_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
+    let fin_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let (ret_x, er_ret) =
       MatchClause.tr_return_clauses ~tcfix ~pos env body_tp rcs
         (Check delim_tp) in
@@ -180,7 +180,7 @@ let check_label ~tcfix ~pos env lbl_opt =
       end
   in
   let delim_tp =
-    match Unification.to_label env lbl_tp with
+    match Unification.to_label ~pos env lbl_tp with
     | L_Label delim_tp -> delim_tp
     | L_No ->
       let pp = Env.pp_tree env in
@@ -190,7 +190,7 @@ let check_label ~tcfix ~pos env lbl_opt =
       | None ->
         Error.report (Error.wrong_label_type ~pos ~pp lbl_tp)
       end;
-      Env.fresh_uvar env T.Kind.k_type
+      Env.fresh_uvar ~pos env T.Kind.k_type
   in
   (lbl, delim_tp, cs)
 
@@ -209,7 +209,7 @@ let rec check_repl_def_seq ~tcfix env def_seq tp =
           match tp_req with
           | Check tp -> (tp, Checked)
           | Infer    ->
-            let tp = Env.fresh_uvar env T.Kind.k_type in
+            let tp = Env.fresh_uvar ~pos:Position.nowhere env T.Kind.k_type in
             (tp, Infered tp)
         in
         { er_expr   = check_repl_def_seq ~tcfix env def_seq tp;
@@ -327,7 +327,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
     }
 
   | EHandler(cap, rcs, fcs) ->
-    begin match Unification.from_handler env tp with
+    begin match Unification.from_handler ~pos env tp with
     | H_Handler(b, cap_tp, tp_in, tp_out) ->
       (* TODO: effect and label could be named here *)
       let (env, scope) = Env.enter_scope env in
@@ -335,7 +335,7 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
       let sub = T.Subst.rename_tvar (T.Subst.empty ~scope) b a in
       let cap_tp = T.Type.subst sub cap_tp in
       let tp_in  = T.Type.subst sub tp_in in
-      let delim_tp = Env.fresh_uvar env T.Kind.k_type in
+      let delim_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
       let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
       let er_cap = check_expr_type env cap cap_tp in
       begin match er_cap.er_effect with

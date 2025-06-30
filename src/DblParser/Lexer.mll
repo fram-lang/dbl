@@ -44,6 +44,7 @@ let op_map =
   [ "->", ARROW
   ; "|",  BAR
   ; "=>", ARROW2
+  ; "->>", EFF_ARROW
   ; "|",  BAR
   ; ":",  COLON
   ; ",",  COMMA
@@ -189,7 +190,7 @@ and string_token pos buf = parse
       lexbuf.Lexing.lex_start_p <- pos;
       YaccParser.STR (Buffer.contents buf)
     }
-  | [^'"' '\\']+ as str {
+  | [^'"' '\\' '\n']+ as str {
       Buffer.add_string buf str;
       string_token pos buf lexbuf
     }

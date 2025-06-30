@@ -7,7 +7,7 @@ import open Operators
 import open Assert
 
 pub method toString = (extern dbl_intToString : Int -> String)
-pub method toInt64 = (extern dbl_intToInt64 : Int -> Int64)
+pub method toInt64  = (extern dbl_intToInt64 : Int -> Int64)
 
 pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool)
 pub method neq   = (extern dbl_neqInt : Int -> Int -> Bool)
@@ -37,3 +37,6 @@ pub method lxor = (extern dbl_xorInt : Int -> Int -> Int)
 pub method shiftl  = (extern dbl_lslInt : Int -> Int -> Int)
 pub method shiftr  = (extern dbl_lsrInt : Int -> Int -> Int)
 pub method ashiftr = (extern dbl_asrInt : Int -> Int -> Int)
+
+pub let maxValue = (extern dbl_maxInt : Int)
+pub let minValue = (extern dbl_minInt : Int)

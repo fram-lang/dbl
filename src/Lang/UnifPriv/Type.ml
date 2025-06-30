@@ -9,9 +9,11 @@ open TypeBase
 
 let view = TypeBase.view
 
-let fresh_uvar ~scope kind = t_uvar (UVar.fresh ~scope kind)
+let fresh_uvar ~pos ~scope kind = t_uvar (UVar.fresh ~pos ~scope kind)
 
 let t_unit = t_var BuiltinType.tv_unit
+
+let t_bool = t_var BuiltinType.tv_bool
 
 let t_option tp = t_app (t_var BuiltinType.tv_option) tp
 
@@ -33,6 +35,7 @@ let rec kind tp =
     | KType | KEffect | KUVar _ ->
       failwith "Internal kind error"
     end
+  | TAlias(_, tp) -> kind tp
 
 let rec contains_uvar u tp =
   match view tp with
@@ -46,6 +49,8 @@ let rec contains_uvar u tp =
     contains_uvar u tp0
   | TApp(tp1, tp2) ->
     contains_uvar u tp1 || contains_uvar u tp2
+  | TAlias(_, tp) ->
+    contains_uvar u tp
 
 and scheme_contains_uvar u sch =
   List.exists (fun (_, isch) -> scheme_contains_uvar u isch) sch.sch_named ||
@@ -65,6 +70,7 @@ let rec collect_uvars tp uvs =
   | TLabel tp0 -> collect_uvars tp0 uvs
   | TApp(tp1, tp2) ->
     collect_uvars tp1 (collect_uvars tp2 uvs)
+  | TAlias(_, tp) -> collect_uvars tp uvs
 
 and collect_scheme_uvars sch uvs =
   let uvs =
@@ -101,33 +107,54 @@ let add_named_tvars ~tvars tvs =
   type variables fit in given scope. The [tvars] set contains all type
   variables that are bound in the type, so they may appear even if they are
   outside of the scope. *)
-let rec shrink_scope ~tvars ~scope tp =
+let rec shrink_scope_rec ~tvars ~scope tp =
   match view tp with
-  | TEffect -> ()
-  | TUVar u -> UVar.shrink_scope u scope
-  | TVar  x -> shrink_var_scope ~tvars ~scope x
-  | TArrow(sch, tp2, _) ->
-    shrink_scheme_scope ~tvars ~scope sch;
-    shrink_scope ~tvars ~scope tp2
+  | TEffect -> tp
+  | TUVar u ->
+    UVar.shrink_scope u scope;
+    tp
+  | TVar  x ->
+    shrink_var_scope ~tvars ~scope x;
+    tp
+  | TArrow(sch, tp2, eff) ->
+    t_arrow
+      (shrink_scheme_scope_rec ~tvars ~scope sch)
+      (shrink_scope_rec ~tvars ~scope tp2)
+      eff
   | THandler(a, tp, itp, otp) ->
-    shrink_scope ~tvars ~scope otp;
+    let otp = shrink_scope_rec ~tvars ~scope otp in
     let tvars = TVar.Set.add a tvars in
-    shrink_scope ~tvars ~scope tp;
-    shrink_scope ~tvars ~scope itp
-  | TLabel tp0 -> shrink_scope ~tvars ~scope tp0
+    t_handler
+      a
+      (shrink_scope_rec ~tvars ~scope tp)
+      (shrink_scope_rec ~tvars ~scope itp)
+      otp
+  | TLabel tp0 ->
+    t_label (shrink_scope_rec ~tvars ~scope tp0)
   | TApp(tp1, tp2) ->
-    shrink_scope ~tvars ~scope tp1;
-    shrink_scope ~tvars ~scope tp2
+    t_app
+      (shrink_scope_rec ~tvars ~scope tp1)
+      (shrink_scope_rec ~tvars ~scope tp2)
+  | TAlias(a, tp) ->
+    if TyAlias.in_scope a scope then
+      t_alias a (shrink_scope_rec ~tvars ~scope tp)
+    else
+      shrink_scope_rec ~tvars ~scope tp
 
-and shrink_scheme_scope ~tvars ~scope sch =
+and shrink_scheme_scope_rec ~tvars ~scope sch =
   let tvars = add_named_tvars ~tvars sch.sch_targs in
-  List.iter (fun (_, isch) -> shrink_scheme_scope ~tvars ~scope isch)
-    sch.sch_named;
-  shrink_scope ~tvars ~scope sch.sch_body
+  { sch_targs = sch.sch_targs;
+    sch_named =
+      List.map
+        (fun (name, sch) ->
+          (name, shrink_scheme_scope_rec ~tvars ~scope sch))
+        sch.sch_named;
+    sch_body = shrink_scope_rec ~tvars ~scope sch.sch_body
+  }
 
-let try_shrink_scope ~scope tp =
-  match shrink_scope ~tvars:TVar.Set.empty ~scope tp with
-  | () -> Ok ()
+let shrink_scope ~scope tp =
+  match shrink_scope_rec ~tvars:TVar.Set.empty ~scope tp with
+  | tp -> Ok tp
   | exception Escapes_scope x -> Error x
 
 (* ========================================================================= *)
@@ -166,6 +193,7 @@ let ctor_is_positive ~scope ~args ~nonrec_scope ctor =
     | TLabel tp0 -> fits_in_scope ~tvars tp0
     | TApp(tp1, tp2) ->
       fits_in_scope ~tvars tp1 && fits_in_scope ~tvars tp2
+    | TAlias(_, tp) -> fits_in_scope ~tvars tp
 
   and scheme_fits_in_scope ~tvars sch =
     let tvars = add_named_tvars ~tvars sch.sch_targs in
@@ -199,6 +227,8 @@ let ctor_is_positive ~scope ~args ~nonrec_scope ctor =
       fits_in_scope ~tvars tp
     | TApp(tp1, tp2) ->
       is_positive ~pol ~tvars tp1 && fits_in_scope ~tvars tp2
+    | TAlias(_, tp) ->
+      is_positive ~pol ~tvars tp
 
   and scheme_is_positive ~pol ~tvars sch =
     let tvars = add_named_tvars ~tvars sch.sch_targs in

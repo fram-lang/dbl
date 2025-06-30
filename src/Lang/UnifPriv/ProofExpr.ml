@@ -9,5 +9,6 @@ open Syntax
 let subst sub (e : proof_expr) =
   match e with
   | PE_Unit        -> PE_Unit
+  | PE_Bool        -> PE_Bool
   | PE_Option tp   -> PE_Option (Subst.in_type sub tp)
   | PE_Var(x, tps) -> PE_Var(x, List.map (Subst.in_type sub) tps)

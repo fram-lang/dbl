@@ -9,7 +9,8 @@ include Names
 
 type kind = Kind.t
 
-type tvar  = TVar.t
+type tvar = TVar.t
+type ty_alias = TyAlias.t
 
 type named_tvar = tname * tvar
 
@@ -19,7 +20,8 @@ type uvar = {
   uid   : UID.t;
   kind  : kind;
   state : uvar_state BRef.t;
-  scope : Scope.t BRef.t
+  scope : Scope.t BRef.t;
+  pos   : Position.t
 }
 
 and uvar_state =
@@ -35,6 +37,7 @@ and type_view =
   | THandler of tvar * typ * typ * typ
   | TLabel   of typ
   | TApp     of typ * typ
+  | TAlias   of ty_alias * typ
 
 and scheme = {
   sch_targs : named_tvar list;
@@ -65,6 +68,8 @@ let t_label tp0 = TLabel tp0
 
 let t_app tp1 tp2 = TApp(tp1, tp2)
 
+let t_alias a tp = TAlias(a, tp)
+
 let rec view tp =
   match tp with
   | TUVar u ->
@@ -76,7 +81,8 @@ let rec view tp =
       BRef.set u.state (UV_Type tp);
       tp
     end
-  | TEffect | TVar _ | TArrow _ | THandler _ | TLabel _ | TApp _ -> tp
+  | TEffect | TVar _ | TArrow _ | THandler _ | TLabel _ | TApp _ | TAlias _ ->
+    tp
 
 module UVar = struct
   module Ordered = struct
@@ -85,11 +91,12 @@ module UVar = struct
   end
   include Ordered
 
-  let fresh ~scope kind =
+  let fresh ~pos ~scope kind =
     { uid   = UID.fresh ();
       kind  = kind;
       state = BRef.create UV_UVar;
-      scope = BRef.create scope
+      scope = BRef.create scope;
+      pos   = pos
     }
 
   let kind u = u.kind
@@ -103,9 +110,7 @@ module UVar = struct
   let raw_set u tp =
     match BRef.get u.state with
     | UV_Type _ -> assert false
-    | UV_UVar   ->
-      BRef.set u.state (UV_Type tp);
-      BRef.get u.scope
+    | UV_UVar   -> BRef.set u.state (UV_Type tp)
 
   let fix u =
     match BRef.get u.state with
@@ -120,6 +125,8 @@ module UVar = struct
 
   let in_scope u scope =
     Scope.mem (BRef.get u.scope) scope
+
+  let pos u = u.pos
 
   module Set = Set.Make(Ordered)
   module Map = Map.Make(Ordered)

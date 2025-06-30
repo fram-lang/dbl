@@ -18,12 +18,12 @@ let rec tr_type env (tp : S.typ) =
   | TUVar u ->
     begin match S.Kind.view (S.Type.kind tp) with
     | KEffect ->
-      let _ : Scope.t = S.UVar.raw_set u S.Type.t_effect in
+      S.UVar.raw_set u S.Type.t_effect;
       T.Type.t_effect (Env.fresh_gvar env)
 
     | _ ->
       (* TODO: we can handle them in the future. *)
-      Error.fatal (Error.unsolved_unification_variable ())
+      Error.fatal (Error.unsolved_unification_variable ~pos:(S.UVar.pos u))
     end
 
   | TVar x -> T.Type.t_var (Env.lookup_tvar env x)
@@ -55,6 +55,11 @@ let rec tr_type env (tp : S.typ) =
     T.Type.t_app
       (tr_type env tp1)
       (tr_type env tp2)
+
+  | TAlias(a, _) ->
+    T.Type.t_alias
+      (S.TyAlias.pp_uid a)
+      (Env.lookup_type_alias env a)
 
 and tr_scheme env (sch : S.scheme) =
   match sch.sch_targs with

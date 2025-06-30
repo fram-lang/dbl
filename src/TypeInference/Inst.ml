@@ -137,14 +137,14 @@ let build_type_params ~pos ~env insts sch_targs =
   let build_type_param sub (name, x) =
     match name with
     | T.TNAnon ->
-      let tp = Env.fresh_uvar env (T.TVar.kind x) in
+      let tp = Env.fresh_uvar ~pos env (T.TVar.kind x) in
       let tp_expr = make (T.TE_Type tp) in
       (T.Subst.add_type sub x tp, tp_expr)
 
     | T.TNVar name ->
       begin match StrMap.find_opt name insts with
       | None ->
-        let tp = Env.fresh_uvar env (T.TVar.kind x) in
+        let tp = Env.fresh_uvar ~pos env (T.TVar.kind x) in
         let tp_expr = make (T.TE_Type tp) in
         (T.Subst.add_type sub x tp, tp_expr)
 

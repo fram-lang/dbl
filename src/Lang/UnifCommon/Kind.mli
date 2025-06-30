@@ -29,7 +29,7 @@ val k_arrows : t list -> t -> t
 (** Create a fresh unification kind variable *)
 val fresh_uvar : unit -> t
 
-(** Reveal a top-most constructor of a kind *)
+(** Reveal the top-most constructor of a kind *)
 val view : t -> kind_view
 
 (** Check if given kind contains given unification variable *)

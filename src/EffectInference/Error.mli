@@ -6,7 +6,7 @@
 
 open Common
 
-(** Abstract representation of error *)
+(** Abstract representation of errors *)
 type t
 
 (** Report fatal error and abort the compilation *)
@@ -21,4 +21,4 @@ val non_exhaustive_match : pos:Position.t -> PatternContext.ctx -> t
 
 val unused_pattern : pos:Position.t -> t
 
-val unsolved_unification_variable : unit -> t
+val unsolved_unification_variable : pos:Position.t -> t

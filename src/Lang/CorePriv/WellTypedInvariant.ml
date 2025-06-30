@@ -248,7 +248,7 @@ let rec tr_tvars_sub env sub xs ys =
 
 (** Check well-formedness of datatype definition.
   In [check_data env tp xs ctors] it is checked if [ctors] are well-formed,
-  assuming the type is parametrized by [xs]. The functions returns the triple
+  assuming the type is parametrized by [xs]. The function returns the triple
   [(ys, tp_ys, ctors')], where [ys] are refreshed type variables [xs],
   [ctors'] is a refreshed constructor list [ctors], and [tp_ys] is a type [tp]
   applied to variables [ys]. This value is later used to construct types of
@@ -285,23 +285,23 @@ let prepare_data_def env (dd : data_def) =
     (env, DD_Label { lbl with tvar = a })
 
 (** Compute the effect attached to the datatype (the effect of
-  pattern-matching). Types flagged as strictly positive have pure effect
+  pattern-matching). Types flagged as positive have pure effect
   of pattern-matching, but the function ensures that provided constructors
-  are strictly positive, i.e., all type variables on non-strictly-positive
+  are positive, i.e., all type variables on non-positive
   position fit in [nonrec_scope]. The [nonrec_scope] should be a scope of
   the definition not extended with types defined in the current recursive
   block.
 
-  If the type is not flagged as strictly positive, have always NTerm effect
+  If the type is not flagged as positive, always have NTerm effect
   attached, and no extra checks are performed. *)
-let adt_effect ~nonrec_scope strictly_positive args ctors =
-  if strictly_positive then
+let adt_effect ~nonrec_scope positive args ctors =
+  if positive then
     let nonrec_scope = Type.add_tvars_to_scope args nonrec_scope in
-    if Type.strictly_positive_ctors ~nonrec_scope ctors then
+    if Type.positive_ctors ~nonrec_scope ctors then
       TEffPure
     else
       InterpLib.InternalError.report
-        ~reason:"Type is not strictly positively recursive"
+        ~reason:"Type is not positively recursive"
         ()
   else
     Effect.nterm
@@ -321,7 +321,7 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
   | DD_Data adt ->
     let (TVar.Ex a) = adt.tvar in
     let (xs, data_tp, ctors) = check_data env (TVar a) adt.args adt.ctors in
-    let eff = adt_effect ~nonrec_scope adt.strictly_positive xs ctors in
+    let eff = adt_effect ~nonrec_scope adt.positive xs ctors in
     let env =
       Env.add_irr_var env adt.proof
         (Type.t_foralls xs (TData(data_tp, eff, ctors))) in
@@ -335,7 +335,7 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
     let delim_eff = tr_type eff_env lbl.delim_eff in
     let lbl_tp = TLabel { effct; tvars; val_types; delim_tp; delim_eff } in
     let env = Env.add_var env lbl.var lbl_tp in
-    (* We add nterm effect, since generation of a fresh label is not pure *)
+    (* We add nterm effect since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
 
 (** Check block of mutually recursive type definitions.
@@ -535,7 +535,7 @@ and infer_type_check_eff env e eff =
   else failwith "Internal effect error"
 
 (** Check both type and effect of the expression. Note that this function
-  returns unit. It fails with internal type error, when the type doesn't match.
+  returns unit. It fails with internal type error when the type doesn't match.
   *)
 and check_type_eff env e tp eff =
   let (tp', eff') = infer_type_eff env e in
