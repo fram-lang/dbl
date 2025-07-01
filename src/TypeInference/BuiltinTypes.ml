@@ -33,15 +33,3 @@ let mk_some_poly ~pos ~pp tp e =
   make (T.EAppPoly(
     make (T.EInst(make (T.ECtor([], PE_Option tp, 1)), [], [])),
     e))
-
-let int_scheme =
-  T.{ sch_targs=[]; 
-      sch_named=[]; 
-      sch_body=T.Type.t_var T.BuiltinType.tv_int
-    }
-
-let string_scheme = 
-  T.{ sch_targs=[]; 
-      sch_named=[]; 
-      sch_body=T.Type.t_var T.BuiltinType.tv_string
-    }

@@ -24,7 +24,3 @@ val mk_none : pos:Position.t -> pp:PPTree.t -> T.typ -> T.expr
   constructor. *)
 val mk_some_poly : pos:Position.t -> pp:PPTree.t ->
   T.typ -> T.poly_fun -> T.expr
-
-val int_scheme : T.scheme
-
-val string_scheme : T.scheme

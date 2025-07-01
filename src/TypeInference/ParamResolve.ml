@@ -227,20 +227,16 @@ and resolve_implicit ~vset ~pos env rctx iname sch =
     (* Special implicits *)
     let pp = Env.pp_tree env in
     let make data = T.{data; pos; pp} in
-    let (param, scheme) = match iname with
+    let (param_expr, param_tvar) = match iname with
       | "~__line__" -> 
-        (make (T.ENum pos.pos_start_line), BuiltinTypes.int_scheme)
+        (make (T.ENum pos.pos_start_line), T.BuiltinType.tv_int)
       | "~__file__" -> 
-        (make (T.EStr pos.pos_fname), BuiltinTypes.string_scheme)
+        (make (T.EStr pos.pos_fname), T.BuiltinType.tv_string)
       | _ -> Error.fatal (Error.cannot_resolve_implicit ~pos iname) in
     (* Check types *)
-    let (env, _, _, _, tp_out) = open_scheme ~pos env sch in
-    let (sub, _) = guess_types ~pos env scheme.sch_targs in
-    let tp_in = T.Type.subst sub scheme.sch_body in
-    Error.check_unify_result ~pos
-      (Unification.subtype env tp_in tp_out)
-      ~on_error:(Error.named_param_type_mismatch ~pp name tp_in tp_out);
-    (make (T.PF_Fun ([], [], param)), [])
+    let param_sch = T.Scheme.of_type (T.Type.t_var param_tvar) in
+    let param = make (T.EPolyFun([], [], param_expr)) in
+    coerce_scheme ~vset ~pos ~name env param param_sch sch 
 
 and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
   let self_tp =
