@@ -31,6 +31,7 @@ let rec tr_type tp =
   | TLabel delim_tp ->
     PP_TLabel(any_effect, tr_type delim_tp, any_effect)
   | TApp(tp1, tp2) -> PP_TApp(tr_type tp1, tr_type tp2)
+  | TAlias(a, tp) -> PP_TAlias(TyAlias.pp_uid a, tr_type tp)
 
 and tr_scheme sch =
   { ppsch_targs = sch.sch_targs;

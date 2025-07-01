@@ -6,7 +6,7 @@
 
 open Common
 
-(** Abstract representation of error *)
+(** Abstract representation of errors *)
 type t
 
 (** Report fatal error and abort the compilation *)

@@ -188,7 +188,7 @@ and tr_defs (e : Syntax.expr) =
     List [Sym "let-irr"; tr_var x; tr_expr e1] :: tr_defs e2
   | ELetRec(rds, e2) ->
     List (Sym "let-rec" :: List.map tr_rec_def rds) :: tr_defs e2
-  | ERecCtx _ ->
+  | ERecCtx e ->
     List [Sym "rec-ctx"] :: tr_defs e
   | EData(dds, e2) ->
     List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2

@@ -47,9 +47,10 @@ let rec in_type_rec sub tp =
   | TUVar u ->
     (* We allow unification variables to have a scope that contains variables
       bound inside the type traversed by the substitution. However, each time
-      when we close a unification variable inside the binder we treat it in a
-      way that it has a scope that is outside the binder. Therefore, during
-      substitution we need to shrink the scope of the unification variable. *)
+      we close a unification variable inside the binder we treat it in a
+      way that causes the variable to have a scope that is outside the binder. 
+      Therefore, during substitution we need to shrink the scope of the
+      unification variable. *)
     UVar.shrink_scope u sub.scope;
     tp
   | TVar x ->
@@ -69,6 +70,8 @@ let rec in_type_rec sub tp =
     t_label (in_type_rec sub tp0)
   | TApp(tp1, tp2) ->
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
+  | TAlias(a, tp) ->
+    t_alias a (in_type_rec sub tp)
 
 and in_scheme_rec sub sch =
   let (sub, tvars) = add_named_tvars (enter_scope sub) sch.sch_targs in

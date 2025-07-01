@@ -144,7 +144,7 @@ let restrict_var ~vset ~pos ~pp x name =
 let rec coerce_scheme ~vset ~pos ~name env e (sch_in : T.scheme) sch_out =
   let make data = { T.pos; T.pp = Env.pp_tree env; T.data } in
   let (env, rctx, tvs, xs, tp_out) = open_scheme ~pos env sch_out in
-  (* Now, we do basically the same as in [instantiate], but we perform
+  (* Now we do basically the same as in [instantiate], but we perform
     unification just afeter guessing types, in order to get more precise
     types in resolving of named parameters. *)
   let (sub, tps) = guess_types ~pos env sch_in.sch_targs in

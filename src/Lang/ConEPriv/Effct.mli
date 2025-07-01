@@ -60,7 +60,7 @@ val cons : TVar.t -> formula -> t -> t
 (** Join of two effects *)
 val join : t -> t -> t
 
-(** Create effect that is equal to the given effect, when the formula is
+(** Create effect that is equal to the given effect when the formula is
   satisfied, and equal to the pure effect when the formula is not satisfied.
   *)
 val guard : t -> formula -> t
@@ -85,7 +85,7 @@ val take_tvars : t -> (TVar.t * formula) list * t
   a type variable is included in the effect. *)
 val lookup_tvar : t -> TVar.t -> formula
 
-(** Lookup a generalizable variable in the effect. Returns formula that
+(** Lookup a generalizable variable in the effect. Returns a formula that
   indicates if a generalizable variable is included in the effect. *)
 val lookup_gvar : t -> gvar -> formula
 
@@ -93,5 +93,5 @@ val lookup_gvar : t -> gvar -> formula
   scope and add them to the given set. *)
 val collect_gvars : scope:Scope.t -> t -> GVar.Set.t -> GVar.Set.t
 
-(** Pretty-print the effect as S-expression. *)
+(** Pretty-print the effect as an S-expression. *)
 val to_sexpr : t -> SExpr.t

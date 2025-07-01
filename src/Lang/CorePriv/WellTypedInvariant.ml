@@ -248,7 +248,7 @@ let rec tr_tvars_sub env sub xs ys =
 
 (** Check well-formedness of datatype definition.
   In [check_data env tp xs ctors] it is checked if [ctors] are well-formed,
-  assuming the type is parametrized by [xs]. The functions returns the triple
+  assuming the type is parametrized by [xs]. The function returns the triple
   [(ys, tp_ys, ctors')], where [ys] are refreshed type variables [xs],
   [ctors'] is a refreshed constructor list [ctors], and [tp_ys] is a type [tp]
   applied to variables [ys]. This value is later used to construct types of
@@ -292,7 +292,7 @@ let prepare_data_def env (dd : data_def) =
   the definition not extended with types defined in the current recursive
   block.
 
-  If the type is not flagged as positive, have always NTerm effect
+  If the type is not flagged as positive, always have NTerm effect
   attached, and no extra checks are performed. *)
 let adt_effect ~nonrec_scope positive args ctors =
   if positive then
@@ -335,7 +335,7 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
     let delim_eff = tr_type eff_env lbl.delim_eff in
     let lbl_tp = TLabel { effct; tvars; val_types; delim_tp; delim_eff } in
     let env = Env.add_var env lbl.var lbl_tp in
-    (* We add nterm effect, since generation of a fresh label is not pure *)
+    (* We add nterm effect since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
 
 (** Check block of mutually recursive type definitions.
@@ -535,7 +535,7 @@ and infer_type_check_eff env e eff =
   else failwith "Internal effect error"
 
 (** Check both type and effect of the expression. Note that this function
-  returns unit. It fails with internal type error, when the type doesn't match.
+  returns unit. It fails with internal type error when the type doesn't match.
   *)
 and check_type_eff env e tp eff =
   let (tp', eff') = infer_type_eff env e in

@@ -71,7 +71,7 @@ type ty_def =
 
 type let_pattern =
   | LP_Id of ident
-    (** identifier *)
+    (** Identifier *)
 
   | LP_Fun of ident * Raw.expr list
     (** Function definition with list of formal type, named, and explicit
@@ -81,8 +81,8 @@ type let_pattern =
     (** Let definition with pattern-matching *)
 
 (** Apply function [f] to each element of [xs]. Function [f] returns elements
-  of [Either.t] type, that describes on which list the result should be put.
-  It warns, when elements of the right list appear before some element of the
+  of [Either.t] type that describe on which list the result should be put.
+  It warns when elements of the right list appear before some element of the
   left list using [warn] function. *)
 let rec map_either ~warn f xs =
   match xs with
@@ -262,7 +262,7 @@ let tr_ctor_decl (d : Raw.ctor_decl) =
 
 (* ========================================================================= *)
 
-(** collect fields of records from the prefix of given list of expressions.
+(** Collect fields of records from the prefix of given list of expressions.
   Returns collected fields, position of the last record-like construct
   (or accumulator [ppos] if there is no records in the prefix), and the rest
   of the expression list *)
@@ -337,7 +337,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
-(** Translate a pattern, separating out its annotation [Some sch] if present
+(** Translate a pattern, separating out its annotation [Some sch] if present,
     or returning [None] otherwise. *)
 and tr_annot_pattern ~public (p : Raw.expr) =
   let pos = p.pos in
@@ -713,6 +713,15 @@ and tr_def ?(public=false) (def : Raw.def) =
     let pat = tr_pattern ~public pat in
     let eff = tr_type_arg_opt def.pos eff_opt in
     [ make (DLabel (eff, pat)) ]
+  | DType(pub, tp, body) ->
+    let public_tp = public || pub in
+    [ match tr_type_def tp [] with
+      | TD_Id(tvar, []) ->
+        let body = tr_type_expr body in
+        make (DType { public_tp; tvar; body })
+      | TD_Id(_, _ :: _) ->
+        Error.fatal (Error.type_alias_with_args pos)
+    ]
   | DHandle(pub, pat, eff_opt, body, hcs) ->
     let public = public || pub in
     let pat = tr_pattern ~public pat in
@@ -768,9 +777,9 @@ and tr_h_clause (hc : Raw.h_clause) =
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern ~public:false pat, tr_expr body)))
 
-(** Returns: list of explicit type annotations with fresh type variable names
-    and a function that given a field name returns piece of code that
-    represents pattern which pulls out this variable, making it easy to use in
+(** Returns: a list of explicit type annotations with fresh type variable names,
+    and a function, that given a field name, returns a piece of code that
+    represents a pattern which pulls out this variable, making it easy to use in
     generated code *)
 and generate_accessor_method_pattern named_type_args type_name =
   let make data = { data; pos=Position.nowhere } in

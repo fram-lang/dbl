@@ -4,7 +4,7 @@
 
 (** Main module for reporting errors *)
 
-(** Fatal error, that aborts compilation *)
+(** Fatal error that aborts compilation *)
 exception Fatal_error
 
 (** Class of the error *)
@@ -19,7 +19,7 @@ type error_class =
     (** Warning. Does not abort the compilation. *)
 
   | Note
-    (** Just note. *)
+    (** Just a note. *)
 
 (** Report the error *)
 val report : ?pos:Position.t -> cls:error_class -> string -> unit

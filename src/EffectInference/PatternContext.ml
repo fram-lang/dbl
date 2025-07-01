@@ -37,7 +37,7 @@ type ctx =
       The left list of example patterns is
       in reversed order *)
 
-(** Plug given example pattern into the context, and focus on the next hole *)
+(** Plug given example pattern into the context and focus on the next hole *)
 let rec refocus_with ctx ex =
   match ctx with
   | CtxRoot   -> CtxDone ex
@@ -88,7 +88,7 @@ and try_focus_ctor_p ctx name ims left right =
 let refocus ctx =
   refocus_with ctx ExWildcard
 
-(** Plug given example pattern into the context, and focus on the next hole,
+(** Plug given example pattern into the context and focus on the next hole,
   possibly in the plugged pattern *)
 let focus_with ctx ex =
   match try_focus ctx ex with
