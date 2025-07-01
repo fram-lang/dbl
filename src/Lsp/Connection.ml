@@ -26,8 +26,8 @@ type headers =
 
 let parse_header headers line =
   match String.split_on_char ':' line |> List.map String.trim with
-  | ["Content-Length"; value] -> begin
-    match int_of_string_opt value with
+  | ["Content-Length"; value] ->
+    begin match int_of_string_opt value with
     | None -> raise (Connection_error ("Invalid Content-Length value: " ^ line))
     | Some len -> { headers with content_length = Some len }
     end

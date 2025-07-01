@@ -87,24 +87,22 @@ let from_range range =
 let range_of_position (pos : Position.t) =
   match pos.pos_fname with
   | "<nowhere>" ->
-    {
-      start = {
-        line = 0;
+    { start =
+      { line = 0;
         character = 0;
       };
-      end_ =  {
-        line = 0;
+      end_ =
+      { line = 0;
         character = 0;
       }
     }
   | _ ->
-    {
-      start = {
-        line      = pos.pos_start_line - 1;
+    { start =
+      { line      = pos.pos_start_line - 1;
         character = Position.start_column pos - 1
       };
-      end_  = {
-        line      = pos.pos_end_line - 1;
+      end_ =
+      { line      = pos.pos_end_line - 1;
         character = Position.end_column pos
       };
     }
@@ -323,7 +321,8 @@ let from_diagnostic d =
     ("source", from_option from_string d.source);
     ("message", from_string d.message);
     ("tags", from_option from_diagnostic_tag d.tags);
-    ("relatedInformation", from_list from_diagnostic_related_information d.related_information);
+    ("relatedInformation",
+      from_list from_diagnostic_related_information d.related_information);
     ("data", from_option from_json d.data);
   ]
 

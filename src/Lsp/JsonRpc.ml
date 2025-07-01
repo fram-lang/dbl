@@ -44,8 +44,8 @@ let run state handle_request handle_notification =
       send_error state code msg;
       loop state
     (* The message is a notification *)
-    | Ok ({ id = None; _ } as message) -> begin
-      match notification_of_message message with
+    | Ok ({ id = None; _ } as message) ->
+      begin match notification_of_message message with
       | Ok notification ->
         let state = handle_notification state notification in
         loop state
@@ -56,8 +56,8 @@ let run state handle_request handle_notification =
         loop state
       end
     (* The message is a request *)
-    | Ok ({ id = Some id; _ } as message) -> begin
-      match request_of_message message with
+    | Ok ({ id = Some id; _ } as message) ->
+      begin match request_of_message message with
       | Ok request ->
         let state, result = handle_request state request in
         let response = make_response ~id ~result_or_error:result () in
