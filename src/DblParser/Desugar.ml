@@ -532,17 +532,18 @@ and tr_expr (e : Raw.expr) =
   | EChr c -> make (EChr c)
   | EInterp (s, xs) ->
     let tr_format (expr : Raw.expr) (fmt : Raw.expr option) = 
-      let format = match fmt with
-      | None   -> 
-        { pos = expr.pos; data = Raw.ECtor "None" }
+      let mth = { pos = expr.pos; data = (Raw.EMethod (expr, "format"))} in
+      match fmt with
       | Some fmt ->  
-        { pos = expr.pos
-        ; data = Raw.EApp (with_nowhere (Raw.ECtor "Some"), [fmt]) }
-        in
-      let fld = make (Raw.FldNameVal (Raw.NOptionalVar "fmt", format)) in
-      let mth = make (Raw.EMethod (expr, "format")) in
-      let record = with_nowhere (Raw.ERecord [fld]) in
-        with_nowhere (Raw.EApp (mth, [record])) in
+        let format = 
+          with_nowhere 
+            (Raw.EApp ({pos = fmt.pos; data = (Raw.ECtor "Some")}, [fmt])) in
+        let fld =
+          { pos  = format.pos
+          ; data = Raw.FldNameVal (Raw.NOptionalVar "fmt", format)} in
+        let record = with_nowhere (Raw.ERecord [fld]) in
+          with_nowhere (Raw.EApp (mth, [record]))
+      | None -> mth in
     let tr_string str = with_nowhere (Raw.EStr str) in
     let rec flat_interp = function
       | (expr, fmt, str) :: xs 
