@@ -15,24 +15,34 @@ let return x cont = cont x
 let rec tr_expr env (e : S.expr) =
   match e with
   | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | EVar _ | EFn _ | ETFun _ | ECAbs _ | ECtor _ | EExtern _ | ERepl _ 
-  | EReplExpr _ ->
+  | EVar _ | EExtern _ | ERepl _ | EReplExpr _ ->
     let^ v = tr_expr_v env e in
     T.EValue v
 
+  | EFn(x, sch, body) ->
+    let tp = Type.tr_scheme env sch in
+    T.EFn(x, tp, tr_expr env body)
+
+  | ETFun(x, body) ->
+    let (env, Ex x) = Env.add_tvar env x in
+    T.ETFun(x, tr_expr env body)
+
+  | ECAbs(cs, body) ->
+    T.ECAbs(List.map (Type.tr_constr env) cs, tr_expr env body)
+
   | EApp(e1, e2) ->
-    let^ v1 = tr_expr_v env e1 in
+    let^ e1 = tr_expr_p env e1 in
     let^ v2 = tr_expr_v env e2 in
-    T.EApp(v1, v2)
+    T.EApp(e1, v2)
 
   | ETApp(e, tp) ->
-    let^ v = tr_expr_v env e in
+    let^ e = tr_expr_p env e in
     let (Ex tp) = Type.tr_type env tp in
-    T.ETApp(v, tp)
+    T.ETApp(e, tp)
 
   | ECApp e ->
-    let^ v = tr_expr_v env e in
-    T.ECApp v
+    let^ e = tr_expr_p env e in
+    T.ECApp e
 
   | ELet(x, e1, e2) ->
     let^ () = tr_let_expr ~pure:false x env e1 in
@@ -53,6 +63,12 @@ let rec tr_expr env (e : S.expr) =
     let (env, dds) = DataType.tr_data_defs env dds in
     T.EData(dds, tr_expr env e)
 
+  | ECtor(prf, idx, tps, args)  ->
+    let prf = tr_expr env prf in
+    let tps = List.map (Type.tr_type env) tps in
+    let^ args = tr_expr_vs env args in
+    T.ECtor(prf, idx, tps, args)
+
   | EMatch(prf, e, cls, tp, eff) ->
     let^ v = tr_expr_v env e in
     T.EMatch(tr_expr env prf, v,
@@ -72,11 +88,11 @@ let rec tr_expr env (e : S.expr) =
 and tr_let_expr ~pure x env (e : S.expr) cont =
   match e with
   | _ when pure ->
-    T.ELetPure(x, tr_expr env e, cont ())
+    T.ELetPure(Relevant, x, tr_expr env e, cont ())
 
   | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
   | EVar _ | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
-    T.ELetPure(x, tr_expr env e, cont ())
+    T.ELetPure(Relevant, x, tr_expr env e, cont ())
 
   | EApp _ | ETApp _ | ECApp _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
   | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _
@@ -88,28 +104,65 @@ and tr_expr_as_var env e =
   let* () = tr_let_expr ~pure:false x env e in
   return x
 
+(** Translate an expression as pure expression *)
+and tr_expr_p env (e : S.expr) =
+  match e with
+  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _
+  | EVar _ | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
+    return (tr_expr env e)
+
+  | ETApp(e, tp) ->
+    let* e = tr_expr_p env e in
+    let (Ex tp) = Type.tr_type env tp in
+    return (T.ETApp(e, tp))
+
+  | ECApp e ->
+    let* e = tr_expr_p env e in
+    return (T.ECApp e)
+
+  | ELet(x, e1, e2) ->
+    let* () = tr_let_expr ~pure:false x env e1 in
+    tr_expr_p env e2
+
+  | ELetPure(x, e1, e2) ->
+    let* () = tr_let_expr ~pure:true x env e1 in
+    tr_expr_p env e2
+
+  | ELetRec(defs, body) ->
+    let defs = tr_rec_defs env defs in
+    let* body = tr_expr_p env body in
+    return (T.ELetRec(defs, body))
+
+  | ERecCtx e ->
+    let* e = tr_expr_p env e in
+    return (T.ERecCtx e)
+
+  | EData(dds, e) ->
+    let (env, dds) = DataType.tr_data_defs env dds in
+    let* e = tr_expr_p env e in
+    return (T.EData(dds, e))
+
+  | ECtor(prf, idx, tps, args)  ->
+    let prf = tr_expr env prf in
+    let tps = List.map (Type.tr_type env) tps in
+    let* args = tr_expr_vs env args in
+    return (T.ECtor(prf, idx, tps, args))
+
+  | EApp _ | EMatch _ | EShift _ | EReset _ | ERepl _ | EReplExpr _ ->
+    let* v = tr_expr_v env e in
+    return (T.EValue v)
+
 and tr_expr_v env (e : S.expr) =
   match e with
   | EUnitPrf   -> return v_unit_prf
   | EBoolPrf   -> return v_bool_prf
   | EOptionPrf -> return v_option_prf
 
-  | ENum   n -> return (T.VNum n)
-  | ENum64 n -> return (T.VNum64 n)
-  | EStr   s -> return (T.VStr s)
-  | EChr   c -> return (T.VNum (Char.code c))
+  | ENum   n -> return (T.VLit (LNum n))
+  | ENum64 n -> return (T.VLit (LNum64 n))
+  | EStr   s -> return (T.VLit (LStr s))
+  | EChr   c -> return (T.VLit (LNum (Char.code c)))
   | EVar   x -> return (T.VVar x)
-
-  | EFn(x, sch, body) ->
-    let tp = Type.tr_scheme env sch in
-    return (T.VFn(x, tp, tr_expr env body))
-
-  | ETFun(x, body) ->
-    let (env, Ex x) = Env.add_tvar env x in
-    return (T.VTFun(x, tr_expr env body))
-
-  | ECAbs(cs, body) ->
-    return (T.VCAbs(List.map (Type.tr_constr env) cs, tr_expr env body))
 
   | ELet(x, e1, e2) ->
     let* () = tr_let_expr ~pure:false x env e1 in
@@ -119,17 +172,12 @@ and tr_expr_v env (e : S.expr) =
     let* () = tr_let_expr ~pure:true x env e1 in
     tr_expr_v env e2
 
-  | ECtor(prf, idx, tps, args)  ->
-    let prf = tr_expr env prf in
-    let tps = List.map (Type.tr_type env) tps in
-    let* args = tr_expr_vs env args in
-    return (T.VCtor(prf, idx, tps, args))
-
   | EExtern(name, tp) ->
     return (T.VExtern(name, Type.tr_ttype env tp))
 
-  | EApp _ | ETApp _ | ECApp _ | ELetRec _ | ERecCtx _ | EData _ | EMatch _
-  | EShift _ | EReset _ | ERepl _ | EReplExpr _ ->
+  | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ELetRec _
+  | ERecCtx _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | ERepl _
+  | EReplExpr _ ->
     let* x = tr_expr_as_var env e in
     return (T.VVar x)
 

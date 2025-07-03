@@ -27,8 +27,7 @@ let rec tr_expr (e : S.expr) =
   match e with
   | EUnitPrf | EBoolPrf | EOptionPrf -> assert false
 
-  | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _ | EFn _ | ECtor _
-  | EExtern _ ->
+  | ENum _ | ENum64 _ | EStr _ | EChr _ | EVar _ | EExtern _ ->
     let^ v = tr_expr_v e in
     T.EValue v
 
@@ -36,10 +35,12 @@ let rec tr_expr (e : S.expr) =
   | ERecCtx body ->
     tr_expr body
 
+  | EFn(x, _, body) -> T.EFn(x, tr_expr body)
+
   | EApp(e1, e2) ->
-    let^ v1 = tr_expr_v e1 in
+    let e1 = tr_expr e1 in
     let^ v2 = tr_expr_v e2 in
-    T.EApp(v1, v2)
+    T.EApp(e1, v2)
 
   | ELet(x, e1, e2) | ELetPure(x, e1, e2) ->
     T.ELet(x, tr_expr e1, tr_expr e2)
@@ -49,6 +50,10 @@ let rec tr_expr (e : S.expr) =
 
   | EData(dds, e) ->
     List.fold_right tr_data_def dds (tr_expr e)
+
+  | ECtor(_, idx, _, args) ->
+    let^ args = tr_expr_vs args in
+    T.ECtor(idx, args)
 
   | EMatch(_, e, cls, _, _) ->
     let^ v = tr_expr_v e in
@@ -73,16 +78,11 @@ and tr_expr_v (e : S.expr) =
   match e with
   | EUnitPrf | EBoolPrf | EOptionPrf -> assert false
 
-  | ENum   n        -> return (T.VNum n)
-  | ENum64 n        -> return (T.VNum64 n)
-  | EStr   s        -> return (T.VStr s)
-  | EChr   c        -> return (T.VNum (Char.code c))
+  | ENum   n        -> return (T.VLit (LNum n))
+  | ENum64 n        -> return (T.VLit (LNum64 n))
+  | EStr   s        -> return (T.VLit (LStr s))
+  | EChr   c        -> return (T.VLit (LNum (Char.code c)))
   | EVar   x        -> return (T.VVar x)
-  | EFn(x, _, body) -> return (T.VFn(x, tr_expr body))
-
-  | ECtor(_, idx, _, args) ->
-    let* args = tr_expr_vs args in
-    return (T.VCtor(idx, args))
 
   | EExtern(name, _) -> return (T.VExtern name)
 
@@ -90,8 +90,8 @@ and tr_expr_v (e : S.expr) =
   | ERecCtx body ->
     tr_expr_v body
 
-  | EApp _ | ELet _ | ELetPure _ | ELetRec _ | EData _ | EMatch _ | EShift _ 
-  | EReset _ | ERepl _ | EReplExpr _ ->
+  | EFn _ | EApp _ | ELet _ | ELetPure _ | ELetRec _ | EData _ | ECtor _
+  | EMatch _ | EShift _ | EReset _ | ERepl _ | EReplExpr _ ->
     let* x = mk_let (tr_expr e) in
     return (T.VVar x)
 

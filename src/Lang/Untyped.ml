@@ -2,10 +2,22 @@
  * See LICENSE for details.
  *)
 
-(** Untyped language. In A-normal form. *)
+(** Untyped language. Similarly to Core, it is in a slightly relaxed A-normal
+  form. *)
 
 (** Variables *)
 type var = Var.t
+
+(** Literals *)
+type lit =
+  | LNum of int
+    (** Integer literal *)
+
+  | LNum64 of int64
+    (** 64 bit integer literal *)
+
+  | LStr of string
+    (** String literal *)
 
 (** Expressions *)
 type expr =
@@ -18,8 +30,14 @@ type expr =
   | ELetRec of (var * expr) list * expr
     (** Mutually recursive let-definitions *)
 
-  | EApp of value * value
+  | EFn of var * expr
+    (** Function *)
+
+  | EApp of expr * value
     (** Function application *)
+
+  | ECtor of int * value list
+    (** Fully applied constructor of ADT *)
 
   | EMatch of value * clause list
     (** Pattern-matching *)
@@ -45,27 +63,16 @@ type expr =
     (** Print type (second parameter), evaluate and print the first expression,
       then continue to the second expression. *)
 
-(** Values *)
+(** Trivial values, with minimal cost of copying. *)
 and value =
-  | VNum of int
-    (** Integer literal *)
-
-  | VNum64 of int64
-    (** 64 bit integer literal *)
-
-  | VStr of string
-    (** String literal *)
+  | VLit of lit
+    (** Literal *)
 
   | VVar of var
     (** Variable *)
 
-  | VFn of var * expr
-    (** Function *)
-
-  | VCtor of int * value list
-    (** Fully applied constructor of ADT *)
-
   | VExtern of string
+    (** Externally defined value *)
 
 (** Pattern-matching clause *)
 and clause = var list * expr

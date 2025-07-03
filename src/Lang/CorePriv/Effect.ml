@@ -41,3 +41,15 @@ let rec is_pure eff =
 
   | TApp _ ->
     failwith "Internal error: TApp in effect"
+
+(** Translate rflag to effect *)
+let of_rflag rflag =
+  match rflag with
+  | Positive -> TEffPure
+  | General  -> nterm
+
+(** Join with [nterm], if the rflag is [General] *)
+let join_rflag rflag eff =
+  match rflag with
+  | Positive -> eff
+  | General  -> join nterm eff

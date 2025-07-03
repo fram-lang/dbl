@@ -36,6 +36,22 @@ let rec kind : type k. k typ -> k kind =
 let subst_type x stp tp =
   Subst.in_type (Subst.singleton x stp) tp
 
+(** Check equality of recursion flags *)
+let rflag_equal rflag1 rflag2 =
+  match rflag1, rflag2 with
+  | Positive, Positive -> true
+  | Positive, _        -> false
+
+  | General, General -> true
+  | General, _       -> false
+
+(** Check subsumption of recursion flags *)
+let rflag_sub rflag1 rflag2 =
+  match rflag1, rflag2 with
+  | Positive, _        -> true
+  | _,        General  -> true
+  | General,  Positive -> false
+
 (** Check if effect variable appears (syntactically) in an effect *)
 let rec effect_mem a (eff : effct) =
   match eff with
@@ -120,6 +136,7 @@ let rec equal : type k. ConstrSet.t -> k typ -> k typ -> bool =
 
   | TLabel lbl1, TLabel lbl2 ->
     effect_equal cset lbl1.effct lbl2.effct &&
+    rflag_equal lbl1.rflag lbl2.rflag &&
     begin match
       tvars_binder_equal ~sub1:Subst.empty ~sub2:Subst.empty
         lbl1.tvars lbl2.tvars
@@ -140,9 +157,9 @@ let rec equal : type k. ConstrSet.t -> k typ -> k typ -> bool =
     end
   | TLabel _, _ -> false
 
-  | TData(tp1, eff1, ctors1), TData(tp2, eff2, ctors2) ->
+  | TData(tp1, rflag1, ctors1), TData(tp2, rflag2, ctors2) ->
     equal cset tp1 tp2 &&
-    equal cset eff1 eff2 &&
+    rflag_equal rflag1 rflag2 &&
     List.length ctors1 = List.length ctors2 &&
     List.for_all2 (ctor_type_equal cset) ctors1 ctors2
   | TData _, _ -> false
@@ -209,12 +226,34 @@ let rec subtype cset tp1 tp2 =
     subtype (ConstrSet.add_list cset cs2) tp1 tp2
   | TGuard _, _ -> false
 
-  | TLabel _, TLabel _ -> equal cset tp1 tp2
+  | TLabel lbl1, TLabel lbl2 ->
+    effect_equal cset lbl1.effct lbl2.effct &&
+    rflag_sub lbl1.rflag lbl2.rflag &&
+    begin match
+      tvars_binder_equal ~sub1:Subst.empty ~sub2:Subst.empty
+        lbl1.tvars lbl2.tvars
+    with
+    | None -> false
+    | Some(sub1, sub2) ->
+      (* TODO: there is a lot of code duplication here. It might be improved.
+       *)
+      List.length lbl1.val_types = List.length lbl2.val_types &&
+      List.for_all2
+        (fun tp1 tp2 ->
+          equal cset (Subst.in_type sub1 tp1) (Subst.in_type sub2 tp2))
+        lbl1.val_types lbl2.val_types &&
+      equal cset
+        (Subst.in_type sub1 lbl1.delim_tp)
+        (Subst.in_type sub2 lbl2.delim_tp) &&
+      effect_equal cset
+        (Subst.in_type sub1 lbl1.delim_eff)
+        (Subst.in_type sub2 lbl2.delim_eff)
+    end
   | TLabel _, _ -> false
 
-  | TData(tp1, eff1, ctors1), TData(tp2, eff2, ctors2) ->
+  | TData(tp1, rflag1, ctors1), TData(tp2, rflag2, ctors2) ->
     equal cset tp1 tp2 &&
-    subeffect cset eff1 eff2 &&
+    rflag_sub rflag1 rflag2 &&
     List.length ctors1 = List.length ctors2 &&
     List.for_all2 (ctor_type_equal cset) ctors1 ctors2
   | TData _, _ -> false
@@ -284,16 +323,19 @@ let rec type_in_scope : type k. _ -> k typ -> k typ option =
     with
     | Some effct, Some val_types, Some delim_tp, Some delim_eff ->
       Some (TLabel
-        { effct; tvars = lbl.tvars; val_types; delim_tp; delim_eff })
+        { effct;
+          tvars = lbl.tvars;
+          val_types; delim_tp; delim_eff;
+          rflag = lbl.rflag
+        })
     | _ -> None
     end
-  | TData(tp, eff, ctors) ->
+  | TData(tp, rflag, ctors) ->
     begin match
       type_in_scope scope tp,
-      type_in_scope scope eff,
       forall_map (ctor_type_in_scope scope) ctors
     with
-    | Some tp, Some eff, Some ctors -> Some (TData(tp, eff, ctors))
+    | Some tp, Some ctors -> Some (TData(tp, rflag, ctors))
     | _ -> None
     end
   | TApp(tp1, tp2) ->
@@ -398,13 +440,12 @@ and subtype_in_scope scope (tp : ttype) =
     | Some cs, Some tp -> Some (TGuard(cs, tp))
     | _ -> None
     end
-  | TData(tp, eff, ctors) ->
+  | TData(tp, rflag, ctors) ->
     begin match
       type_in_scope scope tp,
-      subeffect_in_scope scope eff,
       forall_map (ctor_type_in_scope scope) ctors
     with
-    | Some tp, eff, Some ctors -> Some (TData(tp, eff, ctors))
+    | Some tp, Some ctors -> Some (TData(tp, rflag, ctors))
     | _ -> None
     end
 

@@ -10,11 +10,11 @@ type var = Var.t
 
 type data_def =
   | DD_Data of
-    { tvar      : TVar.ex;
-      proof     : var;
-      args      : TVar.ex list;
-      ctors     : ctor_type list;
-      positive  : bool
+    { tvar  : TVar.ex;
+      proof : var;
+      args  : TVar.ex list;
+      ctors : ctor_type list;
+      rflag : rflag
     }
   | DD_Label of
     { tvar      : keffect tvar;
@@ -22,20 +22,29 @@ type data_def =
       tvars     : TVar.ex list;
       val_types : ttype list;
       delim_tp  : ttype;
-      delim_eff : effct
+      delim_eff : effct;
+      rflag     : rflag
     }
+
+type lit =
+  | LNum   of int
+  | LNum64 of int64
+  | LStr   of string
 
 type expr =
   | EValue    of value
   | ELet      of var * expr * expr
-  | ELetPure  of var * expr * expr
-  | ELetIrr   of var * expr * expr
+  | ELetPure  of relevance * var * expr * expr
   | ELetRec   of (var * ttype * expr) list * expr
   | ERecCtx   of expr
-  | EApp      of value * value
-  | ETApp      : value * 'k typ -> expr
-  | ECApp     of value
+  | EFn       of var * ttype * expr
+  | ETFun      : 'k tvar * expr -> expr
+  | ECAbs     of constr list * expr
+  | EApp      of expr * value
+  | ETApp      : expr * 'k typ -> expr
+  | ECApp     of expr
   | EData     of data_def list * expr
+  | ECtor     of expr * int * Type.ex list * value list
   | EMatch    of expr * value * match_clause list * ttype * effct
   | EShift    of value * TVar.ex list * var list * var * expr * ttype
   | EReset    of value * Type.ex list * value list * expr * var * expr
@@ -43,14 +52,8 @@ type expr =
   | EReplExpr of expr * string * expr
 
 and value =
-  | VNum    of int
-  | VNum64  of int64
-  | VStr    of string
+  | VLit    of lit
   | VVar    of var
-  | VFn     of var * ttype * expr
-  | VTFun    : 'k tvar * expr -> value
-  | VCAbs   of constr list * expr
-  | VCtor   of expr * int * Type.ex list * value list
   | VExtern of string * ttype
 
 and match_clause = {
