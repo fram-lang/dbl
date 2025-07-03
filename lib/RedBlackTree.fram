@@ -2,8 +2,9 @@
  # See LICENSE for details.
  #}
 
-#import open Prelude
-#import open Base/Assert
+# Due to frequent request for understanding this file please
+# see comments at the end of this file
+
 import List
 
 data Color =
@@ -326,3 +327,8 @@ pub let rec split compareWithPivot tree =
       (_v, joinVal left value  _l, _r)
     end
   end
+
+# Links to papers:
+# https://drive.google.com/drive/folders/11a0Q5LxCHAx5OJARUIng6wymAE_YvzHk?usp=sharing
+# Similar implementation: 
+# https://github.com/standardml/cmlib/blob/master/red-black-tree.sml

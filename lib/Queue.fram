@@ -46,7 +46,7 @@ let invalidate state =
     | _ => state
   end
 
-let exec_twice hmqueue =
+let execTwice hmqueue =
   match hmqueue with
   | HMQueue lenf f state lenr r =>
     match exec (exec state) with
@@ -73,10 +73,10 @@ let add v1 v2 =
 let check queue =
   match queue with
   | HMQueue lenf f state lenr r =>
-    if leq lenr lenf then exec_twice queue
+    if leq lenr lenf then execTwice queue
     else (
       let newstate = Reversing Zero f [] r [] in
-      exec_twice (HMQueue (add lenf lenr) f newstate Zero [])
+      execTwice (HMQueue (add lenf lenr) f newstate Zero [])
     )
   end
 
@@ -107,34 +107,6 @@ let tail queue =
   | HMQueue lenf (x::xs) state lenr r =>
     check (HMQueue (subOne lenf) xs (invalidate state) lenr r)
   end
-
-let foldlRotationState f acc state =
-  match state with
-    | Idle => acc
-    | Done list => List.foldLeft f acc list
-    | Appending _ list1 list2 =>
-        List.foldLeft f
-          (List.foldLeft f acc list2)
-          list1
-    | Reversing _ list1 list2 list3 list4 =>
-        List.foldLeft f
-          (List.foldLeft f
-            (List.foldLeft f
-              (List.foldLeft f acc list4)
-              list3)
-            list2)
-          list1
-  end
-
-pub let foldlQueue queue f acc  =
-  match queue with
-    | HMQueue _ list1 state _ list2 =>
-      List.foldLeft f
-        (foldlRotationState f
-          (List.foldLeft f acc list1)
-          state)
-        list2
-    end
 
 let mapRotationState f state =
   match state with
