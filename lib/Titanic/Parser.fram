@@ -1,0 +1,236 @@
+import /List
+
+import open Types
+
+data Stream = { stream : List Char, position : Int } 
+
+method seek (stream : Stream) =
+  match stream.stream with
+  | _ :: xs => Stream { stream = xs, position = stream.position + 1 }
+  | _ => stream
+  end
+
+method toString (strem : Stream)
+  = "Stream " + strem.position.toString + " " + strem.stream.toString
+
+data SP E = 
+  { peek : Unit ->[E] Option Char
+  , seek : Unit ->[E] Unit
+  , eof  : Unit ->[E] Bool
+  , rev  : Stream ->[E] Unit
+  , fail : {type X} -> String ->[E] X
+  , flip : Unit ->[E] Bool
+  }
+
+parameter E_SP
+parameter ~p : SP E_SP
+parameter ~stream : List Char
+
+let char (c : Char) () =
+  match ~p.peek () with
+  | Some c' => 
+    if c == c' 
+      then (~p.seek (); c) 
+      else ~p.fail "Invalid character"
+  | None => ~p.fail "Unexpected EOF"
+  end
+
+let isChar pred () =
+  match ~p.peek () with
+  | Some c' => 
+    if pred c' 
+      then (~p.seek (); c') 
+      else ~p.fail "Invalid character"
+  | None => ~p.fail "Unexpected EOF"
+  end
+
+let isWhite (c : Char) = (c == ' ' || c == '\n' || c == '\t')
+let isLetter (c : Char) = ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')
+let isDigit (c : Char) = ('0' <= c && c <= '9')
+
+let rec many (v : Unit ->> _) () =
+  if ~p.flip () then
+    v () :: many v ()
+  else 
+    []
+
+let many1 (v : Unit ->> _) () =
+  let hd = v ()
+  let tl = many v ()
+  in hd :: tl
+
+let (*>) {type X, type Y} (p1 : Unit ->> X) (p2 : Unit ->> Y) () =
+  let _ = p1 () in p2 ()
+
+let (<*) {type X, type Y} (p1 : Unit ->> X) (p2 : Unit ->> Y) () =
+  let res = p1 ()
+  let _   = p2 ()
+  in res
+
+let (>>) (ps : Unit ->> _) v () = let _ = ps () in v
+
+let rec flips (ps : List (Unit ->> _)) () =
+  match ps with
+  | [] => ~p.fail "Unmatched"
+  | x :: ps => 
+    if ~p.flip () then
+      x ()
+    else
+      flips ps ()
+  end
+
+let lexeme v () = (v <* many (isChar isWhite)) ()
+
+let sepBy sep v () = 
+  if ~p.flip() then 
+    many (v <* sep) () + [v ()]
+  else
+    []
+
+let parseIndent () = lexeme (many1 (isChar isLetter)) ()
+
+pub let printParse {type X, method toString : X ->> String} (v : Either String X) = 
+  match v with
+  | Left str => printStrLn str 
+  | Right x  => printStrLn x.toString
+  end
+
+let readNumber xs = 
+  let rec iter xs (acc : Int) = 
+    match xs with
+    | [] => acc
+    | x :: xs => iter xs (acc * 10 + (x : Char).code - '0'.code)
+    end
+  in iter xs 0
+
+let parseNumber ()  = let res = lexeme (many1 (isChar isDigit)) () in readNumber res
+
+let parseString () = lexeme (char ''' *> many (isChar (fn c => ''' != c)) <* char ''') ()
+
+let parseKeyword kw () =
+  let res = parseIndent () in
+  if charListToStr res == kw then
+    ()
+  else
+    ~p.fail ("Expected " + kw)
+
+let ($) f x = f x
+
+let parseArgValue () =
+  if ~p.flip () then
+    SInt $ parseNumber ()
+  else if ~p.flip () then
+    SStr $ (charListToStr $ parseString ())
+  else if ~p.flip () then
+    SColor $ flips 
+      [ parseKeyword "red"     >> Red 
+      , parseKeyword "green"   >> Green
+      , parseKeyword "yellow"  >> Yellow
+      , parseKeyword "blue"    >> Blue
+      , parseKeyword "cyan"    >> Cyan
+      , parseKeyword "magenta" >> Magenta
+      , parseKeyword "white"   >> White
+      , parseKeyword "black"   >> Black
+      ]
+      ()
+  else
+    SStr $ (charListToStr $ parseIndent ())
+
+let parseKv () =
+  let key = parseIndent ()
+  let _ = lexeme (char ':') ()
+  let value = parseArgValue ()
+  in (charListToStr key, value) 
+
+let parseStyleDict () =
+  let _ = lexeme (char '{') ()
+  let res = sepBy (lexeme (char ',')) parseKv ()
+  let _ = lexeme (char '}') ()
+  in ArgDict { args = res }
+
+rec
+  pub let fullParser () =
+    let _ = many (isChar isWhite) ()
+    in parseSRLift parseDocNode ()
+
+  let parseSRLift cont () =
+    if ~p.flip () then
+      (let _ = lexeme (char '*') ()
+       let doc = parseSRLift cont ()
+       in CoreStyle { name = "reset", args = ArgDict { args = [] }, interp = [CoreInterp { num = 0, style = doc }] })
+    else if ~p.flip () then
+      (let _ = lexeme (char '&') ()
+       let doc = parseSRLift cont ()
+       in CoreStyle { name = "shift", args = ArgDict { args = [] }, interp = [CoreInterp { num = 0, style = doc }] })
+    else
+      cont ()
+
+  let parseDocNode () = 
+    let _ = lexeme (char '(') ()
+    let name = charListToStr $ parseIndent ()
+    let immediate =
+      if ~p.flip () 
+        then 
+          (let _ = lexeme (char ':') ()
+           in Some $ parseArgValue ())
+        else None
+    let args = 
+      if ~p.flip ()  
+        then parseStyleDict ()
+        else ArgDict { args=[] }
+    let interp = parseInterp ()
+    let args = match immediate with
+      | Some v => ArgDict { args = ("im", v) :: args.args }
+      | None   => args
+      end
+    let _ = lexeme (char ')') ()
+    in CoreStyle { name, args, interp }
+
+  let parseInterp () =
+    let iStr () = 
+      let tail () =
+        let str = SStr (charListToStr $ parseString ())
+        in CoreStyle 
+          { name = "string"
+          , args = ArgDict {args = [("str", str)]}
+          , interp = [] } 
+      in CoreInterp 
+        { num = 0
+        , style = parseSRLift tail ()}
+    let iDoc () = 
+      let style = parseSRLift parseDocNode ()
+      in CoreInterp {num=0, style}
+    let iEDoc () = 
+      let num = parseNumber ()
+      let style = parseSRLift parseDocNode ()
+      in CoreInterp { num, style }
+    in many (lexeme (flips [iStr, iEDoc, iDoc])) ()
+end
+
+pub let runParser stream = 
+  handle ~p =
+    let rev = effect stream / r => fn _ => r () stream
+    let eof = effect _ / r => 
+      fn (s : Stream) => 
+        match s.stream with
+        | [] => r True  s
+        | _  => r False s
+        end
+    let peek = effect _ / r => 
+      fn (s : Stream) =>
+        match s.stream with
+        | x :: _ => r (Some x) s
+        | _      => r  None    s
+        end
+    let seek = effect _ / r => fn s => r () s.seek
+    let fail = effect msg => fn _ => Left msg
+    let flip = effect _ / r => fn s => 
+      match r True s with
+      | Left _ => r False s
+      | Right x => Right x
+      end
+    in SP { peek, seek, eof, rev, fail, flip } 
+    return x => fn _ => Right x
+    finally c => c (Stream { stream, position = 0 })
+  in
+  fullParser ()
