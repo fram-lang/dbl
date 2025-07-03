@@ -534,15 +534,13 @@ and tr_expr (e : Raw.expr) =
     let tr_format (expr : Raw.expr) (fmt : Raw.expr option) = 
       let mth = { pos = expr.pos; data = (Raw.EMethod (expr, "format"))} in
       match fmt with
-      | Some fmt ->  
-        let format = 
-          with_nowhere 
-            (Raw.EApp ({pos = fmt.pos; data = (Raw.ECtor "Some")}, [fmt])) in
-        let fld =
-          { pos  = format.pos
-          ; data = Raw.FldNameVal (Raw.NOptionalVar "fmt", format)} in
-        let record = with_nowhere (Raw.ERecord [fld]) in
-          with_nowhere (Raw.EApp (mth, [record]))
+      | Some fmt ->
+        let make_fmt data = { fmt with data } in
+        let fld = make_fmt (Raw.FldNameVal (Raw.NVar "fmt", fmt)) in
+        let record = make_fmt (Raw.ERecord [fld]) in
+        { pos  = Position.join expr.pos fmt.pos;
+          data = Raw.EApp (mth, [record])
+        }
       | None -> mth in
     let tr_string str = with_nowhere (Raw.EStr str) in
     let rec flat_interp = function
