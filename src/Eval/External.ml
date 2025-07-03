@@ -31,10 +31,18 @@ let str_fun f = VFn (fun v cont ->
   | VStr s -> cont (f s)
   | _ -> runtime_error "Not a string")
 
-let list_chr_fun f = VFn (fun v cont ->
+let to_char = function
+  | VNum x -> Char.chr x
+  | _ -> runtime_error "Not a character"
+
+let to_string_raw = function
+  | VStr s -> s
+  | _ -> runtime_error "Not a string"
+
+let list_fun trans f = VFn (fun v cont ->
   let rec parse_list = function
   | VCtor(0, []) -> []
-  | VCtor(1, [VNum x; xs]) -> Char.chr x :: parse_list xs
+  | VCtor(1, [x; xs]) -> trans x :: parse_list xs 
   | _ -> runtime_error "Not a list" in
   cont (f @@ parse_list v))
 
@@ -107,7 +115,9 @@ let extern_map =
     "dbl_geInt",       int_cmpop ( >= );
     "dbl_leInt",       int_cmpop ( <= );
     "dbl_intToString", int_fun (fun n -> VStr (string_of_int n));
-    "dbl_strCat",  str_fun (fun s1 -> str_fun (fun s2 -> VStr(s1 ^ s2)));
+    "dbl_strCat",     str_fun (fun s1 -> str_fun (fun s2 -> VStr(s1 ^ s2)));
+    "dbl_strListCat", list_fun to_string_raw (fun xs -> VStr (String.concat "" xs));
+    "dbl_strRepr",    str_fun (fun s -> VStr ("\"" ^ String.escaped s ^ "\""));
     "dbl_eqStr",   str_cmpop ( = );
     "dbl_neqStr",  str_cmpop ( <> );
     "dbl_gtStr",   str_cmpop ( > );
@@ -117,7 +127,8 @@ let extern_map =
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
     "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum (Char.code s.[n])));
     "dbl_chrToString",  int_fun (fun c -> VStr (Char.escaped (Char.chr c)));
-    "dbl_chrListToStr", list_chr_fun (fun xs -> VStr (List.to_seq xs |> String.of_seq));
+    "dbl_chrListToStr", list_fun to_char (fun xs ->
+                          VStr (List.to_seq xs |> String.of_seq));
     "dbl_chrCode",    int_fun (fun c -> VNum c);
     "dbl_intToChr",   int_fun (fun n -> VNum n);
     "dbl_printStrLn", str_fun (fun s -> print_endline s; v_unit);

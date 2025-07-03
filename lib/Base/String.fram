@@ -29,3 +29,5 @@ pub method toList (self : String) =
     else 
       iter (n - 1) (getChar self (n - 1) :: acc) 
   in iter self.length []
+
+pub method toString = (extern dbl_strRepr : String -> String)
