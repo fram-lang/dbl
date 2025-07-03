@@ -454,9 +454,10 @@ and expr_data =
       an expression to evaluate, usually containing another REPL expression.
       *)
 
-  | EReplExpr of expr * expr
+  | EReplExpr of expr * expr * expr option
     (** Print the type of the first expression, evaluate and print the first
-      expression, then continue to the second expression. *)
+      expression, then continue to the second expression. Third parameter
+      specifies printed expression using toString method*)
 
 (** Definition of recursive value *)
 and rec_def =

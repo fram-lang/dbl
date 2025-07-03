@@ -65,8 +65,10 @@ let rec tr_expr (e : S.expr) =
   | ERepl(func, _, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
 
-  | EReplExpr(e1, tp, e2) ->
-    T.EReplExpr(tr_expr e1, tp, tr_expr e2)
+  | EReplExpr(e1, tp, e2, ep) ->
+    match ep with
+    | None    -> T.EReplExpr(tr_expr e1, tp, tr_expr e2, None)
+    | Some ep -> T.EReplExpr(tr_expr e1, tp, tr_expr e2, Some (tr_expr ep))
 
 (** Translate expression as a value *)
 and tr_expr_v (e : S.expr) =

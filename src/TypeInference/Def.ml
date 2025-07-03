@@ -258,13 +258,33 @@ let check_def : type st dir. tcfix:tcfix ->
     (* We call `make` in order to have correct position and PPTree. *)
     { rest with er_expr = make rest rest.er_expr.data }
 
-  | DReplExpr e ->
+  | DReplExpr (e, use_toString) ->
     let (body_env, params) = Env.begin_generalize env in
     let expr = infer_expr_type body_env e in
     let tp = expr_result_type expr in
     ParamGen.end_generalize_impure params (T.Type.uvars tp);
+
+    let to_string_expr = 
+      if use_toString then match NameUtils.method_owner_of_self tp with
+      | None -> None
+      | Some method_owner ->
+        let toStr = Env.lookup_method body_env method_owner "toString" in
+        match toStr with
+        | Some (Module.VI_Var(to_str_var,to_str_sch)) -> 
+          let (evar : _ SyntaxNode.node) = {
+            pos = Position.nowhere;
+            data = (S.EMethod (e,"toString"))
+           } in
+          let (p_ctx, e, sch) = PolyExpr.infer_use_scheme ~tcfix env evar in
+          let temp = PolyExpr.plug_inst_context p_ctx
+          (Inst.instantiate_poly_expr ~tcfix ~pos:Position.nowhere env e sch []) in
+          Some temp.er_expr
+        | _ -> None
+      else None
+    in
+
     let rest = cont.run env req in
-    { er_expr   = make rest (T.EReplExpr(expr.er_expr, rest.er_expr));
+    { er_expr   = make rest (T.EReplExpr(expr.er_expr, rest.er_expr, to_string_expr));
       er_type   = rest.er_type;
       er_effect = T.Effect.join expr.er_effect rest.er_effect;
       er_constr = expr.er_constr @ rest.er_constr

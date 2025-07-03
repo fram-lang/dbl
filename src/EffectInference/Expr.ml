@@ -527,14 +527,28 @@ and infer_type : type ed.
     in
     (T.ERepl(func, tp, eff), tp, eff_resp)
 
-  | EReplExpr(e1, e2) ->
+  | EReplExpr(e1, e2, ep) ->
     let pp = e1.pp in
-    let (e1, tp1, eff_resp1) = infer_type env e1 eff_req in
-    let (e2, tp2, eff_resp2) = infer_type env e2 eff_req in
+    let (e1', tp1, eff_resp1) = infer_type env e1 eff_req in
+    let (e2', tp2, eff_resp2) = infer_type env e2 eff_req in
     let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
     let ctx = T.Pretty.empty_context () in
-    let tp1 = T.Pretty.pp_type ctx pp tp1 in
-    let res = T.EReplExpr(e1, tp1, e2) in
+    let tp1' = T.Pretty.pp_type ctx pp tp1 in
+
+    let res = match ep with
+    | None -> T.EReplExpr(e1', tp1', e2', None)
+    | Some ep ->
+      let (ep', tpp, tp_eff) = infer_type env ep eff_req in
+      let is_return_string = match T.Type.view tpp with
+      | T.Type.TVar tv -> T.TVar.equal tv (T.BuiltinType.tv_string)
+      | _ -> false
+      in if is_return_string then T.EReplExpr(e1', tp1', e2', Some ep') 
+      else (
+        let tpp' = T.Pretty.pp_type ctx ep.pp tpp in
+        InterpLib.Error.report ~cls:Warning (
+        Printf.sprintf "method toString of owner %s returns type %s, not String. \n Pretty printing set to default." tp1' tpp' 
+        ); T.EReplExpr(e1', tp1', e2', None))
+    in
     (res, tp2, eff_resp)
 
 and check_type : type ed.
