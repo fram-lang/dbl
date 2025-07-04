@@ -30,7 +30,8 @@ let fresh ?method_ns ?pp_uid ~scope kind =
   }
 
 let clone ~scope x =
-  { x with uid = UID.fresh (); scope = scope }
+  let uid = UID.fresh () in
+  { x with uid; method_ns = uid; scope = scope }
 
 let equal x y = x == y
 
