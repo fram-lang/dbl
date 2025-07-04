@@ -5,20 +5,25 @@
 (** Type variables *)
 
 type t = private {
-  uid    : UID.t;
-  pp_uid : PPTree.uid;
-  kind   : Kind.t;
-  scope  : Scope.t
+  uid       : UID.t;
+  method_ns : UID.t;
+  pp_uid    : PPTree.uid;
+  kind      : Kind.t;
+  scope     : Scope.t
 }
 
 (** Kind of a type variable *)
 val kind : t -> Kind.t
 
-(** Create fresh type variable of given kind. Optionally, a unique
-  identifier used by the pretty-printer can be provided. If omitted, it
-  will be the same as the freshly generated unique identifier of the
-  variable. *)
-val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> Kind.t -> t
+(** Create a fresh type variable of given kind. There are two unique
+  identifiers that can be optionally provided (if omitted, they will be the
+  same as the freshly generated unique identifier of the variable):
+  - [method_ns] will be used to determine the method namespace associated with
+    the type variable;
+  - [pp_uid] will be used by the pretty-printer to identify the type variable.
+*)
+val fresh :
+  ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> scope:Scope.t -> Kind.t -> t
 
 (** Create a fresh type variable of the same kind and with the same
   pretty-printer UID as the given one. *)
@@ -32,6 +37,9 @@ val equal : t -> t -> bool
 
 (** Get the unique identifier *)
 val uid : t -> UID.t
+
+(** Get the method namespace identifier *)
+val method_ns : t -> UID.t
 
 (** Get the unique identifier for pretty-printing *)
 val pp_uid : t -> PPTree.uid

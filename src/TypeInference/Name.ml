@@ -58,7 +58,8 @@ let compare_owner own1 own2 =
   | MO_Label, _ -> -1
   | _, MO_Label -> 1
 
-  | MO_TVar x1, MO_TVar x2 -> T.TVar.compare x1 x2
+  | MO_TVar x1, MO_TVar x2 ->
+    UID.compare (T.TVar.method_ns x1) (T.TVar.method_ns x2)
 
 let compare name1 name2 =
   match name1, name2 with

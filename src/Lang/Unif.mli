@@ -545,11 +545,15 @@ module TVar : sig
   (** Kind of a type variable *)
   val kind : tvar -> kind
 
-  (** Create fresh type variable of given kind. Optionally, a unique
-    identifier used by the pretty-printer can be provided. If omitted, it
-    will be the same as the freshly generated unique identifier of the
-    variable. *)
-  val fresh : ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> tvar
+  (** Create a fresh type variable of given kind. There are two unique
+    identifiers that can be optionally provided (if omitted, they will be the
+    same as the freshly generated unique identifier of the variable):
+    - [method_ns] will be used to determine the method namespace associated
+      with the type variable;
+    - [pp_uid] will be used by the pretty-printer to identify the type
+      variable. *)
+  val fresh :
+    ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> tvar
 
   (** Compare two type variables *)
   val compare : tvar -> tvar -> int
@@ -559,6 +563,9 @@ module TVar : sig
 
   (** Get the unique identifier *)
   val uid : tvar -> UID.t
+
+  (** Get the method namespace identifier *)
+  val method_ns : tvar -> UID.t
 
   (** Get the unique identifier for pretty-printing *)
   val pp_uid : tvar -> PPTree.uid
