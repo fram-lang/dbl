@@ -6,10 +6,11 @@
 
 module Ordered = struct
   type t = {
-    uid   : UID.t;
-    pp_uid : PPTree.uid;
-    kind  : Kind.t;
-    scope : Scope.t
+    uid       : UID.t;
+    method_ns : UID.t;
+    pp_uid    : PPTree.uid;
+    kind      : Kind.t;
+    scope     : Scope.t
   }
 
   let compare x y = UID.compare x.uid y.uid
@@ -18,17 +19,14 @@ include Ordered
 
 let kind x = x.kind
 
-let fresh ?pp_uid ~scope kind =
+let fresh ?method_ns ?pp_uid ~scope kind =
   assert (not (Scope.equal scope Scope.root));
   let uid = UID.fresh () in
-  { uid    = uid;
-    kind   = kind;
-    pp_uid =
-      begin match pp_uid with
-      | Some pp_uid -> pp_uid
-      | None -> PP_UID uid
-      end;
-    scope  = scope
+  { uid       = uid;
+    method_ns = Option.value method_ns ~default:uid;
+    pp_uid    = Option.value pp_uid ~default:(PPTree.PP_UID uid);
+    kind      = kind;
+    scope     = scope
   }
 
 let clone ~scope x =
@@ -37,6 +35,8 @@ let clone ~scope x =
 let equal x y = x == y
 
 let uid x = x.uid
+
+let method_ns x = x.method_ns
 
 let pp_uid x = x.pp_uid
 
