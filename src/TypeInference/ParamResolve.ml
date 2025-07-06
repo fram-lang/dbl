@@ -219,12 +219,24 @@ and resolve_optional ~vset ~pos env rctx x sch =
 and resolve_implicit ~vset ~pos env rctx iname sch =
   let name = Name.NImplicit iname in
   match ModulePath.try_lookup_implicit ~pos env iname with
-  | None ->
-    Error.fatal (Error.cannot_resolve_implicit ~pos iname)
   | Some(x, x_sch) ->
     let vset = restrict_var ~vset ~pos ~pp:(Env.pp_tree env) x name in
     let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
     coerce_scheme ~vset ~pos ~name env e x_sch sch
+  | None ->
+    (* Special implicits *)
+    let pp = Env.pp_tree env in
+    let make data = T.{data; pos; pp} in
+    let (param_expr, param_tvar) = match iname with
+      | "~__line__" -> 
+        (make (T.ENum pos.pos_start_line), T.BuiltinType.tv_int)
+      | "~__file__" -> 
+        (make (T.EStr pos.pos_fname), T.BuiltinType.tv_string)
+      | _ -> Error.fatal (Error.cannot_resolve_implicit ~pos iname) in
+    (* Check types *)
+    let param_sch = T.Scheme.of_type (T.Type.t_var param_tvar) in
+    let param = make (T.EPolyFun([], [], param_expr)) in
+    coerce_scheme ~vset ~pos ~name env param param_sch sch 
 
 and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
   let self_tp =
