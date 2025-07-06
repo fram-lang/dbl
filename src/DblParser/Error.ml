@@ -50,6 +50,9 @@ let invalid_escape_code pos =
 let eof_in_string pos =
   (Some pos, "Unexpected end of file inside a string literal")
 
+let unmatched_closing_bracket pos =
+  (Some pos, "Unmatched closing bracket")
+
 let invalid_lexer_directive ?msg pos =
   (Some pos,
     Printf.sprintf
@@ -79,6 +82,9 @@ let invalid_pattern_arg pos =
 
 let impure_scheme pos =
   (Some pos, "Syntax error. Type schemes must be pure")
+
+let type_alias_with_args pos =
+  (Some pos, "Type aliases cannot have type arguments")
 
 let finally_before_return_clause pos =
   (Some pos, "Finally clause before return clause")

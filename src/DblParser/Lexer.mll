@@ -5,6 +5,13 @@
 (** Lexer *)
 
 {
+let open_cbrackets = ref 0
+let cbrackets_stack = Stack.create ()
+
+let reset () =
+  open_cbrackets := 0;
+  Stack.clear cbrackets_stack
+
 let kw_map =
   let open YaccParser in
   [ "abstr",     KW_ABSTR
@@ -160,8 +167,22 @@ rule token = parse
   | ')'  { YaccParser.BR_CLS     }
   | '['  { YaccParser.SBR_OPN    }
   | ']'  { YaccParser.SBR_CLS    }
-  | '{'  { YaccParser.CBR_OPN    }
-  | '}'  { YaccParser.CBR_CLS    }
+  | '{'  { 
+    open_cbrackets := !open_cbrackets + 1;
+    YaccParser.CBR_OPN    
+  }
+  | '}'  {
+      if !open_cbrackets = 0 then
+        let buf = Buffer.create 32 in
+        let _ = match Stack.pop_opt cbrackets_stack with
+          | Some x -> open_cbrackets := x
+          | _ -> Error.fatal (Error.unmatched_closing_bracket
+            (Position.of_lexing 0 lexbuf.Lexing.lex_start_p)) in
+        string_token false lexbuf.Lexing.lex_start_p buf lexbuf
+      else
+        let () = open_cbrackets := !open_cbrackets - 1 in
+        YaccParser.CBR_CLS  
+    }
   | op_char+ as x { tokenize_oper lexbuf.Lexing.lex_start_p x }
   | lid_start var_char* as x { tokenize_ident x }
   | uid_start var_char* as x { YaccParser.UID x }
@@ -171,7 +192,7 @@ rule token = parse
   | digit var_char* as x { tokenize_number lexbuf.Lexing.lex_start_p x }
   | '"' {
       let buf = Buffer.create 32 in
-      string_token lexbuf.Lexing.lex_start_p buf lexbuf
+      string_token true lexbuf.Lexing.lex_start_p buf lexbuf
     }
   | eof    { YaccParser.EOF }
   | _ as x {
@@ -180,19 +201,31 @@ rule token = parse
         x)
     }
 
-and string_token pos buf = parse
+and string_token beg pos buf = parse
     "\n" {
       Lexing.new_line lexbuf;
       Buffer.add_char buf '\n';
-      string_token pos buf lexbuf
+      string_token beg pos buf lexbuf
     }
   | '"' {
       lexbuf.Lexing.lex_start_p <- pos;
-      YaccParser.STR (Buffer.contents buf)
+      if beg then
+        YaccParser.STR  (Buffer.contents buf)
+      else
+        YaccParser.ESTR (Buffer.contents buf)
     }
-  | [^'"' '\\']+ as str {
+  | "\\{" {
+      Stack.push (!open_cbrackets) cbrackets_stack;
+      open_cbrackets := 0;
+      lexbuf.Lexing.lex_start_p <- pos;
+      if beg then
+        YaccParser.BSTR (Buffer.contents buf)
+      else
+        YaccParser.CSTR (Buffer.contents buf)
+    }
+  | [^'"' '\\' '\n']+ as str {
       Buffer.add_string buf str;
-      string_token pos buf lexbuf
+      string_token beg pos buf lexbuf
     }
   | "\\027" {
       Buffer.add_char buf ('\027');
@@ -200,7 +233,7 @@ and string_token pos buf = parse
     }
   | "\\" (escape as esc) {
       Buffer.add_char buf (unescape esc);
-      string_token pos buf lexbuf
+      string_token beg pos buf lexbuf
     }
   | "\\" {
       Error.fatal (Error.invalid_escape_code

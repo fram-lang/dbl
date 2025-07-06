@@ -7,6 +7,7 @@ import open Operators
 import open Assert
 
 pub method toString = (extern dbl_intToString : Int -> String)
+
 pub method toInt64  = (extern dbl_intToInt64 : Int -> Int64)
 
 pub method equal = (extern dbl_eqInt  : Int -> Int -> Bool)
@@ -20,11 +21,11 @@ pub method add = (extern dbl_addInt : Int -> Int -> Int)
 pub method sub = (extern dbl_subInt : Int -> Int -> Int)
 pub method mul = (extern dbl_mulInt : Int -> Int -> Int)
 
-pub method div (self : Int) (n : Int) =
+pub method div {~__line__, ~__file__} (self : Int) (n : Int) =
   assert {msg="Division by zero"} (n != 0);
   (extern dbl_divInt : Int -> Int -> Int) self n
 
-pub method mod (self : Int) (n : Int) =
+pub method mod {~__line__, ~__file__} (self : Int) (n : Int) =
   assert {msg="Division by zero"} (n != 0);
   (extern dbl_modInt : Int -> Int -> Int) self n
 

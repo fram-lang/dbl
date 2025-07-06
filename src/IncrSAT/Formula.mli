@@ -37,7 +37,7 @@ val implies : t -> t -> bool
   value of the formula *)
 val fix : t -> bool
 
-(** Convert implication to CNF, i.e, conjunction of disjunctions of litarals.
+(** Convert implication to CNF, i.e., conjunction of disjunctions of litarals.
   The boolean flag at each literal describes polarity: [false] means that
   variable is negated. *)
 val imp_to_cnf : t -> t -> (PropVar.t * bool) list list

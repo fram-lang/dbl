@@ -71,7 +71,7 @@ val subscheme : 'st Env.t -> T.scheme -> T.scheme -> result
 val to_arrow : pos:Position.t -> 'st Env.t -> T.typ -> arrow
 
 (** Coerce given type from an arrow.
-  It performs some unifications when necessary. Returns [Arr_UVar], when given
+  It performs some unifications when necessary. Returns [Arr_UVar] when given
   type is an unification variable. *)
 val from_arrow : 'st Env.t -> T.typ -> arrow 
 

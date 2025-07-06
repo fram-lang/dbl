@@ -84,6 +84,9 @@ let rec in_type_rec sub tp =
   | TApp(tp1, tp2) ->
     t_app (in_type_rec sub tp1) (in_type_rec sub tp2)
 
+  | TAlias(uid, tp) ->
+    t_alias uid (in_type_rec sub tp)
+
 and in_scheme_rec sub sch =
   let (sub, targs) = open_named_tvars sub sch.sch_targs in
   { sch_targs = targs;
