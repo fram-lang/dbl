@@ -1,0 +1,9 @@
+parameter T
+parameter method foo : T -> T
+
+let bar (x : T) = x.foo
+
+parameter U
+parameter method foo : U -> U
+
+let baz (x : U) = bar x
