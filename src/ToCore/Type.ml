@@ -44,7 +44,8 @@ let rec tr_type env tp =
           tvars     = [];
           val_types = [];
           delim_tp  = tr_ttype env delim_tp;
-          delim_eff = tr_ceffect env (Impure delim_eff)
+          delim_eff = tr_ceffect env (Impure delim_eff);
+          rflag     = T.General
         })
 
   | THandler h ->
