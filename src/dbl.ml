@@ -60,6 +60,10 @@ let cmd_args_options = Arg.align
       [ "always"; "never"; "auto"; ],
       (fun s -> DblConfig.print_colors_of_string s)),
     " Use colors when printing Errors.";
+
+    "-no-toString-printing",
+    Arg.Set Pipeline.no_toString_printing,
+    " Disable REPL from using method toString for printing.";
   ]
 
 let fname = ref None

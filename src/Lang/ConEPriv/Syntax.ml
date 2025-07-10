@@ -49,7 +49,7 @@ type expr =
   | EReset    of expr * expr * var * expr
   | EExtern   of string * typ
   | ERepl     of (unit -> expr) * typ * ceffect
-  | EReplExpr of expr * string * expr
+  | EReplExpr of expr * string * expr * expr option
 
 and rec_def =
   { rd_var    : var;

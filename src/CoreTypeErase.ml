@@ -49,8 +49,10 @@ let rec tr_expr (e : S.expr) =
     T.EReset(tr_value v, List.map tr_value vs, tr_expr body, x, tr_expr ret)
   | ERepl(func, _, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
-  | EReplExpr(e1, tp, e2) ->
-    T.EReplExpr(tr_expr e1, tp, tr_expr e2)
+  | EReplExpr(e1, tp, e2, ep) ->
+    match ep with
+    | None    -> T.EReplExpr(tr_expr e1, tp, tr_expr e2, None)
+    | Some ep -> T.EReplExpr(tr_expr e1, tp, tr_expr e2, Some (tr_expr ep))
 
 (** Translate value as a value *)
 and tr_value (v : S.value) =
