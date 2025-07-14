@@ -1,0 +1,89 @@
+import open /Mutable
+
+rec
+  data Seq A = Seq of (Unit ->> Node A)
+
+  data Node A =
+    | Nil
+    | Cons of A, Seq A
+end
+
+let rec add {type X} (Seq f : Seq X) (Seq g : Seq X) = 
+    (Seq
+      (fn _ =>
+        match f () with
+        | Nil => g ()
+        | Cons a tl => Cons a (add (tl : Seq X) (Seq g))
+      end) : Seq X)
+
+let empty = Seq (fn _ => Nil)
+
+data BT E =
+  { flip : Unit ->[E] Bool
+  , fail : {type X} -> Unit ->> X
+  }
+
+let lazy =
+  handler
+    BT { flip = effect _ / r => add (r True) (r False)
+       , fail = effect _     => empty }
+    return x => Seq (fn _ => Cons x empty)
+  end
+
+let select {~bt : BT _} (n : Int) = 
+  let rec iter x = 
+    if n <= x then
+      ~bt.fail ()
+    else
+      if (~bt.flip ()) then
+        x
+      else
+        iter (x + 1)
+  in
+  iter 0
+
+let p = 1000
+
+let lazyTry {~bt} () =
+  let x = select p
+  let y = select p in
+  if x + y == p then
+    (x * p +  y)
+  else
+    ~bt.fail ()
+
+#let seq = handle ~bt with lazy in lazyTry ()
+
+
+let rec printSeq (Seq f : Seq Int) = 
+  match f () with
+  | Cons x tl => (printStrLn x.toString; printSeq tl)
+  | Nil => ()
+  end
+
+#let _ = printSeq seq
+
+data LazyState A = Thunk of (Unit ->> A) | Done of A
+
+data Lazy E A = Lazy of Ref E (LazyState A) 
+
+let lazy (mut : Mut _) f = Lazy (mut.ref (Thunk f))
+
+let force (mut : Mut _ ) (Lazy r) = 
+  match r.get with
+  | Done x => x
+  | Thunk f =>
+    let v = f () in r.set (Done v); v
+  end
+
+rec 
+  data Seq E A = Seq of Lazy E (Node E A)
+  data Node E A = Nil | Cons of A, Seq E A
+end
+
+let rec add {E : effect, ~mut : Mut E, X} (Seq s1 : Seq E X) (Seq s2 : Seq E X) =
+  ((match force ~mut s1 with
+  | Cons e tl => Seq (lazy ~mut (fn _ => Cons e (add tl (Seq s2))))
+  | Nil => (Seq s2 : Seq E X)
+  end) : Seq E X)
+

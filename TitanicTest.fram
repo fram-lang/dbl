@@ -1,0 +1,84 @@
+import open Titanic/Engine
+import open Titanic/FormatterImplicit
+import open Titanic/Parser
+import open Titanic/Combinators
+
+let style = "
+(layout:160
+  (box 
+    *(inter:ver 
+      (inter:hor (flex:1) 'Dec' &(sep) (string:'Hex') (flex:1))
+      (line)
+      1(list:ver 
+        (inter:hor (flex) 1(color:yellow (int)) &' = ' 1(color:red (int:x)))
+      )
+    )
+  )
+)
+"
+
+let d = [1, 2565, 332423, 4433, 522, 612, 600, 30240234, 123, 123, 123, 123, 123, 123]
+
+let sty = runParser style.toList
+
+let _ = match sty with
+  | Left e => printStrLn ("Parse error " + e)
+  | Right sty =>
+    # let _ = printStrLn sty.toString in
+
+    match (FList.formatted FInt.formatted) d sty with
+    | Left msg => printStrLn ("Style error " + msg)
+    | Right doc => 
+      (showDoc (debugDoc doc); showDoc doc)
+    end
+  end
+data rec AExp =
+  | AVar of String
+  | ANum of Int
+  | AOp  of String, AExp, AExp
+
+let rec formatA e = match e with
+  | AVar a => ppStr a
+  | ANum n => ppStr n.toString
+  | AOp op e1 e2 => ppSeq [formatA e1, ppStr " ", ppStr op, ppStr " ", formatA e2]
+  end
+
+data rec BExp =
+  | BOp   of String, BExp, BExp
+  | BNeg  of BExp
+  | BCmp  of String, AExp, AExp
+  | BBool of Bool
+
+let rec formatB e = match e with
+  | BOp op e1 e2 => ppSeq [formatB e1, ppStr " ", ppStr op, ppStr " ", formatB e2]
+  | BNeg e => ppSeq [ppStr "not ", formatB e]
+  | BCmp op e1 e2 => ppSeq [formatA e1, ppStr " ", ppStr op, ppStr " ", formatA e2]
+  | BBool b => ppStr b.toString
+  end
+
+data rec Imp =
+  | ESkip
+  | ESeq   of Imp, Imp
+  | EWhile of BExp, Imp
+  | EIf    of BExp, Imp, Imp
+  | EAss   of String, AExp
+
+
+let rec format imp = match imp with
+  | ESkip => ppStr "skip;"
+  | ESeq e1 e2 => format e1 /+/ format e2
+  | EWhile cnd imp => 
+    (ppStr "while " <+> formatB cnd <+> ppStr " do") /+/
+      (ppStr "  " <+> format imp) /+/
+    ppStr "end;"
+  | EAss v e =>
+    ppSeq [ ppStr v, ppStr " := ", formatA e, ppStr ";"] 
+  | _ => ppEmpty
+  end
+
+let prog = 
+  EWhile (BBool True) (EAss "x" (AOp "+" (AVar "x") (ANum 10)))
+
+let _ = showDoc (format prog)
+
+

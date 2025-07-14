@@ -221,7 +221,7 @@ pub let showDoc (doc : Doc) =
   let str = reduceLines ctx.lines
   in printStrLn str
 
-let _ = printStrLn (allocateShift AMFloat 27 (fixedWidth 18 >. shift >. addFixed 9)).toString
+# let _ = printStrLn (allocateShift AMFloat 27 (fixedWidth 18 >. shift >. addFixed 9)).toString
 # let _ = let (x, y) = (populateSpread 20 (fixedWidth 8 >. addFlex 20 >. singleStep))
 #         in printStrLn (x.toString + " " + y.toString)
 

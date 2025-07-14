@@ -229,7 +229,7 @@ and string_token beg pos buf = parse
     }
   | "\\027" {
       Buffer.add_char buf ('\027');
-      string_token pos buf lexbuf
+      string_token beg pos buf lexbuf
     }
   | "\\" (escape as esc) {
       Buffer.add_char buf (unescape esc);
