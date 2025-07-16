@@ -127,23 +127,23 @@ let recalculateSpread offset =
 
 let rec toLines (size : Int) (offset : Int) (d : Doc) =
   match d.tree with
-  | DEmpty => ctxBox [] LEmpty 0
-  | DStr str => qCtx [LStr str] str.length
+  | DEmpty => ctxBox [] (lineC 0 LEmp) 0
+  | DStr str => qCtx [lineC str.length (LStr str LEmp)] str.length
   | DColor col doc =>
     let ctx = toLines size offset doc in 
     ctxBox 
-      (List.map (fn (l : Line) => LColor col >. concat l >. concat LColorPop) ctx.lines)
+      (List.map (fn (l : LineC) => lineC l.width (LColor col (LCat l.line (LColorPop LEmp)))) ctx.lines)
       ctx.fill
       ctx.size
   | DSeq ds =>
     let rec iter size off ds = 
       match ds with
-      | [] => ctxBox [] LEmpty 0
+      | [] => ctxBox [] (lineC 0 LEmp) 0
       | d :: ds =>
         let ctxHead = toLines size off d
         let ctxTail = iter (size - ctxHead.size) (off + ctxHead.size) ds
         let lines = linesFill (ctxHead.fill) (ctxHead.lines) (ctxTail.fill) (ctxTail.lines)
-        in ctxBox lines (ctxHead.fill.concat ctxTail.fill) (ctxHead.size + ctxTail.size)
+        in ctxBox lines (ctxHead.fill.cat ctxTail.fill) (ctxHead.size + ctxTail.size)
       end
     in iter size offset ds
 
@@ -174,7 +174,7 @@ let rec toLines (size : Int) (offset : Int) (d : Doc) =
     let _ = recalculateSpread offset
     let missingShift = shift - offset
     let ctx = toLines (size - missingShift) (offset + missingShift) d
-    let lines = linesFill (eLine missingShift) [] ctx.fill ctx.lines
+    let lines = linesFill (lineC missingShift (LFill missingShift " " LEmp)) [] ctx.fill ctx.lines
     in ctxBox lines ctx.fill (missingShift + ctx.size)
   
   {#
@@ -196,23 +196,47 @@ let rec toLines (size : Int) (offset : Int) (d : Doc) =
       end
     let ctxs = iter ds
     let maxs = List.foldRight (fn (x : CtxBox) y => x.size.max y) ctxs 0
-    let aligned = List.map (fn (ctx : CtxBox) => alignLines maxs ctx.size ctx.lines) ctxs
+    # ????????/
+    let aligned = List.map (fn (ctx : CtxBox) => ctx.lines) ctxs
     in qCtx (List.concat aligned) maxs
 
   | DLayout size doc => toLines size offset doc
   | DFlex n => 
     let s = assignSpread n in
-    qCtx [LFill s " "] s
-  | DBox doc =>
-    let ctx = toLines (size - 2) (offset + 1) doc
-    let w = ctx.size
-    let mapped = List.map (fn (l : Line) => LStr "│" >. concat l >. concat (LStr "│")) ctx.lines
-    let topLine    = LStr "╭" >. concat (LFill w "─") >. concat (LStr "╮")
-    let bottomLine = LStr "╰" >. concat (LFill w "─") >. concat (LStr "╯")
-    in qCtx ([topLine] + mapped + [bottomLine]) (w + 2)
+    qCtx [lineC s (LFill s " " LEmp)] s
+  | DBox doc => qCtx [] 0
+  #| DBox doc =>
+  #  let ctx = toLines (size - 2) (offset + 1) doc
+  #  let w = ctx.size
+  #  let mapped = List.map (fn (l : Line) => LStr "│" >. concat l >. concat (LStr "│")) ctx.lines
+  #  let topLine    = LStr "╭" >. concat (LFill w "─") >. concat (LStr "╮")
+  #  let bottomLine = LStr "╰" >. concat (LFill w "─") >. concat (LStr "╯")
+  #  in qCtx ([topLine] + mapped + [bottomLine]) (w + 2)
   | DExtra _ arg cont =>
     let size' = assignSpread (d.width.singleStep.flex) + d.width.singleStep.fixed
     in cont size' arg
+  | DMon d1 d2 =>
+    let ctx1 = toLines 0 offset d1
+    let rec iter lines =
+      match (lines : List LineC) with
+      | [] => impossible ()
+      | [l] =>
+        let ctx2 = toLines 0 (offset) d2 in
+        match ctx2.lines with
+          | [] => impossible ()
+          | x :: xs =>
+            let first = l.cat x
+            let other = List.map (fn (c : LineC) => lineC l.width (LFill l.width " " LEmp) >.cat c) xs
+            # TODO fix fill
+            in (offset + ctx2.size, first :: other)
+        end
+      | x :: xs =>
+        let (w, lines) = iter xs in
+        (w, x :: lines)
+      end in
+    let (w, lines) = iter ctx1.lines in
+    qCtx lines w
+
   end
 
 pub let showDoc (doc : Doc) =
@@ -248,9 +272,9 @@ pub let debugDoc (d : Doc) =
       | DFlex n    => f (ppStr ("Flex " + n.toString))
       | DLayout n d => f (ppStr ("Lay " + n.toString)) /+/ ident (showDoc d)
       | DExtra name _ _ => f (ppStr name)
+      | _ => impossible ()
       end
     let showDoc (d : Doc) =
       showTree (fn x => x <+> showWidth d.width) d.tree
   end
   in ppReset (showDoc d)
-

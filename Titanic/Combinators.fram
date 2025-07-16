@@ -35,16 +35,20 @@ pub let ppBox d = doc (DBox d) (d.width.addFixed 2)
 
 pub let ppFlex n = doc (DFlex n) (fixedWidth 0 >. addFlex n)
 
+pub let ppMon d1 d2 = doc (DMon d1 d2) (d1.width.seq d2.width)
+
 pub let (<+>) d1 d2 = ppSeq [d1, d2]
 
 pub let (/+/) d1 d2 = ppStack [d1, d2]
 
+pub let (<>) d1 d2 = ppMon d1 d2
+
 pub let ppLine = 
   doc
-    (DExtra "Line" () (fn size _ => qCtx [LFill size "─"] size))
+    (DExtra "Line" () (fn size _ => qCtx [LineC {width=size, line=LFill size "─" LEmp}] size))
     (fixedWidth 0 >. addFlex 1)
 
 pub let ppSep = 
   doc
-    (DExtra "Sep" () (fn _ _ => ctxBox [LStr " │ "] (LStr " │ ") 3))
+    (DExtra "Sep" () (fn _ _ => ctxBox [LineC {width=3, line=LStr " │ " LEmp}] (LineC {width=3, line=LStr " │ " LEmp}) 3))
     (fixedWidth 3)

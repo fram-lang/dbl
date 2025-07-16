@@ -17,21 +17,22 @@ let style = "
 )
 "
 
-let d = [1, 2565, 332423, 4433, 522, 612, 600, 30240234, 123, 123, 123, 123, 123, 123]
+let d = [1, 2565, 332423, 4433]
 
-let sty = runParser style.toList
+# let sty = runParser style.toList
+# 
+# let _ = match sty with
+#   | Left e => printStrLn ("Parse error " + e)
+#   | Right sty =>
+#     # let _ = printStrLn sty.toString in
+# 
+#     match (FList.formatted FInt.formatted) d sty with
+#     | Left msg => printStrLn ("Style error " + msg)
+#     | Right doc => 
+#       (showDoc (debugDoc doc); showDoc doc)
+#     end
+#   end
 
-let _ = match sty with
-  | Left e => printStrLn ("Parse error " + e)
-  | Right sty =>
-    # let _ = printStrLn sty.toString in
-
-    match (FList.formatted FInt.formatted) d sty with
-    | Left msg => printStrLn ("Style error " + msg)
-    | Right doc => 
-      (showDoc (debugDoc doc); showDoc doc)
-    end
-  end
 data rec AExp =
   | AVar of String
   | ANum of Int
@@ -79,6 +80,8 @@ let rec format imp = match imp with
 let prog = 
   EWhile (BBool True) (EAss "x" (AOp "+" (AVar "x") (ANum 10)))
 
-let _ = showDoc (format prog)
+let example = (ppStr "aaaa" /+/ ppStr "aa") <> (ppStr "bbbb" /+/ ppStr "bb")
+
+let _ = showDoc example
 
 

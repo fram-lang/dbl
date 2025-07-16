@@ -2,18 +2,16 @@ import /List
 
 import open Types
 
-pub method concat = LConc
-
-pub let rec linesFill (f1 : Line) (ls1 : List Line) (f2 : Line) (ls2 : List Line) =
+pub let rec linesFill (f1 : LineC) (ls1 : List LineC) (f2 : LineC) (ls2 : List LineC) =
   match ls1, ls2 with
   | [],        []        => []
-  | l1 :: ls1, []        => l1.concat f2 :: linesFill f1 ls1 f2 ls2
-  | [],        l2 :: ls2 => f1.concat l2 :: linesFill f1 ls1 f2 ls2
-  | l1 :: ls1, l2 :: ls2 => l1.concat l2 :: linesFill f1 ls1 f2 ls2
+  | l1 :: ls1, []        => l1.catIndent (f1.width) f2 :: linesFill f1 ls1 f2 ls2
+  | [],        l2 :: ls2 => f1.cat l2 :: linesFill f1 ls1 f2 ls2
+  | l1 :: ls1, l2 :: ls2 => l1.catIndent (f1.width) l2 :: linesFill f1 ls1 f2 ls2
   end
 
-pub let alignLines (size : Int) csize (lines : List Line) =
-  List.map (fn (l : Line) => l.concat (LFill (size - csize) " ")) lines
+# pub let alignLines (size : Int) csize (lines : List Line) =
+#   List.map (fn (l : Line) => l.cat (LFill (size - csize) " ")) lines
 
 data Flat =
   | FPop
@@ -23,19 +21,20 @@ data Flat =
 
 let rec flatLine (line : Line) tail =
   match line with
-  | LStr str => FStr str :: tail
-  | LChr chr => FChr chr :: tail
-  | LConc l1 l2 => flatLine l1 (flatLine l2 tail)
-  | LFill n s =>
+  | LStr str tl => FStr str :: flatLine tl tail
+  | LChr chr tl => FChr chr :: flatLine tl tail
+  | LCat l1 l2  => flatLine l1 (flatLine l2 tail)
+  | LFill n s tl =>
     let str = List.map FChr s.toList
     let rec repeat (n : Int) = 
       if n <= 0 
-        then tail
+        then flatLine tl tail
         else str.append (repeat (n - 1))
     in repeat n
-  | LEmpty => tail
-  | LColor c => FPush c :: tail
-  | LColorPop => FPop :: tail
+  | LEmp => tail
+  | LColor c tl => FPush c :: flatLine tl tail
+  | LColorPop tl => FPop :: flatLine tl tail
+  | LCatFill l1 n l2 => flatLine l1 (flatLine (LFill n " " l2) tail)
   end
 
 data ColorStack E = 
@@ -95,5 +94,5 @@ let flatToString cs =
   in (charListToStr (iter cs)) : String
 
 pub let reduceLines lines = 
-  let flats = List.map (fn (l : Line) => flatToString (runColorResolver (flatLine (l.concat (LChr '\n')) []))) lines
+  let flats = List.map (fn (l : LineC) => flatToString (runColorResolver (flatLine (LCat l.line (LChr '\n' LEmp)) []))) lines
   in List.foldRight (fn l (r : String) => l + r) (flats : List String) ""

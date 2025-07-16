@@ -18,16 +18,17 @@ rec
     | DColor  of Color, Doc
     | DBox    of Doc
     | DFlex   of Int
+    | DMon    of Doc, Doc
     | DExtra  of {type X}, String, X, (Int -> X ->> CtxBox)
 
-  pub data CtxBox = { lines : List Line
-                    , fill  : Line 
+  pub data CtxBox = { lines : List LineC
+                    , fill  : LineC 
                     , size  : Int 
                     }
 
   pub let ctxBox lines fill size = CtxBox { lines, fill, size }
 
-  pub let qCtx lines len = ctxBox lines (eLine len) len
+  pub let qCtx lines len = ctxBox lines (LineC {width=len, line=LFill len " " LEmp}) len
 
   pub data Color =
     | Black
@@ -40,15 +41,28 @@ rec
     | White
 
   pub data Line =
-    | LStr   of String
-    | LChr   of Char
-    | LConc  of Line, Line
-    | LFill  of Int,  String
-    | LEmpty
-    | LColor of Color
-    | LColorPop
+    | LEmp      # empty
+    | LStr      of String, Line
+    | LChr      of Char, Line
+    | LCat      of Line, Line
+    | LCatFill  of Line, Int, Line
+    | LFill     of Int,  String, Line
+    | LColor    of Color, Line
+    | LColorPop of Line
 
-  pub let eLine n = LFill n " "
+  # Separate box width from individual line length
+  # Idea borrowed from Bernardy's work
+  pub data LineC = { width : Int, line : Line }
+  pub let lineC width line = LineC {width, line}
+
+  pub method cat (LineC {width=w1, line=l1}) (LineC {width=w2, line=l2}) =
+    LineC {width = w1 + w2, line = LCat l1 l2}
+  
+  pub method catIndent (LineC {width=w1, line=l1}) indent (LineC {width=w2, line=l2}) =
+    if w1 < indent then
+      LineC {width = indent + w2, line = LCatFill l1 (indent - w1) l2}
+    else
+      LineC {width = w1 + w2, line = LCat l1 l2}
 
   pub method toString (c : Color) = 
     match c with
