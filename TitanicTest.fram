@@ -80,8 +80,14 @@ let rec format imp = match imp with
 let prog = 
   EWhile (BBool True) (EAss "x" (AOp "+" (AVar "x") (ANum 10)))
 
-let example = (ppStr "aaaa" /+/ ppStr "aa") <> (ppStr "bbbb" /+/ ppStr "bb")
+let example =((ppStr "aaaa" /+/ ppStr "aa")
+           <> ppShift (ppStr "cccc" /+/ ppStr "cc")
+           <> ppShift (ppStr "bbbb" /+/ ppStr "bb"))
+           /+/ ppSeq [(ppStr "a"), ppShift (ppStr "b"), ppShift (ppStr "c"), ppShift (ppStr "d")]
 
-let _ = showDoc example
+# let _ = showDoc (debugDoc example)
+# let _ = showDoc (ppReset example)
 
+# let ex2 = ppSeq [ppStr "a", ppStr "b", ppStr "c"]
 
+let _ =showDoc ex2

@@ -1,0 +1,256 @@
+import open Lazy
+import /List
+
+# shift-reset addition to Bernardys M structure
+
+data rec SList =
+  # last elem
+  | SF of Int
+  # regular elem (normal + end)
+  | SS of Int, Int, SList
+  # tagged elem, containes `last` width
+  | SL of Int, SList
+
+# preserve invariant that there is exactly one SL in entire list
+
+method rec format (self : SList) =
+  match self with
+  | SF i => "SF \{i}"
+  | SS i j tl => "SS \{i} \{j} (\{tl})"
+  | SL i tl => "SL \{i} (\{tl})"
+  end
+
+method rec equal (s1 : SList) (s2 : SList) =
+  match (s1, s2) with
+  | SF v1, SF v2 => v1 == v2
+  | SS i1 j1 s1, SS i2 j2 s2 => i1 == i2 && j1 == j2 && s1 == s2
+  | SL i1 s1, SL i2 s2 => i1 == i2 && s1 == s2
+  | _ => False
+  end
+
+data Width =
+  { width  : SList
+  , height : Int
+  }
+
+method format (self : Width) =
+  "Width {width = \{self.width}, height = \{self.height}}"
+
+method equal (w1 : Width) (w2 : Width) =
+  w1.width == w2.width && w1.height == w2.height
+
+let text s = Width {width=SL s (SF s), height=0}
+
+method flush (Width {width, height}) =
+  let rec dropL w = match w with
+    | SS i j tl => SS i j (dropL tl)
+    | SL _ tl => tl
+    | SF i => impossible ()
+    end in
+  Width {width = SL 0 (dropL width), height = height + 1}
+
+let (<>) {X : type, method combine : X -> X ->> X} (val : X) = val.combine
+
+# (N, +, 0) oraz (N, max, 0) są monoidami więc nie będę istalować inta w tej klasie
+
+let max (x : Int) (y : Int) =
+  if x > y then x else y
+
+# this is f'ed up and need to be verified, maxes are not enough, pluses needed
+method combine (w1 : Width) (w2 : Width) = 
+  let height = w1.height + w2.height in
+
+  let rec add w xs = match xs with
+    | SL i tl => SL (i + w) (add w tl)
+    | SF i => SF (i + w)
+    | SS i j tl => SS (i + w) (j + w) tl 
+    end in
+
+  let rec combineWs w1 w2 = match (w1, w2) with
+    # regular elements
+    | SS i j w1, SS i' j' w2 => SS (max i i') (max j j') (combineWs w1 w2)
+    | SF i, SS i' j' w2 => SS i' (max i j') w2    
+    | SS i j w1, SF i'  => SS i  (max j i') w1    
+    
+    # right last
+    | SF i,      SL l (SF i') => SL l (SF (max i i'))
+    | SS i j w1, SL l (SF i') => SL l (SS i (max i' j) w1)
+    | SF i,      SL l (SS i' j' w2) => SL l (SS i' (max i j') w2)
+    | SS i j w1, SL l (SS i' j' w2) => SL l (SS (max i i') (max j j') (combineWs w1 w2))
+
+    # left last and anything else
+    | _ => impossible ()
+    end in
+
+  let rec copyTillL (w1 : SList) (w2 : SList) =
+    match w1 with
+    | SF _ => impossible ()
+    | SS i j tl => SS i j (copyTillL tl w2)
+    | SL w tl => combineWs tl (add w w2)
+    end in
+  
+  Width {width = copyTillL w1.width w2.width, height}
+
+method map mb f = match mb with
+  | None => None
+  | Some x => Some (f x)
+  end
+
+method reset (w : Width) =
+  let rec iter (xs : SList) = match xs with
+    | SF i => (i, None)
+    | SL i tl => (fst (iter tl), Some i)
+    | SS i j tl =>
+      let tl = iter tl in
+      let tot = max j (i + fst tl) in
+      (tot, snd tl >.map (fn x => (i + x)))
+    end in
+  match iter w.width with
+  | (x, Some y) => Width { width = SL y (SF x), height = w.height }
+  | _ => impossible ()
+  end
+
+# poprawić seq - last line może nie wystawać, wtedy trzeba flushować
+
+method seq (w1 : Width) (w2 : Width) =
+  let rec dropL w = match w with
+    | SS i j tl => SS i j (dropL tl)
+    | SL _ tl => tl
+    | SF i => impossible ()
+    end in
+  let (s1, s2) = (dropL w1.width, w2.width) in
+  let rec join s = match s with
+    | SL x tl => impossible ()
+    | SS i j tl => SS i j (join tl)
+    | SF i => match s2 with
+      | SL l (SF i') => SL (l + i) (SF (i' + i))
+      | SL l (SS i' j' tl) => SL (l + i) (SS (i' + i) (j' + i) tl)
+      | SS i' j' tl => SS (i' + i) (j' + i) tl
+      | _ => impossible ()
+      end
+    end in
+  Width {height = max w1.height w2.height, width = join s1}
+
+let ($$) 
+  {type X, method combine : X -> X ->> X, method flush : X ->> X}
+  (a : X) (b : X) = a.flush <> b 
+
+let (<+>) {type X, method seq : X -> X ->> X} (val : X) = val.seq
+
+method shift (Width {width, height}) =
+  Width {width = SS 0 0 width, height}
+
+let _ = printStrLn ((text 10) >.shift).format
+let _ = printStrLn ((text 100)).format
+let _ = printStrLn ((text 100) <> text 50).format
+let _ = printStrLn ((text 100)>.flush <> text 50).format
+
+let _ = assert (text 10 == text 10)
+
+## Lazy
+
+method combine {E : effect, type X, method combine : X -> X ->> X } (l1 : Lazy E X) (l2 : Lazy E X) = 
+  lazy (fn () => l1.force <> l2.force)
+
+method seq {E : effect, type X, method seq : X -> X ->> X } (l1 : Lazy E X) (l2 : Lazy E X) = 
+  lazy (fn () => l1.force <+> l2.force)
+
+method flush {E : effect, type X, method flush : X ->> X} (self : Lazy E X) =
+  lazy (fn () => self.force.flush)
+
+method reset {E : effect, type X, method reset : X ->> X} (self : Lazy E X) =
+  lazy (fn () => self.force.reset)
+
+method shift {E : effect, type X, method shift : X ->> X} (self : Lazy E X) =
+  lazy (fn () => self.force.shift)
+
+## Pairs
+
+method combine
+  {type X, method combine : X -> X ->> X, type Y, method combine : Y -> Y ->> Y}
+  ((x1, y1) : Pair X Y) ((x2, y2) : Pair X Y) = (x1 <> x2, y1 <> y2)
+
+method seq
+  {type X, method seq : X -> X ->> X, type Y, method seq : Y -> Y ->> Y}
+  ((x1, y1) : Pair X Y) ((x2, y2) : Pair X Y) = (x1 <+> x2, y1 <+> y2)
+
+method flush {type X, method flush : X ->> X, type Y, method flush : Y ->> Y}
+  ((x, y) : Pair X Y) = (x.flush, y.flush)
+
+method reset {type X, method reset : X ->> X, type Y, method reset : Y ->> Y}
+  ((x, y) : Pair X Y) = (x.reset, y.reset)
+
+method shift {type X, method shift : X ->> X, type Y, method shift : Y ->> Y}
+  ((x, y) : Pair X Y) = (x.shift, y.shift)
+
+let lazyText n = lazy (fn _ => text n)
+
+let _ = printStrLn ((lazyText 100 >.shift )).format
+let _ = printStrLn ((lazyText 100 <+> lazyText 200 >.shift)).format
+
+
+data rec L =
+  | LCat of L, L
+  | LFill of Int, L
+  | LStr of String
+  | LEmpty
+  | LShift of L
+  | LReset of L
+
+data Line = {size : Int, str : L}
+
+let emptyLine = Line {size = 0, str = LEmpty}
+
+type Lines = List Line
+
+method flush (lines : Lines) = lines + [emptyLine]
+
+method shift (lines : Lines) =
+  List.map (fn (Line {size, str}) => Line {size, str = LShift str}) lines
+
+method reset (lines : Lines) =
+  List.map (fn (Line {size, str}) => Line {size, str = LReset str}) lines
+
+method combine (xs : Lines) (ys : Lines) =
+  let rec iter xs = match xs with
+    | [] => ys
+    | [Line {size, str}] =>
+      match ys with
+      | [] => [Line {size, str}]
+      | Line {size=size', str=str'} :: ys =>
+        Line {size=size + size', str = LCat str str'}
+          :: List.map (fn (y : Line) => Line{size=size + y.size, str=LFill size y.str}) ys
+      end
+    | x :: xs => x :: iter xs
+    end in
+  iter xs
+
+let rec genL (self : L) = match self with
+  | LEmpty => ""
+  | LStr str => str
+  | LShift tl => genL tl
+  | LReset tl => genL tl
+  | LFill i tl =>
+    if 0 >= i then
+      genL tl
+    else
+      " " + genL (LFill (i - 1) tl)
+  | LCat l1 l2 => genL l1 + genL l2
+  end
+
+let unlines (xs : Lines) =
+  let strs = List.map (fn (x : Line) => genL x.str) xs in
+  let rec fold (xs : List String) = match xs with
+    | [] => ""
+    | x :: xs => x + "\n" + fold xs
+    end in
+  fold strs
+
+let text (str : String) =
+  let l = str.length in
+  (Width {width = SL l (SF l), height = 0}, lazy (fn _ => [Line {size=l, str=LStr str}]))
+
+let doc = (text "abcdef" $$ text "ghi") <> (text "aaaaaaa" $$ text "ccc")
+
+let _ = printStrLn (fst doc >.format)
+let _ = printStrLn (unlines (snd doc >.force))

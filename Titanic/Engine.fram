@@ -271,8 +271,9 @@ pub let debugDoc (d : Doc) =
       | DStack ds  => ppStack (f (ppStr "Stack") :: List.map (fn x => ident (showDoc x)) ds)
       | DFlex n    => f (ppStr ("Flex " + n.toString))
       | DLayout n d => f (ppStr ("Lay " + n.toString)) /+/ ident (showDoc d)
+      | DMon d1 d2 => ppStack (f (ppStr "Mon") :: ident (showDoc d1) :: ident (showDoc d2) :: [])
       | DExtra name _ _ => f (ppStr name)
-      | _ => impossible ()
+      # | _ => impossible ()
       end
     let showDoc (d : Doc) =
       showTree (fn x => x <+> showWidth d.width) d.tree
