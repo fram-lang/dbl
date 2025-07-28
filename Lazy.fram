@@ -33,3 +33,46 @@ pub method format
   , method format : X ->> String }
   (self : Lazy E X) =
     "Lazy " + self.force.format
+
+pub method forced (Lazy ref) =
+  match ref.get with
+  | Thunk _ => "T"
+  | Lock => "L"
+  | Done _ => "D"
+  end
+
+rec
+  abstr data Seq E A = { list : Lazy E (Node E A) }
+  data Node E A =
+    | Cons of A, Seq E A
+    | Nil
+end
+
+pub let empty = Seq {list = lazy (fn _ => Nil)}
+
+pub let singleton x = Seq {list = lazy (fn _ => Cons x empty)}
+
+pub method uncons (Seq {list}) =
+  match list.force with
+  | Nil => None
+  | Cons x xs => Some (x, xs)
+  end
+
+pub let cons x seq = 
+  Seq {list = lazy (fn _ => Cons x seq)}
+
+pub method cons seq x = cons x seq
+
+pub let lazyCons {E : effect} x (seq : Lazy E (Seq E _)) =
+  Seq {list = lazy (fn _ => Cons x seq.force)}
+
+pub method lazyCons seq x = lazyCons x seq
+
+pub method format
+  {X : type, E : effect, method format : X ->> String }
+  (seq : Seq E X) =
+  let rec iter (seq : Seq E X) = match seq.uncons with
+    | None => ""
+    | Some (x, xs) => x.format + ", " + seq.list.forced + ">>" + iter xs
+    end in
+  "Seq [" + iter seq + "]"

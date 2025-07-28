@@ -13,6 +13,12 @@ data rec SList =
 
 # preserve invariant that there is exactly one SL in entire list
 
+let rec foldr1 f xs = match xs with
+  | x :: y :: [] => f x y
+  | x :: xs => f x (foldr1 f xs)
+  | _ => runtimeError "foldr fail"
+  end
+
 method rec format (self : SList) =
   match self with
   | SF i => "SF \{i}"
@@ -246,11 +252,185 @@ let unlines (xs : Lines) =
     end in
   fold strs
 
-let text (str : String) =
+method snd = snd
+method fst = fst
+
+let textL (str : String) =
   let l = str.length in
   (Width {width = SL l (SF l), height = 0}, lazy (fn _ => [Line {size=l, str=LStr str}]))
 
-let doc = (text "abcdef" $$ text "ghi") <> (text "aaaaaaa" $$ text "ccc")
+# let doc = (text "abcdef" $$ text "ghi") <> (text "aaaaaaa" $$ text "ccc")
 
-let _ = printStrLn (fst doc >.format)
-let _ = printStrLn (unlines (snd doc >.force))
+# let _ = printStrLn (doc.fst.format)
+# let _ = printStrLn (unlines (doc.snd.force))
+
+let paretoSelector
+  {X : type}
+  (poset : X -> X ->> Bool)
+  (seq : List X) = 
+    let rec iter (mins : List X) (seq : List X) =
+      match seq with
+      | [] => mins.rev
+      | x :: seq =>
+        match List.findIndex (fn y => poset y x) mins with
+        | Some _ => iter mins seq
+        | None => (iter (x :: mins) seq)
+        end
+      end in
+    iter [] seq
+
+let xs = (3, 10) :: (6, 2) :: (4, 12) :: []
+let poset (x, y) (z, w) = ((x : Int) < z) && ((y : Int) < w)
+
+let _ = printStrLn (paretoSelector poset xs).format
+
+# true wybiera pierwszy
+let rec mergeOn sel (xs : List _) (ys : List _) =
+  match xs with
+  | [] => ys
+  | x :: xs' => match ys with
+    | [] => xs
+    | y :: ys' =>
+      if sel x y then
+        x :: mergeOn sel xs' ys
+      else
+        y :: mergeOn sel xs ys'
+    end
+  end
+
+let rec mergeAllOn sel (xss : List _) = match xss with
+  | [] => []
+  | x :: ys => mergeOn sel x (mergeAllOn sel ys)
+  end
+
+let bestOn ord poset xss =
+  paretoSelector poset (mergeAllOn ord xss)
+
+let poset (w1 : Width) (w2 : Width) =
+  match w1.reset, w2.reset with
+  | Width {height=h1, width=SL l1 (SF m1)}
+  , Width {height=h2, width=SL l2 (SF m2)}
+    => m1 < m2 && h1 < h2 && l1 < l2
+  | _ => impossible ()
+  end 
+
+let ord (w1 : Width) (w2 : Width) =
+  match w1.reset, w2.reset with
+  | Width {height=h1, width=SL l1 (SF m1)}
+  , Width {height=h2, width=SL l2 (SF m2)}
+    => h1 < h2 || (h1 == h2 && (m1 < m2 || (m1 == m2 && l1 < l2)))
+  | _ => impossible ()
+  end
+
+let quasifilter (w : Int) (f : _ -> Width) (ws : List _) =
+  match ws with
+  | [] => impossible ()
+  | [x] => [x]
+  | xs =>
+    let maxWidth (w : Width) =
+      match w.reset with
+      | Width {width=SL _ (SF i)} => i
+      | _ => impossible ()
+      end in
+
+    match List.filter (fn x => maxWidth (f x) <= w) (xs) with
+    | [] =>
+      let el = foldr1
+      (fn x y =>
+        if maxWidth (f x) <= maxWidth (f y) then x else y)
+      xs in [el]
+    | xs => xs
+    end
+  end
+
+let discardInvalid w = quasifilter w (fst)
+
+data ODoc E =
+  ODoc of (Int ->> List (Pair Width (Lazy E Lines)))
+
+let (>>=) (xs : List _) f = xs.concatMap f
+
+method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
+  let ds = xs w >>= (fn x => [discardInvalid w (ys w >>= (fn y => [x <> y]))]) in
+    bestOn
+      (fn x y => ord (fst x) (fst y))
+      (fn x y => poset (fst x) (fst y))
+        ds)
+
+method flush (ODoc xs) = ODoc (fn w => 
+  (List.map (fn (w : Pair Width (Lazy _ Lines)) => w.flush) (xs w)))
+
+let text str = ODoc (fn _ => [textL str])
+
+let try w (ODoc xs) = match xs w with
+  | [] => printStrLn "Error"
+  #| (w, lines) :: _ =>
+  #  printStrLn w.format;
+  #  printStrLn (unlines lines.force)
+  | xs =>
+    let xs = discardInvalid w xs in
+    List.iter (fn ((w : Width), (lines : Lazy _ Lines)) => printStrLn w.format; printStrLn (unlines lines.force)) xs
+  end
+
+
+let _ = try 60
+  ((text "aaaaaaaaa" $$ text "aaaa") <> (text "bbbbbbbbbbb" $$ text "bbb"))
+
+let empty = text ""
+
+let rec initTail xs = match xs with
+  | [] => impossible ()
+  | [x] => ([], x)
+  | x :: xs =>
+    let (xs, e) = initTail xs in
+    (x :: xs, e)
+  end
+
+let onlySingleLine = List.takeWhile (fn (Width {height}, _) => height == 0)
+
+let spaces n =
+  let rec iter n =
+    if 0 >= n then "" else " " + iter (n - 1) in
+  (Width {height = 0, width = (SL n (SF n))}, lazy (fn _ => [Line {size = n, str = LStr (iter n)}]))
+
+let groupingBy {E} (sep : String) (ms : List (Pair Int (ODoc E))) = 
+  match ms with
+  | [] => empty
+  | ms => ODoc (fn w =>
+    let mws = List.map (fn (x, ODoc d) => (x, d w)) ms in
+    let (init, (_, last)) = initTail mws in
+    let (hcat : List (List (Pair Width (Lazy E Lines))))
+      = List.map (fn x => onlySingleLine (snd x)) init + [last] in
+    let (vcat : List (List (Pair Width (Lazy E Lines))))
+      = List.map (fn (i, x) => List.map (fn x => spaces i <> x) x) mws in
+    let hor = discardInvalid w
+      (foldr1
+        (fn xs ys => xs >>= (fn x =>
+                     ys >>= (fn y =>
+                     [x <> textL sep <> y])))
+        hcat) in
+    let ver =
+      foldr1
+        (fn xs ys =>
+          bestOn 
+            (fn x y => ord (fst x) (fst y))
+            (fn x y => poset (fst x) (fst y))
+            (xs >>= (fn x =>
+            [(ys >>= (fn y =>
+               [x $$ y]))])))
+        vcat in
+    let ls = bestOn
+      (fn x y => ord (fst x) (fst y))
+      (fn x y => poset (fst x) (fst y))
+      [hor, ver] in
+    ls) # discardInvalid w ls) # ????? tego wywołania nie powinno tutaj być
+  end
+
+let hangWith sep n x y = groupingBy sep [(0, x), (n, y)]
+
+let hanging = hangWith " " 2
+
+let doc = hanging (text "aaaaaaaaa") (text "bbbbbbbbb")
+
+let _ = try 40 (doc $$ text "ccc") # (text "a" <> text "b")
+
