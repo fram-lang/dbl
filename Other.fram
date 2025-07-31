@@ -13,6 +13,12 @@ data rec SList =
 
 # preserve invariant that there is exactly one SL in entire list
 
+let rec mkStr (s : String) (l : Int) = 
+  if l <= 0 then
+    ""
+  else
+    s + mkStr s (l - 1)
+
 let rec foldr1 f xs = match xs with
   | x :: y :: [] => f x y
   | x :: xs => f x (foldr1 f xs)
@@ -164,9 +170,6 @@ method seq {E : effect, type X, method seq : X -> X ->> X } (l1 : Lazy E X) (l2 
 method flush {E : effect, type X, method flush : X ->> X} (self : Lazy E X) =
   lazy (fn () => self.force.flush)
 
-method reset {E : effect, type X, method reset : X ->> X} (self : Lazy E X) =
-  lazy (fn () => self.force.reset)
-
 method shift {E : effect, type X, method shift : X ->> X} (self : Lazy E X) =
   lazy (fn () => self.force.shift)
 
@@ -183,9 +186,6 @@ method seq
 method flush {type X, method flush : X ->> X, type Y, method flush : Y ->> Y}
   ((x, y) : Pair X Y) = (x.flush, y.flush)
 
-method reset {type X, method reset : X ->> X, type Y, method reset : Y ->> Y}
-  ((x, y) : Pair X Y) = (x.reset, y.reset)
-
 method shift {type X, method shift : X ->> X, type Y, method shift : Y ->> Y}
   ((x, y) : Pair X Y) = (x.shift, y.shift)
 
@@ -201,51 +201,99 @@ data rec L =
   | LStr of String
   | LEmpty
   | LShift of L
-  | LReset of L
+  | LReset of SList, L
 
-data Line = {size : Int, str : L}
+data Line = {fill : L, str : L}
 
-let emptyLine = Line {size = 0, str = LEmpty}
+let emptyLine = Line {fill = LEmpty, str = LEmpty}
 
 type Lines = List Line
 
 method flush (lines : Lines) = lines + [emptyLine]
 
 method shift (lines : Lines) =
-  List.map (fn (Line {size, str}) => Line {size, str = LShift str}) lines
+  List.map (fn (Line {fill, str}) => Line {fill = LShift fill, str = LShift str}) lines
 
-method reset (lines : Lines) =
-  List.map (fn (Line {size, str}) => Line {size, str = LReset str}) lines
+method reset (lines : Lines) slist = 
+  List.map (fn (Line {fill, str}) => Line {fill = LReset slist fill, str = LReset slist str}) lines
+
+method reset {E : effect} (self : Lazy E Lines) slist =
+  lazy (fn () => self.force.reset slist)
+
+method reset {E : effect}
+  ((x, y) : Pair Width (Lazy E Lines)) = (x.reset, y.reset x.width)
 
 method combine (xs : Lines) (ys : Lines) =
   let rec iter xs = match xs with
     | [] => ys
-    | [Line {size, str}] =>
+    | [Line {fill, str}] =>
       match ys with
-      | [] => [Line {size, str}]
-      | Line {size=size', str=str'} :: ys =>
-        Line {size=size + size', str = LCat str str'}
-          :: List.map (fn (y : Line) => Line{size=size + y.size, str=LFill size y.str}) ys
+      | [] => [Line {fill, str}]
+      | Line {fill=fill', str=str'} :: ys =>
+        Line {fill=LCat fill fill', str = LCat str str'}
+          :: List.map (fn (y : Line) => Line{fill=LCat fill fill', str=LCat fill y.str}) ys
       end
     | x :: xs => x :: iter xs
     end in
   iter xs
 
-let rec genL (self : L) = match self with
+data State E =
+  { put : Pair Int (List Int) ->[E] Unit
+  , get : Unit ->[E] Pair Int (List Int) }
+
+let stateH (w : Int) =
+  handler
+    State
+      { put = effect s / r => fn _ => r () s
+      , get = effect _ / r => fn s => r s s }
+      return x => fn _ => x
+      finally c => c (0, [10, w])
+  end
+
+method move {E} (st : State E) (w : Int) = 
+  let (p, sh) = st.get () in
+  st.put (p + w, sh)
+
+method getShift {E} (st : State E) =
+  let (p, sh) = st.get () in
+  match sh with
+  | [] => runtimeError "Empty shift state"
+  | s :: sh =>
+    assert (p <= s);
+    let diff = s - p in
+    st.put (s, sh);
+    diff
+  end
+
+method putShifts {E} (st : State E) (sl : SList) =
+  let (p, sh) = st.get () in
+  let rec iter (p : Int) sl = match sl with
+    | SL _ tl => iter p tl
+    | SF i => [i + p]
+    | SS i _ tl => i + p :: iter (i + p) tl
+    end in
+  st.put (p, iter p sl)
+
+let rec genL {~h : State _} (self : L) = match self with
   | LEmpty => ""
-  | LStr str => str
-  | LShift tl => genL tl
-  | LReset tl => genL tl
+  | LStr str => ~h.move str.length; str
+  | LShift tl =>
+    let s = ~h.getShift in
+    mkStr " " s + genL tl
+  | LReset sl tl =>
+    let stBackup = ~h.get () in
+    ~h.putShifts sl;
+    let res = genL tl in
+    ~h.put stBackup;
+    res
   | LFill i tl =>
-    if 0 >= i then
-      genL tl
-    else
-      " " + genL (LFill (i - 1) tl)
+      ~h.move i;
+      mkStr " " i + genL tl
   | LCat l1 l2 => genL l1 + genL l2
   end
 
-let unlines (xs : Lines) =
-  let strs = List.map (fn (x : Line) => genL x.str) xs in
+let unlines w (xs : Lines) =
+  let strs = List.map (fn (x : Line) => handle ~h with stateH w in genL x.str) xs in
   let rec fold (xs : List String) = match xs with
     | [] => ""
     | x :: xs => x + "\n" + fold xs
@@ -257,7 +305,7 @@ method fst = fst
 
 let textL (str : String) =
   let l = str.length in
-  (Width {width = SL l (SF l), height = 0}, lazy (fn _ => [Line {size=l, str=LStr str}]))
+  (Width {width = SL l (SF l), height = 0}, lazy (fn _ => [Line {fill=LFill str.length LEmpty, str=LStr str}]))
 
 # let doc = (text "abcdef" $$ text "ghi") <> (text "aaaaaaa" $$ text "ccc")
 
@@ -324,7 +372,7 @@ let ord (w1 : Width) (w2 : Width) =
 
 let quasifilter (w : Int) (f : _ -> Width) (ws : List _) =
   match ws with
-  | [] => impossible ()
+  | [] => [] #impossible ()
   | [x] => [x]
   | xs =>
     let maxWidth (w : Width) =
@@ -369,7 +417,8 @@ let try w (ODoc xs) = match xs w with
   #  printStrLn (unlines lines.force)
   | xs =>
     let xs = discardInvalid w xs in
-    List.iter (fn ((w : Width), (lines : Lazy _ Lines)) => printStrLn w.format; printStrLn (unlines lines.force)) xs
+    List.iter (fn ((wd : Width), (lines : Lazy _ Lines)) =>
+      printStrLn wd.format; printStrLn (unlines w lines.force)) xs
   end
 
 
@@ -391,7 +440,7 @@ let onlySingleLine = List.takeWhile (fn (Width {height}, _) => height == 0)
 let spaces n =
   let rec iter n =
     if 0 >= n then "" else " " + iter (n - 1) in
-  (Width {height = 0, width = (SL n (SF n))}, lazy (fn _ => [Line {size = n, str = LStr (iter n)}]))
+  (Width {height = 0, width = (SL n (SF n))}, lazy (fn _ => [Line {fill = LFill n LEmpty, str = LStr (iter n)}]))
 
 let groupingBy {E} (sep : String) (ms : List (Pair Int (ODoc E))) = 
   match ms with
@@ -430,7 +479,48 @@ let hangWith sep n x y = groupingBy sep [(0, x), (n, y)]
 
 let hanging = hangWith " " 2
 
-let doc = hanging (text "aaaaaaaaa") (text "bbbbbbbbb")
+method shift (ODoc xs) = ODoc (fn w =>
+  List.map (fn (x : Pair Width (Lazy _ Lines)) => x.shift) (xs w))
 
-let _ = try 40 (doc $$ text "ccc") # (text "a" <> text "b")
+method reset (ODoc xs) = ODoc (fn w =>
+  List.map (fn (x : Pair Width (Lazy _ Lines)) => x.reset) (xs w))
+
+#let doc = hanging (text "aaaaaaaaa") (text "bbbbbbbbb")
+#
+#let _ = try 40 (doc $$ text "ccc") # (text "a" <> text "b")
+
+let doc1 = (text "aaaaa" <> (text "bb" >. shift)) >. reset
+let doc2 = (text "aaa" <> (text "bbbb" >. shift)) >. reset
+
+let _ = try 40 doc1
+let _ = try 40 doc2
+let doc =
+  ((text "aaaaa" <> (text "bb" >. shift) <> (text "cc" >. shift)) $$
+    (text "dddddddddddddddddddddddddddddddddddd") $$
+    (text "aaa" <> (text "bbbb" >. shift) <> (text "cc" >. shift)))
+
+method rec format (l : L) = match l with
+  | LEmpty => "e"
+  | LCat l1 l2 => l1.format + " " + l2.format
+  | LStr s => s.format
+  | LFill n tl => n.format + " " + tl.format
+  | LReset sl l => "reset " + sl.format + " " + l.format
+  | LShift l => "shift " + l.format
+  end
+
+method format {?fmt : Unit} (l : Line) = l.str.format
+
+let tryDebug w (ODoc xs) = match xs w with
+  | [] => printStrLn "Error"
+  #| (w, lines) :: _ =>
+  #  printStrLn w.format;
+  #  printStrLn (unlines lines.force)
+  | xs =>
+    let xs = discardInvalid w xs in
+    List.iter (fn ((wd : Width), (lines : Lazy _ Lines)) =>
+      List.iter (fn (l : Line) => printStrLn l.format) lines.force;
+      printStrLn wd.format; printStrLn (unlines w lines.force)) xs
+  end
+
+let _ = tryDebug 100 (doc <> doc <> doc).reset
 
