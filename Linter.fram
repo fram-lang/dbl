@@ -59,3 +59,9 @@ end
 
 let _ = printStrLn "start"
 let _ = try 200 program.lint
+
+let _ = tryDebug 80
+  ((text "60" $$ text "300")
+    <+> (text "10" $$ text "200" $$ text "30")
+    <+> text "500"
+    <+> (text "10" $$ text "20"))

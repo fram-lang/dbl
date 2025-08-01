@@ -128,32 +128,43 @@ method reset (w : Width) =
   | _ => impossible ()
   end
 
-# poprawić seq - last line może nie wystawać, wtedy trzeba flushować
+method seq {~__line__, ~__file__} (w1 : Width) (w2 : Width) =
+  let rec checkAssumpions (sh : SList) = match sh with
+    | SL _ tl => checkAssumpions tl
+    | SF _ => ()
+    | SS i j tl =>
+      assert {msg="Elements cannot be put in sequence"} (j == 0);
+      checkAssumpions tl
+      end in
+  let _ = checkAssumpions w1.width
+  let _ = checkAssumpions w2.width
 
-method seq (w1 : Width) (w2 : Width) =
-  let rec dropL w = match w with
-    | SS i j tl => SS i j (dropL tl)
-    | SL _ tl => tl
-    | SF i => impossible ()
-    end in
-  let (s1, s2) = (dropL w1.width, w2.width) in
   let rec join s = match s with
-    | SL x tl => impossible ()
+    | SL x tl => join tl
     | SS i j tl => SS i j (join tl)
-    | SF i => match s2 with
+    | SF i => match w2.width with
       | SL l (SF i') => SL (l + i) (SF (i' + i))
-      | SL l (SS i' j' tl) => SL (l + i) (SS (i' + i) (j' + i) tl)
-      | SS i' j' tl => SS (i' + i) (j' + i) tl
+      | SL l (SS i' j' tl) => SL (l + i) (SS (i' + i) 0 tl)
+      | SS i' j' tl => SS (i' + i) 0 tl
       | _ => impossible ()
       end
     end in
-  Width {height = max w1.height w2.height, width = join s1}
+  Width {height = max w1.height w2.height, width = join w1.width}
 
 pub let ($$) 
   {type X, method combine : X -> X ->> X, method flush : X ->> X}
   (a : X) (b : X) = a.flush <> b 
 
-let (<+>) {type X, method seq : X -> X ->> X} (val : X) = val.seq
+pub let (<+>) {type X, method seq : X -> X ->> X} (val : X) = val.seq
+
+method getAlign (w : Width) =
+  let rec iter (w : SList) = 
+    match w with
+    | SL _ tl => iter tl
+    | SS _ _ tl => let (x, y) = iter tl in (x + 1, y)
+    | SF i => (0, i)
+    end
+  in iter w.width
 
 method shift (Width {width, height}) =
   Width {width = SS 0 0 width, height}
@@ -170,9 +181,6 @@ method shift (Width {width, height}) =
 method combine {E : effect, type X, method combine : X -> X ->> X } (l1 : Lazy E X) (l2 : Lazy E X) = 
   lazy (fn () => l1.force <> l2.force)
 
-method seq {E : effect, type X, method seq : X -> X ->> X } (l1 : Lazy E X) (l2 : Lazy E X) = 
-  lazy (fn () => l1.force <+> l2.force)
-
 method flush {E : effect, type X, method flush : X ->> X} (self : Lazy E X) =
   lazy (fn () => self.force.flush)
 
@@ -184,10 +192,6 @@ method shift {E : effect, type X, method shift : X ->> X} (self : Lazy E X) =
 method combine
   {type X, method combine : X -> X ->> X, type Y, method combine : Y -> Y ->> Y}
   ((x1, y1) : Pair X Y) ((x2, y2) : Pair X Y) = (x1 <> x2, y1 <> y2)
-
-method seq
-  {type X, method seq : X -> X ->> X, type Y, method seq : Y -> Y ->> Y}
-  ((x1, y1) : Pair X Y) ((x2, y2) : Pair X Y) = (x1 <+> x2, y1 <+> y2)
 
 method flush {type X, method flush : X ->> X, type Y, method flush : Y ->> Y}
   ((x, y) : Pair X Y) = (x.flush, y.flush)
@@ -208,6 +212,7 @@ data rec L =
   | LEmpty
   | LShift of L
   | LReset of SList, L
+  | LAlign of Int, Int, L
 
 data Line = {fill : L, str : L}
 
@@ -243,9 +248,26 @@ method combine (xs : Lines) (ys : Lines) =
     end in
   iter xs
 
+method seq (xs : Lines) (ys : Lines) ((n, cst) : Pair Int Int) =
+  let rec iter (xs : Lines) (ys : Lines) = match (xs, ys) with
+    | (x :: xs, y :: ys) =>
+      Line {fill = x.fill, str = LCat x.str (LAlign n cst y.str)} ::
+        iter xs ys
+    | [], ys => List.map
+      (fn (Line {fill, str}) => Line {fill, str = LAlign n cst str})
+      ys
+    | xs, [] => xs
+    end in
+  iter xs ys
+
+method seq {E} ((x1, y1) : Pair Width (Lazy E Lines)) ((x2, y2) : Pair Width (Lazy E Lines)) =
+  (x1 <+> x2, lazy (fn () => y1.force.seq y2.force x1.getAlign))
+
+type LineState = Pair (Pair (Pair Int (List Int)) Int) Int
+
 data State E =
-  { put : Pair Int (List Int) ->[E] Unit
-  , get : Unit ->[E] Pair Int (List Int) }
+  { put : LineState ->[E] Unit
+  , get : Unit ->[E] LineState }
 
 let stateH (w : Int) =
   handler
@@ -253,32 +275,48 @@ let stateH (w : Int) =
       { put = effect s / r => fn _ => r () s
       , get = effect _ / r => fn s => r s s }
       return x => fn _ => x
-      finally c => c (0, [10, w])
+      finally c => c (0, [w], 0, 0)
   end
 
 method move {E} (st : State E) (w : Int) = 
-  let (p, sh) = st.get () in
-  st.put (p + w, sh)
+  let (p, sh, x, l) = st.get () in
+  st.put (p + w, sh, x, l)
 
 method getShift {E} (st : State E) =
-  let (p, sh) = st.get () in
+  let (p, sh, x, l) = st.get () in
   match sh with
   | [] => runtimeError "Empty shift state"
   | s :: sh =>
     assert (p <= s);
     let diff = s - p in
-    st.put (s, sh);
+    st.put (s, sh, x + 1, s);
     diff
   end
 
 method putShifts {E} (st : State E) (sl : SList) =
-  let (p, sh) = st.get () in
+  let (p, sh, _, _) = st.get () in
   let rec iter (p : Int) sl = match sl with
     | SL _ tl => iter p tl
     | SF i => [i + p]
     | SS i _ tl => i + p :: iter (i + p) tl
     end in
-  st.put (p, iter p sl)
+  st.put (p, iter p sl, 0, p)
+
+method getAlignment {E} (st : State E) (n : Int) (cst : Int) =
+  let (p, sh, x, l) = st.get () in
+  if x == n then
+   (let p' = cst + l in
+    st.put (p', sh, x, l);
+    p' - p)
+  else
+    match List.drop (n - x) sh with
+    | [] => impossible ()
+    | s :: sh =>
+      let p' = l + cst in
+      st.put (p', sh, n, s);
+      printStrLn "\{p'} \{s}::\{sh}";
+      p' - p
+    end
 
 let rec genL {~h : State _} (self : L) = match self with
   | LEmpty => ""
@@ -296,6 +334,9 @@ let rec genL {~h : State _} (self : L) = match self with
       ~h.move i;
       mkStr " " i + genL tl
   | LCat l1 l2 => genL l1 + genL l2
+  | LAlign n cst tl =>
+    let s = ~h.getAlignment n cst in
+    mkStr " " s + genL tl
   end
 
 let unlines w (xs : Lines) =
@@ -491,6 +532,11 @@ pub method shift (ODoc xs) = ODoc (fn w =>
 pub method reset (ODoc xs) = ODoc (fn w =>
   List.map (fn (x : Pair Width (Lazy _ Lines)) => x.reset) (xs w))
 
+pub method seq (ODoc xs) (ODoc ys) = ODoc (fn w =>
+  xs w >>= (fn x =>
+  ys w >>= (fn y =>
+    [x <+> y])))
+
 #let doc = hanging (text "aaaaaaaaa") (text "bbbbbbbbb")
 #
 #let _ = try 40 (doc $$ text "ccc") # (text "a" <> text "b")
@@ -512,12 +558,13 @@ method rec format (l : L) = match l with
   | LFill n tl => n.format + " " + tl.format
   | LReset sl l => "reset " + sl.format + " " + l.format
   | LShift l => "shift " + l.format
+  | LAlign x y l => "(align \{x} \{y}) \{l}"
   end
 
 method format {?fmt : Unit} (l : Line) =
   "fill = \{l.fill}, str = \{l.str}"
 
-let tryDebug w (ODoc xs) = match xs w with
+pub let tryDebug w (ODoc xs) = match xs w with
   | [] => printStrLn "Error"
   #| (w, lines) :: _ =>
   #  printStrLn w.format;
