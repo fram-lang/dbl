@@ -19,7 +19,7 @@ let rec mkStr (s : String) (l : Int) =
   else
     s + mkStr s (l - 1)
 
-let rec foldr1 f xs = match xs with
+let rec foldr1 {~__line__, ~__file__} f xs = match xs with
   | x :: y :: [] => f x y
   | x :: xs => f x (foldr1 f xs)
   | _ => runtimeError "foldr fail"
@@ -61,7 +61,7 @@ method flush (Width {width, height}) =
     end in
   Width {width = SL 0 (dropL width), height = height + 1}
 
-let (<>) {X : type, method combine : X -> X ->> X} (val : X) = val.combine
+pub let (<>) {X : type, method combine : X -> X ->> X} (val : X) = val.combine
 
 # (N, +, 0) oraz (N, max, 0) są monoidami więc nie będę istalować inta w tej klasie
 
@@ -69,7 +69,9 @@ let max (x : Int) (y : Int) =
   if x > y then x else y
 
 # this is f'ed up and need to be verified, maxes are not enough, pluses needed
-method combine (w1 : Width) (w2 : Width) = 
+method combine (w1 : Width) (w2 : Width) =
+  # let _ = printStrLn w1.format
+  # let _ = printStrLn w2.format
   let height = w1.height + w2.height in
 
   let rec add w xs = match xs with
@@ -78,8 +80,12 @@ method combine (w1 : Width) (w2 : Width) =
     | SS i j tl => SS (i + w) (j + w) tl 
     end in
 
-  let rec combineWs w1 w2 = match (w1, w2) with
+  let rec combineWs (w1 : SList) (w2 : SList) = 
+    # let _ = printStrLn w1.format
+    # let _ = printStrLn w2.format in 
+    match (w1, w2) with
     # regular elements
+    | SF i, SF i' => SF (max i i')
     | SS i j w1, SS i' j' w2 => SS (max i i') (max j j') (combineWs w1 w2)
     | SF i, SS i' j' w2 => SS i' (max i j') w2    
     | SS i j w1, SF i'  => SS i  (max j i') w1    
@@ -143,7 +149,7 @@ method seq (w1 : Width) (w2 : Width) =
     end in
   Width {height = max w1.height w2.height, width = join s1}
 
-let ($$) 
+pub let ($$) 
   {type X, method combine : X -> X ->> X, method flush : X ->> X}
   (a : X) (b : X) = a.flush <> b 
 
@@ -152,12 +158,12 @@ let (<+>) {type X, method seq : X -> X ->> X} (val : X) = val.seq
 method shift (Width {width, height}) =
   Width {width = SS 0 0 width, height}
 
-let _ = printStrLn ((text 10) >.shift).format
-let _ = printStrLn ((text 100)).format
-let _ = printStrLn ((text 100) <> text 50).format
-let _ = printStrLn ((text 100)>.flush <> text 50).format
-
-let _ = assert (text 10 == text 10)
+# let _ = printStrLn ((text 10) >.shift).format
+# let _ = printStrLn ((text 100)).format
+# let _ = printStrLn ((text 100) <> text 50).format
+# let _ = printStrLn ((text 100)>.flush <> text 50).format
+# 
+# let _ = assert (text 10 == text 10)
 
 ## Lazy
 
@@ -191,8 +197,8 @@ method shift {type X, method shift : X ->> X, type Y, method shift : Y ->> Y}
 
 let lazyText n = lazy (fn _ => text n)
 
-let _ = printStrLn ((lazyText 100 >.shift )).format
-let _ = printStrLn ((lazyText 100 <+> lazyText 200 >.shift)).format
+# let _ = printStrLn ((lazyText 100 >.shift )).format
+# let _ = printStrLn ((lazyText 100 <+> lazyText 200 >.shift)).format
 
 
 data rec L =
@@ -231,7 +237,7 @@ method combine (xs : Lines) (ys : Lines) =
       | [] => [Line {fill, str}]
       | Line {fill=fill', str=str'} :: ys =>
         Line {fill=LCat fill fill', str = LCat str str'}
-          :: List.map (fn (y : Line) => Line{fill=LCat fill fill', str=LCat fill y.str}) ys
+          :: List.map (fn (y : Line) => Line{fill=LCat fill y.fill, str=LCat fill y.str}) ys
       end
     | x :: xs => x :: iter xs
     end in
@@ -330,7 +336,7 @@ let paretoSelector
 let xs = (3, 10) :: (6, 2) :: (4, 12) :: []
 let poset (x, y) (z, w) = ((x : Int) < z) && ((y : Int) < w)
 
-let _ = printStrLn (paretoSelector poset xs).format
+# let _ = printStrLn (paretoSelector poset xs).format
 
 # true wybiera pierwszy
 let rec mergeOn sel (xs : List _) (ys : List _) =
@@ -393,24 +399,24 @@ let quasifilter (w : Int) (f : _ -> Width) (ws : List _) =
 
 let discardInvalid w = quasifilter w (fst)
 
-data ODoc E =
+abstr data ODoc E =
   ODoc of (Int ->> List (Pair Width (Lazy E Lines)))
 
 let (>>=) (xs : List _) f = xs.concatMap f
 
-method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
+pub method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
   let ds = xs w >>= (fn x => [discardInvalid w (ys w >>= (fn y => [x <> y]))]) in
     bestOn
       (fn x y => ord (fst x) (fst y))
       (fn x y => poset (fst x) (fst y))
         ds)
 
-method flush (ODoc xs) = ODoc (fn w => 
+pub method flush (ODoc xs) = ODoc (fn w => 
   (List.map (fn (w : Pair Width (Lazy _ Lines)) => w.flush) (xs w)))
 
-let text str = ODoc (fn _ => [textL str])
+pub let text str = ODoc (fn _ => [textL str])
 
-let try w (ODoc xs) = match xs w with
+pub let try w (ODoc xs) = match xs w with
   | [] => printStrLn "Error"
   #| (w, lines) :: _ =>
   #  printStrLn w.format;
@@ -422,8 +428,8 @@ let try w (ODoc xs) = match xs w with
   end
 
 
-let _ = try 60
-  ((text "aaaaaaaaa" $$ text "aaaa") <> (text "bbbbbbbbbbb" $$ text "bbb"))
+# let _ = try 60
+#   ((text "aaaaaaaaa" $$ text "aaaa") <> (text "bbbbbbbbbbb" $$ text "bbb"))
 
 let empty = text ""
 
@@ -442,7 +448,7 @@ let spaces n =
     if 0 >= n then "" else " " + iter (n - 1) in
   (Width {height = 0, width = (SL n (SF n))}, lazy (fn _ => [Line {fill = LFill n LEmpty, str = LStr (iter n)}]))
 
-let groupingBy {E} (sep : String) (ms : List (Pair Int (ODoc E))) = 
+pub let groupingBy {E} (sep : String) (ms : List (Pair Int (ODoc E))) = 
   match ms with
   | [] => empty
   | ms => ODoc (fn w =>
@@ -479,10 +485,10 @@ let hangWith sep n x y = groupingBy sep [(0, x), (n, y)]
 
 let hanging = hangWith " " 2
 
-method shift (ODoc xs) = ODoc (fn w =>
+pub method shift (ODoc xs) = ODoc (fn w =>
   List.map (fn (x : Pair Width (Lazy _ Lines)) => x.shift) (xs w))
 
-method reset (ODoc xs) = ODoc (fn w =>
+pub method reset (ODoc xs) = ODoc (fn w =>
   List.map (fn (x : Pair Width (Lazy _ Lines)) => x.reset) (xs w))
 
 #let doc = hanging (text "aaaaaaaaa") (text "bbbbbbbbb")
@@ -492,12 +498,12 @@ method reset (ODoc xs) = ODoc (fn w =>
 let doc1 = (text "aaaaa" <> (text "bb" >. shift)) >. reset
 let doc2 = (text "aaa" <> (text "bbbb" >. shift)) >. reset
 
-let _ = try 40 doc1
-let _ = try 40 doc2
-let doc =
-  ((text "aaaaa" <> (text "bb" >. shift) <> (text "cc" >. shift)) $$
-    (text "dddddddddddddddddddddddddddddddddddd") $$
-    (text "aaa" <> (text "bbbb" >. shift) <> (text "cc" >. shift)))
+#let _ = try 40 doc1
+#let _ = try 40 doc2
+#let doc =
+#  ((text "aaaaa" <> (text "bb" >. shift) <> (text "cc" >. shift)) $$
+#    (text "dddddddddddddddddddddddddddddddddddd") $$
+#    (text "aaa" <> (text "bbbb" >. shift) <> (text "cc" >. shift)))
 
 method rec format (l : L) = match l with
   | LEmpty => "e"
@@ -508,7 +514,8 @@ method rec format (l : L) = match l with
   | LShift l => "shift " + l.format
   end
 
-method format {?fmt : Unit} (l : Line) = l.str.format
+method format {?fmt : Unit} (l : Line) =
+  "fill = \{l.fill}, str = \{l.str}"
 
 let tryDebug w (ODoc xs) = match xs w with
   | [] => printStrLn "Error"
@@ -522,5 +529,13 @@ let tryDebug w (ODoc xs) = match xs w with
       printStrLn wd.format; printStrLn (unlines w lines.force)) xs
   end
 
-let _ = tryDebug 100 (doc <> doc <> doc).reset
+#let _ = try 100 (groupingBy " " [(0, text "abracadbra"), (2, doc)]).reset
 
+# let i = (groupingBy "" [(0, text "\"interp\\{"),
+#                   (2, text 10.format),
+#                   (0, text "} and \\{"),
+#                   (2, text 20.format),
+#                   (0, text "}\"")])
+# 
+# let _ = try 70 (i <> text " + " <> i)
+  

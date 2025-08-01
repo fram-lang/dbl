@@ -279,3 +279,11 @@ pub let debugDoc (d : Doc) =
       showTree (fn x => x <+> showWidth d.width) d.tree
   end
   in ppReset (showDoc d)
+
+
+let d = (ppReset
+  (((ppStr "abc" <+> ppShift (ppStr "def"))
+    /+/ ppStr "adsasdasd") <+> (ppStr "xyz" /+/ ppStr "xyz")))
+
+let _ = showDoc d
+let _ = showDoc (debugDoc d)

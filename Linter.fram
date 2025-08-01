@@ -1,0 +1,61 @@
+import /List
+import open Other
+
+rec
+  data Expr =
+    | EStr of String
+    | EInt of Int
+    | EBop of String, Expr, Expr
+    | EApp of Expr, List Expr
+    | EVar of String
+    | EList of List Expr
+  
+  data Def =
+    | DLet of Ident, Expr
+    | DData of String, List DCtor
+
+  data Ident =
+    | IWildcard
+    | IVar of String
+  
+  data DCtor = {name : String, args : List String}
+
+  data Program = {defs : List Def}
+end
+
+
+let program = Program { defs =
+  [ DData "List" [ DCtor {name = "Cons", args = ["Head", "Tail"]}
+                 , DCtor {name = "Nil", args = ["Unit", "S1"]}
+                 , DCtor {name = "UltraConstructorTM", args = ["A1", "h6"]}]
+  , DLet IWildcard (EApp (EVar "print") [(EList [EInt 10, EInt 20])])
+  ]}
+
+let rec foldr1 f acc xs = match xs with
+  | [] => acc
+  | [x] => x
+  | x :: xs => f x (foldr1 f acc xs)
+  end
+
+rec
+  method lint (Program {defs}) =
+    foldr1 (fn (x : ODoc _) y => x $$ text " " $$ y) (text "")
+      (List.map (fn (x : Def) => x.lint) defs)
+
+  method lint (self : Def) = match self with
+    | DData name ctors =>
+      let name = text "data " <> text name <> text " =" in
+      let doc = groupingBy " " ((0, name) :: List.map (fn (e : DCtor) => (2, e.lint)) ctors) in
+      doc.reset
+    | _ => text "todo"
+    end
+  
+  method lint (DCtor {name, args}) =
+    let name = text "| " <> text name <> (text " of " >. shift)
+    let ctors = name <> groupingBy "" (List.map (fn (x : String) => (0, text x <> text ", ")) args)
+    in ctors
+      
+end
+
+let _ = printStrLn "start"
+let _ = try 200 program.lint
