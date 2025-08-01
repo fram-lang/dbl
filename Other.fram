@@ -331,10 +331,11 @@ let rec genL {~h : State _} (self : L) = match self with
     let s = ~h.getShift in
     mkStr " " s + genL tl
   | LReset sl tl =>
-    let stBackup = ~h.get () in
+    let (_, sh, n, l) = ~h.get () in
     ~h.putShifts sl;
     let res = genL tl in
-    ~h.put stBackup;
+    let (p, _, _, _) = ~h. get () in
+    ~h.put (p, sh, n, l);
     res
   | LFill i tl =>
       ~h.move i;

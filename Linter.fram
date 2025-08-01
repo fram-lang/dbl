@@ -60,7 +60,8 @@ rec
 end
 
 let _ = printStrLn "start"
-let _ = try 200 program.lint
+let linted = program.lint
+let _ = try 200 linted
 
 let _ = tryDebug 80
   (vsep
@@ -93,3 +94,5 @@ let d =
 let d = foldr1 (fn (y : ODoc _) z => y $$ z) empty d
 
 let _ = tryDebug 50 d.reset
+
+let _ = try 200 ((d.reset <> linted) <+> vsep)
