@@ -250,13 +250,19 @@ method combine (xs : Lines) (ys : Lines) =
 
 method seq (xs : Lines) (ys : Lines) ((n, cst) : Pair Int Int) =
   let rec iter (xs : Lines) (ys : Lines) = match (xs, ys) with
+    | [x], y :: ys =>
+      Line {fill = LCat x.fill y.fill, str = LCat x.str (LAlign n cst y.str)} ::
+      List.map (fn (Line {fill, str}) => Line {fill = LCat x.fill fill, str = LCat x.fill (LAlign n cst str)}) ys
+    
+    | x :: xs, [y] => 
+      Line {fill = LCat x.fill y.fill, str = LCat x.str (LAlign n cst y.str)} ::
+      List.map (fn (Line {fill, str}) => Line {fill = LCat fill y.fill, str = LCat str (LAlign n cst y.fill)}) xs
+    
     | (x :: xs, y :: ys) =>
-      Line {fill = x.fill, str = LCat x.str (LAlign n cst y.str)} ::
+      Line {fill = LCat x.fill (LAlign n cst y.fill), str = LCat x.str (LAlign n cst y.str)} ::
         iter xs ys
-    | [], ys => List.map
-      (fn (Line {fill, str}) => Line {fill, str = LAlign n cst str})
-      ys
-    | xs, [] => xs
+    
+    | _ => impossible ()
     end in
   iter xs ys
 
@@ -552,7 +558,7 @@ let doc2 = (text "aaa" <> (text "bbbb" >. shift)) >. reset
 #    (text "aaa" <> (text "bbbb" >. shift) <> (text "cc" >. shift)))
 
 method rec format (l : L) = match l with
-  | LEmpty => "e"
+  | LEmpty => ""
   | LCat l1 l2 => l1.format + " " + l2.format
   | LStr s => s.format
   | LFill n tl => n.format + " " + tl.format
@@ -562,7 +568,7 @@ method rec format (l : L) = match l with
   end
 
 method format {?fmt : Unit} (l : Line) =
-  "fill = \{l.fill}, str = \{l.str}"
+  "fill = \{l.fill},\n str = \{l.str}"
 
 pub let tryDebug w (ODoc xs) = match xs w with
   | [] => printStrLn "Error"
@@ -586,3 +592,6 @@ pub let tryDebug w (ODoc xs) = match xs w with
 # 
 # let _ = try 70 (i <> text " + " <> i)
   
+pub let vsep = ODoc (fn _ =>
+  [(Width {width=SL 3 (SF 3), height = 0},
+    lazy (fn _ => [Line {fill = LStr " | ", str = LStr " | "}]))])

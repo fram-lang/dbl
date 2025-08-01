@@ -23,6 +23,8 @@ rec
   data Program = {defs : List Def}
 end
 
+let empty = text ""
+
 
 let program = Program { defs =
   [ DData "List" [ DCtor {name = "Cons", args = ["Head", "Tail"]}
@@ -61,7 +63,33 @@ let _ = printStrLn "start"
 let _ = try 200 program.lint
 
 let _ = tryDebug 80
-  ((text "60" $$ text "300")
+  (vsep
+    <+> (text "60" $$ text "300")
+    <+> vsep
     <+> (text "10" $$ text "200" $$ text "30")
+    <+> vsep
     <+> text "500"
-    <+> (text "10" $$ text "20"))
+    <+> vsep
+    <+> (text "10" $$ text "20")
+    <+> vsep)
+
+let tbl =
+  [ (30, 40, 40)
+  , (600, 3, 23232)
+  , (45, 2323, 343) ]
+
+let d = 
+  List.map
+    (fn ((x : Int), (y : Int), (z : Int)) =>
+      vsep
+        <+> text x.format
+        <+> vsep.shift
+        <+> ((text y.format $$ text "==>"))
+        <+> vsep.shift
+        <+> (text z.format)
+        <+> vsep.shift)
+    tbl
+
+let d = foldr1 (fn (y : ODoc _) z => y $$ z) empty d
+
+let _ = tryDebug 50 d.reset
