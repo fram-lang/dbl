@@ -1,0 +1,181 @@
+import open AnsiTerminal
+
+let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
+  handle
+    ~onError = effect _ => True
+    return _ => False
+  in f ()
+
+# TODO delete when improved format methods are introduced
+let strFmt = () #StringFmt {escape=False}
+method format {?fmt : Unit} (self : String) = self
+
+data AssertInfo =
+  { msg  : String
+  , line : Int
+  }
+
+data TestCase = 
+  { name : String
+  , line : Int
+  }
+
+data Suite E = 
+  { name : String
+  , line : Int
+  , file : String
+  , reportFail : TestCase -> AssertInfo ->[E] Unit
+  , reportSucc : TestCase ->[E] Unit
+  }
+
+data TestArbiter E =
+  { fail : AssertInfo ->[E] Unit }
+
+let printSuitePreamble {~__file__ : String} (line : Int) (name : String) =
+  printStrLn "[====] Running test suite \{name}";
+  printStrLn "[    ] from \{~__file__ | strFmt}:\{line}"
+
+let printCaseOk (TestCase {name}) =
+  printStrLn "[ \{
+    Color.setFgColor Color.Green | strFmt
+  }OK\{Color.resetAll | strFmt} ] \{name | strFmt}"
+
+let printCaseFail
+  {~__file__ : String}
+  (TestCase {name, line})
+  (AssertInfo {msg, line=assertLine}) =
+    printStrLn "[\{
+        Color.setFgColor Color.Red | strFmt
+      }FAIL\{
+        Color.resetAll | strFmt
+      }] \{name | strFmt}";
+    printStrLn "       In \{~__file__ | strFmt}:\{
+      assertLine} assertion failed:";
+    printStrLn "       \{msg | strFmt}"
+
+let printSuiteFooter (succ : Int) (fail : Int) =
+  if succ == 0 && fail == 0 then
+    printStrLn "[====] No tests have been run!"
+  else if succ == 1 && fail == 0 then
+    printStrLn "[====] Test have passed!"
+  else if succ == 2 && fail == 0 then
+    printStrLn "[====] Both tests passed!"
+  else if fail == 0 then
+    printStrLn "[====] All \{succ} tests have passed!"
+  else
+    printStrLn "[====] \{succ}/\{fail + succ} tests have passed!";
+  assert {msg="Test suite failed"} (fail == 0);
+  printStrLn ""
+
+parameter ~suite : Suite _
+parameter ~testCase : TestCase
+parameter ~testArbiter : TestArbiter _
+
+pub let testSuite
+  {~__line__, ~__file__}
+  (name : String)
+  (f : {E, ~suite : Suite E} -> Unit ->[E] Unit) =
+  printSuitePreamble ~__line__ name;
+  handle ~suite = Suite
+    { name
+    , line = ~__line__
+    , file = ~__file__
+    , reportFail = fn tc => 
+      effect assert / r =>
+        printCaseFail tc assert;
+        fn (succ, fail) => r () (succ, fail + 1)
+    , reportSucc =
+      effect tc / r =>
+        printCaseOk tc;
+        fn (succ, fail) => r () (succ + 1, fail) }
+    return x => fn (succ, fail) => printSuiteFooter succ fail
+    finally c => c (0, 0) in
+  f ()
+
+pub let testCase {~__line__, ~suite : Suite _}
+  name
+  (f : {E, ~testArbiter : TestArbiter E} -> Unit ->[E] Unit) =
+  let res = 
+    handle ~testArbiter =
+      TestArbiter { fail = effect assertInfo => Some assertInfo }
+      return _ => None in
+    f () in
+  let testCase = TestCase {line = ~__line__, name } in
+  match res with
+  | Some assertInfo => ~suite.reportFail testCase assertInfo
+  | None            => ~suite.reportSucc testCase
+  end
+
+pub let assertTrue {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
+  cond =
+    if cond then
+      ()
+    else
+      ~testArbiter.fail
+        (AssertInfo {line= ~__line__, msg = 
+          msg.unwrapOr "Expected to be true"})
+
+pub let assertFalse {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
+  cond =
+    assertTrue {msg=msg.unwrapOr "Expected to be false"} (not cond)
+
+pub let assertEq 
+  { ~__line__
+  , ~testArbiter : TestArbiter _
+  , ?msg : String
+  , X : type
+  , Y : type
+  , method equal : X -> Y ->> Bool } 
+  (expected : X) (actual : Y) =
+    assertTrue {msg = "Expected values to be equal"} (expected == actual)
+
+pub let assertEqF
+  { ~__line__
+  , ~testArbiter : TestArbiter _
+  , ?msg : String
+  , X : type
+  , Y : type
+  , method format : X ->> String
+  , method format : Y ->> String
+  , method equal : X -> Y ->> Bool } 
+  (expected : X) (actual : Y) =
+    assertTrue
+      {msg = "Expected\n\t\{expected}\n\t\{actual}\nto be equal"}
+      (expected == actual)
+
+
+pub let assertCallsOnError
+  { ~__line__
+  , ~testArbiter
+  , ?msg : String
+  , E : effect }
+  (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+    assertTrue
+      {msg = "Expected function to call on error implicit"}
+      (callsOnError f)
+
+pub let assertDoesNotCallOnError
+  { ~__line__
+  , ~testArbiter
+  , ?msg : String
+  , E : effect }
+  (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+    assertFalse
+      {msg = "Expected function to not call on error implicit"}
+      (callsOnError f)
+
+let _ = testSuite "Example test suite" (fn () => 
+  testCase "Assert True" (fn () =>
+    assertTrue (1 == 1));
+  
+  testCase "Assert False" (fn () =>
+    assertFalse (1 == 2));
+  
+  testCase "Assert eq" (fn () =>
+    assertEq "abc" "abc");
+  
+  testCase "Calls on error" (fn () =>
+    assertCallsOnError (fn _ => chr 300));
+  
+  testCase "Does not call on error" (fn () =>
+    assertDoesNotCallOnError (fn _ => chr 127)))

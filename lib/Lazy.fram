@@ -1,0 +1,35 @@
+data RefP = RefP of {Ref : type -> type}
+
+let RefP {Ref} = (extern dbl_abstrType : Unit -> RefP) ()
+
+data LazyState E A =
+  | Thunk of (Unit ->[E] A)
+  | Lock
+  | Done of A
+
+abstr data Lazy E X = Lazy of Ref (LazyState E X)
+
+let ref {type X}    = (extern dbl_ref    : X -> Ref X)
+method get {type X} = (extern dbl_refGet : Ref X -> X)
+method set {type X} = (extern dbl_refSet : Ref X -> X -> Unit)
+
+pub let lazy f = Lazy (ref (Thunk f))
+pub let pureLazy {type X} (f : Unit ->[] X) = (lazy f : Lazy [] X)
+
+pub method force (Lazy ref) =
+  match ref.get with
+  | Done x => x
+  | Lock => runtimeError "Forcing lazy value during its evaluation"
+  | Thunk f =>
+    ref.set Lock;
+    let val = f () in
+    ref.set (Done val);
+    val
+  end
+
+pub method format
+  { E : effect
+  , X : type
+  , method format : X ->> String }
+  (self : Lazy E X) =
+    "Lazy " + self.force.format

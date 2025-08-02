@@ -1,0 +1,269 @@
+import /List
+import open /Test
+
+type Width = Int
+type Dangling = Int
+
+{##
+  Shift list aka `SList' 
+  
+  Structure stores width as a list of floating elements.
+  Floating aka floating elements will align globally with other floating
+  elements.
+
+  `SFix' represents singular unmoveable object.
+
+  Each `SShift' stores an information about floating elements that
+  are willing to globally align with others. 
+
+  The `SLast' node is a label that indicates a line where <> will attach
+  foramatted text. In every Size object there is exactly one SLast node.
+ ##}
+data rec SList =
+  | SFix   of Width
+  | SShift of Width, Dangling, SList
+  | SLast  of Width, SList
+
+method rec format {?prec : Int, ?fmt : Unit} (self : SList) =
+   match self with
+  | SFix fix => "SF \{fix}"
+  | SShift sep dangl tl => "SS \{sep} \{dangl} (\{tl})"
+  | SLast last tl => "SL \{last} (\{tl})"
+  end
+
+method rec equal (s1 : SList) (s2 : SList) =
+  match (s1, s2) with
+  | SFix v1, SFix v2 => v1 == v2
+  | SShift i1 j1 s1, SShift i2 j2 s2 => i1 == i2 && j1 == j2 && s1 == s2
+  | SLast i1 s1, SLast i2 s2 => i1 == i2 && s1 == s2
+  | _ => False
+  end
+
+{##
+  Structure stores a size of a given thunk of formatted text.
+
+  Height is given explicitly, width is stored as a `shift list'.
+ ##}
+data Size =
+  { width  : SList
+  , height : Int
+  }
+
+method format (self : Size) =
+  "Size {width = \{self.width}, height = \{self.height}}"
+
+method equal (w1 : Size) (w2 : Size) =
+  w1.width == w2.width && w1.height == w2.height
+
+{## Constructs Size object for a singular string ##}
+let text (s : String) = Size {width=SLast s.length (SFix s.length), height=0}
+
+{## Empty width ##}
+let empty = text ""
+
+{## Inserts newline ##}
+method flush (Size {width, height}) =
+  let rec dropL w = match w with
+    | SShift i j tl => SShift i j (dropL tl)
+    | SLast _ tl => tl
+    | SFix i => impossible ()
+    end in
+  Size {width = SLast 0 (dropL width), height = height + 1}
+
+{##
+  Calculates size after <> operation as such:
+
+  _____________         _____________        
+  |           | >shift> |           | >shift> |.....|
+  |         __|         |         __|        
+  |________|            |________|   <> _____________        
+                                        |           | >....>
+                                        |         __|
+                                        |________|                
+ ##}
+method combine (w1 : Size) (w2 : Size) =
+  let height = w1.height + w2.height in
+
+  # Moves a shift list by a fixed amount
+  let rec moveBy w xs = match xs with
+    | SLast i tl => SLast (i + w) (moveBy w tl)
+    | SFix i => SFix (i + w)
+    | SShift i j tl => SShift (i + w) (j + w) tl 
+    end in
+
+  # Handles paraller join of two given shift list
+  # By assumpion w1 does NOT contain SLast label
+  let rec combineWs (w1 : SList) (w2 : SList) = 
+    match (w1, w2) with
+    ## regular elements
+
+    # take maximum over elements
+    | SFix i, SFix i' => SFix (max i i')
+    | SShift i j w1, SShift i' j' w2 =>
+      SShift (max i i') (max j j') (combineWs w1 w2)
+    
+    # add SFix as a dangling width
+    | SFix i, SShift i' j' w2 => SShift i' (max i j') w2    
+    | SShift i j w1, SFix i'  => SShift i  (max j i') w1    
+    
+    ## right last - copy last and continue as usual
+    | w1, SLast last w2 => SLast last (combineWs w1 w2)
+
+    # left last and anything else
+    | _ => impossible ()
+    end in
+
+  # The starting point of algorithm
+  # The <> catenation happens at `SLast' node of w1, thus
+  # width is copied up until `SLast' and then combineWs
+  # operation is permormed. The SLast label will be
+  # propagated from w2
+  let rec copyTillL (w1 : SList) (w2 : SList) =
+    match w1 with
+    | SFix _ => impossible ()
+    | SShift i j tl => SShift i j (copyTillL tl w2)
+    | SLast w tl => combineWs tl (moveBy w w2)
+    end in
+  
+  Size {width = copyTillL w1.width w2.width, height}
+
+{## Fixes shifts in place and propagates fixed width information ##}
+method reset (w : Size) =
+  let rec iter (xs : SList) = match xs with
+    | SFix fix => (fix, None)
+    | SLast last tl => (fst (iter tl), Some last)
+    | SShift step dangling tl =>
+      let tl = iter tl in
+      let tot = max dangling (step + tl.fst) in
+      (tot, tl.snd.map (fn x => (step + x)))
+    end in
+  match iter w.width with
+  | (fix, Some last) =>
+    Size { width = SLast fix (SFix last), height = w.height }
+  | _ => impossible ()
+  end
+
+{## Adds an empty shift. ##}
+method shift (Size {width, height}) =
+  Size {width = SShift 0 0 width, height}
+
+{##
+  Calculates true vertiacal catenation.
+
+  To simplify calculation, vcat can performed only if dangling width
+  of every SShift node of w1 is 0. To preserve monoid like behaviour
+  of this operation, same restriction have been put on w2.
+##}
+let seqE {~onError} (w1 : Size) (w2 : Size) =
+  let rec checkAssumpions (sh : SList) = match sh with
+    | SLast _ tl => checkAssumpions tl
+    | SFix _ => ()
+    | SShift _ dangle tl =>
+      if dangle != 0 then
+        ~onError ()
+      else
+        checkAssumpions tl
+      end in
+  let _ = checkAssumpions w1.width
+  let _ = checkAssumpions w2.width
+
+  let rec join s = match s with
+    | SLast x tl => join tl
+    | SShift i j tl => SShift i j (join tl)
+    | SFix i => match w2.width with
+      | SLast l (SFix i') => SLast (l + i) (SFix (i' + i))
+      | SLast l (SShift i' j' tl) => SLast (l + i) (SShift (i' + i) 0 tl)
+      | SShift i' j' tl => SShift (i' + i) 0 tl
+      | _ => impossible ()
+      end
+    end in
+  Size {height = max w1.height w2.height, width = join w1.width}
+
+method seq {~__line__, ~__file__} w1 w2 =
+  let ~onError () = runtimeError "Cannot perform vcat" in
+  seqE w1 w2
+
+let (<>)  (s : Size) = s.combine
+let ($$)  (s : Size) = s.flush.combine
+let (<+>) (s : Size) = s.seq
+
+let _ = testSuite "PrettyPrinter/Size" (fn () =>
+  testCase "Empty has 0 width" (fn () =>
+    assertEq empty.width (SLast 0 (SFix 0)));
+    
+  testCase "Empty has 0 height" (fn () =>
+    assertEq empty.height 0);
+  
+  testCase "Text has fix width" (fn () =>
+    ["", "abc", "jak-to-jest-byc-skyba?"].iter (fn str =>
+      assertEq (text str).width (SLast str.length (SFix str.length))));
+    
+  testCase "Text has 0 height" (fn () =>
+    ["", "abc", "jak-to-jest-byc-skyba?"].iter (fn str =>
+      assertEq (text str).height 0));
+  
+  testCase "Empty text <> identity" (fn () => 
+    let t = text "abc" in
+    assertEq t (t <> empty);
+    assertEq t (empty <> t));
+  
+  testCase "Simple text <>" (fn () => 
+    let t = text "abc" <> text "def" in
+    assertEq t.width (SLast 6 (SFix 6));
+    assertEq t.height 0);
+  
+  testCase "Semigroup <>" (fn () =>
+    let t1 = text "defghijk"
+    let t2 = text "abc"
+    let t3 = text "asdasd" in
+    assertEq ((t1 <> t2) <> t3) (t1 <> (t2 <> t3)));
+
+  testCase "Simple flush" (fn () =>
+    let t = text "abc" >. flush in
+    assertEq t.height 1;
+    assertEq t.width (SLast 0 (SFix 3)));
+
+  testCase "Simple $$ 1" (fn () =>
+    let t = text "abc" $$ text "defghijk" in
+    assertEq t.height 1;
+    assertEq t.width (SLast 8 (SFix 8)));
+  
+  testCase "Simple $$ 2" (fn () =>
+    let t = text "defghijk" $$ text "abc" in
+    assertEq t.height 1;
+    assertEq t.width (SLast 3 (SFix 8)));
+  
+  testCase "Semigroup $$" (fn () =>
+    let t1 = text "defghijk"
+    let t2 = text "abc"
+    let t3 = text "asdasd" in
+    assertEq ((t1 $$ t2) $$ t3) (t1 $$ (t2 $$ t3)));
+  
+  testCase "Semigroup <> with $$" (fn () =>
+    let t1 = text "aaaaaaaaaa" $$ text "aa"
+    let t2 = text "bbb" $$ text "bbbbbb"
+    let t3 = text "ccccccc" $$ text "cc" in
+    assertEq ((t1 <> t2) <> t3) (t1 <> (t2 <> t3)));
+  
+  testCase "Simple shift" (fn () =>
+    let t1 = text "abc" >.shift in
+    assertEq t1.height 0;
+    assertEq t1.width (SShift 0 0 (SLast 3 (SFix 3))));
+
+  testCase "Reset identity over text" (fn () =>
+    let t1 = text "abc" in
+    assertEq t1 t1.reset);
+  
+  testCase "Shift add width" (fn () =>
+    let t = text "abc" in
+    assertEqF (t <> t.shift).width (SShift 3 3 (SLast 3 (SFix 3))));
+
+  testCase "Shift/reset" (fn () =>
+    let t = text "abc" in
+    assertEqF (t <> t.shift).reset.width (SLast 6 (SFix 6)));
+  
+  testCase "Shift aligns paraller structures" (fn () =>
+    let t1 = text "aaaaa" <> (text "bb" >.shift)    <> (text "ccccc" >.shift)
+    let t2 = text "aa"    <> (text "bbbbb" >.shift) <> (text "cc" >. shift) in
+    assertEqF (t1 $$ t2).width (SShift 5 5 (SShift 5 5 (SLast 2 (SFix 5)))));
+    ())
