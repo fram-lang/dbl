@@ -64,7 +64,7 @@ val end_generalize_pure :
   param_list ->
     (T.tname * UID.t * T.tvar) list * (Name.t * T.var * T.scheme_expr) list
 
-(** Ensure, that no named parameters on a given list were used. After calling
+(** Ensure that no named parameters on a given list were used. After calling
   this function, given named parameter become unavailable. Returns lists of
   parameters that were used. *)
 val end_generalize_impure : param_list -> T.tname use list * Name.t use list
@@ -74,11 +74,11 @@ val declare_type : pos:Position.t -> t -> T.tname -> UID.t -> T.kind -> t
 
 (** Extend environment with a declaration of a value parameter. The meaning of
   parameters is the following.
-  - [free_types] -- type variables that occurs freely in the scheme of this
-    parameter, and should be separately instantiated for each use.
+  - [free_types] -- type variables that occur freely in the scheme of this
+    parameter and should be separately instantiated for each use.
   - [used_types] -- previously declared type UIDs, together with the type
     variables used as them in the scheme of this parameter.
-  - [name] -- the name of the parameter, that will be visible in the
+  - [name] -- the name of the parameter that will be visible in the
     generalized scheme. *)
 val declare_val : pos:Position.t ->
   t -> free_types:T.tvar list -> used_types:(UID.t * T.tvar) list ->

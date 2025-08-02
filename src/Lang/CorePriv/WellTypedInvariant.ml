@@ -40,6 +40,10 @@ module Env : sig
     irrelevant contexts. *)
   val add_irr_var : t -> var -> ttype -> t
 
+  (** Extend the enviornment with a variable of given relevance (relevent or
+    irrelevant). *)
+  val add_var_rel : t -> relevance -> var -> ttype -> t
+
   (** Extend the environment with a recursively defined variable. It will be
     available only after the call to [enter_rec_ctx]. *)
   val add_rec_var : t -> var -> ttype -> t
@@ -118,6 +122,11 @@ end = struct
       var_map = Var.Map.add x (Irrelevant, tp) env.var_map
     }
 
+  let add_var_rel env (relevance : relevance) x tp =
+    match relevance with
+    | Relevant   -> add_var env x tp
+    | Irrelevant -> add_irr_var env x tp
+
   let add_rec_var env x tp =
     { env with
       var_map = Var.Map.add x (Recursive env.rec_level, tp) env.var_map
@@ -194,10 +203,11 @@ let rec tr_type : type k. Env.t -> k typ -> k typ =
       { effct; tvars;
         val_types = List.map (tr_type env) lbl.val_types;
         delim_tp  = tr_type env lbl.delim_tp;
-        delim_eff = tr_type env lbl.delim_eff
+        delim_eff = tr_type env lbl.delim_eff;
+        rflag     = lbl.rflag
       }
-  | TData(tp, eff, ctors) ->
-    TData(tr_type env tp, tr_type env eff, List.map (tr_ctor_type env) ctors)
+  | TData(tp, rflag, ctors) ->
+    TData(tr_type env tp, rflag, List.map (tr_ctor_type env) ctors)
   | TApp(tp1, tp2) ->
     TApp(tr_type env tp1, tr_type env tp2)
 
@@ -248,7 +258,7 @@ let rec tr_tvars_sub env sub xs ys =
 
 (** Check well-formedness of datatype definition.
   In [check_data env tp xs ctors] it is checked if [ctors] are well-formed,
-  assuming the type is parametrized by [xs]. The functions returns the triple
+  assuming the type is parametrized by [xs]. The function returns the triple
   [(ys, tp_ys, ctors')], where [ys] are refreshed type variables [xs],
   [ctors'] is a refreshed constructor list [ctors], and [tp_ys] is a type [tp]
   applied to variables [ys]. This value is later used to construct types of
@@ -273,16 +283,25 @@ let rec check_data : type k.
 
 (** The first phase of checking recursive datatype: the type variable of the
   type definition is refreshed and added to the environment. The body of the
-  definition remains unchanged. *)
-let prepare_data_def env (dd : data_def) =
+  definition remains unchanged. If the type is marked as generally recursive,
+  it is added to non-recursive scope --- it may appear at non-positive
+  positions in positively recursive types. *)
+let prepare_data_def (env, nonrec_scope) (dd : data_def) =
+  let new_nonrec_scope a rflag =
+    match rflag with
+    | Positive -> nonrec_scope
+    | General  -> TVar.Set.add a nonrec_scope
+  in
   match dd with
   | DD_Data adt ->
     let (TVar.Ex a) = adt.tvar in
     let (env, a) = Env.add_tvar env a in
-    (env, DD_Data { adt with tvar = TVar.Ex a })
+    ((env, new_nonrec_scope a adt.rflag),
+      DD_Data { adt with tvar = TVar.Ex a })
   | DD_Label lbl ->
     let (env, a) = Env.add_tvar env lbl.tvar in
-    (env, DD_Label { lbl with tvar = a })
+    ((env, new_nonrec_scope a lbl.rflag),
+      DD_Label { lbl with tvar = a })
 
 (** Compute the effect attached to the datatype (the effect of
   pattern-matching). Types flagged as positive have pure effect
@@ -292,7 +311,7 @@ let prepare_data_def env (dd : data_def) =
   the definition not extended with types defined in the current recursive
   block.
 
-  If the type is not flagged as positive, have always NTerm effect
+  If the type is not flagged as positive, always have NTerm effect
   attached, and no extra checks are performed. *)
 let adt_effect ~nonrec_scope positive args ctors =
   if positive then
@@ -321,10 +340,9 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
   | DD_Data adt ->
     let (TVar.Ex a) = adt.tvar in
     let (xs, data_tp, ctors) = check_data env (TVar a) adt.args adt.ctors in
-    let eff = adt_effect ~nonrec_scope adt.positive xs ctors in
     let env =
       Env.add_irr_var env adt.proof
-        (Type.t_foralls xs (TData(data_tp, eff, ctors))) in
+        (Type.t_foralls xs (TData(data_tp, adt.rflag, ctors))) in
     (env, dd_eff)
 
   | DD_Label lbl ->
@@ -333,9 +351,10 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
     let val_types = List.map (tr_type eff_env) lbl.val_types in
     let delim_tp  = tr_type eff_env lbl.delim_tp in
     let delim_eff = tr_type eff_env lbl.delim_eff in
-    let lbl_tp = TLabel { effct; tvars; val_types; delim_tp; delim_eff } in
+    let lbl_tp = TLabel
+      { effct; tvars; val_types; delim_tp; delim_eff; rflag = lbl.rflag } in
     let env = Env.add_var env lbl.var lbl_tp in
-    (* We add nterm effect, since generation of a fresh label is not pure *)
+    (* We add nterm effect since generation of a fresh label is not pure *)
     (env, Effect.join Effect.nterm dd_eff)
 
 (** Check block of mutually recursive type definitions.
@@ -344,8 +363,16 @@ let finalize_data_def ~nonrec_scope (env, dd_eff) dd =
   definition in the block, otherwise the block is pure. *)
 let check_data_defs env dds =
   let nonrec_scope = Env.scope env in
-  let (env, dds) = List.fold_left_map prepare_data_def env dds in
+  let ((env, nonrec_scope), dds) =
+    List.fold_left_map prepare_data_def (env, nonrec_scope) dds in
   List.fold_left (finalize_data_def ~nonrec_scope) (env, TEffPure) dds
+
+(** Infer type of a literal *)
+let infer_lit_type l =
+  match l with
+  | LNum   _ -> TVar BuiltinType.tv_int
+  | LNum64 _ -> TVar BuiltinType.tv_int64
+  | LStr   _ -> TVar BuiltinType.tv_string
 
 (** Infer type end effect of given expression. *)
 let rec infer_type_eff env e =
@@ -355,28 +382,37 @@ let rec infer_type_eff env e =
     let (tp1, eff1) = infer_type_eff env e1 in
     let (tp2, eff2) = infer_type_eff (Env.add_var env x tp1) e2 in
     (tp2, Effect.join eff1 eff2)
-  | ELetPure(x, e1, e2) ->
-    let tp1 = infer_type_check_eff env e1 TEffPure in
-    infer_type_eff (Env.add_var env x tp1) e2
-  | ELetIrr(x, e1, e2) ->
-    let tp1 = infer_type_check_eff (Env.irrelevant env) e1 TEffPure in
-    infer_type_eff (Env.add_irr_var env x tp1) e2
+  | ELetPure(relevance, x, e1, e2) ->
+    let tp1 = infer_type_pure env e1 in
+    infer_type_eff (Env.add_var_rel env relevance x tp1) e2
   | ELetRec(rds, e) ->
     let env = check_rec_defs env rds in
     infer_type_eff env e
   | ERecCtx e ->
     let (tp, eff) = infer_type_eff (Env.enter_rec_ctx env) e in
     (tp, Effect.join eff Effect.nterm)
-  | EApp(v1, v2) ->
-    begin match infer_vtype env v1 with
+  | EFn(x, tp, body) ->
+    let tp = tr_type env tp in
+    let env = Env.add_var env x tp in
+    let (tp2, eff) = infer_type_eff env body in
+    (TArrow(tp, tp2, eff), TEffPure)
+  | ETFun(x, body) ->
+    let (env, x) = Env.add_tvar env x in
+    (TForall(x, infer_type_pure env body), TEffPure)
+  | ECAbs(cs, body) ->
+    let cs = List.map (tr_constr env) cs in
+    let env = Env.add_constrs env cs in
+    (TGuard(cs, infer_type_pure env body), TEffPure)
+  | EApp(e1, v2) ->
+    begin match infer_type_pure env e1 with
     | TArrow(tp2, tp1, eff) ->
       check_vtype env v2 tp2;
       (tp1, eff)
     | TVar _ | TForall _ | TGuard _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
-  | ETApp(v, tp) ->
-    begin match infer_vtype env v with
+  | ETApp(e, tp) ->
+    begin match infer_type_pure env e with
     | TForall(x, body) ->
       let tp = tr_type env tp in
       begin match Kind.equal (TVar.kind x) (Type.kind tp) with
@@ -386,8 +422,8 @@ let rec infer_type_eff env e =
     | TVar _ | TArrow _ | TGuard _ | TLabel _ | TData _ | TApp _ ->
       failwith "Internal type error"
     end
-  | ECApp v ->
-    begin match infer_vtype env v with
+  | ECApp e ->
+    begin match infer_type_pure env e with
     | TGuard(cs, tp) ->
       if
         List.for_all
@@ -413,11 +449,14 @@ let rec infer_type_eff env e =
       failwith "Internal type error: escaping type variable"
     end
 
+  | ECtor(proof, n, tps, args) ->
+    (infer_ctor_type env proof n tps args (check_vtype env), TEffPure)
+
   | EMatch(proof, v, cls, tp, eff) ->
     let tp  = tr_type env tp in
     let eff = tr_type env eff in
-    begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
-    | TData(data_tp, meff, ctors) when List.length cls = List.length ctors ->
+    begin match infer_type_pure (Env.irrelevant env) proof with
+    | TData(data_tp, rflag, ctors) when List.length cls = List.length ctors ->
       check_vtype env v data_tp;
       List.iter2 (fun cl ctor ->
           let xs  = cl.cl_vars in
@@ -428,7 +467,7 @@ let rec infer_type_eff env e =
           let env = List.fold_left2 Env.add_var env xs tps in
           check_type_eff env cl.cl_body tp eff
         ) cls ctors;
-      (tp, Effect.join meff eff)
+      (tp, Effect.join_rflag rflag eff)
     | _ ->
       failwith "Internal type error"
     end
@@ -483,24 +522,8 @@ let rec infer_type_eff env e =
 (** Infer type of given value *)
 and infer_vtype env v =
   match v with
-  | VNum _ -> TVar BuiltinType.tv_int
-  | VNum64 _ -> TVar BuiltinType.tv_int64
-  | VStr _ -> TVar BuiltinType.tv_string
+  | VLit l -> infer_lit_type l
   | VVar x -> Env.lookup_var env x
-  | VFn(x, tp, body) ->
-    let tp = tr_type env tp in
-    let env = Env.add_var env x tp in
-    let (tp2, eff) = infer_type_eff env body in
-    TArrow(tp, tp2, eff)
-  | VTFun(x, body) ->
-    let (env, x) = Env.add_tvar env x in
-    TForall(x, infer_type_check_eff env body TEffPure)
-  | VCAbs(cs, body) ->
-    let cs = List.map (tr_constr env) cs in
-    let env = Env.add_constrs env cs in
-    TGuard(cs, infer_type_check_eff env body TEffPure)
-  | VCtor(proof, n, tps, args) ->
-    infer_ctor_type env proof n tps args (check_vtype env)
   | VExtern(_, tp) -> tr_type env tp
 
 (** [infer_ctor_type env proof n tps args check_arg] checks the type of [n]-th
@@ -510,7 +533,7 @@ and infer_vtype env v =
   type. *)
 and infer_ctor_type env proof n tps args check_arg =
   assert (n >= 0);
-  begin match infer_type_check_eff (Env.irrelevant env) proof TEffPure with
+  begin match infer_type_pure (Env.irrelevant env) proof with
   | TData(tp, _, ctors) ->
     begin match List.nth_opt ctors n with
     | Some ctor ->
@@ -527,6 +550,11 @@ and infer_ctor_type env proof n tps args check_arg =
     failwith "Internal type error"
   end
 
+(** Infer type of given expression, while checking if it is pure. The
+  function returns the type of the expression. *)
+and infer_type_pure env e =
+  infer_type_check_eff env e TEffPure
+
 (** Infer type of the expression, but check its effect *)
 and infer_type_check_eff env e eff =
   let (tp, eff') = infer_type_eff env e in
@@ -535,7 +563,7 @@ and infer_type_check_eff env e eff =
   else failwith "Internal effect error"
 
 (** Check both type and effect of the expression. Note that this function
-  returns unit. It fails with internal type error, when the type doesn't match.
+  returns unit. It fails with internal type error when the type doesn't match.
   *)
 and check_type_eff env e tp eff =
   let (tp', eff') = infer_type_eff env e in

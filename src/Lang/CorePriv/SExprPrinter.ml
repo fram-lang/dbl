@@ -21,6 +21,11 @@ and tr_arrow_kind : type k. k kind -> SExpr.t list =
     tr_kind k1 :: tr_arrow_kind k2
   | KType | KEffect -> [ Sym "->"; tr_kind k ]
 
+let tr_rflag rflag =
+  match rflag with
+  | Positive -> Sym "+"
+  | General  -> Sym "o"
+
 let tr_var  x = Sym (Var.unique_name x)
 
 let tr_tvar (x : _ tvar) =
@@ -54,9 +59,10 @@ let rec tr_type : type k. k typ -> SExpr.t =
         List (List.map tr_tvar_binder_ex lbl.tvars);
         List (List.map tr_type lbl.val_types);
         tr_type lbl.delim_tp;
-        tr_type lbl.delim_eff ]
-  | TData(tp, eff, ctors) ->
-    List (Sym "data" :: tr_type tp :: List (tr_effect eff) ::
+        tr_type lbl.delim_eff;
+        tr_rflag lbl.rflag ]
+  | TData(tp, rflag, ctors) ->
+    List (Sym "data" :: tr_type tp :: tr_rflag rflag ::
       List.map tr_ctor_type ctors)
   | TApp _ -> tr_type_app tp []
 
@@ -129,18 +135,25 @@ let tr_data_def (dd : Syntax.data_def) =
       tr_type lbl.delim_eff
     ]
 
+let tr_lit (l : Syntax.lit) =
+  match l with
+  | LNum   n -> string_of_int n
+  | LNum64 n -> Int64.to_string n ^ "L"
+  | LStr   s -> Printf.sprintf "\"%s\"" (String.escaped s)
+
 let rec tr_expr (e : Syntax.expr) =
   match e with
   | EValue v -> tr_value v
-  | ELet _ | ELetPure _ | ELetIrr _ | ELetRec _ | ERecCtx _ | EData _
-  | EReset _ ->
+  | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _ | EData _ | EReset _ ->
     List (Sym "defs" :: tr_defs e)
-  | EApp(v1, v2) ->
-    List [ Sym "app"; tr_value v1; tr_value v2 ]
-  | ETApp(v, tp) ->
-    List [ Sym "tapp"; tr_value v; tr_type tp ]
-  | ECApp v ->
-    List [ Sym "capp"; tr_value v ]
+  | EFn _ | ETFun _ | ECAbs _ ->
+    List (Sym "fn" :: tr_funs e)
+  | EApp _ | ETApp _ | ECApp _ ->
+    List (Sym "app" :: tr_apps e [])
+  | ECtor(proof, n, tps, args) ->
+    List (Sym "ctor" :: tr_expr proof :: Num n ::
+      (List (List.map (fun (Type.Ex tp) -> tr_type tp) tps)) ::
+      List.map tr_value args)
   | EMatch(proof, v, cls, tp, eff) ->
     List [ Sym "match"; tr_expr proof; tr_value v;
       List (Sym "clauses" :: List.map tr_clause cls);
@@ -161,20 +174,8 @@ let rec tr_expr (e : Syntax.expr) =
 
 and tr_value (v : Syntax.value) =
   match v with
-  | VNum n -> List [ Sym (string_of_int n) ]
-  | VNum64 n -> List [ Sym (Int64.to_string n ^ "L") ]
-  | VStr s -> List [ Sym (Printf.sprintf "\"%s\"" (String.escaped s)) ]
+  | VLit l -> List [ Sym (tr_lit l) ]
   | VVar x -> tr_var x
-  | VFn(x, tp, body) ->
-    List (Sym "fn" :: List [ tr_var x; tr_type tp ] :: tr_defs body)
-  | VTFun(x, body) ->
-    List (Sym "tfun" :: tr_tvar_binder x :: tr_defs body)
-  | VCAbs(cs, body) ->
-    List (Sym "cabs" :: List (List.map tr_constr cs) :: tr_defs body)
-  | VCtor(proof, n, tps, args) ->
-    List (Sym "ctor" :: tr_expr proof :: Num n ::
-      (List (List.map (fun (Type.Ex tp) -> tr_type tp) tps)) ::
-      List.map tr_value args)
   | VExtern(name, tp) ->
     List [ Sym "extern"; Sym name; tr_type tp ]
 
@@ -182,13 +183,13 @@ and tr_defs (e : Syntax.expr) =
   match e with
   | ELet(x, e1, e2) ->
     List [Sym "let"; tr_var x; tr_expr e1] :: tr_defs e2
-  | ELetPure(x, e1, e2) ->
+  | ELetPure(Relevant, x, e1, e2) ->
     List [Sym "let-pure"; tr_var x; tr_expr e1] :: tr_defs e2
-  | ELetIrr(x, e1, e2) ->
+  | ELetPure(Irrelevant, x, e1, e2) ->
     List [Sym "let-irr"; tr_var x; tr_expr e1] :: tr_defs e2
   | ELetRec(rds, e2) ->
     List (Sym "let-rec" :: List.map tr_rec_def rds) :: tr_defs e2
-  | ERecCtx _ ->
+  | ERecCtx e ->
     List [Sym "rec-ctx"] :: tr_defs e
   | EData(dds, e2) ->
     List (Sym "data" :: List.map tr_data_def dds) :: tr_defs e2
@@ -201,12 +202,37 @@ and tr_defs (e : Syntax.expr) =
         tr_var x; tr_expr ret
       ] :: tr_defs body
 
-  | EValue _ | EApp _ | ETApp _ | ECApp _ | EMatch _ | EShift _ | ERepl _
-  | EReplExpr _ ->
+  | EValue _ | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _
+  | ECtor _ | EMatch _ | EShift _ | ERepl _ | EReplExpr _ ->
     [ tr_expr e ]
 
 and tr_rec_def (x, tp, body) =
   List [ tr_var x; tr_type tp; tr_expr body ]
+
+and tr_funs (e : Syntax.expr) =
+  match e with
+  | EFn(x, tp, body) ->
+    List [ tr_var x; tr_type tp ] :: tr_funs body
+  | ETFun(x, body) ->
+    List [Sym "type"; tr_tvar_binder x] :: tr_defs body
+  | ECAbs(cs, body) ->
+    List (Sym "constr" :: List.map tr_constr cs) :: tr_funs body
+
+  | EValue _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _ | EApp _ | ETApp _
+  | ECApp _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | ERepl _
+  | EReplExpr _ ->
+    [tr_expr e]
+
+and tr_apps (e : Syntax.expr) args =
+  match e with
+  | EApp(e1, v2) -> tr_apps e1 (tr_value v2 :: args)
+  | ETApp(e1, tp) -> tr_apps e1 (List [Sym "type"; tr_type tp] :: args)
+  | ECApp e1 -> tr_apps e1 (Sym "constr" :: args)
+
+  | EValue _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _ | EFn _ | ETFun _
+  | ECAbs _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | ERepl _
+  | EReplExpr _ ->
+    tr_expr e :: args
 
 and tr_clause (c : Syntax.match_clause) =
   List (

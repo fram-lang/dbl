@@ -1,0 +1,6 @@
+let f x =
+  type T = _
+  type U = T
+  let (a : T) = x in
+  let (b : U) = a in
+  b

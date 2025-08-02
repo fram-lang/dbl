@@ -13,73 +13,51 @@ let tr_data_def (dd : S.data_def) e =
   | DD_Data _ -> e
   | DD_Label lbl -> T.ELabel(lbl.var, e)
 
+(** Translate a literal *)
+let tr_lit (l : S.lit) =
+  match l with
+  | LNum   n -> T.LNum n
+  | LNum64 n -> T.LNum64 n
+  | LStr   s -> T.LStr s
+
 (** Translate expression *)
 let rec tr_expr (e : S.expr) =
   match e with
-  | EValue v -> tr_value v
-  | ELet(x, e1, e2) | ELetPure(x, e1, e2) ->
+  | EValue v -> T.EValue (tr_value v)
+  | ELet(x, e1, e2) | ELetPure(Relevant, x, e1, e2) ->
     T.ELet(x, tr_expr e1, tr_expr e2)
-  | ELetIrr(_, _, e) -> tr_expr e
+
+  | ELetPure(Irrelevant, _, _, e) | ERecCtx e | ETFun(_, e) | ECAbs(_, e)
+  | ETApp(e, _) | ECApp e ->
+    tr_expr e
+
   | ELetRec(rds, e) ->
     T.ELetRec(
       List.map (fun (x, _, e) -> (x, tr_expr e)) rds,
       tr_expr e)
-  | ERecCtx e -> tr_expr e
-  | EApp(v1, v2) ->
-    tr_value_v v1 (fun v1 ->
-    tr_value_v v2 (fun v2 ->
-    T.EApp(v1, v2)))
-  | ETApp(v, _) | ECApp v -> tr_value v
+
+  | EFn(x, _, body) -> T.EFn(x, tr_expr body)
+  | EApp(e1, v2) -> T.EApp(tr_expr e1, tr_value v2)
   | EData(dds, e) -> List.fold_right tr_data_def dds (tr_expr e)
+  | ECtor(_, n, _, args) ->
+    T.ECtor(n, List.map tr_value args)
   | EMatch(_, v, cls, _, _) ->
-    tr_value_v v (fun v ->
-    T.EMatch(v, List.map tr_clause cls))
+    T.EMatch(tr_value v, List.map tr_clause cls)
   | EShift(v, _, xs, x, e, _) ->
-    tr_value_v v (fun v ->
-    T.EShift(v, xs, x, tr_expr e))
+    T.EShift(tr_value v, xs, x, tr_expr e)
   | EReset(v, _, vs, body, x, ret) ->
-    tr_value_v v (fun v ->
-    tr_value_vs vs (fun vs ->
-    T.EReset(v, vs, tr_expr body, x, tr_expr ret)))
+    T.EReset(tr_value v, List.map tr_value vs, tr_expr body, x, tr_expr ret)
   | ERepl(func, _, _) ->
     T.ERepl (fun () -> tr_expr (func ()))
   | EReplExpr(e1, tp, e2) ->
     T.EReplExpr(tr_expr e1, tp, tr_expr e2)
 
-(** Translate value as an expression *)
+(** Translate value as a value *)
 and tr_value (v : S.value) =
   match v with
-  | VNum _ | VNum64 _ | VStr _ | VVar _ | VFn _ | VCtor _ | VExtern _ ->
-    tr_value_v v (fun v -> T.EValue v)
-  | VTFun(_, body) | VCAbs(_, body) ->
-    tr_expr body
-
-(** Translate value as a value, and pass it to given meta-continuation *)
-and tr_value_v (v : S.value) cont =
-  match v with
-  | VNum n   -> cont (T.VNum n)
-  | VNum64 n -> cont (T.VNum64 n)
-  | VStr s   -> cont (T.VStr s)
-  | VVar x   -> cont (T.VVar x)
-  | VFn(x, _, body) -> cont (T.VFn(x, tr_expr body))
-  | VTFun(_, EValue v) | VCAbs(_, EValue v) -> tr_value_v v cont
-  | VTFun(_, body) | VCAbs(_, body) ->
-    let x = Var.fresh () in
-    T.ELet(x, tr_expr body, cont (T.VVar x))
-  | VCtor(_, n, _, args) ->
-    tr_value_vs args (fun args ->
-    cont (T.VCtor(n, args)))
-  | VExtern(name, _) -> cont (T.VExtern name)
-
-(** Translate list of values and pass the result (list of values) to given
-  meta-continuation *)
-and tr_value_vs vs cont =
-  match vs with
-  | [] -> cont []
-  | v :: vs ->
-    tr_value_v  v  (fun v ->
-    tr_value_vs vs (fun vs ->
-    cont (v :: vs)))
+  | VLit l -> T.VLit (tr_lit l)
+  | VVar x -> T.VVar x
+  | VExtern(name, _) -> T.VExtern name
 
 (** Translate a clause of pattern-matching *)
 and tr_clause (cl : S.match_clause) =

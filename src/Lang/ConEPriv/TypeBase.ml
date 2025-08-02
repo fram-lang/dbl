@@ -43,6 +43,7 @@ and type_view =
     }
   | TEffect  of effct
   | TApp     of typ * typ
+  | TAlias   of PPTree.uid * typ
 
 type ctor_decl =
   { ctor_name        : string;
@@ -73,12 +74,15 @@ let t_app tp1 tp2 = TApp (tp1, tp2)
 
 let t_apps tp tps = List.fold_left t_app tp tps
 
+let t_alias pp_uid tp = TAlias(pp_uid, tp)
+
 let view tp = tp
 
-let to_effect tp =
+let rec to_effect tp =
   match view tp with
   | TVar    x   -> Effct.var x
   | TEffect eff -> eff
+  | TAlias(_, tp) -> to_effect tp
   | TArrow _ | TLabel _ | THandler _ ->
     failwith "Internal kind error"
   | TApp _ ->

@@ -67,9 +67,9 @@ let leave_scope_with_gvars ~env0 ~tvars cs gvs =
 
 (* ========================================================================= *)
 
-(** Split all generalizable variables that are not in the given scope, but
-  appears on the RHS of given constraints to a join of fresh generalizable
-  variables, one at given scope and one at the original scope. *)
+(** Split all generalizable variables that are not in the given scope but
+  appear on the RHS of given constraints to a join of fresh generalizable
+  variables, one at given scope, and one at the original scope. *)
 let prepare_generalize ~scope cs =
   cs
   |> List.fold_left

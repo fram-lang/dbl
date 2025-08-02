@@ -42,7 +42,7 @@ val leave_scope_with_gvars :
 
 (** Leave scope and generalize generalizable variables. Returns generalized
   variables promoted to type variables, and the list of constraints that
-  could not be propagated, and should be generalized. There should be no
+  could not be propagated and should be generalized. There should be no
   regular variables defined at the leaved scope. *)
 val generalize_with_scheme :
   env0:Env.t -> Constr.t list -> T.scheme -> T.tvar list * T.constr list
