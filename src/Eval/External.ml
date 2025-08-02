@@ -127,6 +127,7 @@ let extern_map =
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
     "dbl_strGet",  str_fun (fun s -> int_fun (fun n -> VNum (Char.code s.[n])));
     "dbl_chrToString",  int_fun (fun c -> VStr (Char.escaped (Char.chr c)));
+    "dbl_unescapedChrToString", int_fun (fun c -> VStr (String.make 1 (Char.chr c)));
     "dbl_chrListToStr", list_fun to_char (fun xs ->
                           VStr (List.to_seq xs |> String.of_seq));
     "dbl_chrCode",    int_fun (fun c -> VNum c);
