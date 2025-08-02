@@ -56,19 +56,13 @@ let padding
     else
       padding + str
 
-# Concatenates all strings in not particullary optimal fashion
-# TODO: delete this function once interpolation is implemented
-let rec strListCat (xs : List String) =
-  match xs with
-  | [] => ""
-  | x :: xs => x + strListCat xs
-  end
-
 parameter X
 parameter XFmt
+parameter method format : {?fmt : XFmt, ?prec : Int} -> X ->> String
 
 parameter Y
 parameter YFmt
+parameter method format : {?fmt : YFmt, ?prec : Int} -> Y ->> String
 
 ## ## Unit
 
@@ -134,7 +128,7 @@ pub method format {?prec : Int, ?fmt : IntFmt} (self : Int) =
   # constructs representation
   let rec iter (n : Int) acc = 
     if n == 0 then
-      acc
+      if List.isEmpty acc then ['0'] else acc 
     else
      (let digit = n % base
       let shift = n / base
@@ -314,11 +308,8 @@ pub data ListFmt A =
   @param ?prec Parend precedence.
   @param ?fmt Bool format options.
  ##}
-pub method format 
-  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
-  , ?prec : Int
-  , ?fmt : ListFmt XFmt }
-  (self : List X) =
+pub method format
+  {?prec : Int, ?fmt : ListFmt XFmt } (self : List X) =
     let ListFmt {opn, sep, cls, inner}  = fmt.unwrapOr ListFmt
     let ListFmt {size, fill, alignLeft} = fmt.unwrapOr ListFmt
     let opn = opn.unwrapOr "["
@@ -369,10 +360,7 @@ pub data OptionFmt A =
   @param ?fmt Bool format options.
  ##}
 pub method format
-  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
-  , ?prec : Int
-  , ?fmt : OptionFmt XFmt }
-  (self : Option X) =
+  {?prec : Int, ?fmt : OptionFmt XFmt } (self : Option X) =
     let OptionFmt {some, none, inner, parenths} = fmt.unwrapOr OptionFmt
     let OptionFmt {size, fill, alignLeft}       = fmt.unwrapOr OptionFmt
     let appInner (x : X) =
@@ -420,30 +408,25 @@ pub data PairFmt A B =
   @param ?prec Parend precedence.
   @param ?fmt Bool format options.
  ##}
-pub method format 
-  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
-  , method format : {?prec : Int, ?fmt : YFmt} -> Y ->> String
-  , ?fmt : PairFmt XFmt YFmt
-  , ?prec : Int }
-  ((v1, v2) : Pair X Y) =
-    let PairFmt {opn, sep, cls}         = fmt.unwrapOr PairFmt
-    let PairFmt {fst, snd}              = fmt.unwrapOr PairFmt
-    let PairFmt {size, fill, alignLeft} = fmt.unwrapOr PairFmt
-    
-    let fst = match fst with 
-              | Some fmt => v1.format {fmt} 
-              | None     => v1.format 
-              end
-    let snd = match snd with
-              | Some fmt => v2.format {fmt}
-              | None     => v2.format
-              end
-    
-    let opn = opn.unwrapOr "("
-    let sep = sep.unwrapOr ", "
-    let cls = cls.unwrapOr ")"
-    let res = opn + fst + sep + snd + cls in
-    padding res size fill alignLeft
+pub method format {?fmt : PairFmt XFmt YFmt, ?prec : Int } ((v1, v2) : Pair X Y) =
+  let PairFmt {opn, sep, cls}         = fmt.unwrapOr PairFmt
+  let PairFmt {fst, snd}              = fmt.unwrapOr PairFmt
+  let PairFmt {size, fill, alignLeft} = fmt.unwrapOr PairFmt
+  
+  let fst = match fst with 
+            | Some fmt => v1.format {fmt} 
+            | None     => v1.format 
+            end
+  let snd = match snd with
+            | Some fmt => v2.format {fmt}
+            | None     => v2.format
+            end
+  
+  let opn = opn.unwrapOr "("
+  let sep = sep.unwrapOr ", "
+  let cls = cls.unwrapOr ")"
+  let res = opn + fst + sep + snd + cls in
+  padding res size fill alignLeft
 
 {# Either #}
 
@@ -476,29 +459,24 @@ pub data EitherFmt A B =
   @param ?prec Parend precedence.
   @param ?fmt Bool format options.
  ##}
-pub method format 
-  { method format : {?prec : Int, ?fmt : XFmt} -> X ->> String
-  , method format : {?prec : Int, ?fmt : YFmt} -> Y ->> String
-  , ?fmt : EitherFmt XFmt YFmt
-  , ?prec : Int }
-  (self : Either X Y) =
-    let EitherFmt {size, fill, alignLeft, parenths} = fmt.unwrapOr EitherFmt
-    let res = 
-      match self with
-      | Left x =>
-        let EitherFmt {left, innerL} = fmt.unwrapOr EitherFmt
-        let left = left.unwrapOr "Left " in
-        match innerL with
-        | Some fmt => left + x.format {prec=200, fmt}
-        | None     => left + x.format {prec=200}
-        end
-      | Right y =>
-        let EitherFmt {right, innerR} = fmt.unwrapOr EitherFmt
-        let right = right.unwrapOr "Right " in
-        match innerR with
-        | Some fmt => right + y.format {prec=200, fmt}
-        | None     => right + y.format {prec=200}
-        end
+pub method format {?fmt : EitherFmt XFmt YFmt, ?prec : Int } (self : Either X Y) =
+  let EitherFmt {size, fill, alignLeft, parenths} = fmt.unwrapOr EitherFmt
+  let res = 
+    match self with
+    | Left x =>
+      let EitherFmt {left, innerL} = fmt.unwrapOr EitherFmt
+      let left = left.unwrapOr "Left " in
+      match innerL with
+      | Some fmt => left + x.format {prec=200, fmt}
+      | None     => left + x.format {prec=200}
       end
-    let res = addParenths res 200 prec parenths in
-    padding res size fill alignLeft
+    | Right y =>
+      let EitherFmt {right, innerR} = fmt.unwrapOr EitherFmt
+      let right = right.unwrapOr "Right " in
+      match innerR with
+      | Some fmt => right + y.format {prec=200, fmt}
+      | None     => right + y.format {prec=200}
+      end
+    end
+  let res = addParenths res 200 prec parenths in
+  padding res size fill alignLeft
