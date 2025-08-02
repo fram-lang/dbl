@@ -4,4 +4,6 @@
 
 (** Lexer *)
 
+val reset : unit -> unit
+
 val token : Lexing.lexbuf -> YaccParser.token

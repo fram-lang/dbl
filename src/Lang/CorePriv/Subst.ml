@@ -55,11 +55,11 @@ let rec in_type_rec : type k. t -> k typ -> k typ =
       { effct; tvars;
         val_types = List.map (in_type_rec sub) lbl.val_types;
         delim_tp  = in_type_rec sub lbl.delim_tp;
-        delim_eff = in_type_rec sub lbl.delim_eff
+        delim_eff = in_type_rec sub lbl.delim_eff;
+        rflag     = lbl.rflag
       }
-  | TData(tp, eff, ctors) ->
-    TData(in_type_rec sub tp, in_type_rec sub eff,
-      List.map (in_ctor_type_rec sub) ctors)
+  | TData(tp, rflag, ctors) ->
+    TData(in_type_rec sub tp, rflag, List.map (in_ctor_type_rec sub) ctors)
   | TApp(tp1, tp2) ->
     TApp(in_type_rec sub tp1, in_type_rec sub tp2)
 

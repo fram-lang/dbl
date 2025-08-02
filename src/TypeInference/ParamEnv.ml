@@ -166,7 +166,9 @@ let open_param_decl ~new_scope (env, tps, vps, tmap) decl =
   match decl with
   | ParamType { pos; name; uid; kind } ->
     assert (not (UID.Map.mem uid env.tvar_map));
-    let x = T.TVar.fresh ~pp_uid:(PP_UID uid) ~scope:new_scope kind in
+    let x =
+      T.TVar.fresh ~method_ns:uid ~pp_uid:(PP_UID uid) ~scope:new_scope kind
+    in
     let status = BRef.create NotUsed in
     let on_use = on_use_type status pos name x in
     let env =

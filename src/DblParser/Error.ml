@@ -50,6 +50,9 @@ let invalid_escape_code pos =
 let eof_in_string pos =
   (Some pos, "Unexpected end of file inside a string literal")
 
+let unmatched_closing_bracket pos =
+  (Some pos, "Unmatched closing bracket")
+
 let invalid_lexer_directive ?msg pos =
   (Some pos,
     Printf.sprintf

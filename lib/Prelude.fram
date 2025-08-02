@@ -11,10 +11,12 @@ import /Base/Int
 import /Base/Int64
 import /Base/Char
 import /Base/String
+import /Base/Format
 
 pub open Types
 pub open Operators
 pub open Assert
+pub open Format
 
 pub let id x = x
 

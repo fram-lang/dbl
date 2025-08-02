@@ -29,6 +29,7 @@ and repl_seq_main imported () =
     res
   in
   Printf.printf "> %!";
+  Lexer.reset ();
   let lexbuf = Lexing.from_function fn in
   lexbuf.Lexing.lex_curr_p <-
     { lexbuf.Lexing.lex_curr_p with
