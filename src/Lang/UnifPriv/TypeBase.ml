@@ -9,7 +9,8 @@ include Names
 
 type kind = Kind.t
 
-type tvar  = TVar.t
+type tvar = TVar.t
+type ty_alias = TyAlias.t
 
 type named_tvar = tname * tvar
 
@@ -36,6 +37,7 @@ and type_view =
   | THandler of tvar * typ * typ * typ
   | TLabel   of typ
   | TApp     of typ * typ
+  | TAlias   of ty_alias * typ
 
 and scheme = {
   sch_targs : named_tvar list;
@@ -66,6 +68,8 @@ let t_label tp0 = TLabel tp0
 
 let t_app tp1 tp2 = TApp(tp1, tp2)
 
+let t_alias a tp = TAlias(a, tp)
+
 let rec view tp =
   match tp with
   | TUVar u ->
@@ -77,7 +81,8 @@ let rec view tp =
       BRef.set u.state (UV_Type tp);
       tp
     end
-  | TEffect | TVar _ | TArrow _ | THandler _ | TLabel _ | TApp _ -> tp
+  | TEffect | TVar _ | TArrow _ | THandler _ | TLabel _ | TApp _ | TAlias _ ->
+    tp
 
 module UVar = struct
   module Ordered = struct
@@ -105,9 +110,7 @@ module UVar = struct
   let raw_set u tp =
     match BRef.get u.state with
     | UV_Type _ -> assert false
-    | UV_UVar   ->
-      BRef.set u.state (UV_Type tp);
-      BRef.get u.scope
+    | UV_UVar   -> BRef.set u.state (UV_Type tp)
 
   let fix u =
     match BRef.get u.state with

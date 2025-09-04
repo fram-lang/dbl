@@ -14,6 +14,10 @@ let runtime_error msg =
   Printf.eprintf "Runtime error: %s\n%!" msg;
   raise Runtime_error
 
+let runtime_error_with_postion file line msg =
+  Printf.eprintf "runtime error at %s:%d:\n%s!\n" file line msg;
+  raise Runtime_error
+
 let pure_fun f = VFn (fun v cont -> cont (f v))
 
 let unit_fun f = VFn (fun v cont -> cont (f ()))

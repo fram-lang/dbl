@@ -84,7 +84,7 @@ let tr_val_info ~pos ~env (info : Module.val_info) =
     end
 
 (** Same as [tr_val_info], but assumes that the value is always a variable,
-  e.g. for implicits or methods *)
+  e.g., for implicits or methods *)
 let tr_var_info ~pos ~env (info : Module.val_info) =
   match info with
   | VI_Var(x, sch) -> (x, sch)

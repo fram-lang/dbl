@@ -78,6 +78,9 @@ end = struct
 end
 type 'k tvar = 'k TVar.t
 
+type rflag     = Positive | General
+type relevance = Relevant | Irrelevant
+
 type _ typ =
   | TEffPure : keffect typ
   | TEffJoin : effct * effct -> keffect typ
@@ -90,9 +93,10 @@ type _ typ =
       tvars     : TVar.ex list;
       val_types : ttype list;
       delim_tp  : ttype;
-      delim_eff : effct
+      delim_eff : effct;
+      rflag     : rflag
     } -> ktype typ
-  | TData    : ttype * effct * ctor_type list -> ktype typ
+  | TData    : ttype * rflag * ctor_type list -> ktype typ
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
 
 and ttype  = ktype typ

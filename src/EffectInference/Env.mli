@@ -41,6 +41,9 @@ val add_named_tvars : t -> S.named_tvar list -> t * T.named_tvar list
 (** Add the datatype definition to the environment. *)
 val add_data : t -> S.var -> adt_info -> t
 
+(** Add a type alias to the environment. *)
+val add_type_alias : t -> S.ty_alias -> T.typ -> t
+
 (** Add simple polymorphic variable to the environment. *)
 val add_poly_var : t -> S.var -> T.scheme -> t
 
@@ -64,7 +67,10 @@ val lookup_var : t -> S.var -> var_info
 (** Lookup an ADT in the environment. *)
 val lookup_adt : t -> S.var -> adt_info
 
-(** Enter a new scope. The returned environment has own set of constraints.
+(** Lookup a type alias in the environment. *)
+val lookup_type_alias : t -> S.ty_alias -> T.typ
+
+(** Enter a new scope. The returned environment has its own set of constraints.
   When the scope is exited, the constraints should be obtained using
   [constraints] function, and (after some processing) should be added to
   the parent environment. *)

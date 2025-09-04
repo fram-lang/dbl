@@ -7,7 +7,10 @@ open ExternalUtils
 
 let extern_map =
   let extern_map =
-    [ "dbl_runtimeError", str_fun runtime_error;
+    [ "dbl_runtimeError", str_fun (fun fname -> 
+                            int_fun (fun line -> 
+                              str_fun (fun msg -> 
+                                runtime_error_with_postion fname line msg)));
       "dbl_magic", pure_fun Fun.id;
       "dbl_exit",  int_fun exit;
       "dbl_abstrType",  unit_fun (fun () -> v_abstr);

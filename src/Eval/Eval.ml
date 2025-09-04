@@ -11,7 +11,7 @@ exception Runtime_error = ExternalUtils.Runtime_error
 
 let run_stack v stack =
   match stack with
-  | [] -> failwith "Runtime error1"
+  | [] -> failwith "Runtime error"
   | f :: stack -> f.f_ret v f.f_cont stack
 
 (** reset0 operator *)
@@ -40,6 +40,12 @@ let rec grab l comp cont gstack stack =
 let shift0 l comp cont stack =
   grab l comp cont [] stack
 
+let eval_lit (l : Lang.Untyped.lit) =
+  match l with
+  | LNum   n -> VNum n
+  | LNum64 n -> VNum64 n
+  | LStr   s -> VStr s
+
 let rec eval_expr env (e : Lang.Untyped.expr) cont =
   match e with
   | EValue v -> cont (eval_value env v)
@@ -54,11 +60,15 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
           (env, (box, e)))
         env rds in
     eval_rec_defs env rds (fun env -> eval_expr env e2 cont)
-  | EApp(v1, v2) ->
-    begin match eval_value env v1 with
+  | EFn(x, body) ->
+    cont (VFn(fun v -> eval_expr (Env.extend env x v) body))
+  | EApp(e1, v2) ->
+    eval_expr env e1 (function
     | VFn f -> f (eval_value env v2) cont
-    | v -> failwith ("Runtime error: expected <fun>, actual: "^to_string v^"!")
-    end
+    | v ->
+      failwith ("Runtime error: expected <fun>, actual: "^to_string v^"!"))
+  | ECtor(n, vs) ->
+    cont (VCtor(n, List.map (eval_value env) vs))
   | EMatch(v, cls) ->
     begin match eval_value env v with
     | VCtor(n, vs) ->
@@ -107,14 +117,8 @@ and eval_rec_defs env rds cont =
 
 and eval_value env (v : Lang.Untyped.value) =
   match v with
-  | VNum n -> VNum n
-  | VNum64 n -> VNum64 n
-  | VStr s -> VStr s
+  | VLit l -> eval_lit l
   | VVar x -> Env.lookup env x
-  | VFn(x, body) ->
-    VFn(fun v -> eval_expr (Env.extend env x v) body)
-  | VCtor(n, vs) ->
-    VCtor(n, List.map (eval_value env) vs)
   | VExtern name ->
     begin match Hashtbl.find_opt External.extern_map name with
     | Some v -> v

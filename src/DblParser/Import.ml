@@ -48,7 +48,7 @@ let find_mod_abs (p, n) =
   | [] | _ :: _ ->
     find_file_in !DblConfig.lib_search_dirs (to_file_path (p, n))
 
-(** Find a module relative to the module directory path [prefix], and return
+(** Find a module relative to the module directory path [prefix] and return
     the absolute module path and file system path. *)
 let find_mod_rel prefix p =
   let rec loop prefix_r (p, n) =

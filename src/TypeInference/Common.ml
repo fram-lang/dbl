@@ -10,7 +10,7 @@ module T = Lang.Unif
 let the_label_name = "~label"
 
 (** Dummy types for encoding the state of the module. They are used to index
-  module and environment types. They meaning can be summarized as below:
+  module and environment types. Their meaning can be summarized as below:
   - [closed] -- the module is closed and cannot be extended with new
     definitions. For environments, it means that the environment is top-level.
   - [opn] -- the module/environment has open some additional scope. The kind

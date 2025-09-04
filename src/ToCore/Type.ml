@@ -44,7 +44,8 @@ let rec tr_type env tp =
           tvars     = [];
           val_types = [];
           delim_tp  = tr_ttype env delim_tp;
-          delim_eff = tr_ceffect env (Impure delim_eff)
+          delim_eff = tr_ceffect env (Impure delim_eff);
+          rflag     = T.General
         })
 
   | THandler h ->
@@ -80,6 +81,9 @@ let rec tr_type env tp =
 
   | TEffect eff ->
     T.Type.Ex (tr_effect env eff)
+
+  | TAlias(_, tp) ->
+    tr_type env tp
 
 and tr_ttype env tp : T.ttype =
   let (Ex tp) = tr_type env tp in

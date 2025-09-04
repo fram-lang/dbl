@@ -24,9 +24,9 @@ val end_generalize_pure : pos:Position.t ->
   ParamEnv.param_list -> T.UVar.Set.t -> Constr.t list ->
     T.named_tvar list * (Name.t * T.var * T.scheme_expr) list * Constr.t list
 
-(** Ensure, that no named parameters on a given list were used. After calling
-  this function, given named parameter become unavailable. The function takes
-  also a set of unification variables that appears in the entity that was
+(** Ensure that no named parameters on a given list were used. After calling
+  this function, given named parameter become unavailable. The function also 
+  takes a set of unification variables that appears in the entity that was
   created with the environment returned by [begin_generalize]. This set is
   needed to decrease the level of unification variables. *)
 val end_generalize_impure : ParamEnv.param_list -> T.UVar.Set.t -> unit

@@ -17,7 +17,7 @@ pub method ge    = (extern dbl_geStr  : String -> String -> Bool)
 pub method le    = (extern dbl_leStr  : String -> String -> Bool)
 
 pub method length = (extern dbl_strLen : String -> Int)
-pub method get (self : String) (n : Int) =
+pub method get {~__line__, ~__file__} (self : String) (n : Int) =
   assert {msg="Out of bounds"} (n >= 0 && n < self.length);
   (extern dbl_strGet : String -> Int -> Char) self n
 
@@ -29,3 +29,5 @@ pub method toList (self : String) =
     else 
       iter (n - 1) (getChar self (n - 1) :: acc) 
   in iter self.length []
+
+pub method toString = (extern dbl_strRepr : String -> String)
