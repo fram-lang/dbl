@@ -1,0 +1,440 @@
+{# This file is part of DBL, released under MIT license.
+   See LICENSE for details.
+ #}
+
+{# Plan:
+  I need testing module that will collect all tests from all files, after full
+  program has finished, it should run all tests and all Suites.
+  After all that it should print results.
+#}
+
+import open AnsiTerminal
+import Mutable
+
+{# ========================================================================= #}
+{# Testing data types #}
+
+## Information about assertion fail in test
+data AssertInfo =
+  { msg : String
+  , line : Int
+  , file : String
+  }
+
+{##
+  Collection of informations about run of the test.
+  Empty error list means that the test passed.
+##}
+data TestResult =
+  { name : String
+  , line : Int
+  , file : String
+  , errors : List AssertInfo
+  }
+
+
+## Test case to be run at a later time.
+data TestCase =
+  { name : String
+  , line : Int
+  , file : String
+  , testBody : Unit ->[IO] List AssertInfo {# Maybe this doesn't go here #}
+  }
+
+{##
+  Internal representation of test suite.
+  Holds tests.
+##}
+data TestSuiteInternal =
+  { name : String
+  , line : Int
+  , file : String
+  , tests : List TestCase
+  }
+
+data TestSuite =
+ | TestSuite of { name : String}
+
+{# ========================================================================= #}
+{# Printing functions #}
+
+# TODO delete when improved format methods are introduced
+let strFmt = () #StringFmt {escape=False}
+method format {?fmt : Unit} (self : String) = self
+
+let warn (msg : String) =
+  printStrLn "\{Color.setFgColor Color.Yellow | strFmt
+    }[WARNING] \{ msg | strFmt }\{ Color.resetAll | strFmt }"
+
+let printGlobalPreamble () =
+  printStrLn "[====] Running global tests";
+
+method printPreamble (TestSuiteInternal {file, line, name}) =
+  printStrLn "[====] Running test suite \{name}";
+  printStrLn "[    ] from \{file | strFmt}:\{line}"
+
+method printCaseOk (TestCase {name}) =
+  {# TODO : add printing of line and file of the test (maybe?) #}
+  printStrLn "[ \{
+    Color.setFgColor Color.Green | strFmt
+  }OK\{Color.resetAll | strFmt} ] \{name | strFmt}"
+
+method printCaseFail
+    (TestCase {name, line, file})
+    (AssertInfo {msg, line=assertLine}) =
+  printStrLn "[\{
+      Color.setFgColor Color.Red | strFmt
+    }FAIL\{
+      Color.resetAll | strFmt
+    }] \{name | strFmt}";
+  printStrLn "       In \{file | strFmt}:\{
+    assertLine} assertion failed:";
+  printStrLn "       \{msg | strFmt}"
+
+
+method rec printCasesFail (tc : TestCase) assertInfos =
+  match assertInfos with
+  | [] => ()
+  | assertInfo :: assertInfos =>
+    tc.printCaseFail assertInfo;
+    tc.printCasesFail assertInfos
+  end
+
+let printSuiteFooter (succ : Int) (fail : Int) =
+  if succ == 0 && fail == 0 then
+    printStrLn "[====] No tests have been run!"
+  else if succ == 1 && fail == 0 then
+    printStrLn "[====] Test have passed!"
+  else if succ == 2 && fail == 0 then
+    printStrLn "[====] Both tests passed!"
+  else if fail == 0 then
+    printStrLn "[====] All \{succ} tests have passed!"
+  else
+    printStrLn "[====] \{succ}/\{fail + succ} tests have passed!";
+  printStrLn ""
+
+{# ========================================================================= #}
+{# Running Test Logic #}
+
+{##
+  Test case effector object.
+  Provides two functionalities:
+  - allows for reporting assertion failure, which ends test immediately
+  - allows for reporting expectation failure, which allows for the test
+    to continue, but at the end test fails anyway.
+##}
+data TestArbiter E =
+  { abort : {X} -> AssertInfo ->[E] X
+  , fail  : AssertInfo ->[E] Unit
+  }
+
+{# TODO : Rewrite to use tail-recurrsion #}
+let testArbiterHandler =
+  handler TestArbiter
+    { abort = effect assertInfo => [ assertInfo ]
+    , fail  = effect assertInfo => assertInfo :: resume ()
+    }
+    return _ => []
+  end
+
+method runTest (tc : TestCase) =
+  match tc.testBody () with
+  | [] => tc.printCaseOk; True
+  | errors => tc.printCasesFail errors; False
+  end
+
+{# This module is to be used in other parts of standard library,
+    so some functionality is explicitely reimplemented #}
+let rec runSuiteAux (succ, fail) (tests : List TestCase) =
+  match tests with
+  | [] => (succ, fail)
+  | tc :: tests =>
+    if tc.runTest
+    then aux (succ+1, fail) tests
+    else aux (succ, fail+1) tests
+  end
+
+method runSuite (suite : TestSuiteInternal) =
+  suite.printPreamble;
+  let (succ, fail) = runSuiteAux (0, 0) suite.tests () in
+  printSuiteFooter succ fail
+
+{# ========================================================================= #}
+{# MainTestRunner #}
+
+{#
+  TODO : When Vector library is written, change this part of implementation
+         to use it.
+#}
+
+data MainTestRunner =
+  { testSuites  : Mutable.Ref IO (List TestSuiteInternal)
+  , globalTests : Mutable.Ref IO (List TestCase)
+  }
+
+let mainTestRunner = MainTestRunner
+  { testSuites  = Mutable.ioMut.ref []
+  , globalTests = Mutable.ioMut.ref []
+  }
+
+let rec runAllSuites suites =
+  match testSuites with
+  | [] => ()
+  | suite :: suites =>
+    suite.runSuite;
+    runAllSuites suites
+  end
+
+method runAllTests (MainTestRunner { globalTests, testSuites }) =
+  printGlobalPreamble();
+  let (globalSucc, globalFail) = runSuiteAux (0, 0) globalTests.get in
+  printSuiteFooter succ fail;
+  runAllSuites testSuites.get
+
+method addGlobalTest (MainTestRunner { globalTests }) tc =
+  globalTests := tc :: globalTests.get
+
+method addTest (TestSuiteInternal { name, line, file, tests }) tc =
+  TestSuiteInternal { name, line, file, tests=tc :: tests }
+
+let rec updateList (suites : List TestSuiteInternal) suiteName tc =
+  match suites with
+  | [] => warn "TestRunner: Internal library error"; []
+  | suite :: suites =>
+    if suite.name == suiteName
+    then suite.addTest tc :: suites
+    else suite :: updateList suites suiteName tc
+  end
+
+method addTestToSuite (MainTestRunner { testSuites }) (TestSuite { name }) tc =
+  testSuites := updateList testSuites.get name tc
+
+method addSuite (MainTestRunner { testSuites }) suite =
+  testSuites := suite :: testSuites.get
+
+{# ========================================================================= #}
+{# Registering tests #}
+
+{## This function wraps test body, handling test arbiter effect ##}
+let constructTest name line file
+    (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
+      Unit ->[E, IO] Unit) =
+  let testBody () =
+    handle ~testArbiter / F with testArbiterHandler
+    let ~onError () = ~testArbiter.abort
+      (AssertInfo {msg="Uncaught ~onError call", line, file })
+    in f {E=F} ()
+  in TestCase {name, line, file, testBody}
+
+
+pub let registerGlobalTest
+    {~__line__ = line, ~__file__ = file} name
+    (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
+      Unit ->[E, IO] Unit) =
+  mainTestRunner.addGlobalTest (constructTest name line file f)
+
+pub method registerTest
+    {~__line__ = line, ~__file__ = file}
+    (suite : TestSuite) testName
+    (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
+      Unit ->[E, IO] Unit) =
+  mainTestRunner.addTestToSuite suite (constructTest name line file f)
+
+pub let createTestSuite {~__line__ = line, ~__file__ = file} name =
+  mainTestRunner.addSuite (TestCase { name, file, line, tests=[] });
+  TestSuite { name }
+
+{##
+  If this file is imported, all registered tests will be run after program
+  finishes
+##}
+## handle _ = ()
+##   return _ => mainTestRunner.runAllTests
+##   finally _ => ()
+
+{# ========================================================================= #}
+{# Assertion and Expectation Interface #}
+
+{##
+  Asserts that given value is True.
+ ##}
+pub let assertTrue
+    {~__line__, ~__file__, ~testArbiter : TestArbiter _, ?msg : String}
+    cond =
+  if cond then
+    ()
+  else
+    ~testArbiter.abort
+      (AssertInfo {line= ~__line__, file= ~__file__, msg =
+        msg.unwrapOr "Assertion Failed: Expected to be true"})
+
+{##
+  Asserts that given value if False
+ ##}
+pub let assertFalse
+    {~__line__, ~__file__, ~testArbiter : TestArbiter _, ?msg : String}
+    cond =
+  assertTrue
+    { msg=msg.unwrapOr "Assertion Failed: Expected to be false" } (not cond)
+
+{##
+  Asserts that 2 values are equal, according to first value's `equal` method.
+ ##}
+pub let assertEq 
+    { ~__line__
+    , ~__file__
+    , ~testArbiter : TestArbiter _
+    , ?msg : String
+    , X : type
+    , Y : type
+    , method equal : X ->> Y ->> Bool } 
+    (expected : X) (actual : Y) =
+  assertTrue
+    { msg = "Assertion Failed: Expected values to be equal" }
+    (expected.equal actual)
+
+{##
+  Asserts that 2 values are equal, according to first value's `equal` method.
+  Default error message is generated using format methods.
+ ##}
+pub let assertEqF
+    { ~__line__
+    , ~__file__
+    , ~testArbiter : TestArbiter _
+    , ?msg : String
+    , X : type
+    , Y : type
+    , method format : X ->> String
+    , method format : Y ->> String
+    , method equal : X ->> Y ->> Bool } 
+    (expected : X) (actual : Y) =
+  assertTrue
+    {msg =
+      "Assertion Failed: Expected\n\t\{expected}\n\t\{actual}\nto be equal"}
+    (expected.equal actual)
+
+let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
+  handle
+    ~onError = effect _ => True
+    return _ => False
+  in f ()
+
+{##
+  Asserts that given function will call ~onError method.
+ ##}
+pub let assertCallsOnError
+    { ~__line__
+    , ~__file__
+    , ~testArbiter
+    , ?msg : String }
+    (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+  assertTrue
+    {msg = "Assertion Failed: Expected function to call on error implicit"}
+    (callsOnError f)
+
+{##
+  Asserts that given function will not call ~onError method.
+ ##}
+pub let assertDoesNotCallOnError
+    { ~__line__
+    , ~__file__
+    , ~testArbiter
+    , ?msg : String }
+    (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+  assertFalse
+    {msg = "Assertion Failed: Expected function to not call on error implicit"}
+    (callsOnError f)
+
+
+{##
+  Expects that given value is True.
+ ##}
+pub let expectTrue
+    {~__line__, ~__file__, ~testArbiter : TestArbiter _, ?msg : String}
+    cond =
+  if cond then
+    ()
+  else
+    ~testArbiter.abort
+      (AssertInfo {line= ~__line__, file= ~__file__,
+        msg = msg.unwrapOr "Expectation Failed: Expected to be true"})
+
+{##
+  Expects that given value if False
+ ##}
+pub let expectFalse
+    {~__line__, ~__file__, ~testArbiter : TestArbiter _, ?msg : String}
+    cond =
+  expectTrue
+    { msg=msg.unwrapOr "Expectation Failed: Expected to be false"}
+    (not cond)
+
+{##
+  Expects that 2 values are equal, according to first value's `equal` method.
+ ##}
+pub let expectEq 
+    { ~__line__
+    , ~__file__
+    , ~testArbiter : TestArbiter _
+    , ?msg : String
+    , X : type
+    , Y : type
+    , method equal : X ->> Y ->> Bool } 
+    (expected : X) (actual : Y) =
+  expectTrue
+    { msg = "Expectation Failed: Expected values to be equal"}
+    (expected.equal actual)
+
+{##
+  Expects that 2 values are equal, according to first value's `equal` method.
+  Default error message is generated using format methods.
+ ##}
+pub let expectEqF
+    { ~__line__
+    , ~__file__
+    , ~testArbiter : TestArbiter _
+    , ?msg : String
+    , X : type
+    , Y : type
+    , method format : X ->> String
+    , method format : Y ->> String
+    , method equal : X ->> Y ->> Bool } 
+    (expected : X) (actual : Y) =
+  expectTrue
+    {msg =
+      "Expectation Failed: Expected\n\t\{expected}\n\t\{actual}\nto be equal"}
+    (expected.equal actual)
+
+let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
+  handle
+    ~onError = effect _ => True
+    return _ => False
+  in f ()
+
+{##
+  Expects that given function will call ~onError method.
+ ##}
+pub let expectCallsOnError
+    { ~__line__
+    , ~__file__
+    , ~testArbiter
+    , ?msg : String }
+    (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+  expectTrue
+    {msg = "Expectation Failed: Expected function to call on error implicit"}
+    (callsOnError f)
+
+{##
+  Expects that given function will not call ~onError method.
+ ##}
+pub let expectDoesNotCallOnError
+    { ~__line__
+    , ~__file__
+    , ~testArbiter
+    , ?msg : String }
+    (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+  expectFalse
+    {msg =
+      "Expectation Failed: Expected function to not call on error implicit"}
+    (callsOnError f)
+
