@@ -67,7 +67,7 @@ let warn (msg : String) =
     }[WARNING] \{ msg | strFmt }\{ Color.resetAll | strFmt }"
 
 let printGlobalPreamble () =
-  printStrLn "[====] Running global tests";
+  printStrLn "[====] Running global tests"
 
 method printPreamble (TestSuiteInternal {file, line, name}) =
   printStrLn "[====] Running test suite \{name}";
@@ -150,13 +150,13 @@ let rec runSuiteAux (succ, fail) (tests : List TestCase) =
   | [] => (succ, fail)
   | tc :: tests =>
     if tc.runTest
-    then aux (succ+1, fail) tests
-    else aux (succ, fail+1) tests
+    then runSuiteAux (1+succ, fail) tests
+    else runSuiteAux (succ, 1+fail) tests
   end
 
 method runSuite (suite : TestSuiteInternal) =
   suite.printPreamble;
-  let (succ, fail) = runSuiteAux (0, 0) suite.tests () in
+  let (succ, fail) = runSuiteAux (0, 0) suite.tests in
   printSuiteFooter succ fail
 
 {# ========================================================================= #}
@@ -177,8 +177,8 @@ let mainTestRunner = MainTestRunner
   , globalTests = Mutable.ioMut.ref []
   }
 
-let rec runAllSuites suites =
-  match testSuites with
+let rec runAllSuites (suites : List TestSuiteInternal) =
+  match suites with
   | [] => ()
   | suite :: suites =>
     suite.runSuite;
@@ -187,7 +187,7 @@ let rec runAllSuites suites =
 
 method runAllTests (MainTestRunner { globalTests, testSuites }) =
   printGlobalPreamble();
-  let (globalSucc, globalFail) = runSuiteAux (0, 0) globalTests.get in
+  let (succ, fail) = runSuiteAux (0, 0) globalTests.get in
   printSuiteFooter succ fail;
   runAllSuites testSuites.get
 
@@ -238,10 +238,10 @@ pub method registerTest
     (suite : TestSuite) testName
     (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
       Unit ->[E, IO] Unit) =
-  mainTestRunner.addTestToSuite suite (constructTest name line file f)
+  mainTestRunner.addTestToSuite suite (constructTest testName line file f)
 
 pub let createTestSuite {~__line__ = line, ~__file__ = file} name =
-  mainTestRunner.addSuite (TestCase { name, file, line, tests=[] });
+  mainTestRunner.addSuite (TestSuiteInternal { name, file, line, tests=[] });
   TestSuite { name }
 
 {##
