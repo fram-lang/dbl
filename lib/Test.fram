@@ -2,11 +2,6 @@
    See LICENSE for details.
  #}
 
-{# Plan:
-  I need testing module that will collect all tests from all files, after full
-  program has finished, it should run all tests and all Suites.
-  After all that it should print results.
-#}
 
 import open AnsiTerminal
 import Mutable
@@ -21,17 +16,7 @@ data AssertInfo =
   , file : String
   }
 
-{##
-  Collection of informations about run of the test.
-  Empty error list means that the test passed.
-##}
-data TestResult =
-  { name : String
-  , line : Int
-  , file : String
-  , errors : List AssertInfo
-  }
-
+{# TODO : Add tags to tests and suites #}
 
 ## Test case to be run at a later time.
 data TestCase =
@@ -79,25 +64,31 @@ method printCaseOk (TestCase {name}) =
     Color.setFgColor Color.Green | strFmt
   }OK\{Color.resetAll | strFmt} ] \{name | strFmt}"
 
-method printCaseFail
-    (TestCase {name, line, file})
-    (AssertInfo {msg, line=assertLine}) =
-  printStrLn "[\{
-      Color.setFgColor Color.Red | strFmt
-    }FAIL\{
-      Color.resetAll | strFmt
-    }] \{name | strFmt}";
-  printStrLn "       In \{file | strFmt}:\{
-    assertLine} assertion failed:";
-  printStrLn "       \{msg | strFmt}"
+method printCaseFail (AssertInfo {msg, file, line}) =
 
-
-method rec printCasesFail (tc : TestCase) assertInfos =
+let rec printTestResultAux (assertInfos : List AssertInfo) =
   match assertInfos with
   | [] => ()
-  | assertInfo :: assertInfos =>
-    tc.printCaseFail assertInfo;
-    tc.printCasesFail assertInfos
+  | AssertInfo { file, line, msg } :: assertInfos =>
+    printStrLn "       In \{ file | strFmt }:\{ line } assertion failed:";
+    printStrLn "       \{ msg | strFmt}"
+    aux assertInfos
+  end
+
+method printTestResult (TestCase { name, line, file }) assertInfos =
+  match assertInfos with
+  | [] =>
+    printStrLn "[ \{
+      Color.setFgColor Color.Green | strFmt
+    }OK\{Color.resetAll | strFmt} ] \{ name | strFmt} from \{
+      file | strFmt }:\{ line | strFmt }";
+      True
+  | _  =>
+    printStr   "[\{ Color.setFgColor Color.Red | strFmt }FAIL";
+    printStr   "\{ Color.resetAll | strFmt }]";
+    printStrLn "\{ tc.name | strFmt } from \{ tc.file | strFmt }:\{ tc.line }";
+    printTestResultAux assertInfos;
+    False
   end
 
 let printSuiteFooter (succ : Int) (fail : Int) =
@@ -138,10 +129,9 @@ let testArbiterHandler =
   end
 
 method runTest (tc : TestCase) =
-  match tc.testBody () with
-  | [] => tc.printCaseOk; True
-  | errors => tc.printCasesFail errors; False
-  end
+  let errors = tc.testBody () in
+  tc.printTestResult errors;
+  errors
 
 {# This module is to be used in other parts of standard library,
     so some functionality is explicitely reimplemented #}
@@ -155,17 +145,17 @@ let rec runSuiteAux (succ, fail) (tests : List TestCase) =
   end
 
 method runSuite (suite : TestSuiteInternal) =
-  suite.printPreamble;
-  let (succ, fail) = runSuiteAux (0, 0) suite.tests in
-  printSuiteFooter succ fail
+  match globalTests.get with
+  | [] => suite.reportEmptySuite
+  | globalTests =>
+    suite.printPreamble();
+    let (succ, fail) = runSuiteAux (0, 0) globalTests in
+    printSuiteFooter succ fail;
+    (succ, fail)
+  end
 
 {# ========================================================================= #}
 {# MainTestRunner #}
-
-{#
-  TODO : When Vector library is written, change this part of implementation
-         to use it.
-#}
 
 data MainTestRunner =
   { testSuites  : Mutable.Ref IO (List TestSuiteInternal)
@@ -177,19 +167,40 @@ let mainTestRunner = MainTestRunner
   , globalTests = Mutable.ioMut.ref []
   }
 
-let rec runAllSuites (suites : List TestSuiteInternal) =
+let rec runAllSuites testFailed (suites : List TestSuiteInternal) =
   match suites with
   | [] => ()
   | suite :: suites =>
-    suite.runSuite;
-    runAllSuites suites
+    let (_, fail) = suite.runSuite in
+    runAllSuites (testFailed || fail > 0) suites
   end
 
 method runAllTests (MainTestRunner { globalTests, testSuites }) =
-  printGlobalPreamble();
-  let (succ, fail) = runSuiteAux (0, 0) globalTests.get in
-  printSuiteFooter succ fail;
-  runAllSuites testSuites.get
+  let testFailed =
+    match globalTests.get with
+    | [] => ()
+    | globalTests =>
+      printGlobalPreamble();
+      let (succ, fail) = runSuiteAux (0, 0) globalTests in
+      printSuiteFooter succ fail;
+      fail > 0
+    end
+  let testFailed = runAllSuites testFailed testSuites.get in
+  if testFailed
+  then runtimeError "[====] Test Environment Failed"
+  else ()
+
+{##
+  If this file is imported, all registered tests will be run after program
+  finishes
+##}
+handle _ = ()
+  return _ =>
+    {# TODO : Implement some sort of argument parsing,
+              and tests-to-run selection #}
+    {# TODO : When attributes are implemented, add them here #}
+    let _ = mainTestRunner.runAllTests in ()
+  finally _ => ()
 
 method addGlobalTest (MainTestRunner { globalTests }) tc =
   globalTests := tc :: globalTests.get
@@ -217,40 +228,34 @@ method addSuite (MainTestRunner { testSuites }) suite =
 
 {## This function wraps test body, handling test arbiter effect ##}
 let constructTest name line file
-    (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
+    (f : {E, ~testArbiter : TestArbiter E} ->
       Unit ->[E, IO] Unit) =
   let testBody () =
     handle ~testArbiter / F with testArbiterHandler
     let ~onError () = ~testArbiter.abort
       (AssertInfo {msg="Uncaught ~onError call", line, file })
-    in f {E=F} ()
+    in
+    {# TODO : Add measuring execution time #}
+    f ()
   in TestCase {name, line, file, testBody}
 
 
 pub let registerGlobalTest
     {~__line__ = line, ~__file__ = file} name
-    (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
+    (f : {E, ~testArbiter : TestArbiter E} ->
       Unit ->[E, IO] Unit) =
   mainTestRunner.addGlobalTest (constructTest name line file f)
 
 pub method registerTest
     {~__line__ = line, ~__file__ = file}
     (suite : TestSuite) testName
-    (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit->[E] X} ->
+    (f : {E, ~testArbiter : TestArbiter E} ->
       Unit ->[E, IO] Unit) =
   mainTestRunner.addTestToSuite suite (constructTest testName line file f)
 
 pub let createTestSuite {~__line__ = line, ~__file__ = file} name =
   mainTestRunner.addSuite (TestSuiteInternal { name, file, line, tests=[] });
   TestSuite { name }
-
-{##
-  If this file is imported, all registered tests will be run after program
-  finishes
-##}
-## handle _ = ()
-##   return _ => mainTestRunner.runAllTests
-##   finally _ => ()
 
 {# ========================================================================= #}
 {# Assertion and Expectation Interface #}
@@ -355,7 +360,7 @@ pub let expectTrue
   if cond then
     ()
   else
-    ~testArbiter.abort
+    ~testArbiter.fail
       (AssertInfo {line= ~__line__, file= ~__file__,
         msg = msg.unwrapOr "Expectation Failed: Expected to be true"})
 
@@ -437,4 +442,27 @@ pub let expectDoesNotCallOnError
     {msg =
       "Expectation Failed: Expected function to not call on error implicit"}
     (callsOnError f)
+
+let suite = createTestSuite "Prelude/*"
+
+let _ = suite.registerTest "`chr` calls on error" (fn () =>
+  assertCallsOnError (fn _ => chr 300))
+
+let _ = suite.registerTest "`chr` does not call on error" (fn () =>
+  assertDoesNotCallOnError (fn _ => chr 127))
+
+let mkStr _ _ = ""
+
+let _ = suite.registerTest "`mkStr` count = 0" (fn _ =>
+  assertEq (mkStr "abc" 0) "")
+
+let _ = suite.registerTest "`mkStr` count < 0" (fn _ =>
+    assertEq (mkStr "abc" (-1)) "";
+    assertEq (mkStr "abc" (-10)) "")
+  
+let _ = suite.registerTest "`mkStr` count > 0" (fn _ =>
+    assertEq (mkStr "abc" 1) "abc";
+    assertEq (mkStr "abc" 2) "abcabc";
+    assertEq (mkStr "abc" 3) "abcabcabc";
+    assertEq (mkStr "abc" 5) "abcabcabcabcabc")
 
