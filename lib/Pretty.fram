@@ -1,0 +1,227 @@
+import Pretty/Core
+import /Test
+import /List
+import Pretty/Style
+
+{## ## The pretty-printer module. ##}
+
+{##
+  This module containes fully-featured pretty-printer library.
+
+  User may find there common facilities like convenient and really
+  flexible layout chaoice mechanism. What may come as a surprise to the user,
+  this library features uncommon extensions: true horizontal catenation and
+  nonlocal aligmenents. This enables user to print tables pretty easily.
+
+  Anything printable in this library is carried as a `Doc` type. Every operation
+  modifies or joins documents into more advanced layouts.
+
+  The primitive way of creating simple, undividealble document is `text`:
+  ```text "document"```.
+  Text may not contain white chars like '\n' or '\t'.
+
+  Documents may be joined 3 different ways:
+    - d1 <> d2 - Joins document d2 to the last line of d1
+    - d1 $$ d2 - Puts d2 on the next line, right after d1
+    - d1 >+> d2 - Puts d2 next to d1 - true veritial catenation
+  The last one comes with some limitation but this will be explained later.
+
+  Library also introduces non local alignments. Imagine aligning `=` operator
+  in following code:
+  ```
+  let myVar1 = 1000
+  let aux    = "string"
+  ```
+  In most pretty-printing libraries this would require to calculate ahead of
+  printing the exact depth the `=` sign. This library automates this process:
+  ```
+  let doc =
+    reset
+         (text "let myVar" <> shift (text "= 1000"))
+      $$ (text "let aux"   <> shift (text "= \"string\""))
+  ```
+  Shift annotated the "moving" part of document and reset catches it and
+  calculates the exact depth.
+
+  Last but not least, library features some ANSI styling options. Useful to
+  colorize printed code.
+ ##}
+
+{## The type of the document. ##}
+pub type Doc = Core.ODoc
+
+{##
+  Text atom, unit of printable text.
+  It may not contain white-contol characters like '\n' or '\t'.
+ ##}
+pub let (text : String -> Doc) = Core.text
+
+{##
+  Empty documnt.
+  The unity of `<>` operation.
+ ##}
+pub let (empty : Doc) = Core.emptyDoc
+
+{## Creates document out of automatic formatting. ##}
+pub let textFmt
+  {X, XFmt, method format : {?fmt : XFmt} -> X ->> String }
+  (x : X) = text x.format
+
+{## Creates document out of formatting. ##}
+pub let textFmtF
+  {X, XFmt, method format : {?fmt : XFmt} -> X ->> String }
+  (x : X) (f : XFmt) = text (x.format {fmt=f})
+
+{##
+  Appends empty line to document.
+ ##}
+pub let (flush : Doc -> Doc) = fn (d : Doc) => d.flush
+
+{##
+  Appends empty line to document.
+ ##}
+pub method flush = flush
+
+{## Creates document out of single character. ##}
+pub let (char : Char -> Doc) = fn (c : Char) => text (charListToStr [c])
+
+{##
+  Annotates documents as moving, willing to align with other docuemtns.
+ ##}
+pub let (shift : Doc -> Doc) = fn (d : Doc) => d.shift
+
+{##
+  Annotates documents as moving, willing to align with other docuemtns.
+ ##}
+pub method shift = shift
+
+{##
+  Catches all moving documents and aligns them. The produced document
+  contains no floating parts.
+ ##}
+pub let (reset : Doc -> Doc) = fn (d : Doc) => d.reset
+
+{##
+  Catches all moving documents and aligns them. The produced document
+  contains no floating parts.
+ ##}
+pub method reset = reset
+
+{##
+  Puts d2 at the end of last line of d1.
+ ##}
+pub let (<>) (d1 : Doc) (d2 : Doc) = d1.combine d2
+
+{##
+  Puts d2 in the next line, Right after d1.
+  Equivalent to `d1.flush <> d2`.
+ ##}
+pub let ($$) (d1 : Doc) (d2 : Doc) = d1.flush.combine d2
+
+{##
+  Puts 2 documents in paraller. The last line will always be aligned with
+  last line of d2, regardless of actual height of documents.
+  Documents may carry shifted documents within but it is not always possible
+  to make such concateantion. In such cases, documents will be resetted
+  before settling.
+ ##}
+pub let (>+>) (d1 : Doc) (d2 : Doc) = d1.seq d2
+
+{##
+  Concatenstes `x` and `y` separated by `sep` in single line if possible.
+  Otherwise puts `y` in next line with indentation of `n`.
+ ##}
+pub let hangWith (sep : String) (n : Int) (x : Doc) (y : Doc) =
+  (Core.groupingBy sep [(0, x), (n, y)] : Doc)
+
+{##
+  Concatenstes `x` and `y` in single line if possible.
+  Otherwise puts `y` in next line with indentation of `n`.
+ ##}
+pub let (hang : Int -> Doc -> Doc -> Doc) = hangWith " "
+
+{##
+  Concatenstes all documents in single line if possible.
+  Otherwise puts each one of them in single line and indents
+  with specified value.
+ ##}
+pub let anyHang (ds : List (Pair Int Doc)) = match ds with
+  | [] => text ""
+  | [(_, x)] => x
+  | ds => Core.groupingBy " " ds
+  end
+
+{##
+  Puts all documents in one line or in separate lines with indentation of 0.
+ ##}
+pub let (cat : List Doc ->[] Doc) =
+  fn xs => Core.groupingBy "" (List.map (fn d => (0, d)) xs)
+
+{##
+  Extended `cat` operation that handles enclosing documents and allows
+  to specify separator.
+ ##}
+pub let encloseSep (left : Doc) (right : Doc) (sep : Doc) (ds : List Doc) =
+  match ds with
+  | [] => left
+  | [x] => left <> x
+  | d :: ds =>
+    cat ((left <> d) :: List.map (fn d => sep <> d) ds)
+  end <> right
+
+{## Prints list with break before comma. ##}
+pub let (list : List Doc ->[] Doc) = encloseSep (text "[") (text "]") (text ",")
+
+{## Prints tuple with break before comma. ##}
+pub let (tupled : List Doc ->[] Doc) = encloseSep (text "(") (text ")") (text ",")
+
+{## Prints json-like structure with break before semicolon. ##}
+pub let (semibraced : List Doc ->[] Doc) = encloseSep (text "{") (text "}") (text ";")
+
+{## Performs `<>` with single space separator ##}
+pub let (<+>) d1 d2 = d1 <> text " " <> d2
+
+{## Puts d2 right after d1 or in next line ##}
+pub let (</>) d1 d2 = hang 0 d1 d2
+
+{## Enclosing of a document. ##}
+pub let enclose l r d = l <> r <> d
+
+{## Equotes given docuemnt. ##}
+pub let quote = enclose (text "\"") (text "\"")
+
+{## Same as `cat` but add a single space separator ##}
+pub let sep xs = Core.groupingBy " " (List.map (fn d => (0, d)) xs)
+
+{## ` | ` that will extend itself on `<>` and `>+>` catenation ##}
+pub let vsep = Core.vsep
+
+{## Clears style in fthe following document. ##}
+pub let clearStyle (doc : Doc) = doc.style Style.Clear
+
+{## Clears style in fthe following document. ##}
+pub method clearStyle = clearStyle
+
+{## Enables styling of given document. ##}
+pub let style
+  { ?fg : Style.Color
+  , ?bg : Style.Color
+  , ?underline : Bool
+  , ?strike : Bool }
+  (doc : Doc) =
+    doc.style (Style.Style {?fg, ?bg, ?underline, ?strike})
+
+{## Enables styling of given document. ##}
+pub method style
+  { ?fg : Style.Color
+  , ?bg : Style.Color
+  , ?underline : Bool
+  , ?strike : Bool }
+  (doc : Doc) =
+    doc.style (Style.Style {?fg, ?bg, ?underline, ?strike})
+
+{## Generates single document as string. ##}
+pub let generate {?width : Int} = Core.generate {?width}
+
+{## Generates single document and prints debug info. ##}
+pub let generateDebug = Core.generateDebug
