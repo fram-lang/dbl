@@ -23,6 +23,7 @@ let extern_ref_seq =
     "dbl_arrayGet",   array_fun (fun a -> int_fun (fun n -> a.(n)));
     "dbl_arraySet",   array_fun (fun a -> int_fun (fun n -> pure_fun (fun v ->
                         a.(n) <- v; v_unit)));
+    "dbl_maxArrayLength", VNum Sys.max_array_length;
     "dbl_arrayLength", array_fun (fun a -> VNum (Array.length a));
   ] |> List.to_seq
 
