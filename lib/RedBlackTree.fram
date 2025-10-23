@@ -328,7 +328,12 @@ pub let rec split compareWithPivot tree =
     end
   end
 
-# Links to papers:
-# https://drive.google.com/drive/folders/11a0Q5LxCHAx5OJARUIng6wymAE_YvzHk?usp=sharing
+# Papers to read:
+# A dichromatic framework for balanced trees. Leo J. Guibas; Robert Sedgewick
+# DOI: 10.1109/SFCS.1978.3
+# Efficient implementation of red-black trees with split and catenate operations.
+# Ron Wein
+# Updating a balanced search tree in O(1) rotations. Robert Tarjan
+# DOI: 10.1016/0020-0190(83)90099-6
 # Similar implementation: 
 # https://github.com/standardml/cmlib/blob/master/red-black-tree.sml
