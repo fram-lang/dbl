@@ -1,55 +1,6 @@
-## pub let esc = '\x1b'
 pub let escStr = "\x1b" #
 
-## pub let del = '\x7f'
-## pub let delStr = "\x7f"
-
 pub let (csi : String) = escStr + "[" #
-
-## pub let isControl (str : String) = str.get 0 == esc
-## 
-## pub module Cursor
-##   pub let moveHome = csi + "H"
-## 
-##   pub let moveTo (line : Int) (col : Int) = 
-##     csi + line.toString + ";" + col.toString + "H"
-## 
-##   let move (n : Option Int) (dir : String) = 
-##     match n with 
-##     | None => csi + dir
-##     | Some n => 
-##      (assert (n > 0);
-##       csi + n.toString + dir)
-##     end
-## 
-##   pub let moveUp    {?n : Int} () = move n "A"
-##   pub let moveDown  {?n : Int} () = move n "B"
-##   pub let moveRight {?n : Int} () = move n "C"
-##   pub let moveLeft  {?n : Int} () = move n "D"
-## 
-##   pub let moveDownHome {?n : Int} () = move n "E"
-##   pub let moveUpHome   {?n : Int} () = move n "F"
-## 
-##   pub let moveToColumn {?n : Int} () = move n "G"
-## 
-##   pub let requestPosition = csi + "6n"
-## 
-##   pub let savePosition    = csi + "s"
-##   pub let restorePosition = csi + "u"
-## end
-## 
-## module Erase
-##   pub let eraseDisplay    = csi + "J"
-##   pub let eraseEndScreen  = csi + "0J"
-##   pub let eraseBegScreen  = csi + "1J"
-##   pub let eraseScreen     = csi + "2J"
-##   pub let eraseSavedLines = csi + "3J"
-## 
-##   pub let eraseInLine  = csi + "K"
-##   pub let eraseEndLine = csi + "0K"
-##   pub let eraseBegLine = csi + "1K"
-##   pub let eraseLine    = csi + "2K"
-## end
 
 pub module Color
   pub let setMode reset flag =
