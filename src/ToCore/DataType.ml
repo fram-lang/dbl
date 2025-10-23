@@ -69,11 +69,11 @@ let finalize_data_def env (dd : data_def) =
     let (env, args) = Env.add_named_tvars env dd.args in
     let ctors = tr_ctor_decls env dd.ctors in
     T.DD_Data {
-      tvar      = dd.tvar;
-      proof     = dd.proof;
-      args      = args;
-      ctors     = ctors;
-      positive  = dd.positive;
+      tvar  = dd.tvar;
+      proof = dd.proof;
+      args  = args;
+      ctors = ctors;
+      rflag = if dd.positive then T.Positive else T.General
     }
 
   | DD_Label dd ->
@@ -83,7 +83,8 @@ let finalize_data_def env (dd : data_def) =
       tvars     = [];
       val_types = [];
       delim_tp  = Type.tr_ttype  env dd.delim_tp;
-      delim_eff = Type.tr_ceffect env (Impure dd.delim_eff)
+      delim_eff = Type.tr_ceffect env (Impure dd.delim_eff);
+      rflag     = T.General
     }
 
 let tr_data_defs env dds =
