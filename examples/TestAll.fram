@@ -1,0 +1,14 @@
+import /Test
+import /List
+import /Lazy
+import /Pretty/Size as Size
+import /Pretty/Lines as Lines
+import /Pretty/Core as Core
+
+let _ =
+  Test.runTests ();
+  List.runTests ();
+  Lazy.runTests ();
+  Size.runTests ();
+  Core.runTests ();
+  Lines.runTests ()

@@ -2,6 +2,8 @@
  # See LICENSE for details.
  #}
 
+import /Test
+
 pub let isEmpty xs =
   match xs with
   | [] => True
@@ -383,6 +385,20 @@ pub let equal
     end
   in equalAux xs ys
 
+pub let rec foldr1 {~__line__, ~__file__} f xs = match xs with
+  | x :: y :: [] => f x y
+  | x :: xs => f x (foldr1 f xs)
+  | _ => runtimeError "foldr fail"
+  end
+
+pub let rec initLast xs = match xs with
+  | [] => runtimeError "initLast fail"
+  | [x] => ([], x)
+  | x :: xs =>
+    let (xs, e) = initLast xs in
+    (x :: xs, e)
+  end
+
 {# method versions of these functions #}
 parameter ~onError
 
@@ -427,9 +443,25 @@ pub method findMapiErr self f = findMapiErr f self
 pub method foldLeftMap self f acc = foldLeftMap f acc self
 pub method foldLeftFilterMap self f acc = foldLeftFilterMap f acc self
 pub method foldLeftConcatMap self f acc = foldLeftConcatMap f acc self
+pub method folde1 self f = foldr1 f self
 pub method mem { E, method equal : E -> E ->[] Bool } self v =
   mem {E} v self
 pub method equal { E, method equal : E -> E ->[] Bool } self xs =
   equal {E} self xs
 pub method neq { E, method equal : E -> E ->[] Bool } self xs =
   not (equal {E} self xs)
+
+pub let runTests () =
+  open Test in
+  testSuite "/List" (fn _ =>
+    testCase "`initLast` singleton" (fn _ =>
+      let (front, tail) = initLast [1] in
+      assertEq [] front;
+      assertEq 1 tail);
+    
+    testCase "`initLast` multi" (fn _ =>
+      let (front, tail) = initLast [1, 2, 3] in
+      assertEq [1, 2] front;
+      assertEq 3 tail);
+    
+    ())

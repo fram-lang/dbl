@@ -1,20 +1,22 @@
+import /Test
+
 data RefP = RefP of {Ref : type -> type}
 
 let RefP {Ref} = (extern dbl_abstrType : Unit -> RefP) ()
 
-data LazyState E A =
-  | Thunk of (Unit ->[E] A)
+data LazyState A =
+  | Thunk of (Unit ->[] A)
   | Lock
   | Done of A
 
-abstr data Lazy E X = Lazy of Ref (LazyState E X)
+abstr data Lazy X = Lazy of Ref (LazyState X)
 
 let ref {type X}    = (extern dbl_ref    : X -> Ref X)
 method get {type X} = (extern dbl_refGet : Ref X -> X)
 method set {type X} = (extern dbl_refSet : Ref X -> X -> Unit)
 
 pub let lazy f = Lazy (ref (Thunk f))
-pub let pureLazy {type X} (f : Unit ->[] X) = (lazy f : Lazy [] X)
+pub let pureLazy {type X} (f : Unit ->[] X) = (lazy f : Lazy X)
 
 pub method force (Lazy ref) =
   match ref.get with
@@ -28,8 +30,17 @@ pub method force (Lazy ref) =
   end
 
 pub method format
-  { E : effect
-  , X : type
+  { X : type
   , method format : X ->> String }
-  (self : Lazy E X) =
-    "Lazy " + self.force.format
+  (self : Lazy X) =
+    "(lazy (fn () => " + self.force.format + "))"
+
+pub method map {X : type} (self : Lazy X) f =
+  lazy (fn _ => f self.force)
+
+pub let runTests () =
+  open Test in
+  testSuite "/Lazy" (fn _ =>
+    testCase "`lazy.force` indentity" (fn _ =>
+      assertEqF 10 (lazy (fn _ => 10)).force);
+    ())

@@ -1,25 +1,22 @@
 import open AnsiTerminal
 
-let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
-  handle
-    ~onError = effect _ => True
-    return _ => False
-  in f ()
-
 # TODO delete when improved format methods are introduced
 let strFmt = () #StringFmt {escape=False}
 method format {?fmt : Unit} (self : String) = self
 
+## Carries inforamtion about failed test assertion
 data AssertInfo =
   { msg  : String
   , line : Int
   }
 
+## Carries information about failed test case
 data TestCase = 
   { name : String
   , line : Int
   }
 
+## Test suite effector object
 data Suite E = 
   { name : String
   , line : Int
@@ -28,6 +25,11 @@ data Suite E =
   , reportSucc : TestCase ->[E] Unit
   }
 
+{##
+  Test case effector object.
+ 
+  Server one purpose - calls terminate test execution 
+ ##}
 data TestArbiter E =
   { fail : AssertInfo ->[E] Unit }
 
@@ -71,6 +73,9 @@ parameter ~suite : Suite _
 parameter ~testCase : TestCase
 parameter ~testArbiter : TestArbiter _
 
+{##
+  Runs test suite.
+ ##}
 pub let testSuite
   {~__line__, ~__file__}
   (name : String)
@@ -92,21 +97,32 @@ pub let testSuite
     finally c => c (0, 0) in
   f ()
 
-pub let testCase {~__line__, ~suite : Suite _}
+{##
+  Runs single test case. Requires test suite to work.
+ ##}
+pub let testCase
+  {~__line__, ~suite : Suite _}
   name
-  (f : {E, ~testArbiter : TestArbiter E} -> Unit ->[E] Unit) =
+  (f : {E, X, ~testArbiter : TestArbiter E, ~onError : Unit ->[E] X}
+    -> Unit ->[E] Unit) =
   let res = 
     handle ~testArbiter =
       TestArbiter { fail = effect assertInfo => Some assertInfo }
       return _ => None in
-    f () in
+   (let ~onError () = ~testArbiter.fail
+      (AssertInfo {msg="Uncaught ~onError call", line= ~__line__}) in 
+    f ()) in
   let testCase = TestCase {line = ~__line__, name } in
   match res with
   | Some assertInfo => ~suite.reportFail testCase assertInfo
   | None            => ~suite.reportSucc testCase
   end
 
-pub let assertTrue {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
+{##
+  Asserts that given value is True.
+ ##}
+pub let assertTrue
+  {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
   cond =
     if cond then
       ()
@@ -115,20 +131,31 @@ pub let assertTrue {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
         (AssertInfo {line= ~__line__, msg = 
           msg.unwrapOr "Expected to be true"})
 
-pub let assertFalse {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
+{##
+  Asserts that given value if False
+ ##}
+pub let assertFalse
+  {~__line__, ~testArbiter : TestArbiter _, ?msg : String}
   cond =
     assertTrue {msg=msg.unwrapOr "Expected to be false"} (not cond)
 
+{##
+  Asserts that 2 values are equal, according to first value's `equal` method.
+ ##}
 pub let assertEq 
   { ~__line__
   , ~testArbiter : TestArbiter _
   , ?msg : String
   , X : type
   , Y : type
-  , method equal : X -> Y ->> Bool } 
+  , method equal : X ->> Y ->> Bool } 
   (expected : X) (actual : Y) =
-    assertTrue {msg = "Expected values to be equal"} (expected == actual)
+    assertTrue {msg = "Expected values to be equal"} (expected.equal actual)
 
+{##
+  Asserts that 2 values are equal, according to first value's `equal` method.
+  Default error message is generated using format methods.
+ ##}
 pub let assertEqF
   { ~__line__
   , ~testArbiter : TestArbiter _
@@ -137,45 +164,59 @@ pub let assertEqF
   , Y : type
   , method format : X ->> String
   , method format : Y ->> String
-  , method equal : X -> Y ->> Bool } 
+  , method equal : X ->> Y ->> Bool } 
   (expected : X) (actual : Y) =
     assertTrue
       {msg = "Expected\n\t\{expected}\n\t\{actual}\nto be equal"}
-      (expected == actual)
+      (expected.equal actual)
 
+let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
+  handle
+    ~onError = effect _ => True
+    return _ => False
+  in f ()
 
+{##
+  Asserts that given function will call ~onError method.
+ ##}
 pub let assertCallsOnError
   { ~__line__
   , ~testArbiter
-  , ?msg : String
-  , E : effect }
+  , ?msg : String }
   (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     assertTrue
       {msg = "Expected function to call on error implicit"}
       (callsOnError f)
 
+{##
+  Asserts that given function will not call ~onError method.
+ ##}
 pub let assertDoesNotCallOnError
   { ~__line__
   , ~testArbiter
-  , ?msg : String
-  , E : effect }
+  , ?msg : String }
   (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     assertFalse
       {msg = "Expected function to not call on error implicit"}
       (callsOnError f)
 
-let _ = testSuite "Example test suite" (fn () => 
-  testCase "Assert True" (fn () =>
-    assertTrue (1 == 1));
-  
-  testCase "Assert False" (fn () =>
-    assertFalse (1 == 2));
-  
-  testCase "Assert eq" (fn () =>
-    assertEq "abc" "abc");
-  
-  testCase "Calls on error" (fn () =>
+pub let runTests () = testSuite "Prelude/*" (fn () => 
+  testCase "`chr` calls on error" (fn () =>
     assertCallsOnError (fn _ => chr 300));
   
-  testCase "Does not call on error" (fn () =>
-    assertDoesNotCallOnError (fn _ => chr 127)))
+  testCase "`chr` does not call on error" (fn () =>
+    assertDoesNotCallOnError (fn _ => chr 127));
+  
+  testCase "`mkStr` count = 0" (fn _ =>
+    assertEq (mkStr "abc" 0) "");
+    
+  testCase "`mkStr` count < 0" (fn _ =>
+    assertEq (mkStr "abc" (-1)) "";
+    assertEq (mkStr "abc" (-10)) "");
+  
+  testCase "`mkStr` count > 0" (fn _ =>
+    assertEq (mkStr "abc" 1) "abc";
+    assertEq (mkStr "abc" 2) "abcabc";
+    assertEq (mkStr "abc" 3) "abcabcabc";
+    assertEq (mkStr "abc" 5) "abcabcabcabcabc");
+  ())

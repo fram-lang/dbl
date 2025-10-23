@@ -1,0 +1,97 @@
+import open /Pretty
+import /List
+import Pretty/Style as Style
+
+{##
+  Pretty printer example 1:
+    IMP lang formatter
+ ##}
+
+data rec AExp =
+  | AVal of Int
+  | AOp  of String, AExp, AExp
+  | ANeg of AExp
+  | AVar of String
+
+data rec BExp =
+  | BVal of Bool
+  | BOp  of String, BExp, BExp
+  | BCmp of String, AExp, AExp
+  | BNeg of BExp
+
+data rec Imp =
+  | Skip
+  | Ass   of String, AExp
+  | Seq   of Imp, Imp
+  | If    of BExp, Imp, Imp
+  | While of BExp, Imp
+
+method rec pretty (self : AExp) = match self with
+  | AVal v => style {fg=Style.Magenta} (text v.format)
+  | AOp op e1 e2 =>
+    style {fg=Style.Red} (text "(")
+      <> (e1.pretty </> (text op <+> e2.pretty))
+      <> style {fg=Style.Red} (text ")")
+  | ANeg e => text "-" <> e.pretty
+  | AVar v => text v
+  end
+
+method rec pretty (self : BExp) = match self with
+  | BVal v => style {fg=Style.Green} (text v.format)
+  | BOp op e1 e2 =>
+    style {fg=Style.Red} (text "(")
+      <> (e1.pretty </> (text op <+> e2.pretty))
+      <> style {fg=Style.Red} (text ")")
+  | BCmp op e1 e2 =>
+    style {fg=Style.Red} (text "(")
+      <> (e1.pretty </> (text op <+> e2.pretty))
+      <> style {fg=Style.Red} (text ")")
+  | BNeg e => text "~" <> e.pretty
+  end
+
+method rec pretty (self : Imp) = match self with
+  | Skip => text "skip;"
+  | Ass v e =>
+    hang 2
+      (text ("let " + v + " ="))
+      (e.pretty <> text ";")
+  | Seq p1 p2 => p1.pretty $$ p2.pretty
+  | If cond p1 p2 =>
+    anyHang
+      [ (0, text "if " <> cond.pretty <> text " {")
+      , (2, p1.pretty)
+      , (0, text "} else {")
+      , (2, p2.pretty)
+      , (0, text "}")
+      ]
+  | While cond p =>
+    anyHang
+      [ (0, text "while " <> cond.pretty <> text " {")
+      , (2, p.pretty)
+      , (0, text "}")
+      ]
+  end
+
+let arith =
+  (ANeg
+    (AOp "/"
+      (AVar "x")
+      (AVal 50)))
+
+let boolean =
+  BOp "&&"
+    (BCmp "==" arith arith)
+    (BNeg (BVal True))
+
+let program =
+  Seq
+    (Ass "myVar" arith)
+    (While
+      boolean
+      (If
+        (BVal True)
+        Skip
+        (Ass "xyz" (AVal 10))))
+
+let _ = [160, 80, 40, 20].iter (fn width =>
+  printStrLn (generate {width} program.pretty))

@@ -1,0 +1,73 @@
+import AnsiTerminal as Term
+
+pub data Color =
+  | Black
+  | Red
+  | Green
+  | Yellow
+  | Blue
+  | Magenta
+  | Cyan
+  | White
+
+method toAnsi (color : Color) =
+  match color with
+  | Black   => Term.Color.Black
+  | Red     => Term.Color.Red
+  | Green   => Term.Color.Green
+  | Yellow  => Term.Color.Yellow
+  | Blue    => Term.Color.Blue
+  | Magenta => Term.Color.Magenta
+  | Cyan    => Term.Color.Cyan
+  | White   => Term.Color.White
+  end
+
+pub data Style =
+  | Clear
+  | Style of { ?fg : Color
+             , ?bg : Color
+             , ?underline : Bool
+             , ?strike : Bool
+             }
+
+method getCode (self : Style) = match self with
+  | Clear => Term.Color.resetAll
+  | Style {fg, bg, underline, strike} =>
+      match fg with
+      | Some c => Term.Color.setFgColor c.toAnsi
+      | None => ""
+      end
+    + match bg with
+      | Some c => Term.Color.setBgColor c.toAnsi
+      | None => ""
+      end
+    + match underline with
+      | Some True => Term.Color.setUnderline
+      | Some False => Term.Color.resetUnderline
+      | None => ""
+      end
+    + match strike with
+      | Some True => Term.Color.setStrikeout
+      | Some False => Term.Color.resetStrikeout
+      | None => ""
+      end
+  end
+
+# produces next ansi string to continue style
+pub data Stylist E =
+  { pushStyle : Style ->[E] String
+  , popStyle  : Unit  ->[E] String
+  }
+
+pub let styleH =
+  handler
+    Stylist
+      { pushStyle = effect s / r => fn st => r s.getCode (s :: st)
+      , popStyle  = effect s / r => fn st => match st with
+          | _ :: y :: xs => r y.getCode (y :: xs)
+          | _ => impossible()
+          end
+      }
+    return x => fn _ => x
+    finally c => c [Clear]
+  end

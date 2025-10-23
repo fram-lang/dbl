@@ -63,6 +63,12 @@ pub module Color
   pub let setBoldMode   = setMode False "1"
   pub let resetBoldMode = setMode True "1"
 
+  pub let setUnderline   = setMode False 4.toString
+  pub let resetUnderline = setMode True  4.toString
+
+  pub let setStrikeout   = setMode False 9.toString
+  pub let resetStrikeout = setMode True  9.toString
+
   # TODO many other
 
   pub data Color =

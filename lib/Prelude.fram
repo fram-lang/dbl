@@ -53,3 +53,15 @@ end
 
 pub let max (x : Int) (y : Int) =
   if x > y then x else y
+
+pub let strListCat = extern dbl_strListCat : List String -> String
+
+pub let rec mkStr (s : String) (l : Int) = 
+  if l <= 0 then
+    ""
+  else if l % 2 == 0 then
+   (let s' = mkStr s (l / 2) in
+    s' + s')
+  else
+   (let s' = mkStr s (l / 2) in
+    s' + (s' + s))

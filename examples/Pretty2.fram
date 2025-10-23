@@ -1,0 +1,33 @@
+import open /Pretty
+import /List
+import Pretty/Style as Style
+import open /AnsiTerminal
+
+{##
+  Pretty printer example 2:
+    Tables
+ ##}
+
+let groceryList =
+  [ ("banana", 5, 2)
+  , ("apple", 10, 1)
+  , ("yoghurt", 3, 4)
+  ]
+
+let table =
+  let vsep = text " | " in
+  let header =
+    vsep
+      <> text "Product" <> vsep.shift
+      <> text "Quantity" <> vsep.shift
+      <> text "Prize" <> vsep.shift
+  let rows = List.map
+    (fn (prod, quantity, prize) =>
+      vsep
+        <> textFmt prod <> vsep.shift
+        <> textFmt quantity <> vsep.shift
+        <> textFmt prize <> vsep.shift)
+    groceryList in
+  header $$ (List.foldr1 ($$) rows)
+
+let _ = printStrLn (generate table)
