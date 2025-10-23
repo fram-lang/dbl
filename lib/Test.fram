@@ -41,6 +41,31 @@ data TestSuite =
  | TestSuite of { name : String}
 
 {# ========================================================================= #}
+{# Helper functions #}
+
+{# This module is to be used in other parts of standard library,
+    so some functionality is reimplemented #}
+let list_rev xs =
+  let rec aux acc xs =
+    match xs with
+    | [] => acc
+    | x :: xs => aux (x :: acc) xs
+    end
+  in aux [] xs
+
+let rec list_fold f acc xs =
+  match xs with
+  | [] => acc
+  | x :: xs => list_fold f (f acc x)  xs
+  end
+
+let rec list_iter f xs =
+  match xs with
+  | [] => ()
+  | x :: xs => f x; list_iter f xs
+  end
+
+{# ========================================================================= #}
 {# Printing functions #}
 
 # TODO delete when improved format methods are introduced
@@ -58,38 +83,27 @@ method printPreamble (TestSuiteInternal {file, line, name}) =
   printStrLn "[====] Running test suite \{name}";
   printStrLn "[    ] from \{file | strFmt}:\{line}"
 
-method printCaseOk (TestCase {name}) =
-  {# TODO : add printing of line and file of the test (maybe?) #}
-  printStrLn "[ \{
-    Color.setFgColor Color.Green | strFmt
-  }OK\{Color.resetAll | strFmt} ] \{name | strFmt}"
-
-method printCaseFail (AssertInfo {msg, file, line}) =
-
-let rec printTestResultAux (assertInfos : List AssertInfo) =
-  match assertInfos with
-  | [] => ()
-  | AssertInfo { file, line, msg } :: assertInfos =>
-    printStrLn "       In \{ file | strFmt }:\{ line } assertion failed:";
-    printStrLn "       \{ msg | strFmt}"
-    aux assertInfos
-  end
-
 method printTestResult (TestCase { name, line, file }) assertInfos =
   match assertInfos with
   | [] =>
-    printStrLn "[ \{
-      Color.setFgColor Color.Green | strFmt
-    }OK\{Color.resetAll | strFmt} ] \{ name | strFmt} from \{
-      file | strFmt }:\{ line | strFmt }";
-      True
+    printStr "[ \{ Color.setFgColor Color.Green | strFmt }OK";
+    printStr "\{Color.resetAll | strFmt} ]";
+    printStrLn "\{ name | strFmt} from \{ file | strFmt }:\{ line | strFmt }";
+    True
   | _  =>
+    let f (AssertInfo { file, line, msg }) =
+      printStrLn "       In \{ file | strFmt }:\{ line } assertion failed:";
+      printStrLn "       \{ msg | strFmt}"
+    in
     printStr   "[\{ Color.setFgColor Color.Red | strFmt }FAIL";
     printStr   "\{ Color.resetAll | strFmt }]";
-    printStrLn "\{ tc.name | strFmt } from \{ tc.file | strFmt }:\{ tc.line }";
-    printTestResultAux assertInfos;
+    printStrLn "\{ name | strFmt } from \{ file | strFmt }:\{ line }";
+    list_iter f assertInfos;
     False
   end
+
+method reportEmptySuite (TestSuiteInternal { name, line, file }) =
+  printStrLn "[====] Test Suite \{name} has no tests"
 
 let printSuiteFooter (succ : Int) (fail : Int) =
   if succ == 0 && fail == 0 then
@@ -129,27 +143,17 @@ let testArbiterHandler =
   end
 
 method runTest (tc : TestCase) =
-  let errors = tc.testBody () in
-  tc.printTestResult errors;
-  errors
+  tc.printTestResult (tc.testBody ())
 
-{# This module is to be used in other parts of standard library,
-    so some functionality is explicitely reimplemented #}
-let rec runSuiteAux (succ, fail) (tests : List TestCase) =
-  match tests with
-  | [] => (succ, fail)
-  | tc :: tests =>
-    if tc.runTest
-    then runSuiteAux (1+succ, fail) tests
-    else runSuiteAux (succ, 1+fail) tests
-  end
+let evalTestCase (succ, fail) (tc : TestCase) =
+  if tc.runTest then (1+succ, fail) else (succ, 1+fail)
 
 method runSuite (suite : TestSuiteInternal) =
-  match globalTests.get with
-  | [] => suite.reportEmptySuite
+  match suite.tests with
+  | [] => suite.reportEmptySuite; (0, 0)
   | globalTests =>
-    suite.printPreamble();
-    let (succ, fail) = runSuiteAux (0, 0) globalTests in
+    suite.printPreamble;
+    let (succ, fail) = list_fold evalTestCase (0, 0) (list_rev globalTests) in
     printSuiteFooter succ fail;
     (succ, fail)
   end
@@ -167,26 +171,21 @@ let mainTestRunner = MainTestRunner
   , globalTests = Mutable.ioMut.ref []
   }
 
-let rec runAllSuites testFailed (suites : List TestSuiteInternal) =
-  match suites with
-  | [] => ()
-  | suite :: suites =>
-    let (_, fail) = suite.runSuite in
-    runAllSuites (testFailed || fail > 0) suites
-  end
-
 method runAllTests (MainTestRunner { globalTests, testSuites }) =
   let testFailed =
     match globalTests.get with
-    | [] => ()
+    | [] => False
     | globalTests =>
       printGlobalPreamble();
-      let (succ, fail) = runSuiteAux (0, 0) globalTests in
+      let (succ, fail) = list_fold evalTestCase (0, 0) globalTests in
       printSuiteFooter succ fail;
       fail > 0
     end
-  let testFailed = runAllSuites testFailed testSuites.get in
+  let f testFailed (suite : TestSuiteInternal) =
+    let (_, fail) = suite.runSuite in (testFailed || fail > 0)
+  let testFailed = list_fold f testFailed (list_rev testSuites.get) in
   if testFailed
+  {# TODO : Change this to normal print + exit #}
   then runtimeError "[====] Test Environment Failed"
   else ()
 
@@ -442,6 +441,9 @@ pub let expectDoesNotCallOnError
     {msg =
       "Expectation Failed: Expected function to not call on error implicit"}
     (callsOnError f)
+
+{# ========================================================================= #}
+{# Example Usage #}
 
 let suite = createTestSuite "Prelude/*"
 
