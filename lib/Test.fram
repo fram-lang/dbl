@@ -4,41 +4,42 @@
 
 
 import open AnsiTerminal
-import Mutable
+import open Mutable
 
 {# ========================================================================= #}
 {# Testing data types #}
 
+data ErrorType = | Assertion | Expectation
+
 ## Information about assertion fail in test
-data AssertInfo =
+data ErrorInfo =
   { msg : String
   , line : Int
   , file : String
+  , errorType : ErrorType
   }
 
 {# TODO : Add tags to tests and suites #}
 
-## Test case to be run at a later time.
 data TestCase =
   { name : String
   , line : Int
   , file : String
-  , testBody : Unit ->[IO] List AssertInfo {# Maybe this doesn't go here #}
+  , body : Unit ->[IO] List ErrorInfo
   }
 
-{##
-  Internal representation of test suite.
-  Holds tests.
-##}
-data TestSuiteInternal =
-  { name : String
-  , line : Int
-  , file : String
-  , tests : List TestCase
+data rec TestSuiteInternal =
+  { name   : String
+  , line   : Int
+  , file   : String
+  , suites : Ref IO (List TestSuiteInternal)
+  , tests  : Ref IO (List TestCase)
   }
 
-data TestSuite =
- | TestSuite of { name : String}
+abstr data TestSuite =
+  { suites : Ref IO (List TestSuiteInternal)
+  , tests  : Ref IO (List TestCase)
+  }
 
 {# ========================================================================= #}
 {# Helper functions #}
@@ -76,33 +77,35 @@ let warn (msg : String) =
   printStrLn "\{Color.setFgColor Color.Yellow | strFmt
     }[WARNING] \{ msg | strFmt }\{ Color.resetAll | strFmt }"
 
+method format (et : ErrorType) =
+  match et with
+  | Assertion   => "assertion"
+  | Expectation => "expectation"
+  end
+
+let printErrorInfo (ErrorInfo { msg, line, file, errorType }) =
+  printStrLn "  <>  In \{ file | strFmt }:\{ line } \{ errorType } failed:";
+  printStrLn "       \{ msg | strFmt}"
+
 let printGlobalPreamble () =
-  printStrLn "[====] Running global tests"
+printStrLn "[====] Running global tests"
 
 method printPreamble (TestSuiteInternal {file, line, name}) =
   printStrLn "[====] Running test suite \{name}";
   printStrLn "[    ] from \{file | strFmt}:\{line}"
 
-method printTestResult (TestCase { name, line, file }) assertInfos =
-  match assertInfos with
-  | [] =>
-    printStr "[ \{ Color.setFgColor Color.Green | strFmt }OK";
-    printStr "\{Color.resetAll | strFmt} ]";
-    printStrLn "\{ name | strFmt} from \{ file | strFmt }:\{ line | strFmt }";
-    True
-  | _  =>
-    let f (AssertInfo { file, line, msg }) =
-      printStrLn "       In \{ file | strFmt }:\{ line } assertion failed:";
-      printStrLn "       \{ msg | strFmt}"
-    in
-    printStr   "[\{ Color.setFgColor Color.Red | strFmt }FAIL";
-    printStr   "\{ Color.resetAll | strFmt }]";
-    printStrLn "\{ name | strFmt } from \{ file | strFmt }:\{ line }";
-    list_iter f assertInfos;
-    False
-  end
+method printTestSuccess (TestCase { name, line, file }) =
+  printStr   "[ \{ Color.setFgColor Color.Green | strFmt }OK";
+  printStr   "\{Color.resetAll | strFmt} ]";
+  printStrLn " \{ name | strFmt} from \{ file | strFmt }:\{ line | strFmt }"
 
-method reportEmptySuite (TestSuiteInternal { name, line, file }) =
+method printTestFailure (TestCase { name, line, file }) assertInfos =
+  printStr   "[\{ Color.setFgColor Color.Red | strFmt }FAIL";
+  printStr   "\{ Color.resetAll | strFmt }]";
+  printStrLn " \{ name | strFmt } from \{ file | strFmt }:\{ line }";
+  list_iter printErrorInfo assertInfos
+
+method reportEmptySuite (TestSuiteInternal { name }) =
   printStrLn "[====] Test Suite \{name} has no tests"
 
 let printSuiteFooter (succ : Int) (fail : Int) =
@@ -129,8 +132,8 @@ let printSuiteFooter (succ : Int) (fail : Int) =
     to continue, but at the end test fails anyway.
 ##}
 data TestArbiter E =
-  { abort : {X} -> AssertInfo ->[E] X
-  , fail  : AssertInfo ->[E] Unit
+  { abort : {X} -> ErrorInfo ->[E] X
+  , fail  : ErrorInfo ->[E] Unit
   }
 
 {# TODO : Rewrite to use tail-recurrsion #}
@@ -142,52 +145,71 @@ let testArbiterHandler =
     return _ => []
   end
 
+{##
+  Runs the test
+  Returns True if the test passed, False otherwise
+##}
 method runTest (tc : TestCase) =
-  tc.printTestResult (tc.testBody ())
+  match tc.body() with
+  | []     => 
+    tc.printTestSuccess;
+    True
+  | errors =>
+    tc.printTestFailure errors;
+    False
+  end
 
-let evalTestCase (succ, fail) (tc : TestCase) =
+let evalTest (succ, fail) (tc : TestCase) =
   if tc.runTest then (1+succ, fail) else (succ, 1+fail)
 
-method runSuite (suite : TestSuiteInternal) =
-  match suite.tests with
-  | [] => suite.reportEmptySuite; (0, 0)
-  | globalTests =>
-    suite.printPreamble;
-    let (succ, fail) = list_fold evalTestCase (0, 0) (list_rev globalTests) in
-    printSuiteFooter succ fail;
-    (succ, fail)
-  end
+rec
+  {##
+    Runs Tests associated with suite,
+    then runs sub-suite
+    Returns True if all tests and sub-suite passed, False otherwise
+  ##}
+  method runSuite (suite : TestSuiteInternal) =
+    let allSucceeded =
+      match suite.tests.get with
+      | [] => suite.reportEmptySuite; True
+      | tests =>
+        suite.printPreamble;
+        let (succ, fail) = list_fold evalTest (0, 0) (list_rev tests) in
+        printSuiteFooter succ fail;
+        fail == 0
+      end
+    in list_fold evalSuite allSucceeded (list_rev suite.suites.get)
+
+  let evalSuite acc (suite : TestSuiteInternal) = suite.runSuite && acc
+end
 
 {# ========================================================================= #}
 {# MainTestRunner #}
 
 data MainTestRunner =
-  { testSuites  : Mutable.Ref IO (List TestSuiteInternal)
-  , globalTests : Mutable.Ref IO (List TestCase)
+  { suites : Ref IO (List TestSuiteInternal)
+  , tests  : Ref IO (List TestCase)
   }
 
 let mainTestRunner = MainTestRunner
-  { testSuites  = Mutable.ioMut.ref []
-  , globalTests = Mutable.ioMut.ref []
+  { suites = ioMut.ref []
+  , tests  = ioMut.ref []
   }
 
-method runAllTests (MainTestRunner { globalTests, testSuites }) =
-  let testFailed =
-    match globalTests.get with
-    | [] => False
-    | globalTests =>
-      printGlobalPreamble();
-      let (succ, fail) = list_fold evalTestCase (0, 0) globalTests in
+method runAllTests (MainTestRunner{ suites, tests }) =
+  let allSucceeded =
+    match tests.get with
+    | [] => True
+    | tests =>
+      printGlobalPreamble ();
+      let (succ, fail) = list_fold evalTest (0, 0) (list_rev tests) in
       printSuiteFooter succ fail;
       fail > 0
     end
-  let f testFailed (suite : TestSuiteInternal) =
-    let (_, fail) = suite.runSuite in (testFailed || fail > 0)
-  let testFailed = list_fold f testFailed (list_rev testSuites.get) in
-  if testFailed
+  let allSucceeded = list_fold evalSuite allSucceeded (list_rev suites.get) in
+  if allSucceeded then ()
   {# TODO : Change this to normal print + exit #}
-  then runtimeError "[====] Test Environment Failed"
-  else ()
+  else runtimeError "[====] Test Environment Failed"
 
 {##
   If this file is imported, all registered tests will be run after program
@@ -201,26 +223,17 @@ handle _ = ()
     let _ = mainTestRunner.runAllTests in ()
   finally _ => ()
 
-method addGlobalTest (MainTestRunner { globalTests }) tc =
-  globalTests := tc :: globalTests.get
+method addTest (MainTestRunner { tests }) tc =
+  tests := tc :: tests.get
 
-method addTest (TestSuiteInternal { name, line, file, tests }) tc =
-  TestSuiteInternal { name, line, file, tests=tc :: tests }
+method addTest (TestSuite { tests }) tc =
+  tests := tc :: tests.get
 
-let rec updateList (suites : List TestSuiteInternal) suiteName tc =
-  match suites with
-  | [] => warn "TestRunner: Internal library error"; []
-  | suite :: suites =>
-    if suite.name == suiteName
-    then suite.addTest tc :: suites
-    else suite :: updateList suites suiteName tc
-  end
+method addSuite (MainTestRunner { suites }) suite =
+  suites := suite :: suites.get
 
-method addTestToSuite (MainTestRunner { testSuites }) (TestSuite { name }) tc =
-  testSuites := updateList testSuites.get name tc
-
-method addSuite (MainTestRunner { testSuites }) suite =
-  testSuites := suite :: testSuites.get
+method addSuite (TestSuite { suites }) suite =
+  suites := suite :: suites.get
 
 {# ========================================================================= #}
 {# Registering tests #}
@@ -229,32 +242,44 @@ method addSuite (MainTestRunner { testSuites }) suite =
 let constructTest name line file
     (f : {E, ~testArbiter : TestArbiter E} ->
       Unit ->[E, IO] Unit) =
-  let testBody () =
+  let body () =
     handle ~testArbiter / F with testArbiterHandler
-    let ~onError () = ~testArbiter.abort
-      (AssertInfo {msg="Uncaught ~onError call", line, file })
+    let ~onError () = ~testArbiter.abort (ErrorInfo
+      { msg="Uncaught ~onError call", line, file, errorType=Assertion })
     in
     {# TODO : Add measuring execution time #}
     f ()
-  in TestCase {name, line, file, testBody}
+  in TestCase {name, line, file, body }
 
 
-pub let registerGlobalTest
+pub let addGlobalTest
     {~__line__ = line, ~__file__ = file} name
     (f : {E, ~testArbiter : TestArbiter E} ->
       Unit ->[E, IO] Unit) =
-  mainTestRunner.addGlobalTest (constructTest name line file f)
+  mainTestRunner.addTest (constructTest name line file f)
 
-pub method registerTest
+pub method addTest
     {~__line__ = line, ~__file__ = file}
     (suite : TestSuite) testName
     (f : {E, ~testArbiter : TestArbiter E} ->
       Unit ->[E, IO] Unit) =
-  mainTestRunner.addTestToSuite suite (constructTest testName line file f)
+  suite.addTest (constructTest testName line file f)
 
 pub let createTestSuite {~__line__ = line, ~__file__ = file} name =
-  mainTestRunner.addSuite (TestSuiteInternal { name, file, line, tests=[] });
-  TestSuite { name }
+  let suites = ioMut.ref []
+  let tests = ioMut.ref []
+  let suite = TestSuiteInternal { name, file, line, tests, suites } in
+  mainTestRunner.addSuite suite;
+  TestSuite { suites, tests }
+
+pub method addSuite
+    {~__line__ = line, ~__file__ = file}
+    (suite : TestSuite) name =
+  let suites = ioMut.ref []
+  let tests = ioMut.ref [] in
+  let suite' = TestSuiteInternal { name, file, line, tests, suites } in
+  suite.addSuite suite';
+  TestSuite { suites, tests }
 
 {# ========================================================================= #}
 {# Assertion and Expectation Interface #}
@@ -269,8 +294,8 @@ pub let assertTrue
     ()
   else
     ~testArbiter.abort
-      (AssertInfo {line= ~__line__, file= ~__file__, msg =
-        msg.unwrapOr "Assertion Failed: Expected to be true"})
+      (ErrorInfo {line= ~__line__, file= ~__file__, errorType=Assertion
+        , msg = msg.unwrapOr "Assertion Failed: Expected to be true"})
 
 {##
   Asserts that given value if False
@@ -360,8 +385,8 @@ pub let expectTrue
     ()
   else
     ~testArbiter.fail
-      (AssertInfo {line= ~__line__, file= ~__file__,
-        msg = msg.unwrapOr "Expectation Failed: Expected to be true"})
+      (ErrorInfo {line= ~__line__, file= ~__file__, errorType=Expectation
+        , msg=msg.unwrapOr "Expectation Failed: Expected to be true"})
 
 {##
   Expects that given value if False
@@ -441,30 +466,3 @@ pub let expectDoesNotCallOnError
     {msg =
       "Expectation Failed: Expected function to not call on error implicit"}
     (callsOnError f)
-
-{# ========================================================================= #}
-{# Example Usage #}
-
-let suite = createTestSuite "Prelude/*"
-
-let _ = suite.registerTest "`chr` calls on error" (fn () =>
-  assertCallsOnError (fn _ => chr 300))
-
-let _ = suite.registerTest "`chr` does not call on error" (fn () =>
-  assertDoesNotCallOnError (fn _ => chr 127))
-
-let mkStr _ _ = ""
-
-let _ = suite.registerTest "`mkStr` count = 0" (fn _ =>
-  assertEq (mkStr "abc" 0) "")
-
-let _ = suite.registerTest "`mkStr` count < 0" (fn _ =>
-    assertEq (mkStr "abc" (-1)) "";
-    assertEq (mkStr "abc" (-10)) "")
-  
-let _ = suite.registerTest "`mkStr` count > 0" (fn _ =>
-    assertEq (mkStr "abc" 1) "abc";
-    assertEq (mkStr "abc" 2) "abcabc";
-    assertEq (mkStr "abc" 3) "abcabcabc";
-    assertEq (mkStr "abc" 5) "abcabcabcabcabc")
-
