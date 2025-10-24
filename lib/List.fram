@@ -57,7 +57,7 @@ pub let tlErr { ~onError } xs =
   end
 
 {##
- Returns the n-th element of a list or `None` if n is negative or the list
+Returns the n-th element of a list or `None` if n is negative or the list
   is too short. The first element is at position 0.
  ##}
 pub let nth xs (n : Int) =
@@ -137,7 +137,7 @@ pub let rec mapi { ?i : Int } f xs =
 
 {##
  `map2 f xs ys` returns a list constructed by applying `f` to consecutive
-  pairs of elements from `xs` and `ys.
+  pairs of elements from `xs` and `ys`.
   Calls `~onError` if the lists have different lengths.
 
   @param ~onError Fallback function for lists of different lengths.
@@ -239,7 +239,7 @@ pub let rec filterMapi { ?i : Int } f xs =
 pub let concatMap f xs = concat (map f xs)
 
 {##
-  Returns prefix of length n of a list or the list itself if its shorter than n.
+  Returns prefix of length n of a list or the list itself if it's shorter than n.
  ##}
 pub let rec take (n : Int) xs =
   match xs with
@@ -247,7 +247,7 @@ pub let rec take (n : Int) xs =
   | x :: xs => if n == 0 then [] else x :: take (n - 1) xs
   end
 
-## Returns suffix of a list after n elements or `[]` if its shorter than n.
+## Returns suffix of a list after n elements or `[]` if it's shorter than n.
 pub let rec drop (n : Int) xs =
   if n <= 0 then xs else
     match xs with
