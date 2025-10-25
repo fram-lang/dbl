@@ -1,0 +1,39 @@
+pub let escStr = "\x1b" #
+
+pub let (csi : String) = escStr + "[" #
+
+pub module Color
+  pub let setMode reset flag =
+    if not reset then
+      csi + flag + "m"
+    else
+      csi + "2" + flag + "m"
+
+  pub let resetAll = setMode False "0"
+
+  pub data Color =
+    | Black
+    | Red
+    | Green
+    | Yellow
+    | Blue
+    | Magenta
+    | Cyan
+    | White
+
+  pub method colorCode cl = 
+    match cl with
+    | Black   => 0
+    | Red     => 1
+    | Green   => 2
+    | Yellow  => 3
+    | Blue    => 4
+    | Magenta => 5
+    | Cyan    => 6
+    | White   => 7
+    end
+  
+  pub let setFgColor (cl : Color) = setMode False ((cl.colorCode + 30 : Int) >. toString)
+  pub let setBgColor (cl : Color) = setMode False ((cl.colorCode + 40 : Int) >. toString)
+
+end
