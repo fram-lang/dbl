@@ -9,12 +9,14 @@ import open Types
   Note that this function is pure. In correct programs, this function should
   never be called at runtime, but it can be used to appease the type-checker.
   Use this function only in impossible match clauses or in case of gross
-  violation of function preconditions (e.g., division by zero). ##}
-pub let runtimeError {type T} =
-  (extern dbl_runtimeError : String ->[] T)
+  violation of function preconditions (e.g., division by zero). 
+  
+  Handles position in code implicitely. ##}
+pub let runtimeError {type T, ~__file__, ~__line__} =
+  (extern dbl_runtimeError : String -> Int -> String ->[] T) ~__file__ ~__line__
 
 {## Explicitly assert that this case is impossible. ##}
-pub let impossible {?msg : String} () =
+pub let impossible {?msg : String, ~__file__, ~__line__} () =
   runtimeError
     match msg with
     | None     => "Assertion failed"
@@ -22,7 +24,7 @@ pub let impossible {?msg : String} () =
     end
 
 {## Assert that given condition should always hold. ##}
-pub let assert {?msg} b =
+pub let assert {?msg, ~__file__, ~__line__} b =
   if b then ()
   else
     impossible {?msg} ()

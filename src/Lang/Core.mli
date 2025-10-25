@@ -46,6 +46,25 @@ module TVar : sig
   module Map : Map1.S with type 'k key = 'k t
 end
 
+(** The flag indicating positivity of the recursion *)
+type rflag =
+  | Positive
+    (** The type is positively recursive. Unfolding it does not perform
+      non-termination effect. *)
+
+  | General
+    (** No assumptions about the positivity of the recursion. Unfolding
+      introduces non-termination effect. *)
+
+(** The flag indicating relevance of the value. *)
+type relevance =
+  | Relevant
+    (** The value is relevant, i.e., it is a regular value. *)
+
+  | Irrelevant
+    (** The value is computationally irrelevant. The computation cannot make
+      any decision based on it. *)
+
 (** Types, indexed by a type-represented kind *)
 type _ typ =
   | TEffPure : keffect typ
@@ -80,11 +99,15 @@ type _ typ =
       delim_tp  : ttype;
         (** Type of the delimiter *)
 
-      delim_eff : effct
+      delim_eff : effct;
         (** Effect of the delimiter *)
+
+      rflag : rflag
+        (** A flag indicating if the effect is positively recursive, and
+          therefore can be handled without performing NTerm effect. *)
     } -> ktype typ
 
-  | TData    : ttype * effct * ctor_type list -> ktype typ
+  | TData    : ttype * rflag * ctor_type list -> ktype typ
     (** Proof of the shape of ADT.
       
       Algebraic data type (ADTs) are just abstract types, but each operation
@@ -93,10 +116,10 @@ type _ typ =
       of ADTs. This approach simplifies many things, e.g., mutually recursive
       types are not recursive at all!
 
-      The element of type [TData(tp, eff, ctors)] is a witness that type [tp]
-      has constructors [ctors]. The effect [eff] is an effect of
-      pattern-matching: its pure for positively recursive types,
-      and impure for other types (because it may lead to non-termination). *)
+      The element of type [TData(tp, r, ctors)] is a witness that type [tp]
+      has constructors [ctors]. When the positivity flag [r] is set to
+      [Positive], the patter-matching is pure. Otherwise it introduces [NTerm]
+      effect. *)
 
   | TApp     : ('k1 -> 'k2) typ * 'k1 typ -> 'k2 typ
     (** Type application *)
@@ -141,7 +164,7 @@ type data_def =
       ctors : ctor_type list;
         (** List of constructors. *)
 
-      positive : bool
+      rflag : rflag
         (** A flag indicating if the type is positively recursive (in
           particular, not recursive at all) and therefore can be deconstructed
           without performing NTerm effect. *)
@@ -163,8 +186,12 @@ type data_def =
       delim_tp  : ttype;
         (** Type of the delimiter *)
 
-      delim_eff : effct
+      delim_eff : effct;
         (** Effect of the delimiter *)
+
+      rflag : rflag
+        (** A flag indicating if the effect is positively recursive, and
+          therefore can be handled without performing NTerm effect. *)
     }
 
 (* ========================================================================= *)
@@ -222,19 +249,35 @@ end
 
 (* ========================================================================= *)
 
-(** Expressions *)
+(** Literals *)
+type lit =
+  | LNum of int
+    (** Integer literal *)
+
+  | LNum64 of int64
+    (** 64 bit integer literal *)
+
+  | LStr of string
+    (** String literal *)
+
+(** Expressions.
+
+  Expressions are presented in slightly relaxed A-normal form. The main
+  difference is that any expression can be used as the left-hand side of
+  a function application, provided that it is pure. This approach still has
+  most of the benefits of A-normal form, but it able to keep track of
+  application to mutiple arguments. Moreover, irrelevant subexpressions
+  doesn't need to be values. **)
 type expr =
   | EValue of value
     (** value *)
 
   | ELet of var * expr * expr
-    (** Let expression *)
+    (** Let expression. Both subexpressions might be impure. *)
 
-  | ELetPure of var * expr * expr
-    (** Let expression, that binds pure expression *)
-
-  | ELetIrr of var * expr * expr
-    (** Let expression, that binds computationally irrelevant expression *)
+  | ELetPure of relevance * var * expr * expr
+    (** Let expression, that binds pure expression. The variable might be
+      marked as relevant or irrelevant. *)
 
   | ELetRec of (var * ttype * expr) list * expr
     (** Mutually recursive let-definitions. Recursive expressions must be
@@ -246,17 +289,35 @@ type expr =
       point, all recursive calls are allowed. It is used to ensure that
       recursive definitions are productive. *)
 
-  | EApp of value * value
-    (** Function application *)
+  | EFn  of var * ttype * expr
+    (** Lambda-abstraction *)
 
-  | ETApp : value * 'k typ -> expr
-    (** Type application *)
+  | ETFun : 'k tvar * expr -> expr
+    (** Type function *)
 
-  | ECApp of value
-    (** Instantiation of a constraint abstraction *)
+  | ECAbs of constr list * expr
+    (** Constraint abstraction *)
+
+  | EApp of expr * value
+    (** Function application. The subexpression must be pure. *)
+
+  | ETApp : expr * 'k typ -> expr
+    (** Type application. Always pure. *)
+
+  | ECApp of expr
+    (** Instantiation of a constraint abstraction. Always pure. *)
 
   | EData of data_def list * expr
     (** Mutually recursive datatype definitions *)
+
+  | ECtor of expr * int * Type.ex list * value list
+    (** Fully-applied constructor of an ADT. The meaning of the parameters
+      is the following.
+      - Computationally irrelevant proof that given that the type of the
+        whole expression is an ADT.
+      - An index of the constructor.
+      - Existential type parameters of the constructor.
+      - Regular parameters of the constructor. *)
 
   | EMatch  of expr * value * match_clause list * ttype * effct
     (** Shallow pattern matching. The first parameter is the proof that the
@@ -282,37 +343,19 @@ type expr =
       produced by the first expression, and continue with the last
       expression. *)
 
-(** Values *)
+(** Values.
+
+  Values are basic expressions, that are always pure, and can be duplicated at
+  minimal cost. Note that the notion of value does not correspond to values in
+  the reduction semantics. For instance, lambda-abstraction is not a value.
+  However, one could say that it is not a value, because the closure needs to be
+  allocated. *)
 and value =
-  | VNum of int
-    (** Integer literal *)
-
-  | VNum64 of int64
-    (** 64 bit integer literal *)
-
-  | VStr of string
-    (** String literal *)
+  | VLit of lit
+    (** Literal *)
 
   | VVar of var
     (** Variable *)
-
-  | VFn  of var * ttype * expr
-    (** Lambda-abstraction *)
-
-  | VTFun : 'k tvar * expr -> value
-    (** Type function *)
-
-  | VCAbs of constr list * expr
-    (** Constraint abstraction *)
-
-  | VCtor of expr * int * Type.ex list * value list
-    (** Fully-applied constructor of an ADT. The meaning of the parameters
-      is the following.
-      - Computationally irrelevant proof that given that the type of the
-        whole expression is an ADT.
-      - An index of the constructor.
-      - Existential type parameters of the constructor.
-      - Regular parameters of the constructor. *)
 
   | VExtern of string * ttype
     (** Externally defined function *)

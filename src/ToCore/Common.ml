@@ -27,7 +27,7 @@ let v_unit_prf =
       T.ctor_tvars     = [];
       T.ctor_arg_types = []
     } in
-  T.VExtern("__Unit_Proof__", T.TData(T.Type.t_unit, T.TEffPure, [ ctor ]))
+  T.VExtern("__Unit_Proof__", T.TData(T.Type.t_unit, T.Positive, [ ctor ]))
 
 (** Proof that bool is an ADT *)
 let v_bool_prf =
@@ -43,7 +43,7 @@ let v_bool_prf =
     } in
   let data_tp = T.TData(
     T.Type.t_bool,
-    T.TEffPure,
+    T.Positive,
     [ ctor_false; ctor_true ]) in
   T.VExtern("__Bool_Proof__", data_tp)
 
@@ -62,6 +62,6 @@ let v_option_prf =
     } in
   let data_tp = T.TData(
     T.Type.t_option (T.TVar arg),
-    T.TEffPure,
+    T.Positive,
     [ ctor_none; ctor_some ]) in
   T.VExtern("__Option_Proof__", T.TForall(arg, data_tp))

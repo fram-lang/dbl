@@ -165,6 +165,9 @@ and expr_data =
   | EStr of string
     (** String literal *)
 
+  | EInterp of string * (expr * expr option * string) list
+    (** String interpolation *)
+
   | EChr of char
     (** Char literal *)
 
