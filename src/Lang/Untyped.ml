@@ -41,9 +41,9 @@ type expr =
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression. *)
 
-  | EReplExpr of expr * string * expr * expr option
-    (** Print type (second parameter), evaluate and print the first expression 
-        (fourth parameter), then continue to the second expression. *)
+  | EReplExpr of expr * string * expr
+    (** Print type (second parameter), evaluate and print the string poduced
+      by the first expression and then continue with the last expression. *)
 
 (** Values *)
 and value =

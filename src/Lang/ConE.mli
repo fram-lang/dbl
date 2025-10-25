@@ -203,9 +203,10 @@ type expr =
       an expression to evaluate, usually containing another REPL expression.
       *)
 
-  | EReplExpr of expr * string * expr * expr option
-    (** Print type (second parameter), evaluate and print the first expression,
-      then continue to the second expression. *)
+  | EReplExpr of expr * string * expr
+    (** Print type (the second parameter), evaluate and print the string
+      produced by the first expression, and continue with the last
+      expression. *)
 
 (** Recursive definition *)
 and rec_def =

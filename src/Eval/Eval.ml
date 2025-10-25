@@ -91,23 +91,12 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     | _ -> failwith "Runtime error!"
     end
   | ERepl func -> eval_repl env func cont
-  | EReplExpr(e1, tp, e2, ep) ->
+  | EReplExpr(e1, tp, e2) ->
     Printf.printf ": %s\n%!" tp;
-
-    match ep with
-    | None ->
     eval_expr env e1 (fun v1 ->
-      Printf.printf "= %s\n" (to_string v1);
-      eval_expr env e2 cont)
-    | Some ep ->
-      eval_expr env ep (fun v2 -> 
-      Printf.printf "= %s\n%!" (pretty_print v2); 
+      Printf.printf "= %s\n" (as_string v1);
       eval_expr env e2 cont)
 
-and pretty_print = function
-  | VStr s -> s
-  | _ -> assert false
- 
 and eval_rec_defs env rds cont =
   match rds with
   | [] -> cont env

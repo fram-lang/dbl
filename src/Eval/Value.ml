@@ -52,3 +52,9 @@ let to_string (v : value) =
   | VLabel _ -> "<label>"
   | VRef   _ -> "<ref>"
   | VArray _ -> "<array>"
+
+let as_string (v : value) =
+  match v with
+  | VStr s -> s
+  | _ -> assert false
+ 

@@ -17,10 +17,10 @@ let make_nowhere data =
   ; Lang.Surface.data = data
   }
 
-let rec repl_seq imported use_toString () =
-  InterpLib.Error.wrap_repl_cont (repl_seq_main imported use_toString) ()
+let rec repl_seq imported () =
+  InterpLib.Error.wrap_repl_cont (repl_seq_main imported) ()
 
-and repl_seq_main imported use_toString () =
+and repl_seq_main imported () =
   flush stderr;
   Buffer.clear InterpLib.Error.repl_input;
   let fn buf n =
@@ -40,16 +40,16 @@ and repl_seq_main imported use_toString () =
     exit 0
 
   | Raw.REPL_Expr e ->
-    let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e, use_toString)) in
-    Seq.Cons([def], repl_seq imported use_toString)
+    let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
+    Seq.Cons([def], repl_seq imported)
 
   | Raw.REPL_Defs defs ->
     let defs = Desugar.tr_defs defs in
-    Seq.Cons(defs, repl_seq imported use_toString)
+    Seq.Cons(defs, repl_seq imported)
 
   | Raw.REPL_Import import ->
     let imported, defs = Import.import_one imported import in
-    Seq.Cons(defs, repl_seq imported use_toString)
+    Seq.Cons(defs, repl_seq imported)
 
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token
@@ -58,10 +58,10 @@ and repl_seq_main imported use_toString () =
         lexbuf.Lexing.lex_curr_p)
       (Lexing.lexeme lexbuf))
 
-let repl ~use_prelude ~use_toString =
+let repl ~use_prelude =
   if use_prelude then
     let imported, prelude_defs = Import.import_prelude () in
-    let repl_expr = make_nowhere (Lang.Surface.ERepl (repl_seq imported use_toString)) in
+    let repl_expr = make_nowhere (Lang.Surface.ERepl (repl_seq imported)) in
     make_nowhere (Lang.Surface.EDefs(prelude_defs, repl_expr))
   else
-    make_nowhere (Lang.Surface.ERepl (repl_seq Import.import_set_empty use_toString))
+    make_nowhere (Lang.Surface.ERepl (repl_seq Import.import_set_empty))

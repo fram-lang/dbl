@@ -11,8 +11,6 @@ let use_prelude = ref true
 
 let use_stdlib = ref true
 
-let no_toString_printing = ref false
-
 let dump_sexpr flag to_sexpr p =
   if flag then
     SExpr.pretty_stdout (to_sexpr p);
@@ -25,7 +23,8 @@ let check_invariant check inv p =
 
 let set_module_dirs ?fname () =
   if !use_stdlib then
-    DblConfig.lib_search_dirs := DblConfig.stdlib_path :: !DblConfig.lib_search_dirs;
+    DblConfig.lib_search_dirs :=
+      DblConfig.stdlib_path :: !DblConfig.lib_search_dirs;
   let cur_dir =
     match fname with
     | Some fname -> Filename.dirname fname
@@ -54,7 +53,7 @@ let nocore_pipeline prog =
 
 let run_repl () =
   set_module_dirs ();
-  DblParser.Main.repl ~use_prelude:!use_prelude ~use_toString:(not !no_toString_printing)
+  DblParser.Main.repl ~use_prelude:!use_prelude
   |> nocore_pipeline
 
 let run_file fname =

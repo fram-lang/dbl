@@ -16,9 +16,6 @@ val use_prelude : bool ref
 (** Include the standard library only if this flag is set. *)
 val use_stdlib : bool ref
 
-(** Use toString method as printing in REPL only if this flag is set. *)
-val no_toString_printing : bool ref
-
 (** Run in REPL mode *)
 val run_repl : unit -> unit
 

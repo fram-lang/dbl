@@ -34,3 +34,5 @@ let print_colors_of_string = function
   | "auto"   -> display_colors := print_colors_auto ()
   | _ -> assert false
 
+(** Use `toString` method for pretty-printing in REPL. *)
+let repl_toString_printing = ref true

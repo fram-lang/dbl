@@ -137,7 +137,11 @@ and expr_data =
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
   | ERepl       of (unit -> expr) * typ
-  | EReplExpr   of expr * expr * expr option
+  | EReplExpr   of
+    { body   : expr;
+      to_str : expr;
+      rest   : expr
+    }
 
 and rec_def =
   { rd_pos      : Position.t;

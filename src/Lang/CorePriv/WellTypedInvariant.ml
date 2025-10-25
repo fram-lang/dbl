@@ -475,8 +475,10 @@ let rec infer_type_eff env e =
     (* In this case we have no means to check types further. *)
     (tr_type env tp, tr_type env eff)
 
-  | EReplExpr(e1, _, e2, _) ->
-    let (_, eff1) = infer_type_eff env e1 in
+  | EReplExpr(e1, _, e2) ->
+    let (tp1, eff1) = infer_type_eff env e1 in
+    assert (Type.subtype (Env.constr_set env)
+      tp1 (TVar BuiltinType.tv_string));
     let (tp, eff2) = infer_type_eff env e2 in
     (tp, Effect.join eff1 eff2)
 

@@ -527,29 +527,31 @@ and infer_type : type ed.
     in
     (T.ERepl(func, tp, eff), tp, eff_resp)
 
-  | EReplExpr(e1, e2, ep) ->
-    let pp = e1.pp in
-    let (e1', tp1, eff_resp1) = infer_type env e1 eff_req in
-    let (e2', tp2, eff_resp2) = infer_type env e2 eff_req in
-    let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
+  | EReplExpr { body; to_str; rest } ->
+    (* Infer type of the body, and check that to_str can convert it to
+      string *)
+    let (e1, tp1, eff_resp1) = infer_type env body eff_req in
+    let (to_str_expr, to_str_tp, eff_resp2) = infer_type env to_str eff_req in
+    let (sch, str_tp, to_str_eff) = Subtyping.as_arrow to_str_tp in
+    assert (T.Scheme.is_monomorphic sch);
+    begin match T.Type.view str_tp with
+    | TVar tv when T.TVar.equal tv (T.BuiltinType.tv_string) -> ()
+    | _ -> assert false
+    end;
+    Subtyping.subtype
+      ~origin:(OExprType(to_str.pos, to_str.pp, tp1, sch.sch_body))
+      env tp1 sch.sch_body;
+    let eff_resp3 = return_effect env ~node:e eff_req to_str_eff in
+    (* Infer type of the rest expression *)
+    let (rest, rest_tp, eff_resp4) = infer_type env rest eff_req in
+    (* Pretty-print the type of the body *)
     let ctx = T.Pretty.empty_context () in
-    let tp1' = T.Pretty.pp_type ctx pp tp1 in
-
-    let res = match ep with
-    | None -> T.EReplExpr(e1', tp1', e2', None)
-    | Some ep ->
-      let (ep', tpp, tp_eff) = infer_type env ep eff_req in
-      let is_return_string = match T.Type.view tpp with
-      | T.Type.TVar tv -> T.TVar.equal tv (T.BuiltinType.tv_string)
-      | _ -> false
-      in if is_return_string then T.EReplExpr(e1', tp1', e2', Some ep') 
-      else (
-        let tpp' = T.Pretty.pp_type ctx ep.pp tpp in
-        InterpLib.Error.report ~cls:Warning (
-        Printf.sprintf "method toString of owner %s returns type %s, not String. \n Pretty printing set to default." tp1' tpp' 
-        ); T.EReplExpr(e1', tp1', e2', None))
-    in
-    (res, tp2, eff_resp)
+    let tp1 = T.Pretty.pp_type ctx body.pp tp1 in
+    (* Build the result *)
+    let res = T.EReplExpr(T.EApp(to_str_expr, e1), tp1, rest) in
+    let eff_resp =
+      eff_resp_join eff_resp1 [ eff_resp2; eff_resp3; eff_resp4 ] in
+    (res, rest_tp, eff_resp)
 
 and check_type : type ed.
   Env.t -> S.expr -> T.typ -> (T.ceffect, ed) request ->
