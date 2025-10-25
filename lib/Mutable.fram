@@ -127,6 +127,9 @@ let unsafeSetArray {E, type T} =
 let unsafeMakeArray {E, type T} =
   extern dbl_mkArray : Int ->[E] Array E T
 
+{## Get the maximum length of an array. ##}
+pub let maxArrayLength = (extern dbl_maxArrayLength : Int)
+
 {## Get the length of an array. ##}
 pub method length {E} =
   extern dbl_arrayLength : Array E _ -> Int
