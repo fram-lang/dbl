@@ -42,7 +42,7 @@ type expr =
       an expression to evaluate, usually containing another REPL expression. *)
 
   | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the string poduced
+    (** Print type (second parameter), evaluate and print the string produced
       by the first expression and then continue with the last expression. *)
 
 (** Values *)

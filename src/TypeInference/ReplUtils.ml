@@ -65,11 +65,14 @@ let to_string_expr_method ~tcfix ~pos env self_tp meth_var sch =
   }
 
 let to_string_expr ~tcfix ~pos env tp =
-  match NameUtils.method_owner_of_self tp with
-  | None       -> to_string_expr_default ~pos env tp
-  | Some owner ->
-    begin match ModulePath.try_lookup_method ~pos env owner "toString" with
-    | None   -> to_string_expr_default ~pos env tp
-    | Some(meth_var, sch) ->
-      to_string_expr_method ~tcfix ~pos env tp meth_var sch
-    end
+  if not DblConfig.repl_toString_printing then
+    to_string_expr_default ~pos env tp
+  else
+    match NameUtils.method_owner_of_self tp with
+    | None       -> to_string_expr_default ~pos env tp
+    | Some owner ->
+      begin match ModulePath.try_lookup_method ~pos env owner "toString" with
+      | None   -> to_string_expr_default ~pos env tp
+      | Some(meth_var, sch) ->
+        to_string_expr_method ~tcfix ~pos env tp meth_var sch
+      end
