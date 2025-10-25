@@ -339,8 +339,9 @@ type expr =
       returned by the function. *)
 
   | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the first expression,
-      then continue to the second expression. *)
+    (** Print type (the second parameter), evaluate and print the string
+      produced by the first expression, and continue with the last
+      expression. *)
 
 (** Values.
 

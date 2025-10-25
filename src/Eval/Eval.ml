@@ -104,7 +104,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
   | EReplExpr(e1, tp, e2) ->
     Printf.printf ": %s\n%!" tp;
     eval_expr env e1 (fun v1 ->
-      Printf.printf "= %s\n" (to_string v1);
+      Printf.printf "= %s\n" (as_string v1);
       eval_expr env e2 cont)
 
 and eval_rec_defs env rds cont =

@@ -23,7 +23,8 @@ let check_invariant check inv p =
 
 let set_module_dirs ?fname () =
   if !use_stdlib then
-    DblConfig.lib_search_dirs := DblConfig.stdlib_path :: !DblConfig.lib_search_dirs;
+    DblConfig.lib_search_dirs :=
+      DblConfig.stdlib_path :: !DblConfig.lib_search_dirs;
   let cur_dir =
     match fname with
     | Some fname -> Filename.dirname fname

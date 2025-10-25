@@ -30,8 +30,7 @@ let partial_solve_constrs er =
   { er with er_constr = ConstrSolve.solve_partial er.er_constr }
 
 (* ------------------------------------------------------------------------- *)
-(** Context of a method call, returned by [infer_poly_scheme] *)
-let method_call_ctx pos env self =
+let method_call_ctx ~pos env self =
   InstCtx (fun expr ->
     let result_expr =
       { T.pos  = pos;
@@ -96,7 +95,7 @@ let infer_use_scheme ~tcfix ?app_type env (e : S.poly_expr_use) =
     let self = infer_expr_type env self |> partial_solve_constrs in
     let self_tp = expr_result_type self in
     let (poly_expr, sch) = lookup_method ~pos env self_tp name in
-    (method_call_ctx pos env self, poly_expr, sch)
+    (method_call_ctx ~pos env self, poly_expr, sch)
 
 (* ------------------------------------------------------------------------- *)
 let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =

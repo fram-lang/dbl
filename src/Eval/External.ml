@@ -12,6 +12,7 @@ let extern_map =
                               str_fun (fun msg -> 
                                 runtime_error_with_postion fname line msg)));
       "dbl_magic", pure_fun Fun.id;
+      "dbl_toString",    pure_fun (fun v -> VStr (Value.to_string v));
       "dbl_exit",  int_fun exit;
       "dbl_abstrType",  unit_fun (fun () -> v_abstr);
     ] |> List.to_seq |> Hashtbl.of_seq
