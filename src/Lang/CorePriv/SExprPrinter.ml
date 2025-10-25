@@ -157,7 +157,7 @@ let rec tr_expr (e : Syntax.expr) =
   | ERepl(_, tp, eff) ->
     List [ Sym "repl"; tr_type tp; tr_type eff ]
   | EReplExpr(e1, tp, e2) ->
-    List [ Sym "repl-expr"; tr_expr e1; Sym ("{" ^ tp  ^ "}"); tr_expr e2 ]
+    List [ Sym "repl-expr"; tr_expr e1; Sym ("{" ^ tp ^ "}"); tr_expr e2 ]
 
 and tr_value (v : Syntax.value) =
   match v with

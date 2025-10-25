@@ -139,7 +139,7 @@ let rec tr_expr (e : expr) =
   | ERepl(_, tp, eff) ->
     List [ Sym "repl"; tr_type tp; CEffect.to_sexpr eff ]
   | EReplExpr(e1, tp, e2) ->
-    List [ Sym "repl-expr"; tr_expr e1; Sym ("{" ^ tp ^ "}") ; tr_expr e2 ]
+    List [ Sym "repl-expr"; tr_expr e1; Sym ("{" ^ tp ^ "}"); tr_expr e2 ]
 
 and tr_fn e =
   match e with
