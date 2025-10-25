@@ -65,7 +65,7 @@ let to_string_expr_method ~tcfix ~pos env self_tp meth_var sch =
   }
 
 let to_string_expr ~tcfix ~pos env tp =
-  if not DblConfig.repl_toString_printing then
+  if not !DblConfig.repl_toString_printing then
     to_string_expr_default ~pos env tp
   else
     match NameUtils.method_owner_of_self tp with
