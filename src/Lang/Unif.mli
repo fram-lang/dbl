@@ -457,11 +457,11 @@ and expr_data =
   | EReplExpr of (** Single expression typed in REPL *)
     { body   : expr;
       (** The REPL prints the type of this expression, evaluates it,
-        passes to then [to_str] function, prints the result, and continues to
+        passes to the [to_str] function, prints the result, and continues to
         the [rest] expression. *)
 
       to_str : expr;
-      (** The expression that should evaluates to a function that converts the
+      (** The expression that should evaluate to a function that converts the
         result of [body] to string. The returned string is printed by the
         REPL. *)
 
