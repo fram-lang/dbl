@@ -271,7 +271,7 @@ pub method foldRight {E} (self : Array E _) f init =
   Performs left fold on array.
 
   For `arr` equal to `[a1, a2, ..., an].toArray`
-  call `arr.foldLeft f init [a1, a2, ..., an]` is equivalent to
+  call `arr.foldLeft f init` is equivalent to
   `f (... (f (f init a1) a2) ...) an`
 ##}
 pub method foldLeft {E} (self : Array E _) f init =
@@ -282,7 +282,8 @@ pub method foldLeft {E} (self : Array E _) f init =
   loop 0 init
 
 {## 
-  Maps a function over an array.
+  Maps a function over an array in place.
+
  `arr.mapInPlace f` maps function `f` over array `arr`
 ##}
 pub method mapInPlace {E} (self : Array E _) f =
@@ -296,6 +297,7 @@ pub method mapInPlace {E} (self : Array E _) f =
 
 {## 
   Creates a new array from mapped elements of an array.
+
   `arr.map f` creates a new array consisting of
   elements `(f x)` where `x` are elements of `arr`.
   `f` must be pure.
@@ -307,8 +309,9 @@ pub method map {E} (self : Array E _) (f : _ ->[] _) =
 
 {## 
   Concatenates two arrays.
-  `a.concat b` returns new array with 
-  elements from `a` followed by elements from `b`
+
+  `arr1.concat arr2` returns new array with
+  elements from `arr1` followed by elements from `arr2`
 ##}
 pub method concat {E} (self: Array E _ ) (other : Array E _) =
   let a = self.length in
@@ -322,7 +325,8 @@ pub method concat {E} (self: Array E _ ) (other : Array E _) =
 
 {## 
   Reverses an array.
-  `a.reverse` returns new array with elements in reversed order
+
+  `arr.reverse` returns new array with elements in reversed order
 ##}
 pub method reverse {E} (self: Array E _) =
   let n = self.length in
@@ -332,8 +336,9 @@ pub method reverse {E} (self: Array E _) =
 
 {## 
   Checks if any element of an array satisfies a condition.
-  `a.exists f` returns `True` if function `f` 
-  returns `True` on any element of an array `a`,
+
+  `arr.exists f` returns `True` if function `f`
+  returns `True` on any element of an array `arr`,
   otherwise it returns `False`
 ##}
 pub method exists {E} (self : Array E _) f =
@@ -345,8 +350,9 @@ pub method exists {E} (self : Array E _) f =
 
 {## 
   Checks if all elements of an array satisfy a condition.
-  `a.forall f` returns `False` if function `f`
-  returns `False` on any element of the array `a`,
+
+  `arr.forall f` returns `False` if function `f`
+  returns `False` on any element of the array `arr`,
   otherwise it returns `True`
 ##}
 pub method forall {E} (self : Array E _) f =
@@ -453,12 +459,11 @@ pub method iteri (self : ConstArray _) f =
 pub method iter (self : ConstArray _) f =
   self.iteri (fn _ => f)
 
-
 {## 
   Performs right fold on an immutable array.
 
   For `arr` equal to `[a1, a2, ..., an].toConstArray`
-  call `arr.foldRight f init [a1, a2, ..., an]` is
+  call `arr.foldRight f init` is
   equivalent to `f a1 (f a2 (... (f an init) ...))`
 ##}
 pub method foldRight (self : ConstArray _) f init =
@@ -472,7 +477,7 @@ pub method foldRight (self : ConstArray _) f init =
   Performs left fold on an immutable array.
 
   For `arr` equal to `[a1, a2, ..., an].toConstArray`
-  call `a.foldLeft f init [a1, a2, ..., an]` is
+  call `arr.foldLeft f init` is
   equivalent to `f (... (f (f init a1) a2) ...) an`
 ##}
 pub method foldLeft (self : ConstArray  _) f init =
@@ -484,8 +489,9 @@ pub method foldLeft (self : ConstArray  _) f init =
 
 {## 
   Checks if any element of an immutable array satisfies a condition.
-  `a.exists f` returns `True` if function 
-  `f` returns `True` on any element of an immutable array `a`,
+
+  `arr.exists f` returns `True` if function
+  `f` returns `True` on any element of an immutable array `arr`,
    otherwise it returns `False`
 ##}
 pub method exists (self : ConstArray _) f =
@@ -497,8 +503,9 @@ pub method exists (self : ConstArray _) f =
 
 {## 
   Checks if all elements of an immutable array satisfy a condition.
-  `a.forall f` returns `False` if function 
-  `f` returns `False` on any element of the array `a`,
+
+  `arr.forall f` returns `False` if function
+  `f` returns `False` on any element of the array `arr`,
   otherwise it returns `True`
 ##}
 pub method forall (self : ConstArray _) f =
@@ -506,6 +513,7 @@ pub method forall (self : ConstArray _) f =
 
 {## 
   Creates a new immutable array from mapped elements of an immutable array.
+
   `arr.map f` creates a new immutable array consisting of elements
   `(f x)` where `x` are elements of `arr`. 
   `f` must be pure.
