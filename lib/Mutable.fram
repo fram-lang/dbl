@@ -253,11 +253,12 @@ pub method iteri {E} (self : Array E _) f =
 pub method iter {E} (self : Array E _) f =
   self.iteri (fn _ => f)
 
-
 {## 
   Performs right fold on array.
-  `a.foldRight f init [a1, a2, ..., an]` is equivalent to 
-  `f a1 (f a2 (... (f an init) ...))` 
+
+  For `arr` equal to `[a1, a2, ..., an].toArray`
+  call `arr.foldRight f init` is equivalent to
+  `f a1 (f a2 (... (f an init) ...))`
 ##}
 pub method foldRight {E} (self : Array E _) f init =
   let rec loop (i : Int) acc =
@@ -268,8 +269,10 @@ pub method foldRight {E} (self : Array E _) f init =
 
 {## 
   Performs left fold on array.
-  `a.foldLeft f init [a1, a2, ..., an]` is equivalent to 
-  `f (... (f (f init a1) a2) ...) an` 
+
+  For `arr` equal to `[a1, a2, ..., an].toArray`
+  call `arr.foldLeft f init [a1, a2, ..., an]` is equivalent to
+  `f (... (f (f init a1) a2) ...) an`
 ##}
 pub method foldLeft {E} (self : Array E _) f init =
   let rec loop (i: Int) acc = 
@@ -293,7 +296,7 @@ pub method mapInPlace {E} (self : Array E _) f =
 
 {## 
   Creates a new array from mapped elements of an array.
-  `arr.map f` creates a new array consisiting of 
+  `arr.map f` creates a new array consisting of
   elements `(f x)` where `x` are elements of `arr`.
   `f` must be pure.
 ##}
@@ -453,8 +456,10 @@ pub method iter (self : ConstArray _) f =
 
 {## 
   Performs right fold on an immutable array.
-  `a.foldRight f init [a1, a2, ..., an]` is 
-  equivalent to `f a1 (f a2 (... (f an init) ...))` 
+
+  For `arr` equal to `[a1, a2, ..., an].toConstArray`
+  call `arr.foldRight f init [a1, a2, ..., an]` is
+  equivalent to `f a1 (f a2 (... (f an init) ...))`
 ##}
 pub method foldRight (self : ConstArray _) f init =
   let rec loop (i : Int) acc =
@@ -465,8 +470,10 @@ pub method foldRight (self : ConstArray _) f init =
 
 {## 
   Performs left fold on an immutable array.
-  `a.foldLeft f init [a1, a2, ..., an]` is 
-  equivalent to `f (... (f (f init a1) a2) ...) an` 
+
+  For `arr` equal to `[a1, a2, ..., an].toConstArray`
+  call `a.foldLeft f init [a1, a2, ..., an]` is
+  equivalent to `f (... (f (f init a1) a2) ...) an`
 ##}
 pub method foldLeft (self : ConstArray  _) f init =
   let rec loop (i: Int) acc = 
@@ -499,7 +506,7 @@ pub method forall (self : ConstArray _) f =
 
 {## 
   Creates a new immutable array from mapped elements of an immutable array.
-  `arr.map f` creates a new immutable array consisiting of elements 
+  `arr.map f` creates a new immutable array consisting of elements
   `(f x)` where `x` are elements of `arr`. 
   `f` must be pure.
 ##}
