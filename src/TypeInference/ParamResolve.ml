@@ -70,6 +70,7 @@ let open_scheme_types ~pos env targs =
 
 let open_scheme_values ~pos ~sub env named =
   let open_named (env, rctx) (name, sch) =
+    let sch = T.Scheme.subst sub sch in
     match name with
     | T.NVar name ->
       let (rctx, x) = Reinst.add_var rctx name sch in
