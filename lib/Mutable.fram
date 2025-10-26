@@ -304,6 +304,8 @@ pub method pureMap {E} (self : Array E _) (f : _ ->[] _) =
   elements `(f x)` where `x` are elements of `arr`.
 ##}
 pub method map {E} (self : Array E _) f =
+  {# Convert to a list and back to an array in order to avoid array overriding
+  when function f returns more than once. #}
   let xs = self.toList.map f in
   xs.toArray {~mut=Mut {E}}
 
@@ -518,4 +520,6 @@ pub method pureMap (self : ConstArray _) (f : _ ->[] _) =
   `(f x)` where `x` are elements of `arr`.
 ##}
 pub method map (self : ConstArray _) f =
+  {# Convert to a list and back to an array in order to avoid array overriding
+  when function f returns more than once. #}
   self.toList.map f >.toConstArray
