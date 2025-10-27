@@ -7,8 +7,6 @@ let usage_string =
     "Usage: %s [OPTION]... FILE [CMD_ARG]...\nAvailable OPTIONs are:"
     Sys.argv.(0)
 
-let args = ref []
-
 let cli_lib_search_dirs = ref []
 let cli_local_search_dirs = ref []
 
@@ -20,7 +18,7 @@ let include_cli_search_dirs () =
 
 let cmd_args_options = Arg.align
   [ "-args",
-    Arg.Rest (fun arg -> args := arg :: !args),
+    Arg.Rest_all (fun args -> DblConfig.prog_args := args),
     "[CMD_ARG]... Pass remaining arguments to the interpreted program";
 
     "-dcone",
