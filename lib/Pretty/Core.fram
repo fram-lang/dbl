@@ -17,27 +17,20 @@ method flush ((x, y) : Layout) =
 method reset ((x, y) : Layout) =
   (x.reset, y.reset x.width)
 
-method seq ((x1, y1) : Layout) ((x2, y2) : Layout) =
-  let ~onError _ = (runtimeError "Uncomment error safe seq in Core" : Unit) in
-  (x1.seq x2, y1.seq y2 x1.getAlign)
-
-# TODO Uncomment.
-# Commented due to huge type-checker slow down
-
-#method seq (l1 : Layout) (l2 : Layout) =
-#  let mkSeq {~onError} ((x1, y1) : Layout) ((x2, y2) : Layout) =
-#    (x1.seq x2, y1.seq y2 x1.getAlign)
-#  let gentle =
-#    handle
-#      ~onError = effect _ => None
-#      return c => Some c
-#    in mkSeq l1 l2 in
-#  match gentle with
-#  | Some c => c
-#  | None =>
-#    let ~onError _ = impossible () in
-#    mkSeq (l1.reset) (l2.reset)
-#  end
+method seq (l1 : Layout) (l2 : Layout) =
+  let mkSeq {~onError : Unit ->> Unit} ((x1, y1) : Layout) ((x2, y2) : Layout) =
+    (x1.seq x2, y1.seq y2 x1.getAlign)
+  let gentle =
+    handle
+      ~onError = effect _ => None
+      return c => Some c
+    in mkSeq l1 l2 in
+  match gentle with
+  | Some c => c
+  | None =>
+    let ~onError _ = impossible () in
+    mkSeq (l1.reset) (l2.reset)
+  end
 
 method style ((x, y) : Layout) (sty : Style.Style) = (x, y.style sty)
 
@@ -120,7 +113,7 @@ let quasifilter {X} (pred : X ->[] Bool) (ord : X -> X ->[] Bool) (ws : Stream.S
 
 let discardInvalid (w : Int) =
   quasifilter
-    (fn s => maxWidth (fst s) < w)
+    (fn s => maxWidth (fst s) <= w)
     (fn x y => maxWidth (fst x) <= maxWidth (fst y))
 
 let (>>=) (xs : Stream.Stream _) f = Stream.bind f xs
@@ -164,7 +157,7 @@ pub let groupingBy (sep : String) (ms : List (Pair Int ODoc)) =
       (fn x y => ord (fst x) (fst y))
       (fn x y => poset (fst x) (fst y))
       (Stream.fromList [hor, ver]) in
-    (ls : Stream.Stream Layout)) # discardInvalid w ls)
+    discardInvalid w ls)
   end
 
 pub method flush (ODoc xs) = ODoc (fn w =>
@@ -200,16 +193,20 @@ pub let generate {?width : Int} (ODoc xs) =
     (unlines width lines : String)
   end
 
-pub let generateDebug width (ODoc xs) = match xs width >.uncons with
-  | None => impossible ()
-  | Some (layout, _) =>
-    let layout = layout.reset in
-    let (size, lines) = layout in
-    printStrLn size.format;
-    printStrLn "";
-    printStrLn (debugLines lines.force);
-    printStrLn (unlines width lines.force)
-  end
+pub let generateDebug width (ODoc xs) =
+  let rec iter (xs : Stream.Stream Layout) =
+    match xs.uncons with
+    | None => ()
+    | Some (layout, tail) =>
+      let layout = layout.reset in
+      let (size, lines) = layout in
+      printStrLn size.format;
+      printStrLn "";
+      printStrLn (debugLines lines.force);
+      printStrLn (unlines width lines.force);
+      iter tail
+    end in
+  iter (xs width)
 
 pub let runTests () = testSuite "/Pretty/Core" (fn _ =>
   testCase "`paretoSelector` empty" (fn _ =>

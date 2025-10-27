@@ -15,7 +15,6 @@ let groceryList =
   ]
 
 let table =
-  let vsep = text " | " in
   let header =
     vsep
       <> text "Product" <> vsep.shift
