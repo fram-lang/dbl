@@ -188,7 +188,7 @@ let repl_to_string_type_mismatch ~pos ~pp ~self_tp tp =
   let pp_ctx = T.Pretty.empty_context () in
   let msg = Printf.sprintf
     ("This expression has type %s. For this type the `toString` method "
-    ^^ "has type %s, but the String type was expected.")
+    ^^ "returns type %s, but the String type was expected.")
     (T.Pretty.pp_type pp_ctx pp self_tp)
     (T.Pretty.pp_type pp_ctx pp tp)
   in (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
