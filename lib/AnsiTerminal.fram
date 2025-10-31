@@ -1,3 +1,7 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
 pub let escStr = "\x1b" #
 
 pub let (csi : String) = escStr + "[" #

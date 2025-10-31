@@ -46,7 +46,7 @@ abstr data TestSuite =
 
 {# This module is to be used in other parts of standard library,
     so some functionality is reimplemented #}
-let list_rev xs =
+let listRev xs =
   let rec aux acc xs =
     match xs with
     | [] => acc
@@ -54,16 +54,16 @@ let list_rev xs =
     end
   in aux [] xs
 
-let rec list_fold f acc xs =
+let rec listFold f acc xs =
   match xs with
   | [] => acc
-  | x :: xs => list_fold f (f acc x)  xs
+  | x :: xs => listFold f (f acc x)  xs
   end
 
-let rec list_iter f xs =
+let rec listIter f xs =
   match xs with
   | [] => ()
-  | x :: xs => f x; list_iter f xs
+  | x :: xs => f x; listIter f xs
   end
 
 {# ========================================================================= #}
@@ -103,7 +103,7 @@ method printTestFailure (TestCase { name, line, file }) assertInfos =
   printStr   "[\{ Color.setFgColor Color.Red | strFmt }FAIL";
   printStr   "\{ Color.resetAll | strFmt }]";
   printStrLn " \{ name | strFmt } from \{ file | strFmt }:\{ line }";
-  list_iter printErrorInfo assertInfos
+  listIter printErrorInfo (listRev assertInfos)
 
 method reportEmptySuite (TestSuiteInternal { name }) =
   printStrLn "[====] Test Suite \{name} has no tests"
@@ -174,11 +174,11 @@ rec
       | [] => suite.reportEmptySuite; True
       | tests =>
         suite.printPreamble;
-        let (succ, fail) = list_fold evalTest (0, 0) (list_rev tests) in
+        let (succ, fail) = listFold evalTest (0, 0) (listRev tests) in
         printSuiteFooter succ fail;
         fail == 0
       end
-    in list_fold evalSuite allSucceeded (list_rev suite.suites.get)
+    in listFold evalSuite allSucceeded (listRev suite.suites.get)
 
   let evalSuite acc (suite : TestSuiteInternal) = suite.runSuite && acc
 end
@@ -202,11 +202,11 @@ method runAllTests (MainTestRunner{ suites, tests }) =
     | [] => True
     | tests =>
       printGlobalPreamble ();
-      let (succ, fail) = list_fold evalTest (0, 0) (list_rev tests) in
+      let (succ, fail) = listFold evalTest (0, 0) (listRev tests) in
       printSuiteFooter succ fail;
       fail > 0
     end
-  let allSucceeded = list_fold evalSuite allSucceeded (list_rev suites.get) in
+  let allSucceeded = listFold evalSuite allSucceeded (listRev suites.get) in
   if allSucceeded then ()
   {# TODO : Change this to normal print + exit #}
   else runtimeError "[====] Test Environment Failed"
