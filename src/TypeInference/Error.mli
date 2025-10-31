@@ -52,6 +52,9 @@ val return_type_mismatch :
 val finally_type_mismatch :
   pos:Position.t -> pp:PPTree.t -> T.typ -> T.typ -> t
 
+val repl_to_string_type_mismatch :
+  pos:Position.t -> pp:PPTree.t -> self_tp:T.typ -> T.typ -> t
+
 val func_not_pure : pos:Position.t -> t
 val impure_handler : pos:Position.t -> t
 

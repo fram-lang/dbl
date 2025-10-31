@@ -50,7 +50,8 @@ let to_string_expr_method ~tcfix ~pos env self_tp meth_var sch =
   let str_tp = T.Type.t_var T.BuiltinType.tv_string in
   Error.check_unify_result ~pos
     (Unification.subtype env body_tp str_tp)
-      ~on_error:(Error.expr_type_mismatch ~pp body_tp str_tp);
+      ~on_error:(Error.repl_to_string_type_mismatch
+        ~pp ~self_tp body_tp);
   (* Build the final function expression *)
   { er_expr   =
       make (T.EFn(
