@@ -8,6 +8,7 @@ open Common
 open BiDirectional
 open TypeCheckFix
 
+(* ------------------------------------------------------------------------- *)
 let switch_to_check_mode (type dir) ~pos env (req : (T.typ, dir) request) :
     T.typ * (T.typ, dir) response =
   match req with
@@ -260,14 +261,21 @@ let check_def : type st dir. tcfix:tcfix ->
 
   | DReplExpr e ->
     let (body_env, params) = Env.begin_generalize env in
-    let expr = infer_expr_type body_env e in
-    let tp = expr_result_type expr in
+    let expr   = infer_expr_type body_env e in
+    let cs     = ConstrSolve.solve_partial expr.er_constr in
+    let tp     = expr_result_type expr in
+    let to_str = ReplUtils.to_string_expr ~tcfix ~pos:e.pos env tp in
     ParamGen.end_generalize_impure params (T.Type.uvars tp);
     let rest = cont.run env req in
-    { er_expr   = make rest (T.EReplExpr(expr.er_expr, rest.er_expr));
+    { er_expr   = make rest (T.EReplExpr
+        { body   = expr.er_expr;
+          to_str = to_str.er_expr;
+          rest   = rest.er_expr
+        });
       er_type   = rest.er_type;
-      er_effect = T.Effect.join expr.er_effect rest.er_effect;
-      er_constr = expr.er_constr @ rest.er_constr
+      er_effect = T.Effect.joins
+        [ expr.er_effect; to_str.er_effect; rest.er_effect ];
+      er_constr = cs @ to_str.er_constr @ rest.er_constr
     }
 
 (* ------------------------------------------------------------------------- *)

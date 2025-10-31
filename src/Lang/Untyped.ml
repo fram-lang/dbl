@@ -60,8 +60,8 @@ type expr =
       an expression to evaluate, usually containing another REPL expression. *)
 
   | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the first expression,
-      then continue to the second expression. *)
+    (** Print type (second parameter), evaluate and print the string produced
+      by the first expression and then continue with the last expression. *)
 
 (** Trivial values, with minimal cost of copying. *)
 and value =
