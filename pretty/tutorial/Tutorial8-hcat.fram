@@ -1,0 +1,6 @@
+import open Pretty
+
+let docA = text "aaaa" $$ text "aa"
+let docB = text "bb" $$ text "bbbb"
+
+let _ = printStrLn (generate (docA >+> docB))

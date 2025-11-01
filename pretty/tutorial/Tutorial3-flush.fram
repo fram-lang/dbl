@@ -1,0 +1,6 @@
+import open Pretty
+
+let myDoc = flush (text "Hello")
+         <> text "World!"
+
+let _ = printStrLn (generate myDoc)

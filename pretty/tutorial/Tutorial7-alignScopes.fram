@@ -1,0 +1,9 @@
+import open Pretty
+
+let fstDoc = reset ((text "let xyz" <> shift (text " = 10"))
+                 $$ (text "let abcdef" <> shift (text " = True")))
+
+let sndDoc = reset ((text "data X" <> shift (text " = X of Int"))
+                 $$ (text "data Identity a" <> shift (text " = Id of a")))
+
+let _ = printStrLn (generate (fstDoc $$ sndDoc))

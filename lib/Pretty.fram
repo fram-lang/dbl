@@ -202,10 +202,24 @@ pub let clearStyle (doc : Doc) = doc.style Style.Clear
 {## Clears style in fthe following document. ##}
 pub method clearStyle = clearStyle
 
+{## Supported colors by Style extenstion. ##}
+pub type Color = Style.Color
+
+pub module Colors
+  pub let black   = Style.Black
+  pub let red     = Style.Red
+  pub let green   = Style.Green
+  pub let yellow  = Style.Yellow
+  pub let blue    = Style.Blue
+  pub let magenta = Style.Magenta
+  pub let cyan    = Style.Cyan
+  pub let white   = Style.White
+end
+
 {## Enables styling of given document. ##}
 pub let style
-  { ?fg : Style.Color
-  , ?bg : Style.Color
+  { ?fg : Color
+  , ?bg : Color
   , ?underline : Bool
   , ?strike : Bool }
   (doc : Doc) =
@@ -213,8 +227,8 @@ pub let style
 
 {## Enables styling of given document. ##}
 pub method style
-  { ?fg : Style.Color
-  , ?bg : Style.Color
+  { ?fg : Color
+  , ?bg : Color
   , ?underline : Bool
   , ?strike : Bool }
   (doc : Doc) =
