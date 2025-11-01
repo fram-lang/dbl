@@ -295,8 +295,7 @@ pub method mapInPlace {E} (self : Array E _) f =
 ##}
 pub method pureMap {E} (self : Array E _) (f : _ ->[] _) =
   unsafeInitArray {E} self.length (
-    fn i =>
-      f (unsafeGetArray {E} self i))
+    fn i => f (unsafeGetArray {E} self i))
 
 {## Creates a new array from mapped elements of an array.
 
@@ -330,9 +329,8 @@ pub method concat {E} (self: Array E _ ) (other : Array E _) =
 ##}
 pub method reverse {E} (self: Array E _) =
   let n = self.length in
-  unsafeInitArray {E} n (
-    fn i => 
-    unsafeGetArray {E} self (n - i - 1))
+  unsafeInitArray {E} n
+    (fn i => unsafeGetArray {E} self (n - i - 1))
 
 {## Checks if any element of an array satisfies a condition.
 
@@ -510,9 +508,8 @@ pub method forall (self : ConstArray _) f =
   `f` must be pure.
 ##}
 pub method pureMap (self : ConstArray _) (f : _ ->[] _) =
-  pureInitConstArray self.length (
-    fn i =>
-      f (self.get i))
+  pureInitConstArray self.length
+    (fn i => f (self.get i))
 
 {## Creates a new immutable array from mapped elements of an immutable array.
 
