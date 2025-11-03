@@ -2,10 +2,10 @@
  # See LICENSE for details.
  #}
 
-## # Fist-class lazy values
+## # First-class lazy values
 
 {##
-  This module provides first-class lazy values, also known assuspensions,
+  This module provides first-class lazy values, also known as suspensions,
   representing deferred computations evaluated on demand.
 
   A suspension encapsulates a computation that is executed only when its
@@ -19,11 +19,11 @@
 # Mutability utilities
 data RefP = RefP of {Ref : type -> type}
 
-let RefP {Ref} = (extern dbl_abstrType : Unit -> RefP) ()
+let RefP {Ref} = (extern dbl_abstrType : Unit ->[IO] RefP) ()
 
-let ref {type X}    = (extern dbl_ref    : X -> Ref X)
-method get {type X} = (extern dbl_refGet : Ref X -> X)
-method set {type X} = (extern dbl_refSet : Ref X -> X -> Unit)
+let ref {type X}    = (extern dbl_ref    : X ->[] Ref X)
+method get {type X} = (extern dbl_refGet : Ref X ->[] X)
+method set {type X} = (extern dbl_refSet : Ref X -> X ->[] Unit)
 
 # Internal representation of lazy state
 data LazyState A =
@@ -31,15 +31,13 @@ data LazyState A =
   | Lock
   | Done of A
 
-{##
-  Represents a suspension.
- ##}
+{## Represents a suspension. ##}
 abstr data Lazy X = Lazy of Ref (LazyState X)
 
 {## Creates new suspension from a given computation. ##}
 pub let lazy {type X} (f : Unit ->[] X) = Lazy (ref (Thunk f))
 
-{## Initialized a lazy with a value directly. ##}
+{## Initializes a lazy with a value directly. ##}
 pub let pureLazy {type X} (v : X) = Lazy (ref (Done v))
 
 {##
