@@ -1,0 +1,158 @@
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
+
+import open /Lazy
+
+## # Lazy lists
+
+rec
+  ## Stream type.
+  abstr data Stream X = Stream of Lazy (Node X)
+  data Node X =
+    | Cons of X, Stream X
+    | Nil
+end
+
+method unstream (Stream xs) = xs
+
+{## Creates stream from given list. ##}
+pub let rec fromList xs = Stream (lazy (fn _ =>
+  match xs with
+  | x :: xs => Cons x (fromList xs)
+  | [] => Nil
+  end))
+
+{## Returns all elements of a stream as a list. ##}
+pub let rec toList (Stream xs) =
+  match xs.force with
+  | Cons x xs => x :: toList xs
+  | Nil       => []
+  end
+
+{## Creates an empty stream. ##}
+pub let mkEmpty () = Stream (pureLazy Nil)
+
+{## Checks if a stream is empty. ##}
+pub let isEmpty (Stream xs) = match xs.force with
+  | Nil => True
+  | _ => False
+  end
+
+{## Creates a stream from given element. ##}
+pub let singleton elem = Stream (pureLazy (Cons elem (mkEmpty ())))
+
+{## Adds an element to the head of a stream. ##}
+pub let cons
+  {X : type} 
+  (elem : X)
+  (tail : Stream X) =
+    Stream (pureLazy (Cons elem tail))
+
+{## Adds a deffered element to the head of a stream. ##}
+pub let lazyCons
+  {X : type}
+  (elem : Lazy X)
+  (tail : Stream X) =
+    Stream (lazy (fn _ => Cons elem.force tail))
+
+{##
+  Returns head and tail of a stream.
+  Returns `None` if stream is empty.
+ ##}
+pub let uncons (Stream xs) =
+  match xs.force with
+  | Nil => None
+  | Cons x xs => Some (x, xs)
+  end
+
+{##
+  Creates a new stream with mapped values.
+ ##}
+pub let rec map f (Stream xs) = Stream (lazy (fn _ =>
+  match xs.force with
+  | Cons x xs => Cons (f x) (map f xs)
+  | Nil => Nil
+  end))
+
+{## Appends two streams together. ##}
+pub let rec append (Stream xs) (ys : Stream _) = Stream (lazy (fn _ =>
+  match xs.force with
+  | Cons x xs => Cons x (append xs ys)
+  | Nil => ys.unstream.force
+  end))
+
+{## Performs monadic bind over a stream. ##}
+pub let rec bind f (Stream xs) = Stream (lazy (fn _ =>
+  match xs.force with
+  | Cons x xs => append (f x) (bind f xs) >.unstream >.force
+  | Nil => Nil
+  end))
+
+{##
+  Returns a longest prefix of a stream that satisfies given predicate
+ ##}
+pub let rec takeWhile f (Stream xs) = Stream (lazy (fn _ =>
+  match xs.force with
+  | Cons x xs =>
+    if f x then
+      Cons x (takeWhile f xs)
+    else
+      Nil
+  | Nil => Nil
+  end))
+
+{## Returns a st Stream with values that satisfies given predicate. ##}
+pub let rec filter f (Stream xs) = Stream (lazy (fn _ =>
+  match xs.force with
+  | Nil => Nil
+  | Cons x xs =>
+    if f x then
+      Cons x (filter f xs)
+    else
+      filter f xs >.unstream >.force
+  end))
+
+{##
+  Folds stream to a single value. Takes last element of as stream
+  as an initial accumulator. Calls `~onError` in case of an empty
+  stream.
+ ##}
+pub let rec foldRight1Err {~onError} f (Stream xs) =
+  let rec foldRight1ErrAux y (Stream xs) =
+    match xs.force with
+    | Nil => y
+    | Cons x xs =>
+        f y (foldRight1ErrAux x xs)
+    end in
+  match xs.force with
+  | Nil       => ~onError ()
+  | Cons x xs => foldRight1ErrAux x xs
+  end
+    
+{## Checks if all elements of given streams are equal pairwise. ##}
+pub method rec equal
+  { X : type
+  , method equal : X -> X ->> Bool }
+  ((Stream xs) : Stream X)
+  ((Stream ys) : Stream X) =
+    match (xs.force, ys.force) with
+    | Nil, Nil => True
+    | Cons x xs, Cons y ys =>
+      if x == y then
+        (xs : Stream X).equal ys
+      else
+        False
+    | _ => False
+    end
+
+parameter ~onError
+
+pub method toList = toList
+pub method uncons = uncons
+pub method map = flip map
+pub method add = append
+pub method bind = flip bind
+pub method filter = flip filter
+pub method foldRight1Err = flip foldRight1Err
+####}
