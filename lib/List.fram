@@ -61,16 +61,15 @@ pub let tlErr { ~onError } xs =
   was empty.
  ##}
 pub let dropLast xs =
-  let rec dropLastAux xs =
+  let rec dropLastAux y xs =
     match xs with
-    | []  => impossible ()
-    | [x] => []
-    | x :: xs => x :: dropLastAux xs
+    | []      => []
+    | x :: xs => y :: dropLastAux x xs
     end in
-  if isEmpty xs then
-    None
-  else
-    Some (dropLastAux xs)
+  match xs with
+  | x :: xs => Some (dropLastAux x xs)
+  | []      => None
+  end
 
 {##
   Returns the list without the last element or calls `~onError` if it already
@@ -79,16 +78,15 @@ pub let dropLast xs =
   @param ~onError Fallback function in case of an empty list.
  ##}
 pub let dropLastErr { ~onError } xs =
-  let rec dropLastAux xs =
+  let rec dropLastAux y xs =
     match xs with
-    | []  => impossible ()
-    | [x] => []
-    | x :: xs => x :: dropLastAux xs
+    | []      => []
+    | x :: xs => y :: dropLastAux x xs
     end in
-  if isEmpty xs then
-    ~onError ()
-  else
-    dropLastAux xs
+  match xs with
+  | x :: xs => dropLastAux x xs
+  | []      => ~onError ()
+  end
 
 {##
 Returns the n-th element of a list or `None` if n is negative or the list
@@ -120,13 +118,15 @@ pub let nthErr { ~onError } xs (n : Int) =
   Returns the last element of a list or None if the list is empty.
  ##}
 pub let last xs =
-  let rec lastAux xs =
+  let rec lastAux y xs =
     match xs with
-    | []      => None
-    | [x]     => Some x
-    | _ :: xs => lastAux xs
+    | []      => y
+    | x :: xs => lastAux x xs
     end in
-  lastAux xs
+  match xs with
+  | []      => None
+  | x :: xs => Some (lastAux x xs)
+  end
 
 {##
   Returns the last element of a list or calls `~onError` if list is empty.
@@ -134,13 +134,15 @@ pub let last xs =
   @param ~onError Fallback for an empty list.
  ##}
 pub let lastErr { ~onError } xs =
-  let rec lastErrAux xs =
+  let rec lastErrAux y xs =
     match xs with
-    | []      => ~onError ()
-    | [x]     => x
-    | _ :: xs => lastErrAux xs
+    | []      => y
+    | x :: xs => lastErrAux x xs
     end in
-  lastErrAux xs
+  match xs with
+  | []      => ~onError ()
+  | x :: xs => lastErrAux x xs
+  end
 
 {##
   Returns pair of combined results of `last` and `dropLast` functions,
@@ -148,18 +150,17 @@ pub let lastErr { ~onError } xs =
   `None` for an empty list.
  ##}
 pub let dropTakeLast xs =
-  let rec dropTakeLastAux xs =
+  let rec dropTakeLastAux y xs =
     match xs with
-    | []      => impossible ()
-    | [x]     => ([], x)
+    | []      => ([], y)
     | x :: xs =>
-      let (init, last) = dropTakeLastAux xs in
-      (x :: init, last)
+      let (init, last) = dropTakeLastAux x xs in
+      (y :: init, last)
     end in
-  if isEmpty xs then
-    None
-  else
-    Some (dropTakeLastAux xs)
+  match xs with
+  | []      => None
+  | x :: xs => Some (dropTakeLastAux x xs)
+  end
 
 {##
   Returns pair of combined results of `last` and `dropLast` functions,
@@ -169,18 +170,17 @@ pub let dropTakeLast xs =
   @param ~onError Fallback for an empty list.
  ##}
 pub let dropTakeLastErr { ~onError } xs =
-  let rec dropTakeLastErrAux xs =
+  let rec dropTakeLastErrAux y xs =
     match xs with
-    | []      => impossible ()
-    | [x]     => ([], x)
+    | []      => ([], y)
     | x :: xs =>
-      let (init, last) = dropTakeLastErrAux xs in
-      (x :: init, last)
+      let (init, last) = dropTakeLastErrAux x xs in
+      (y :: init, last)
     end in
-  if isEmpty xs then
-    ~onError ()
-  else
-    dropTakeLastErrAux xs
+  match xs with
+  | []      => ~onError ()
+  | x :: xs => dropTakeLastErrAux x xs
+  end
 
 ## Appends `ys` to `xs`.
 pub let rec append xs ys =
@@ -450,7 +450,7 @@ pub let rec foldLeft1 f xs =
  ##}
 pub let rec foldLeft1Err { ~onError } f xs =
   match xs with
-  | [] => ~onError ()
+  | []      => ~onError ()
   | x :: xs => foldLeft f x xs
   end
 
@@ -466,16 +466,15 @@ pub let rec foldRight f xs acc =
   Returns `None` for an empty list.
  ##}
 pub let foldRight1 f xs =
-  let rec foldRight1Aux xs =
+  let rec foldRight1Aux y xs =
     match xs with
-    | x :: y :: [] => f x y
-    | x :: xs      => f x (foldRight1Aux xs)
-    | _            => impossible ()
+    | []      => y
+    | x :: xs => f y (foldRight1Aux x xs)
     end in
-  if isEmpty xs then
-    None
-  else
-    Some (foldRight1Aux xs)
+  match xs with
+  | x :: xs => Some (foldRight1Aux x xs)
+  | []      => None
+  end
 
 {##
   `foldRight f [x1, x2, ..., xn]` is `f x1 (... (f x(n-1) xn)))`.
@@ -484,16 +483,15 @@ pub let foldRight1 f xs =
   @param ~onError Fallback for an empty list.
  ##}
 pub let foldRight1Err { ~onError } f xs =
-  let rec foldRight1ErrAux xs =
+  let rec foldRight1ErrAux y xs =
     match xs with
-    | x :: y :: [] => f x y
-    | x :: xs      => f x (foldRight1ErrAux xs)
-    | _            => impossible ()
+    | []      => y
+    | x :: xs => f y (foldRight1ErrAux x xs)
     end in
-  if isEmpty xs then
-    ~onError ()
-  else
-    foldRight1ErrAux xs
+  match xs with
+  | x :: xs => foldRight1ErrAux x xs
+  | []      => ~onError ()
+  end
 
 {##
   `foldLeft2 f init xs ys` works the same as `List.foldLeft` but `f` is
