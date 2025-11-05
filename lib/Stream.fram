@@ -4,7 +4,16 @@
 
 import open /Lazy
 
-## # Lazy lists
+## # Stream module
+
+{##
+  This module provides lazy lists, also known as streams.
+  Each and every node of a stream is deffered, meaniung that
+  no computation occurs unless results are forcibly read.
+
+  Contrary to regular lists, streams may be infinite. Some iterative
+  functions may never terminate!
+ ##}
 
 rec
   ## Stream type.
@@ -20,7 +29,7 @@ method unstream (Stream xs) = xs
 pub let rec fromList xs = Stream (lazy (fn _ =>
   match xs with
   | x :: xs => Cons x (fromList xs)
-  | [] => Nil
+  | []      => Nil
   end))
 
 {## Returns all elements of a stream as a list. ##}
@@ -30,13 +39,26 @@ pub let rec toList (Stream xs) =
   | Nil       => []
   end
 
+{##
+  Initializes lazy stream by iteratively applying function `f` on previous results.
+
+  This function may generate infinite stream.
+ ##}
+pub let rec init {X : type, Y : type}
+  (seed : X) (f : X ->[] Option (Pair Y X)) = (Stream (lazy (fn _ =>
+    match f seed with
+    | None             => Nil
+    | Some (val, seed) => Cons val (init seed f)
+    end)) : Stream Y)
+
 {## Creates an empty stream. ##}
-pub let mkEmpty () = Stream (pureLazy Nil)
+pub let mkEmpty {X : type} () = (Stream (pureLazy Nil) : Stream X)
 
 {## Checks if a stream is empty. ##}
-pub let isEmpty (Stream xs) = match xs.force with
+pub let isEmpty (Stream xs) =
+  match xs.force with
   | Nil => True
-  | _ => False
+  | _   => False
   end
 
 {## Creates a stream from given element. ##}
@@ -62,7 +84,7 @@ pub let lazyCons
  ##}
 pub let uncons (Stream xs) =
   match xs.force with
-  | Nil => None
+  | Nil       => None
   | Cons x xs => Some (x, xs)
   end
 
@@ -72,21 +94,21 @@ pub let uncons (Stream xs) =
 pub let rec map f (Stream xs) = Stream (lazy (fn _ =>
   match xs.force with
   | Cons x xs => Cons (f x) (map f xs)
-  | Nil => Nil
+  | Nil       => Nil
   end))
 
 {## Appends two streams together. ##}
 pub let rec append (Stream xs) (ys : Stream _) = Stream (lazy (fn _ =>
   match xs.force with
   | Cons x xs => Cons x (append xs ys)
-  | Nil => ys.unstream.force
+  | Nil       => ys.unstream.force
   end))
 
 {## Performs monadic bind over a stream. ##}
 pub let rec bind f (Stream xs) = Stream (lazy (fn _ =>
   match xs.force with
   | Cons x xs => append (f x) (bind f xs) >.unstream >.force
-  | Nil => Nil
+  | Nil       => Nil
   end))
 
 {##
@@ -105,7 +127,7 @@ pub let rec takeWhile f (Stream xs) = Stream (lazy (fn _ =>
 {## Returns a st Stream with values that satisfies given predicate. ##}
 pub let rec filter f (Stream xs) = Stream (lazy (fn _ =>
   match xs.force with
-  | Nil => Nil
+  | Nil       => Nil
   | Cons x xs =>
     if f x then
       Cons x (filter f xs)
@@ -114,14 +136,23 @@ pub let rec filter f (Stream xs) = Stream (lazy (fn _ =>
   end))
 
 {##
+  Folds stream to a single value.
+ ##}
+pub let rec foldRight f (Stream xs) acc =
+  match xs.force with
+  | Cons x xs => f x (foldRight f xs acc)
+  | Nil       => acc
+  end
+
+{##
   Folds stream to a single value. Takes last element of as stream
   as an initial accumulator. Calls `~onError` in case of an empty
   stream.
  ##}
-pub let rec foldRight1Err {~onError} f (Stream xs) =
+pub let foldRight1Err {~onError} f (Stream xs) =
   let rec foldRight1ErrAux y (Stream xs) =
     match xs.force with
-    | Nil => y
+    | Nil       => y
     | Cons x xs =>
         f y (foldRight1ErrAux x xs)
     end in
@@ -131,20 +162,21 @@ pub let rec foldRight1Err {~onError} f (Stream xs) =
   end
     
 {## Checks if all elements of given streams are equal pairwise. ##}
-pub method rec equal
-  { X : type
-  , method equal : X -> X ->> Bool }
-  ((Stream xs) : Stream X)
-  ((Stream ys) : Stream X) =
-    match (xs.force, ys.force) with
-    | Nil, Nil => True
-    | Cons x xs, Cons y ys =>
-      if x == y then
-        (xs : Stream X).equal ys
-      else
-        False
-    | _ => False
-    end
+pub let equal
+  {X, method equal : X -> X ->[] Bool}
+  (xs : Stream X)
+  (ys : Stream X) =
+    let rec equalAux ((Stream xs) : Stream X) ((Stream ys) : Stream X) =
+      match (xs.force, ys.force) with
+      | Nil, Nil => True
+      | Cons x xs, Cons y ys =>
+        if x == y then
+          equalAux (xs : Stream X) ys
+        else
+          False
+      | _ => False
+    end in
+  equalAux xs ys
 
 parameter ~onError
 
@@ -154,5 +186,6 @@ pub method map = flip map
 pub method add = append
 pub method bind = flip bind
 pub method filter = flip filter
+pub method foldRight xs f acc = foldRight f xs acc
 pub method foldRight1Err = flip foldRight1Err
-####}
+pub method equal = equal

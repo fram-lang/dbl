@@ -1,0 +1,72 @@
+import List
+import Stream
+
+let _ = assert {msg="fromList > toList"}
+ (let xs = [1, 2, 3, 4] in
+  xs == Stream.toList (Stream.fromList xs))
+
+let _ = assert {msg="toList > fromList"}
+ (let xs = Stream.cons 10 (Stream.cons 20 (Stream.mkEmpty ())) in
+  xs == Stream.fromList (Stream.toList xs))
+
+let _ =
+  let f x = if 2 == x then None else Some (x, 1 + x) in
+  assert {msg="init"}
+    (Stream.fromList [0, 1] == Stream.init 0 f)
+
+let _ = assert {msg="isEmpty"} (Stream.isEmpty (Stream.mkEmpty {X=Int} ()))
+let _ = assert {msg="isEmpty"} (not (Stream.isEmpty (Stream.fromList [1])))
+
+let _ = assert {msg="singleton"} (Stream.singleton 1 == Stream.fromList [1])
+
+let _ = assert {msg="cons"}
+  (Stream.cons 3 (Stream.fromList [2, 1]) == Stream.fromList [3, 2, 1])
+
+let _ = assert {msg="uncons"}
+  match Stream.uncons (Stream.fromList [1, 2, 3]) with
+  | Some (x, _) => 1 == x
+  | None        => False
+  end
+let _ = assert {msg="uncons"}
+  match Stream.uncons (Stream.mkEmpty {X=Int} ()) with
+  | None => True
+  | _    => False
+  end
+
+let _ = assert {msg="map"}
+  (Stream.fromList ["1", "2"]
+  == Stream.map (fn x => (x : Int).toString) (Stream.fromList [1, 2]))
+
+let _ = assert {msg="append"}
+  (Stream.append (Stream.fromList [1, 2, 3]) (Stream.fromList [4, 5, 6])
+  == Stream.fromList [1, 2, 3, 4, 5, 6])
+
+let _ = assert {msg="bind"}
+  (Stream.fromList [1, 2, 3] >.bind (fn (x : Int) => Stream.fromList [x + 1, x - 1])
+  == Stream.fromList [2, 0, 3, 1, 4, 2])
+
+let _ = assert {msg="takeWhile"}
+  (Stream.takeWhile (fn (x : Int) => x <= 2) (Stream.fromList [1, 2, 3, 4, 1])
+  == Stream.fromList [1, 2])
+
+let _ = assert {msg="filter"}
+  (Stream.filter (fn (x : Int) => x <= 2) (Stream.fromList [1, 2, 3, 4, 1])
+  == Stream.fromList [1, 2, 1])
+
+let _ = assert {msg="foldRight"}
+  (Stream.foldRight (fn (x : Int) y => x + y) (Stream.fromList [1, 2, 3, 4]) 0
+  == 10)
+
+let _ = assert {msg="foldRight1Err"}
+  (Stream.foldRight1Err {~onError = fn _ => 42}
+    (fn (x : Int) y => x + y) (Stream.fromList [1, 2, 3, 4])
+  == 10)
+let _ = assert {msg="foldRight1Err"}
+  (Stream.foldRight1Err {~onError = fn _ => 42}
+    (fn (x : Int) y => x + y) (Stream.mkEmpty {X=Int} ())
+  == 42)
+
+let _ = assert {msg="equal"}
+  (Stream.equal (Stream.fromList [1, 2, 3]) (Stream.fromList [1, 2, 3]))
+let _ = assert {msg="equal"}
+  (not (Stream.equal (Stream.fromList [1, 2, 3]) (Stream.fromList [4, 5, 6])))

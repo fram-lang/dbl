@@ -35,7 +35,7 @@ data LazyState A =
 abstr data Lazy X = Lazy of Ref (LazyState X)
 
 {## Creates new suspension from a given computation. ##}
-pub let lazy {type X} (f : Unit ->[] X) = (Lazy (ref (Thunk f)) : Lazy X)
+pub let lazy {type X} (f : Unit ->[] X) = Lazy (ref (Thunk f))
 
 {## Initializes a lazy with a value directly. ##}
 pub let pureLazy {type X} (v : X) = Lazy (ref (Done v))
