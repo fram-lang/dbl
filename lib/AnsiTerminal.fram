@@ -1,0 +1,156 @@
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
+
+## # Ansi terminal commands
+
+{##
+  Module provides a wide variety of ANSI excape codes for
+  terminal manipulation.
+ ##}
+
+## Character that initializes terminal command.
+pub let esc = '\x1b'
+## String that precceds any terminal command.
+pub let (csi : String) =  "\x1b["
+
+## Sub-module with cursor related functionality.
+pub module Cursor
+  ## Moves cursor to the beginning of the line.
+  pub let moveHome = csi + "H"
+
+  ## Moves cursor to the specified line and column.
+  pub let moveTo (line : Int) (col : Int) = 
+    csi + line.toString + ";" + col.toString + "H"
+
+  let move (n : Option Int) (dir : String) = 
+    match n with 
+    | None => csi + dir
+    | Some n => 
+     (assert (n > 0);
+      csi + n.toString + dir)
+    end
+
+  ## Moves cursor up by at least 1 line.
+  pub let moveUp    {?n : Int} () = move n "A"
+  ## Moves cursor down by at least 1 line.
+  pub let moveDown  {?n : Int} () = move n "B"
+  ## Moves cursor right by at least 1 column.
+  pub let moveRight {?n : Int} () = move n "C"
+  ## Moves cursot left by at least 1 column.
+  pub let moveLeft  {?n : Int} () = move n "D"
+
+  ## Moves cursor down by at least 1 line and puts it at the begging of line
+  pub let moveDownHome {?n : Int} () = move n "E"
+  ## Moves cursor up by at least 1 line and puts it at th the begging of line
+  pub let moveUpHome   {?n : Int} () = move n "F"
+
+  ## Cursor position request. Response will appear in stdin buffer.
+  pub let requestPosition = csi + "6n"
+
+  ## Saves current position.
+  pub let savePosition    = csi + "s"
+  ## Restores cursor position.
+  pub let restorePosition = csi + "u"
+end
+
+## Sub-module with various clearing functionality
+module Erase
+  ## Erases display.
+  pub let eraseDisplay    = csi + "J"
+  ## Erases from cursor until the end of a screen.
+  pub let eraseEndScreen  = csi + "0J"
+  ## Erases from cursor to the beginning of a screen.
+  pub let eraseBegScreen  = csi + "1J"
+  ## Erases entire screen.
+  pub let eraseScreen     = csi + "2J"
+  ## Erases saved lines.
+  pub let eraseSavedLines = csi + "3J"
+
+  ## Eareses in line.
+  pub let eraseInLine  = csi + "K"
+  ## Erases from cursor until end of a line.
+  pub let eraseEndLine = csi + "0K"
+  ## Eraases from cursor to the beggining of a line.
+  pub let eraseBegLine = csi + "1K"
+  ## Erases entire line.
+  pub let eraseLine    = csi + "2K"
+end
+
+pub module Font
+  ## Generic set mode function.
+  pub let setMode reset flag =
+    if not reset then
+      csi + flag + "m"
+    else
+      csi + "2" + flag + "m"
+
+  ## Resets style
+  pub let resetAll = setMode False "0"
+
+  ## Sets bold option
+  pub let setBoldMode   = setMode False "1"
+  ## Resets bold option
+  pub let resetBoldMode = setMode True "1"
+
+  ## Sets underline option
+  pub let setUnderline   = setMode False 4.toString
+  ## Resets underline option
+  pub let resetUnderline = setMode True  4.toString
+
+  ## Sets strikeour option
+  pub let setStrikeout   = setMode False 9.toString
+  ## Reset strikeous option
+  pub let resetStrikeout = setMode True  9.toString
+
+  ## Supported colors
+  pub data Color =
+    | Black
+    | Red
+    | Green
+    | Yellow
+    | Blue
+    | Magenta
+    | Cyan
+    | White
+
+  ## Idx of color
+  pub method colorCode cl = 
+    match cl with
+    | Black   => 0
+    | Red     => 1
+    | Green   => 2
+    | Yellow  => 3
+    | Blue    => 4
+    | Magenta => 5
+    | Cyan    => 6
+    | White   => 7
+    end
+
+  ## Sets foreground color
+  pub let setFgColor (cl : Color) = setMode False ((cl.colorCode + 30 : Int) >. toString)
+  ## Sets background colot
+  pub let setBgColor (cl : Color) = setMode False ((cl.colorCode + 40 : Int) >. toString)
+
+  ## Sets default foreground color
+  let setDflFgColor = setMode False (39.toString)
+  ## Sets default background color
+  let setDflBgColor = setMode False (49.toString)
+end
+
+pub module Buffering
+  ## Makes cursor visible
+  pub let cursorVisible   = csi + "?25l"
+  ## Makes cursor invisilble
+  pub let cursorInvisible = csi + "?25h"
+
+  ## Restores screen from buffer
+  pub let restoreScreen = csi + "?47l"
+  ## Stores screen to buffer
+  pub let saveScreen    = csi + "?47h"
+
+  ## Enables alternative buffer
+  pub let enableAltBuffer  = csi + "?1049h"
+  ## Disables alternative buffer
+  pub let disableAltBuffer = csi + "?1049l"
+end
