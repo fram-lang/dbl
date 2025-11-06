@@ -282,7 +282,7 @@ effect_label_opt
 
 effect_resumption_opt
 : /* empty */ { None    }
-| SLASH expr  { Some $2 }
+| SLASH LID { Some (make (EVar $2)) }
 ;
 
 effect_var_opt
@@ -485,6 +485,9 @@ field
 | UID                   { make (FldType($1, None))    }
 | UID EQ ty_expr        { make (FldTypeVal($1, $3))   }
 | UID COLON kind_expr   { make (FldType($1, Some $3)) }
+| name expr_250_list1 EQ expr_no_comma { make (FldNameFn($1, $2, $4)) }
+| effect_label_opt KW_EFFECT name expr_250_list1 effect_resumption_opt EQ expr_no_comma
+    { make (FldNameEffectFn($3, $1, $4, $5, $7)) }
 | name                  { make (FldName $1)           }
 | name EQ expr_no_comma { make (FldNameVal($1, $3))   }
 | name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
