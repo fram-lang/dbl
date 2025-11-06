@@ -282,7 +282,7 @@ effect_label_opt
 
 effect_resumption_opt
 : /* empty */ { None    }
-| SLASH LID { Some (make (EVar $2)) }
+| SLASH expr_simple  { Some $2 }
 ;
 
 effect_var_opt
