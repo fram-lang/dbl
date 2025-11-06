@@ -1,0 +1,12 @@
+data BT E = 
+  { flip : Unit ->[E] Bool
+  , fail : {type X} -> Unit ->[E] X
+  }
+
+let fun1 {E} (s : BT E) =
+	s.fail ()
+
+let _ = handle ~bt = BT
+  { effect flip () / r = r True; r False
+  , effect fail () = ()
+  } in fun1 ~bt
