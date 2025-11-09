@@ -1,0 +1,93 @@
+import open /Base/Types
+import open /Base/Int
+import open /Base/Char
+import open /Base/String
+import open /Base/Option
+import open /Base/Int64
+import open /Base/Operators
+
+parameter X
+parameter Y
+parameter method show : {?prec : Int} -> X ->> String
+parameter method show : {?prec : Int} -> Y ->> String
+
+let paren {at : Int, ?prec : Int} (s : String) =
+  if prec.unwrapOr 0 > at then
+    "(" + s + ")"
+  else
+    s
+
+## ## Unit
+
+pub method show {?prec : Int} () = "()"
+
+## ## Int
+
+pub method show {?prec : Int} (self : Int) =
+  if prec.unwrapOr 0 > 150 && self < 0 then
+    "(" + self.toString + ")"
+  else
+    self.toString
+
+## ## Int64
+
+pub method show {?prec : Int} (self : Int64) =
+  if prec.unwrapOr 0 > 150 && self < 0L then
+    "(" + self.toString + "L)"
+  else
+    self.toString + "L"
+
+## ## Bool
+
+pub method show {?prec : Int} self =
+  if self then
+    "True"
+  else
+    "False"
+
+## ## Char
+
+pub method show {?prec : Int} (self : Char) =
+  "'" + self.escape + "'"
+
+## ## String
+
+pub method show {?prec : Int} (self : String) =
+  "\"" + self.escape + "\""
+
+## ## List
+
+pub method show {?prec : Int} (self : List X) =
+  let rec iter (xs : List X) =
+    match xs with
+    | [] => "]"
+    | [x] => x.show {prec=31} + "]"
+    | x :: xs => x.show {prec=31} + ", " + iter xs
+    end in
+  "[" + iter self
+
+## ## Option
+
+pub method show {?prec : Int} (self : Option X) =
+  match self with
+  | None   => "None"
+  | Some x => paren {at=200, ?prec} ("Some " + x.show {prec=200})
+  end
+
+## ## Pair
+
+pub method show {?prec : Int} ((x, y) : Pair X Y) =
+  let s = x.show {prec=30} + ", " + y.show {prec=31} in
+  match prec with
+  | None   => "(" + s + ")"
+  | Some _ => paren {at=30, ?prec} s
+  end
+
+## ## Either
+
+pub method show {?prec : Int} (self : Either X Y) =
+  paren {at=200, ?prec}
+    match self with
+    | Left x  => "Left "  + x.show {prec=200}
+    | Right y => "Right " + y.show {prec=200}
+    end
