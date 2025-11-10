@@ -71,7 +71,7 @@ pub method show {?prec : Int} (self : List X) =
 pub method show {?prec : Int} (self : Option X) =
   match self with
   | None   => "None"
-  | Some x => paren {at=200, ?prec} ("Some " + x.show {prec=200})
+  | Some x => paren {at=200, ?prec} ("Some " + x.show {prec=201})
   end
 
 ## ## Pair
@@ -88,6 +88,6 @@ pub method show {?prec : Int} ((x, y) : Pair X Y) =
 pub method show {?prec : Int} (self : Either X Y) =
   paren {at=200, ?prec}
     match self with
-    | Left x  => "Left "  + x.show {prec=200}
-    | Right y => "Right " + y.show {prec=200}
+    | Left x  => "Left "  + x.show {prec=201}
+    | Right y => "Right " + y.show {prec=201}
     end

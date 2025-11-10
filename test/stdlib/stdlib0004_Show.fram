@@ -66,6 +66,8 @@ let _ =
   assert ((Some (-7) : Option Int).show == "Some (-7)");
   assert ((Some (-8) : Option Int).show {prec=200} == "Some (-8)");
   assert ((Some ()   : Option Unit).show {prec=201} == "(Some ())");
+  assert ((Some (Some 42) : Option (Option Int)).show
+    == "Some (Some 42)");
   ()
 
 # Pair
@@ -90,4 +92,8 @@ let _ =
   assert ((Left 42    : Either Int String).show {prec=201} == "(Left 42)");
   assert ((Right "ok" : Either Int String).show {prec=200} == "Right \"ok\"");
   assert ((Right "ok" : Either Int String).show {prec=201} == "(Right \"ok\")");
+  assert ((Left (Some 1) : Either (Option Int) String).show
+    == "Left (Some 1)");
+  assert ((Right (Some "yes") : Either Int (Option String)).show
+    == "Right (Some \"yes\")");
   ()
