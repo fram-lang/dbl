@@ -35,7 +35,8 @@ pub method ashiftr = (extern dbl_asrInt64 : Int64 -> Int64 -> Int64)
 pub method succ (self : Int64) = self + 1L
 pub method pred (self : Int64) = self - 1L
 
-pub method toString = (extern dbl_int64ToString : Int64 -> String)
+pub method toString {?fmt : Unit} =
+  (extern dbl_int64ToString : Int64 -> String)
 
 pub method toIntErr { ~onError } (self : Int64) =
   if self <= Int.maxValue.toInt64 && self >= Int.minValue.toInt64 then

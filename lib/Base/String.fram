@@ -34,3 +34,5 @@ pub method toList (self : String) =
 
   Additional quotes are not added around the string. ##}
 pub method escape = (extern dbl_strEscape : String -> String)
+
+pub method toString {?fmt : Unit} (self : String) = self

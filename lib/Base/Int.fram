@@ -6,7 +6,7 @@ import open Types
 import open Operators
 import open Assert
 
-pub method toString = (extern dbl_intToString : Int -> String)
+pub method toString {?fmt : Unit} = (extern dbl_intToString : Int -> String)
 
 pub method toInt64  = (extern dbl_intToInt64 : Int -> Int64)
 
