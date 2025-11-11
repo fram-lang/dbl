@@ -264,7 +264,7 @@ let check_def : type st dir. tcfix:tcfix ->
     let expr   = infer_expr_type body_env e in
     let cs     = ConstrSolve.solve_partial expr.er_constr in
     let tp     = expr_result_type expr in
-    let to_str = ReplUtils.to_string_expr ~tcfix ~pos:e.pos env tp in
+    let to_str = ReplUtils.show_expr ~tcfix ~pos:e.pos env tp in
     ParamGen.end_generalize_impure params (T.Type.uvars tp);
     let rest = cont.run env req in
     { er_expr   = make rest (T.EReplExpr
