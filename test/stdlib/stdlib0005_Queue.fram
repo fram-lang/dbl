@@ -1,0 +1,24 @@
+import Queue
+import Prelude
+import List
+
+let compare (x : Int) (y : Int) = x == y
+let get_val x = 
+match x with
+| Some x => x
+| _ => -1
+end
+
+let x = Queue.emptyQueue
+let x = x.push 1
+let _ = assert {msg="Failed push"} 
+  (x.isEmpty == False && compare (get_val x.head) 1) 
+let x = x.pop
+let _ = assert {msg="Failed isEmpty"} x.isEmpty 
+let x = x >. push 1 >. push 2 >. push 3
+let _ = assert {msg="Failed head and pop"}
+  (x.isEmpty == False && compare (get_val x.head) 1 && 
+  compare (get_val (x.pop >. head)) 2 && 
+  compare (get_val (x.pop >. pop >. head)) 3) 
+let x = Queue.fromList [1,2,3]
+let _ = assert {msg="Failed toList and fromList"} (x.toList == [1,2,3]) 

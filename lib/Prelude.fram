@@ -48,3 +48,4 @@ pub module Int64
   pub let one  = 1L
   pub let ofInt (n : Int) = n.toInt64
 end
+
