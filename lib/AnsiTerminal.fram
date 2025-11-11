@@ -5,18 +5,21 @@
 ## # Ansi terminal commands
 
 {##
-  Module provides a wide variety of ANSI excape codes for
-  terminal manipulation.
+  Module provides a wide variety of ANSI excape codes
+  for terminal control and text styling.
  ##}
 
-## Character that initializes terminal command.
+## Character that initializes a terminal command.
 pub let esc = '\x1b'
-## String that precceds any terminal command.
-pub let (csi : String) =  "\x1b["
+{##
+  String that preceds any terminal command.
+  Reffered to as "Control Sequence Introducer".
+ ##}
+pub let csi = "\x1b["
 
-## Sub-module with cursor related functionality.
+## Submodule for cursor related functionality.
 pub module Cursor
-  ## Moves cursor to the beginning of the line.
+  ## Moves the cursor to the beginning of the line.
   pub let moveHome = csi + "H"
 
   ## Moves cursor to the specified line and column.
@@ -27,83 +30,93 @@ pub module Cursor
     match n with 
     | None => csi + dir
     | Some n => 
-     (assert (n > 0);
-      csi + n.toString + dir)
+      if n <= 0
+        then ""
+        else csi + n.toString + dir
     end
 
-  ## Moves cursor up by at least 1 line.
+  ## Moves the cursor up by at least 1 line.
   pub let moveUp    {?n : Int} () = move n "A"
-  ## Moves cursor down by at least 1 line.
+  ## Moves the cursor down by at least 1 line.
   pub let moveDown  {?n : Int} () = move n "B"
-  ## Moves cursor right by at least 1 column.
+  ## Moves the cursor right by at least 1 column.
   pub let moveRight {?n : Int} () = move n "C"
-  ## Moves cursot left by at least 1 column.
+  ## Moves the cursor left by at least 1 column.
   pub let moveLeft  {?n : Int} () = move n "D"
 
-  ## Moves cursor down by at least 1 line and puts it at the begging of line
+  {##
+    Moves the cursor down by at least 1 line and places
+    it at the beginning of line.
+   ##}
   pub let moveDownHome {?n : Int} () = move n "E"
-  ## Moves cursor up by at least 1 line and puts it at th the begging of line
+  {##
+    Moves cursor up by at least 1 line and places it at the beginning of line.
+   ##}
   pub let moveUpHome   {?n : Int} () = move n "F"
 
-  ## Cursor position request. Response will appear in stdin buffer.
+  ## Requests cursor position.
   pub let requestPosition = csi + "6n"
 
-  ## Saves current position.
+  ## Saves the current cursor position.
   pub let savePosition    = csi + "s"
-  ## Restores cursor position.
+  ## Restores the current cursor position.
   pub let restorePosition = csi + "u"
 end
 
-## Sub-module with various clearing functionality
+## Submodule for clearing and erasing terminal constent.
 module Erase
-  ## Erases display.
+  ## Erases the display.
   pub let eraseDisplay    = csi + "J"
-  ## Erases from cursor until the end of a screen.
+  ## Erases from the cursor to the end of the screen.
   pub let eraseEndScreen  = csi + "0J"
-  ## Erases from cursor to the beginning of a screen.
+  ## Erases from the cursor to the beginning of the screen.
   pub let eraseBegScreen  = csi + "1J"
-  ## Erases entire screen.
+  ## Erases the entire screen.
   pub let eraseScreen     = csi + "2J"
   ## Erases saved lines.
   pub let eraseSavedLines = csi + "3J"
 
-  ## Eareses in line.
+  ## Eareses within the current line.
   pub let eraseInLine  = csi + "K"
-  ## Erases from cursor until end of a line.
+  ## Erases from the cursor to end of the line.
   pub let eraseEndLine = csi + "0K"
-  ## Eraases from cursor to the beggining of a line.
+  ## Eraases from the cursor to the beggining of the line.
   pub let eraseBegLine = csi + "1K"
-  ## Erases entire line.
+  ## Erases the entire line.
   pub let eraseLine    = csi + "2K"
 end
 
+## Submodule for font and color control.
 pub module Font
-  ## Generic set mode function.
+  {##
+    Generic text style control function.
+    If `reset` is `True`, resets the given flag.
+   ##}
   pub let setMode reset flag =
     if not reset then
       csi + flag + "m"
     else
       csi + "2" + flag + "m"
 
-  ## Resets style
+  ## Resets all text styles.
   pub let resetAll = setMode False "0"
 
-  ## Sets bold option
+  ## Enables bold text.
   pub let setBoldMode   = setMode False "1"
-  ## Resets bold option
+  ## Disables bold text.
   pub let resetBoldMode = setMode True "1"
 
-  ## Sets underline option
-  pub let setUnderline   = setMode False 4.toString
-  ## Resets underline option
-  pub let resetUnderline = setMode True  4.toString
+  ## Enables underlined text.
+  pub let setUnderline   = setMode False "4"
+  ## Disables underlined text.
+  pub let resetUnderline = setMode True  "4"
 
-  ## Sets strikeour option
-  pub let setStrikeout   = setMode False 9.toString
-  ## Reset strikeous option
-  pub let resetStrikeout = setMode True  9.toString
+  ## Enables strikethrough text.
+  pub let setStrikeout   = setMode False "9"
+  ## Disables strikethrough text.
+  pub let resetStrikeout = setMode True  "9"
 
-  ## Supported colors
+  ## Supported color values.
   pub data Color =
     | Black
     | Red
@@ -114,7 +127,7 @@ pub module Font
     | Cyan
     | White
 
-  ## Idx of color
+  ## Returns the numeric ANSI color code for a given color.
   pub method colorCode cl = 
     match cl with
     | Black   => 0
@@ -127,30 +140,33 @@ pub module Font
     | White   => 7
     end
 
-  ## Sets foreground color
-  pub let setFgColor (cl : Color) = setMode False ((cl.colorCode + 30 : Int) >. toString)
-  ## Sets background colot
-  pub let setBgColor (cl : Color) = setMode False ((cl.colorCode + 40 : Int) >. toString)
+  ## Sets the foreground color.
+  pub let setFgColor (cl : Color) =
+    setMode False ((cl.colorCode + 30 : Int) >.toString)
+  ## Sets the background color.
+  pub let setBgColor (cl : Color) =
+    setMode False ((cl.colorCode + 40 : Int) >.toString)
 
-  ## Sets default foreground color
-  let setDflFgColor = setMode False (39.toString)
-  ## Sets default background color
-  let setDflBgColor = setMode False (49.toString)
+  ## Sets the default foreground color.
+  let setDflFgColor = setMode False "39"
+  ## Sets the default background color.
+  let setDflBgColor = setMode False "49"
 end
 
+## Submodule for screen buffering and cursor visibility control.
 pub module Buffering
-  ## Makes cursor visible
-  pub let cursorVisible   = csi + "?25l"
-  ## Makes cursor invisilble
-  pub let cursorInvisible = csi + "?25h"
+  ## Makes the cursor visible.
+  pub let cursorVisible   = csi + "?25h"
+  ## Makes the cursor invisible.
+  pub let cursorInvisible = csi + "?25l"
 
-  ## Restores screen from buffer
+  ## Restores the screen from the buffer.
   pub let restoreScreen = csi + "?47l"
-  ## Stores screen to buffer
+  ## Stores the screen to the buffer.
   pub let saveScreen    = csi + "?47h"
 
-  ## Enables alternative buffer
+  ## Enables the alternative screen buffer.
   pub let enableAltBuffer  = csi + "?1049h"
-  ## Disables alternative buffer
+  ## Disables the alternative screen buffer.
   pub let disableAltBuffer = csi + "?1049l"
 end
