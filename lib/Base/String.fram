@@ -30,4 +30,7 @@ pub method toList (self : String) =
       iter (n - 1) (getChar self (n - 1) :: acc) 
   in iter self.length []
 
-pub method toString = (extern dbl_strRepr : String -> String)
+{## Escapes special characters in a string.
+
+  Additional quotes are not added around the string. ##}
+pub method escape = (extern dbl_strEscape : String -> String)
