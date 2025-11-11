@@ -62,6 +62,6 @@ val resolve_implicit :
   visible in the interface because it is used by the constraint solver.
   Do not use it directly. *)
 val resolve_method :
-  ?vset:Var.Set.t ->
+  ?vset:int Var.Map.t ->
   pos:Position.t -> 'st Env.t -> ?method_env:'st Env.t ->
     S.method_name -> T.scheme -> T.poly_fun * Constr.t list
