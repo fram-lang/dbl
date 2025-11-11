@@ -51,8 +51,11 @@ pub module Int64
   pub let ofInt (n : Int) = n.toInt64
 end
 
-pub let max (x : Int) (y : Int) =
-  if x > y then x else y
+pub let max {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
+  if y < x then x else y
+
+pub let min {T, method gt : T -> T ->> Bool} (x : T) (y : T) =
+  if x > y then y else x
 
 ## Concatenates list of strings in linear time
 pub let strListCat = extern dbl_strListCat : List String -> String
