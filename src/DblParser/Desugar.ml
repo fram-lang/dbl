@@ -63,6 +63,7 @@ let scheme_wildcard pos =
 module RawTypes = struct
   let unit = Raw.TVar(with_nowhere (NPName "Unit"), None)
   let bool = Raw.TVar(with_nowhere (NPName "Bool"), None)
+  let string = Raw.TVar(with_nowhere (NPName "String"), None)
 end
 
 type ty_def =
@@ -71,7 +72,7 @@ type ty_def =
 
 type let_pattern =
   | LP_Id of ident
-    (** identifier *)
+    (** Identifier *)
 
   | LP_Fun of ident * Raw.expr list
     (** Function definition with list of formal type, named, and explicit
@@ -81,8 +82,8 @@ type let_pattern =
     (** Let definition with pattern-matching *)
 
 (** Apply function [f] to each element of [xs]. Function [f] returns elements
-  of [Either.t] type, that describes on which list the result should be put.
-  It warns, when elements of the right list appear before some element of the
+  of [Either.t] type that describe on which list the result should be put.
+  It warns when elements of the right list appear before some element of the
   left list using [warn] function. *)
 let rec map_either ~warn f xs =
   match xs with
@@ -262,7 +263,7 @@ let tr_ctor_decl (d : Raw.ctor_decl) =
 
 (* ========================================================================= *)
 
-(** collect fields of records from the prefix of given list of expressions.
+(** Collect fields of records from the prefix of given list of expressions.
   Returns collected fields, position of the last record-like construct
   (or accumulator [ppos] if there is no records in the prefix), and the rest
   of the expression list *)
@@ -288,7 +289,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EVar _
   | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _
   | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _
-  | EList (_ :: _) | EPub _ | EMethodCall _ ->
+  | EList (_ :: _) | EPub _ | EMethodCall _ | EInterp (_, _) ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -302,6 +303,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | ENum64 _      -> Error.fatal (Error.desugar_error p.pos)
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
+  | EInterp _   -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern ~public p).data
   | EVar      x -> make (PId(public, IdVar x))
   | EBOpID    n -> make (PId(public, IdVar (tr_bop_id (make n))))
@@ -337,7 +339,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
-(** Translate a pattern, separating out its annotation [Some sch] if present
+(** Translate a pattern, separating out its annotation [Some sch] if present,
     or returning [None] otherwise. *)
 and tr_annot_pattern ~public (p : Raw.expr) =
   let pos = p.pos in
@@ -349,9 +351,9 @@ and tr_annot_pattern ~public (p : Raw.expr) =
     end
   | EAnnot(p, sch) -> tr_pattern ~public p, Some (tr_scheme_expr sch)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
-  | ENum _ | ENum64 _ | EStr _ | EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
+  | ENum _ | ENum64 _ | EStr _ |  EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
-  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ ->
+  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ | EInterp (_, _) ->
     tr_pattern ~public p, None
 
 and tr_named_pattern ~public (fld : Raw.field) =
@@ -416,7 +418,7 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
       LP_Fun(id, ps)
 
     | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | ECtor _ | ESelect _
-    | EList _ ->
+    | EInterp (_, _) | EList _ ->
       LP_Pat(tr_pattern ~public p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
@@ -426,7 +428,8 @@ let rec tr_let_pattern ~public (p : Raw.expr) =
     end
 
   | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _
-  | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ ->
+  | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ 
+  | EInterp (_, _) ->
     LP_Pat (tr_pattern ~public p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
@@ -491,14 +494,14 @@ let rec tr_poly_expr (e : Raw.expr) =
     | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _
     | EApp _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _
     | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
-    | EList (_ :: _) | EPub _ | EMethodCall _ ->
+    | EList (_ :: _) | EPub _ | EMethodCall _ | EInterp (_, _) ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
   | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
   | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
-  | EMethodCall _ ->
+  | EMethodCall _ | EInterp (_, _) ->
     Error.fatal (Error.desugar_error e.pos)
 
 and tr_poly_expr_def (e : Raw.expr) =
@@ -513,7 +516,8 @@ and tr_poly_expr_def (e : Raw.expr) =
 
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EApp _ | EMethodCall _ | EDefs _
   | EMatch _ | EHandler _ | EEffect _ | EExtern _ | EAnnot _ | EIf _
-  | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _ | EPub _ ->
+  | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _ | EPub _ 
+  | EInterp (_, _) ->
     make (PE_Expr (tr_expr e))
 
 and tr_expr (e : Raw.expr) =
@@ -526,8 +530,29 @@ and tr_expr (e : Raw.expr) =
   | ENum64 n -> make (ENum64 n)
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
+  | EInterp (s, xs) ->
+    let tr_toString (expr : Raw.expr) (fmt : Raw.expr option) = 
+      let mth = { pos = expr.pos; data = (Raw.EMethod (expr, "toString"))} in
+      match fmt with
+      | Some fmt ->
+        let make_fmt data = { fmt with data } in
+        let fld = make_fmt (Raw.FldNameVal (Raw.NVar "fmt", fmt)) in
+        let record = make_fmt (Raw.ERecord [fld]) in
+        { pos  = Position.join expr.pos fmt.pos;
+          data = Raw.EApp (mth, [record])
+        }
+      | None -> mth in
+    let tr_string str = with_nowhere (Raw.EStr str) in
+    let rec flat_interp = function
+      | (expr, fmt, str) :: xs 
+        -> tr_toString expr fmt :: tr_string str :: flat_interp xs
+      | [] -> [] in
+    let arg_list = make (Raw.EList (tr_string s :: flat_interp xs)) in
+    let expr = make (Raw.EApp (make (Raw.EExtern "dbl_strListCat"), [arg_list]))
+    in let annot = annot_tp expr RawTypes.string in 
+    tr_expr annot
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
-  | EApp(e1, es)    ->
+  | EApp(e1, es)   ->
     begin match collect_fields ~ppos:e1.pos es with
     | [], _, es -> tr_expr_app (tr_expr e1) es
     | flds, fpos, es ->
@@ -713,6 +738,15 @@ and tr_def ?(public=false) (def : Raw.def) =
     let pat = tr_pattern ~public pat in
     let eff = tr_type_arg_opt def.pos eff_opt in
     [ make (DLabel (eff, pat)) ]
+  | DType(pub, tp, body) ->
+    let public_tp = public || pub in
+    [ match tr_type_def tp [] with
+      | TD_Id(tvar, []) ->
+        let body = tr_type_expr body in
+        make (DType { public_tp; tvar; body })
+      | TD_Id(_, _ :: _) ->
+        Error.fatal (Error.type_alias_with_args pos)
+    ]
   | DHandle(pub, pat, eff_opt, body, hcs) ->
     let public = public || pub in
     let pat = tr_pattern ~public pat in
@@ -768,9 +802,9 @@ and tr_h_clause (hc : Raw.h_clause) =
   | HCFinally(pat, body) ->
     Either.Right (make (Clause(tr_pattern ~public:false pat, tr_expr body)))
 
-(** Returns: list of explicit type annotations with fresh type variable names
-    and a function that given a field name returns piece of code that
-    represents pattern which pulls out this variable, making it easy to use in
+(** Returns: a list of explicit type annotations with fresh type variable names,
+    and a function, that given a field name, returns a piece of code that
+    represents a pattern which pulls out this variable, making it easy to use in
     generated code *)
 and generate_accessor_method_pattern named_type_args type_name =
   let make data = { data; pos=Position.nowhere } in

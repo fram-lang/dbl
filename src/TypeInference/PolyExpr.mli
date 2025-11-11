@@ -32,11 +32,16 @@ type inst_context
 (** Plug an expression into an instantiation context. *)
 val plug_inst_context : inst_context -> infer expr_result -> infer expr_result
 
+(** Create an instantiation context for method call. Given expression result
+  represents the method, i.e., a function that takes self parameter. *)
+val method_call_ctx : pos:Position.t ->
+  'st Env.t -> infer expr_result -> inst_context
+
 (** Infer the scheme of a polymorphic expression. When the polymorphic
   expression is applied to some parameters, the [?app_type], if provided,
-  specifies the type of the application. The function returns a tuple, that
+  specifies the type of the application. The function returns a tuple that
   contains the context of the polymorphic expression (computing polymorphic
-  expression may have some effects, that should be performed before explicit
+  expression may have some effects that should be performed before explicit
   instantiation), the translated polymorphic expression, and its scheme. *)
 val infer_use_scheme : tcfix:tcfix -> ?app_type:T.typ ->
   'st Env.t -> S.poly_expr_use -> inst_context * T.poly_expr * T.scheme

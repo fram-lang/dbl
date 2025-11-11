@@ -6,7 +6,7 @@
 
 open Common
 
-(** Build a response for effect-checking, when returning a pure effect. *)
+(** Build a response for effect-checking when returning a pure effect. *)
 let return_pure (type ed) (req : (T.ceffect, ed) request) :
     (T.ceffect, ed) response =
   match req with
@@ -91,7 +91,7 @@ let instantiate_constraints ~origin sub cs =
     cs
 
 (** Infer a scheme of a polymorphic expression. This function is slightly more
-  general than [infer_scheme]: it takes additional list of named parameters,
+  general than [infer_scheme]: it takes additional list of named parameters
   that should be abstracted after abstracting all type parameters. *)
 let rec tr_poly_expr env named (e : S.poly_expr) =
   match e.data with
@@ -395,6 +395,11 @@ and infer_type : type ed.
       (Env.constraints env) res_tp eff;
     (T.EData(dds, e2), res_tp, eff_resp)
 
+  | ETypeAlias(a, tp, e2) ->
+    let tp  = Type.tr_type_expr env tp in
+    let env = Env.add_type_alias env a tp in
+    infer_type env e2 eff_req
+
   | EMatchEmpty(prf, e1, tp, eff) ->
     let (prf, tp1, ctors, match_eff) = ProofExpr.tr_proof_expr env prf in
     assert (List.is_empty ctors);
@@ -522,15 +527,31 @@ and infer_type : type ed.
     in
     (T.ERepl(func, tp, eff), tp, eff_resp)
 
-  | EReplExpr(e1, e2) ->
-    let pp = e1.pp in
-    let (e1, tp1, eff_resp1) = infer_type env e1 eff_req in
-    let (e2, tp2, eff_resp2) = infer_type env e2 eff_req in
-    let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
+  | EReplExpr { body; to_str; rest } ->
+    (* Infer type of the body, and check that to_str can convert it to
+      string *)
+    let (e1, tp1, eff_resp1) = infer_type env body eff_req in
+    let (to_str_expr, to_str_tp, eff_resp2) = infer_type env to_str eff_req in
+    let (sch, str_tp, to_str_eff) = Subtyping.as_arrow to_str_tp in
+    assert (T.Scheme.is_monomorphic sch);
+    begin match T.Type.view str_tp with
+    | TVar tv when T.TVar.equal tv (T.BuiltinType.tv_string) -> ()
+    | _ -> assert false
+    end;
+    Subtyping.subtype
+      ~origin:(OExprType(to_str.pos, to_str.pp, tp1, sch.sch_body))
+      env tp1 sch.sch_body;
+    let eff_resp3 = return_effect env ~node:e eff_req to_str_eff in
+    (* Infer type of the rest expression *)
+    let (rest, rest_tp, eff_resp4) = infer_type env rest eff_req in
+    (* Pretty-print the type of the body *)
     let ctx = T.Pretty.empty_context () in
-    let tp1 = T.Pretty.pp_type ctx pp tp1 in
-    let res = T.EReplExpr(e1, tp1, e2) in
-    (res, tp2, eff_resp)
+    let tp1 = T.Pretty.pp_type ctx body.pp tp1 in
+    (* Build the result *)
+    let res = T.EReplExpr(T.EApp(to_str_expr, e1), tp1, rest) in
+    let eff_resp =
+      eff_resp_join eff_resp1 [ eff_resp2; eff_resp3; eff_resp4 ] in
+    (res, rest_tp, eff_resp)
 
 and check_type : type ed.
   Env.t -> S.expr -> T.typ -> (T.ceffect, ed) request ->

@@ -4,7 +4,7 @@
 
 (** Main module for reporting errors *)
 
-(** Fatal error, that aborts compilation *)
+(** Fatal error that aborts compilation *)
 exception Fatal_error
 
 (** Class of the error *)
@@ -19,10 +19,15 @@ type error_class =
     (** Warning. Does not abort the compilation. *)
 
   | Note
-    (** Just note. *)
+    (** Just a note. *)
 
 (** Report the error *)
 val report : ?pos:Position.t -> cls:error_class -> string -> unit
+
+(** Set a custom function to intercept reports.
+  All reports will be made to this function. Used by the language server. *)
+val set_report_function :
+  (?pos:Position.t -> cls:error_class -> string -> unit) -> unit
 
 (** Abort compilation if any error was reported. Should be called at the end
   of each phase. *)

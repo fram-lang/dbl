@@ -19,15 +19,14 @@ pub method add = (extern dbl_addInt64 : Int64 -> Int64 -> Int64)
 pub method sub = (extern dbl_subInt64 : Int64 -> Int64 -> Int64)
 pub method mul = (extern dbl_mulInt64 : Int64 -> Int64 -> Int64)
 
-pub method div (self : Int64) (n : Int64) =
+pub method div {~__line__, ~__file__} (self : Int64) (n : Int64) =
   assert {msg="Division by zero"} (n != 0L);
   (extern dbl_divInt64 : Int64 -> Int64 -> Int64) self n
-
-pub method mod (self : Int64) (n : Int64) =
+pub method mod {~__line__, ~__file__} (self : Int64) (n : Int64) =
   assert {msg="Division by zero"} (n != 0L);
   (extern dbl_modInt64 : Int64 -> Int64 -> Int64) self n
 
-pub method rec pow (self : Int64) (n : Int64) =
+pub method rec pow {~__line__, ~__file__} (self : Int64) (n : Int64) =
   assert {msg="Negative exponential"} (n >= 0L);
   if n == 0L then 1L
   else if n % 2L == 0L then (self * self).pow (n / 2L)
@@ -43,7 +42,9 @@ pub method ashiftr = (extern dbl_asrInt64 : Int64 -> Int64 -> Int64)
 pub method succ (self : Int64) = self + 1L
 pub method pred (self : Int64) = self - 1L
 
-pub method toString = (extern dbl_int64ToString : Int64 -> String)
+pub method toString {?fmt : Unit} =
+  (extern dbl_int64ToString : Int64 -> String)
+
 pub method toIntErr { ~onError } (self : Int64) =
   if self <= Int.maxValue.toInt64 && self >= Int.minValue.toInt64 then
     (extern dbl_int64ToInt : Int64 -> Int) self

@@ -116,6 +116,7 @@ and expr_data =
     }
   | ERecCtx     of expr
   | EData       of data_def list * expr
+  | ETypeAlias  of ty_alias * type_expr * expr
   | EMatchEmpty of proof_expr * expr * typ * effct
   | EMatch      of expr * match_clause list * typ * effct
   | EMatchPoly  of poly_expr * pattern * expr * typ * effct
@@ -136,7 +137,11 @@ and expr_data =
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
   | ERepl       of (unit -> expr) * typ
-  | EReplExpr   of expr * expr
+  | EReplExpr   of
+    { body   : expr;
+      to_str : expr;
+      rest   : expr
+    }
 
 and rec_def =
   { rd_pos      : Position.t;

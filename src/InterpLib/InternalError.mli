@@ -8,7 +8,7 @@
 val verbose : bool ref
 
 (** Report an internal error. The meaning of the parameters is the following.
-  - [reason]:    short readable reason of the error, e.g, type mismatch;
+  - [reason]:    short readable reason of the error, e.g., type mismatch;
   - [sloc]:      s-expression with the location of the error, e.g., the invalid
                  expression;
   - [requested]: requested metadata of the erroneous entity, e.g., its

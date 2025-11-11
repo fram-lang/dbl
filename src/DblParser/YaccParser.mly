@@ -8,7 +8,7 @@
 %token<string> OP_0 OP_20 OP_30 OP_40 OP_50 OP_60 OP_70 OP_80 OP_90 OP_100
 %token<int> NUM
 %token<int64> NUM64
-%token<string> STR
+%token<string> STR CSTR BSTR ESTR
 %token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
 %token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
@@ -432,16 +432,17 @@ expr_300
 ;
 
 expr_simple
-: LID                { make (EVar $1)     }
-| TLID               { make (EImplicit $1)}
-| UNDERSCORE         { make EWildcard     }
-| NUM                { make (ENum $1)     }
-| NUM64              { make (ENum64 $1)   }
-| STR                { make (EStr $1)     }
-| CHR                { make (EChr $1)     }
-| BR_OPN BR_CLS      { make EUnit         }
-| BR_OPN expr BR_CLS { make (EParen $2)   }
-| SBR_OPN SBR_CLS    { make (EList [])    }
+: LID                { make (EVar $1)          }
+| TLID               { make (EImplicit $1)     }
+| UNDERSCORE         { make EWildcard          }
+| NUM                { make (ENum $1)          }
+| BSTR str_interp    { make (EInterp ($1, $2)) }    
+| NUM64              { make (ENum64 $1)        }
+| STR                { make (EStr $1)          }
+| CHR                { make (EChr $1)          }
+| BR_OPN BR_CLS      { make EUnit              }
+| BR_OPN expr BR_CLS { make (EParen $2)        }
+| SBR_OPN SBR_CLS    { make (EList [])         }
 | SBR_OPN expr_comma_sep SBR_CLS { make (EList $2)       }
 | KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
@@ -455,6 +456,15 @@ expr_simple
 expr_comma_sep
 : expr_40                      { [ $1 ]   }
 | expr_40 COMMA expr_comma_sep { $1 :: $3 }
+;
+
+/* ====================== String interpolation ============================= */
+
+str_interp
+: expr_40 BAR expr_40 CSTR str_interp { ($1, Some $3, $4) :: $5 } 
+| expr_40             CSTR str_interp { ($1, None,    $2) :: $3 } 
+| expr_40 BAR expr_40 ESTR            {[($1, Some $3, $4)]      }
+| expr_40             ESTR            {[($1, None,    $2)]      }
 ;
 
 /* ========================================================================= */
@@ -509,11 +519,13 @@ def
 : pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
 | KW_PARAMETER field { make (DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
-    { make_def $3  (DData($1, $4, $7)) }
+    { make_def $3 (DData($1, $4, $7)) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
-    { make_def $3  (DRecord($1, $4, $7)) }
+    { make_def $3 (DRecord($1, $4, $7)) }
 | pub KW_LABEL rec_opt expr_100 effect_var_opt
     { make_def $3 (DLabel($1, $4, $5)) }
+| pub KW_TYPE rec_opt ty_expr EQ ty_expr
+    { make_def $3 (DType($1, $4, $6)) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses
     { make_def $3 (DHandle($1, $4, $5, $7, $8)) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr

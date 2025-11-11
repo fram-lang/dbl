@@ -4,7 +4,7 @@
 
 open Value
 
-exception Runtime_error = External.Runtime_error
+exception Runtime_error = ExternalUtils.Runtime_error
 
 (** Evaluator *)
 (* ========================================================================= *)
@@ -40,6 +40,12 @@ let rec grab l comp cont gstack stack =
 let shift0 l comp cont stack =
   grab l comp cont [] stack
 
+let eval_lit (l : Lang.Untyped.lit) =
+  match l with
+  | LNum   n -> VNum n
+  | LNum64 n -> VNum64 n
+  | LStr   s -> VStr s
+
 let rec eval_expr env (e : Lang.Untyped.expr) cont =
   match e with
   | EValue v -> cont (eval_value env v)
@@ -54,18 +60,22 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
           (env, (box, e)))
         env rds in
     eval_rec_defs env rds (fun env -> eval_expr env e2 cont)
-  | EApp(v1, v2) ->
-    begin match eval_value env v1 with
+  | EFn(x, body) ->
+    cont (VFn(fun v -> eval_expr (Env.extend env x v) body))
+  | EApp(e1, v2) ->
+    eval_expr env e1 (function
     | VFn f -> f (eval_value env v2) cont
-    | _ -> failwith "Runtime error!"
-    end
+    | v ->
+      failwith ("Runtime error: expected <fun>, actual: "^to_string v^"!"))
+  | ECtor(n, vs) ->
+    cont (VCtor(n, List.map (eval_value env) vs))
   | EMatch(v, cls) ->
     begin match eval_value env v with
     | VCtor(n, vs) ->
       let (xs, body) = List.nth cls n in
       let env = List.fold_left2 Env.extend env xs vs in
       eval_expr env body cont
-    | _ -> failwith "Runtime error!"
+    | v -> failwith ("Runtime error: expected <ctor>, actual: "^to_string v^"!")
     end
   | ELabel(x, e) ->
     let l = UID.fresh () in
@@ -79,7 +89,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
           let env = Env.extend env x k in
           eval_expr env e)
         cont
-    | _ -> failwith "Runtime error!"
+    | v -> failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
     end
   | EReset(v, vs, e1, x, e2) ->
     begin match eval_value env v with
@@ -88,13 +98,13 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
       reset0 l vs (eval_expr env e1)
         (fun v -> eval_expr (Env.extend env x v) e2)
         cont
-    | _ -> failwith "Runtime error!"
+    | v -> failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
     end
   | ERepl func -> eval_repl env func cont
   | EReplExpr(e1, tp, e2) ->
     Printf.printf ": %s\n%!" tp;
     eval_expr env e1 (fun v1 ->
-      Printf.printf "= %s\n" (to_string v1);
+      Printf.printf "= %s\n" (as_string v1);
       eval_expr env e2 cont)
 
 and eval_rec_defs env rds cont =
@@ -107,14 +117,8 @@ and eval_rec_defs env rds cont =
 
 and eval_value env (v : Lang.Untyped.value) =
   match v with
-  | VNum n -> VNum n
-  | VNum64 n -> VNum64 n
-  | VStr s -> VStr s
+  | VLit l -> eval_lit l
   | VVar x -> Env.lookup env x
-  | VFn(x, body) ->
-    VFn(fun v -> eval_expr (Env.extend env x v) body)
-  | VCtor(n, vs) ->
-    VCtor(n, List.map (eval_value env) vs)
   | VExtern name ->
     begin match Hashtbl.find_opt External.extern_map name with
     | Some v -> v

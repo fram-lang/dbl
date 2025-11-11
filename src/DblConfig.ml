@@ -6,6 +6,8 @@
 
 let src_extension = ".fram"
 
+let prog_args : string list ref = ref []
+
 let stdlib_path =
   match Sys.getenv_opt "DBL_LIB" with
   | Some path -> path
@@ -34,3 +36,5 @@ let print_colors_of_string = function
   | "auto"   -> display_colors := print_colors_auto ()
   | _ -> assert false
 
+(** Use `show` method for pretty-printing in REPL. *)
+let repl_show_printing = ref true

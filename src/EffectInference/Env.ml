@@ -28,6 +28,9 @@ type t =
     adt_map : adt_info Var.Map.t;
     (** Map from ADT shape variables to their information *)
 
+    ty_alias_map : T.typ S.TyAlias.Map.t;
+    (** Map from type aliases to their bodies *)
+
     scope : Scope.t;
     (** Current scope of type variables *)
 
@@ -36,7 +39,7 @@ type t =
 
     rec_vars : (T.var * T.scheme) list option;
     (** List of variables defined in a recursive block, or [None] if the
-      environment is not in a recursive block, or recursive block was
+      environment is not in a recursive block or recursive block was
       committed *)
 
     sat_solver : (T.tvar * origin) IncrSAT.Solver.t;
@@ -54,14 +57,15 @@ let initial ~solve_all () =
   in
   let tvar_map =
     List.fold_left add_builtin S.TVar.Map.empty S.BuiltinType.all in
-  { tvar_map   = tvar_map;
-    var_map    = Var.Map.empty;
-    adt_map    = Var.Map.empty;
-    scope      = Scope.initial;
-    constr     = ConstrSet.create ();
-    rec_vars   = None;
-    sat_solver = IncrSAT.Solver.create ();
-    solve_all  = solve_all
+  { tvar_map     = tvar_map;
+    var_map      = Var.Map.empty;
+    adt_map      = Var.Map.empty;
+    ty_alias_map = S.TyAlias.Map.empty;
+    scope        = Scope.initial;
+    constr       = ConstrSet.create ();
+    rec_vars     = None;
+    sat_solver   = IncrSAT.Solver.create ();
+    solve_all    = solve_all
   }
 
 let add_tvar env x =
@@ -81,6 +85,12 @@ let add_data env x adt_info =
   assert (not (Var.Map.mem x env.var_map));
   { env with
     adt_map = Var.Map.add x adt_info env.adt_map
+  }
+
+let add_type_alias env a tp =
+  assert (not (S.TyAlias.Map.mem a env.ty_alias_map));
+  { env with
+    ty_alias_map = S.TyAlias.Map.add a tp env.ty_alias_map
   }
 
 let add_poly_var env x sch =
@@ -123,6 +133,12 @@ let lookup_adt env x =
   | Some info -> info
   | None ->
     InterpLib.InternalError.report ~reason:"Unbound ADT proof variable" ()
+
+let lookup_type_alias env a =
+  match S.TyAlias.Map.find_opt a env.ty_alias_map with
+  | Some tp -> tp
+  | None ->
+    InterpLib.InternalError.report ~reason:"Unbound type alias" ()
 
 (* ========================================================================= *)
 

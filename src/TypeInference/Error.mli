@@ -6,7 +6,7 @@
 
 open Common
 
-(** Abstract representation of error *)
+(** Abstract representation of errors *)
 type t
 
 (** Report fatal error and abort the compilation *)
@@ -51,6 +51,9 @@ val return_type_mismatch :
   pos:Position.t -> pp:PPTree.t -> T.typ -> T.typ -> t
 val finally_type_mismatch :
   pos:Position.t -> pp:PPTree.t -> T.typ -> T.typ -> t
+
+val repl_show_type_mismatch :
+  pos:Position.t -> pp:PPTree.t -> self_tp:T.typ -> T.typ -> t
 
 val func_not_pure : pos:Position.t -> t
 val impure_handler : pos:Position.t -> t

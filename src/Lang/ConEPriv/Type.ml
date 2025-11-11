@@ -27,6 +27,8 @@ let rec collect_gvars ~scope tp gvs =
     Effct.collect_gvars ~scope eff gvs
   | TApp(tp1, tp2) ->
     collect_gvars ~scope tp1 gvs |> collect_gvars ~scope tp2
+  | TAlias(_, tp) ->
+    collect_gvars ~scope tp gvs
 
 and collect_scheme_gvars ~scope sch gvs =
   List.fold_left
@@ -67,6 +69,8 @@ let rec collect_gvars_p ~scope tp gvsp =
     |> collect_effect_gvars_p ~scope out_eff
   | TLabel _ | TApp _ ->
     collect_gvars_i ~scope tp gvsp
+  | TAlias(_, tp) ->
+    collect_gvars_p ~scope tp gvsp
   
   | TEffect _ -> failwith "Internal kind error"
 
