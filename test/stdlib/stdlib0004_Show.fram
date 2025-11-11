@@ -97,3 +97,18 @@ let _ =
   assert ((Right (Some "yes") : Either Int (Option String)).show
     == "Right (Some \"yes\")");
   ()
+
+# Result
+let _ =
+  assert ((Ok 42      : Result Int String).show == "Ok 42");
+  assert ((Err "err"  : Result Int String).show == "Err \"err\"");
+  assert ((Ok (-7)    : Result Int String).show == "Ok (-7)");
+  assert ((Ok 42      : Result Int String).show {prec=200} == "Ok 42");
+  assert ((Ok 42      : Result Int String).show {prec=201} == "(Ok 42)");
+  assert ((Err "err"  : Result Int String).show {prec=200} == "Err \"err\"");
+  assert ((Err "err"  : Result Int String).show {prec=201} == "(Err \"err\")");
+  assert ((Ok (Some 1) : Result (Option Int) String).show
+    == "Ok (Some 1)");
+  assert ((Err (Some "no") : Result Int (Option String)).show
+    == "Err (Some \"no\")");
+  ()

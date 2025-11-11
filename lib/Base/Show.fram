@@ -91,3 +91,17 @@ pub method show {?prec : Int} (self : Either X Y) =
     | Left x  => "Left "  + x.show {prec=201}
     | Right y => "Right " + y.show {prec=201}
     end
+
+## ## Result
+
+pub method show
+    { A, E
+    , method show : {?prec : Int} -> A ->> String
+    , method show : {?prec : Int} -> E ->> String
+    , ?prec : Int
+    } (self : Result A E) =
+  paren {at=200, ?prec}
+    match self with
+    | Ok  a => "Ok "  + a.show {prec=201}
+    | Err e => "Err " + e.show {prec=201}
+    end
