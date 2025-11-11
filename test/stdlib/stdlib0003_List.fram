@@ -4,6 +4,12 @@ parameter ~onError
 let ~onError _ = exit 1
 let retEmpty _ = []
 
+let isNone opt =
+  match opt with
+  | Some _ => False
+  | None   => True
+  end
+
 let xs = [1,2,3,4]
 let ys = [5,6,7,8]
 
@@ -74,6 +80,18 @@ let _ =
     (List.isEmpty (List.tlErr { ~onError = retEmpty } ([] : List Int)))
 
 let _ =
+  assert {msg = "dropLast"}
+    (List.dropLast [1, 2, 3] >.unwrapOr [] == [1, 2])
+let _ = assert {msg = "dropLast"} (isNone (List.dropLast ([] : List Int)))
+
+let _ =
+  assert {msg = "dropLastErr"}
+    (List.dropLastErr {~onError=retEmpty} [1, 2, 3] == [1, 2])
+let _ =
+  assert {msg = "dropLastErr"}
+    (List.dropLastErr {~onError=retEmpty} ([] : List Int) >.isEmpty)
+
+let _ =
   assert { msg = "nth" }
     (match List.nth xs 2 with
     | Some v => v == 3
@@ -89,6 +107,28 @@ let _ = assert { msg = "nthErr" } (List.nthErr xs 2 == 3)
 let _ =
   assert { msg = "nthErr" }
     (List.nthErr {~onError = fn _ => -1} xs 10 == -1)
+
+let _ = assert {msg="last"} (isNone (List.last ([] : List Int)))
+let _ = assert {msg="last"} (List.last [1, 2] >.unwrapOr 0 == 2)
+
+let _ = assert {msg="lastErr"} (List.lastErr {~onError = fn _ => 0} [] == 0)
+let _ = assert {msg="lastErr"} (List.lastErr {~onError = fn _ => 0} [1, 2] == 2)
+
+let _ = assert {msg="dropTakeLast"}
+  match List.dropTakeLast [1, 2, 3] with
+  | Some (xs, x) => (3 == x) && ([1, 2] == xs)
+  | None         => False
+  end
+let _ = assert {msg="dropTakeLast"}
+  (isNone (List.dropTakeLast ([] : List Int)))
+
+let _ = assert {msg="dropTakeLastErr"}
+ (let (xs, x) = List.dropTakeLastErr {~onError = fn _ => ([], 0)} [1, 2, 3]
+  in [1, 2] == xs && 3 == x)
+
+let _ = assert {msg="dropTakeLastErr"}
+ (let (xs, x) = List.dropTakeLastErr {~onError = fn _ => ([], 0)} []
+  in ([] : List Int) == xs && 0 == x)
 
 let _ = assert { msg = "append" } (xs + ys == [1,2,3,4,5,6,7,8])
 
@@ -181,8 +221,37 @@ let _ =
   assert { msg = "foldLeft" }
     (List.foldLeft (fn (a : Int) b => a + b) 0 xs == 10)
 let _ =
+  assert {msg = "foldleft1"}
+    (List.foldLeft1 (fn (a : Int) b => a + b) xs >.unwrapOr 0 == 10)
+let _ =
+  assert {msg = "foldleft1"}
+    (List.foldLeft1 (fn (a : Int) b => a + b) ([] : List Int) >.unwrapOr 0 == 0)
+let _ =
+  assert {msg = "foldleft1Err"}
+    (List.foldLeft1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) xs == 10)
+let _ =
+  assert {msg = "foldleft1Err"}
+    (List.foldLeft1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) ([] : List Int) == 0)
+
+let _ =
   assert { msg = "foldRight" }
     (List.foldRight (fn (a : Int) b => a + b) xs 0 == 10)
+let _ =
+  assert {msg = "foldRight1"}
+    (List.foldRight1 (fn (a : Int) b => a + b) xs >.unwrapOr 0 == 10)
+let _ =
+  assert {msg = "foldRight1"}
+    (List.foldRight1 (fn (a : Int) b => a + b) ([] : List Int) >.unwrapOr 0 == 0)
+let _ =
+  assert {msg = "foldRight1Err"}
+    (List.foldRight1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) xs == 10)
+let _ =
+  assert {msg = "foldRight1Err"}
+    (List.foldRight1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) ([] : List Int) == 0)
 let _ =
   assert { msg = "foldLeft2" }
     (List.foldLeft2 (fn (a : Int) b c => a + b + c) 0 xs ys == 36)
