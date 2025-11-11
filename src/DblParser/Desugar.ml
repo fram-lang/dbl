@@ -682,8 +682,10 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldNameFn (n, es , e) ->
     make (IVal(n, (tr_poly_expr_def ({pos = fld.pos; data = EFn(es, e)}))))
   | FldNameEffectFn (n, label, es, resumption, e) ->
-    make (IVal(n, tr_poly_expr_def ({pos = fld.pos; data = 
-    EEffect({label = label; args = es; resumption = resumption; body = e})}))) 
+    make (IVal(n, tr_poly_expr_def
+      { pos = fld.pos;
+        data = EEffect({label; args = es; resumption; body = e})
+      })) 
 
 and tr_def ?(public=false) (def : Raw.def) =
   let pos = def.pos in
