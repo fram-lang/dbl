@@ -51,9 +51,11 @@ pub module Int64
   pub let ofInt (n : Int) = n.toInt64
 end
 
+## Returns the greater of two elements `x` and `y`. 
 pub let max {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
   if y < x then x else y
 
+## Returns the smaller of two elements `x` and `y`.
 pub let min {T, method gt : T -> T ->> Bool} (x : T) (y : T) =
   if x > y then y else x
 
