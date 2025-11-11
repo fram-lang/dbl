@@ -29,6 +29,12 @@ pub method mod {~__line__, ~__file__} (self : Int) (n : Int) =
   assert {msg="Division by zero"} (n != 0);
   (extern dbl_modInt : Int -> Int -> Int) self n
 
+pub method rec pow {~__line__, ~__file__} (self : Int) (n : Int) =
+  assert {msg="Negative exponential"} (n >= 0);
+  if n == 0 then 1
+  else if n % 2 == 0 then (self * self).pow (n / 2)
+  else self * (self * self).pow (n / 2)
+
 pub method neg (self : Int) = 0 - self
 
 pub method land = (extern dbl_andInt : Int -> Int -> Int)
