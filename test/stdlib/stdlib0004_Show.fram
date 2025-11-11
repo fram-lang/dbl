@@ -1,0 +1,114 @@
+# Unit
+let _ =
+  assert (().show == "()");
+  assert (().show {prec=300} == "()");
+  ()
+
+# Int
+let _ =
+  assert ((42  : Int).show == "42");
+  assert ((13  : Int).show {prec=200} == "13");
+  assert ((-42 : Int).show == "-42");
+  assert ((-7  : Int).show {prec=150} == "-7");
+  assert ((-44 : Int).show {prec=151} == "(-44)");
+  ()
+
+# Int64
+let _ =
+  assert ((42L  : Int64).show == "42L");
+  assert ((13L  : Int64).show {prec=200} == "13L");
+  assert ((-42L : Int64).show == "-42L");
+  assert ((-7L  : Int64).show {prec=150} == "-7L");
+  assert ((-44L : Int64).show {prec=151} == "(-44L)");
+  ()
+
+# Bool
+let _ =
+  assert ((True ).show == "True");
+  assert ((False).show == "False");
+  assert ((True ).show {prec=300} == "True");
+  assert ((False).show {prec=300} == "False");
+  ()
+
+# Char
+let _ =
+  assert (('a'   : Char).show == "'a'");
+  assert (('\n'  : Char).show == "'\\n'");
+  assert (('\''  : Char).show == "'\\''");
+  assert (('\\'  : Char).show == "'\\\\'");
+  assert (('Z'   : Char).show {prec=300} == "'Z'");
+  ()
+
+# String
+let _ =
+  assert (("hello"       : String).show == "\"hello\"");
+  assert (("line\nbreak" : String).show == "\"line\\nbreak\"");
+  assert (("quote\""     : String).show == "\"quote\\\"\"");
+  assert (("back\\slash" : String).show == "\"back\\\\slash\"");
+  assert (("world"       : String).show {prec=300} == "\"world\"");
+  ()
+
+# List
+let _ =
+  assert (([]          : List Int).show  == "[]");
+  assert (([True]      : List Bool).show == "[True]");
+  assert (([1, 2, 3]   : List Int).show  == "[1, 2, 3]");
+  assert (([-1, -2, 3] : List Int).show {prec=300} == "[-1, -2, 3]");
+  assert (([(1, 2), (3, 4)] : List (Pair Int Int)).show
+    == "[(1, 2), (3, 4)]");
+  ()
+
+# Option
+let _ =
+  assert ((None      : Option Int).show == "None");
+  assert ((None      : Option Int).show {prec=300} == "None");
+  assert ((Some 42   : Option Int).show == "Some 42");
+  assert ((Some (-7) : Option Int).show == "Some (-7)");
+  assert ((Some (-8) : Option Int).show {prec=200} == "Some (-8)");
+  assert ((Some ()   : Option Unit).show {prec=201} == "(Some ())");
+  assert ((Some (Some 42) : Option (Option Int)).show
+    == "Some (Some 42)");
+  ()
+
+# Pair
+let _ =
+  assert ((1, 2).show == "(1, 2)");
+  assert ((-1, -2).show == "(-1, -2)");
+  assert ((True, "").show == "(True, \"\")");
+  assert (((1, 2), 3).show == "(1, 2, 3)");
+  assert ((-1, -2).show {prec=300} == "(-1, -2)");
+  assert ((1, (2, 3)).show == "(1, (2, 3))");
+  assert ((1, 2).show {prec=30} == "1, 2");
+  assert ((1, 2).show {prec=31} == "(1, 2)");
+  ()
+
+# Either
+let _ =
+  assert ((Left 42    : Either Int String).show == "Left 42");
+  assert ((Right "ok" : Either Int String).show == "Right \"ok\"");
+  assert ((Left (-7)  : Either Int String).show == "Left (-7)");
+  assert ((Right ""   : Either Int String).show == "Right \"\"");
+  assert ((Left 42    : Either Int String).show {prec=200} == "Left 42");
+  assert ((Left 42    : Either Int String).show {prec=201} == "(Left 42)");
+  assert ((Right "ok" : Either Int String).show {prec=200} == "Right \"ok\"");
+  assert ((Right "ok" : Either Int String).show {prec=201} == "(Right \"ok\")");
+  assert ((Left (Some 1) : Either (Option Int) String).show
+    == "Left (Some 1)");
+  assert ((Right (Some "yes") : Either Int (Option String)).show
+    == "Right (Some \"yes\")");
+  ()
+
+# Result
+let _ =
+  assert ((Ok 42      : Result Int String).show == "Ok 42");
+  assert ((Err "err"  : Result Int String).show == "Err \"err\"");
+  assert ((Ok (-7)    : Result Int String).show == "Ok (-7)");
+  assert ((Ok 42      : Result Int String).show {prec=200} == "Ok 42");
+  assert ((Ok 42      : Result Int String).show {prec=201} == "(Ok 42)");
+  assert ((Err "err"  : Result Int String).show {prec=200} == "Err \"err\"");
+  assert ((Err "err"  : Result Int String).show {prec=201} == "(Err \"err\")");
+  assert ((Ok (Some 1) : Result (Option Int) String).show
+    == "Ok (Some 1)");
+  assert ((Err (Some "no") : Result Int (Option String)).show
+    == "Err (Some \"no\")");
+  ()

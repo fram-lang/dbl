@@ -59,9 +59,9 @@ let cmd_args_options = Arg.align
       (fun s -> DblConfig.print_colors_of_string s)),
     " Use colors when printing Errors.";
 
-    "-no-toString-printing",
-    Arg.Clear DblConfig.repl_toString_printing,
-    " Disable REPL from using method toString for pretty-printing.";
+    "-no-show-printing",
+    Arg.Clear DblConfig.repl_show_printing,
+    " Disable REPL from using method `show' for pretty-printing.";
   ]
 
 let fname = ref None
