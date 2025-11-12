@@ -17,3 +17,6 @@ pub method le    = (extern dbl_leInt  : Char -> Char -> Bool)
 
   Additional quotes are not added around the result. ##}
 pub method escape = (extern dbl_chrEscape : Char -> String)
+
+pub method toString {?fmt : Unit} (self : Char) =
+  (extern dbl_chrToString : Char -> String) self
