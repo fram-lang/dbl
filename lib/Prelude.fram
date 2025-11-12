@@ -72,4 +72,3 @@ pub let rec replicate (s : String) (n : Int) =
   else
    (let s' = replicate s (n / 2) in
     s' + (s' + s))
-

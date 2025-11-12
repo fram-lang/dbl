@@ -26,4 +26,3 @@ let _ =
   assert (replicate "ab" 3 == "ababab");
   assert (replicate "ab" 5 == "ababababab");
   assert (replicate "" 20 == "")
-  
