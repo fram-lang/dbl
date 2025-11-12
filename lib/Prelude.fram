@@ -62,7 +62,7 @@ pub let min {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
 ## Concatenates list of strings in linear time.
 pub let strListCat = extern dbl_strListCat : List String -> String
 
-## Creates a string with `n` repeatitions.
+## Creates a string with `n` repetitions.
 pub let rec replicate (s : String) (n : Int) = 
   if n <= 0 then
     ""
