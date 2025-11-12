@@ -56,13 +56,13 @@ pub let max {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
   if y < x then x else y
 
 ## Returns the smaller of two elements `x` and `y`.
-pub let min {T, method gt : T -> T ->> Bool} (x : T) (y : T) =
-  if x > y then y else x
+pub let min {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
+  if y < x then y else x
 
-## Concatenates list of strings in linear time
+## Concatenates list of strings in linear time.
 pub let strListCat = extern dbl_strListCat : List String -> String
 
-## Creates a string with `n` repeatitions
+## Creates a string with `n` repeatitions.
 pub let rec replicate (s : String) (n : Int) = 
   if n <= 0 then
     ""

@@ -1,0 +1,29 @@
+# min
+let _ =
+  assert (min 10 20 == 10);
+  assert (min 20 10 == 10);
+  assert (min 10 10 == 10);
+  assert (min "abc" "def" == "abc")
+
+# max
+let _ =
+  assert (max 10 20 == 20);
+  assert (max 20 10 == 20);
+  assert (max 20 20 == 20);
+  assert (max "abc" "def" == "def")
+
+# strListCat
+let _ =
+  assert (strListCat ["a", "b", "c"] == "abc");
+  assert (strListCat ["do", "re", "mi"] == "doremi");
+  assert (strListCat [] == "")
+
+# replicate
+let _ =
+  assert (replicate "ab" 0 == "");
+  assert (replicate "ab" 1 == "ab");
+  assert (replicate "ab" 2 == "abab");
+  assert (replicate "ab" 3 == "ababab");
+  assert (replicate "ab" 5 == "ababababab");
+  assert (replicate "" 20 == "")
+  
