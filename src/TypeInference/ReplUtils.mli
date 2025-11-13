@@ -9,8 +9,8 @@ open BiDirectional
 open TypeCheckFix
 
 (** Build an expression that evaluates to the function converting a value
-  of given type to its string representation. It tries to use [toString]
+  of given type to its string representation. It tries to use [show]
   method if available; otherwise, it falls back to default conversion,
   relying on an external function. *)
-val to_string_expr : tcfix:tcfix -> pos:Position.t ->
+val show_expr : tcfix:tcfix -> pos:Position.t ->
   'st Env.t -> T.typ -> infer expr_result

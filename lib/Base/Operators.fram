@@ -19,6 +19,10 @@ pub let (/)
   , method div : {~__line__, ~__file__} -> T -> U} (x : T) =
     x.div
 pub let (*) {method mul : T -> U} (x : T) = x.mul
+pub let (**)
+  { ~__line__, ~__file__
+  , method pow : {~__line__, ~__file__} -> T -> U} (x : T) =
+    x.pow
 
 pub let (==) {method equal : T -> U} (x : T) = x.equal
 pub let (!=) {method neq   : T -> U} (x : T) = x.neq
