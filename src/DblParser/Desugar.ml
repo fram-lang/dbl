@@ -531,8 +531,8 @@ and tr_expr (e : Raw.expr) =
   | EStr s -> make (EStr s)
   | EChr c -> make (EChr c)
   | EInterp (s, xs) ->
-    let tr_format (expr : Raw.expr) (fmt : Raw.expr option) = 
-      let mth = { pos = expr.pos; data = (Raw.EMethod (expr, "format"))} in
+    let tr_toString (expr : Raw.expr) (fmt : Raw.expr option) = 
+      let mth = { pos = expr.pos; data = (Raw.EMethod (expr, "toString"))} in
       match fmt with
       | Some fmt ->
         let make_fmt data = { fmt with data } in
@@ -545,7 +545,7 @@ and tr_expr (e : Raw.expr) =
     let tr_string str = with_nowhere (Raw.EStr str) in
     let rec flat_interp = function
       | (expr, fmt, str) :: xs 
-        -> tr_format expr fmt :: tr_string str :: flat_interp xs
+        -> tr_toString expr fmt :: tr_string str :: flat_interp xs
       | [] -> [] in
     let arg_list = make (Raw.EList (tr_string s :: flat_interp xs)) in
     let expr = make (Raw.EApp (make (Raw.EExtern "dbl_strListCat"), [arg_list]))
