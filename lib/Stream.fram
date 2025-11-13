@@ -123,7 +123,7 @@ pub let rec takeWhile {X} (f : X ->> Bool) (Stream xs : Stream X) =
     | Nil => Nil
     end)) : Stream X
 
-{## Returns a st Stream with values that satisfies given predicate. ##}
+{## Returns a substream with values that satisfies given predicate. ##}
 pub let rec filter {X} (f : X ->> Bool) (Stream xs : Stream X) =
   Stream (lazy (fn _ =>
     match xs.force with
@@ -136,7 +136,7 @@ pub let rec filter {X} (f : X ->> Bool) (Stream xs : Stream X) =
     end)) : Stream X
 
 {##
-  Folds stream to a single value.
+  Folds stream to a single value, beginning with right-most value.
  ##}
 pub let rec foldRight {X, A}
   (f : X -> A ->> A) (Stream xs : Stream X) (acc : A) =
@@ -146,9 +146,11 @@ pub let rec foldRight {X, A}
     end : A
 
 {##
-  Folds stream to a single value. Takes last element of as stream
-  as an initial accumulator. Calls `~onError` in case of an empty
-  stream.
+  Folds stream to a single value from right to left. Takes the last
+  element of as stream  as an initial accumulator.
+  Calls `~onError` in case of an empty stream.
+
+  @param ~onError Fallback for an empty stream.
  ##}
 pub let foldRight1Err {X, ~onError : Unit ->> X}
   (f : X -> X ->> X) (Stream xs : Stream X) =
