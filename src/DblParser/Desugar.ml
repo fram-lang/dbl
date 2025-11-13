@@ -377,7 +377,8 @@ and tr_named_pattern ~public (fld : Raw.field) =
   | FldModule { data = NPName name; _ } -> make (NP_Module(public, name))
   | FldModule _ -> Error.fatal (Error.desugar_error fld.pos)
   | FldOpen     -> make (NP_Open public)
-  | FldNameFn _ | FldNameEffectFn _ -> assert false
+  | FldNameFn _ | FldNameEffectFn _ -> 
+    Error.fatal (Error.desugar_error fld.pos)
 
 (** Translate a parameter declaration *)
 let tr_param_decl (fld : Raw.field) =
@@ -393,10 +394,9 @@ let tr_param_decl (fld : Raw.field) =
     Either.Right (n, ident_of_name n, None)
   | FldNameAnnot(n, sch) ->
     Either.Right (n, ident_of_name n, Some (tr_scheme_expr sch))
-
-  | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen ->
+  | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen 
+  | FldNameFn _ | FldNameEffectFn _ ->
     Error.fatal (Error.desugar_error fld.pos)
-  | FldNameFn _ | FldNameEffectFn _ -> assert false
 
 
 (** Translate an expression as a let-pattern. *)

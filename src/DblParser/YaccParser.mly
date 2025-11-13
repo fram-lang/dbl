@@ -103,7 +103,6 @@ op_50
 
 op_60
 : OP_60 { make $1  }
-| EQ    { make "=" }
 ;
 
 
@@ -282,7 +281,7 @@ effect_label_opt
 
 effect_resumption_opt
 : /* empty */ { None    }
-| SLASH expr_simple  { Some $2 }
+| SLASH expr  { Some $2 }
 ;
 
 effect_var_opt
