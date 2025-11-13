@@ -5,15 +5,15 @@
 ## # Ansi terminal commands
 
 {##
-  Module provides a wide variety of ANSI excape codes
+  Module provides a wide variety of ANSI escape codes
   for terminal control and text styling.
  ##}
 
 ## Character that initializes a terminal command.
 pub let esc = '\x1b'
 {##
-  String that preceds any terminal command.
-  Reffered to as "Control Sequence Introducer".
+  String that precedes any terminal command.
+  Referred to as "Control Sequence Introducer".
  ##}
 pub let csi = "\x1b["
 
@@ -63,8 +63,8 @@ pub module Cursor
   pub let restorePosition = csi + "u"
 end
 
-## Submodule for clearing and erasing terminal constent.
-module Erase
+## Submodule for clearing and erasing terminal content.
+pub module Erase
   ## Erases the display.
   pub let eraseDisplay    = csi + "J"
   ## Erases from the cursor to the end of the screen.
@@ -76,11 +76,11 @@ module Erase
   ## Erases saved lines.
   pub let eraseSavedLines = csi + "3J"
 
-  ## Eareses within the current line.
+  ## Erases within the current line.
   pub let eraseInLine  = csi + "K"
   ## Erases from the cursor to end of the line.
   pub let eraseEndLine = csi + "0K"
-  ## Eraases from the cursor to the beggining of the line.
+  ## Erases from the cursor to the beggining of the line.
   pub let eraseBegLine = csi + "1K"
   ## Erases the entire line.
   pub let eraseLine    = csi + "2K"
