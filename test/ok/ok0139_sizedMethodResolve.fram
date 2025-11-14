@@ -1,0 +1,20 @@
+data B X = B of X
+data P X Y = P of X, Y
+
+data rec Shape =
+  | SU
+  | SB of Shape
+  | SP of Shape, Shape
+
+method shape () = SU
+method shape {X, method shape : X -> Shape} (B (x : X)) =
+  SB x.shape
+method shape
+  { X, Y
+  , method shape : X -> Shape
+  , method shape : Y -> Shape
+  } (P (x : X) (y : Y)) =
+    SP x.shape y.shape
+
+let _ =
+  (P (P (P (B (B ())) (B (P () ()))) (B (P () (B (P () ()))))) ()).shape

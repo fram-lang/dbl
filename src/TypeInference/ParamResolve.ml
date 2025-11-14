@@ -132,13 +132,18 @@ let guess_types ~pos env targs =
   let scope = Env.scope env in
   List.fold_left_map guess_type (T.Subst.empty ~scope) targs
 
-(** Check for cyclic dependencies in the type parameters, and extend a set of
-  restricted variables. *)
-let restrict_var ~vset ~pos ~pp x name =
-  if Var.Set.mem x vset then
+(** Check for cyclic dependencies in named parameters, and extend a set of
+  restricted variables. A parameter might be used several times, but each
+  next usage on the same path must have a smaller size. For methods, the
+  size is determined from the [self] type, while for other kinds of
+  parameters, the size is 0. *)
+let restrict_var ~vset ~pos ~pp x ?(size=0) name =
+  match Var.Map.find_opt x vset with
+  | None -> Var.Map.add x size vset
+  | Some old_size when size < old_size ->
+    Var.Map.add x size vset
+  | Some _ ->
     Error.fatal (Error.looping_named_param ~pos ~pp name)
-  else
-    Var.Set.add x vset
 
 (* ------------------------------------------------------------------------- *)
 
@@ -253,7 +258,8 @@ and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
     let name = Name.NMethod(owner, mname) in
     begin match ModulePath.try_lookup_method ~pos method_env owner mname with
     | Some(x, x_sch) ->
-      let vset = restrict_var ~vset ~pos ~pp x name in
+      let size = T.Type.size self_tp in
+      let vset = restrict_var ~vset ~pos ~pp x ~size name in
       let e = { T.pos; T.pp = Env.pp_tree env; T.data = T.EVar x } in
       coerce_scheme ~vset ~pos ~name env e x_sch sch
 
@@ -270,7 +276,7 @@ and resolve_method ~vset ~pos env ?(method_env=env) mname (sch : T.scheme) =
 
 (* ========================================================================= *)
 let instantiate ~pos env rctx poly_expr (sch : T.scheme) =
-  let vset = Var.Set.empty in
+  let vset = Var.Map.empty in
   let (sub, tps) = guess_types ~pos env sch.sch_targs in
   let (named, cs) = resolve_params ~sub ~vset ~pos env rctx sch.sch_named in
   let e =
@@ -281,12 +287,12 @@ let instantiate ~pos env rctx poly_expr (sch : T.scheme) =
   (e, T.Type.subst sub sch.sch_body, cs)
 
 let coerce_scheme ~pos ~name env poly_expr sch_in sch_out =
-  let vset = Var.Set.empty in
+  let vset = Var.Map.empty in
   coerce_scheme ~vset ~pos ~name env poly_expr sch_in sch_out
 
 let resolve_implicit ~pos env iname sch =
-  let vset = Var.Set.empty in
+  let vset = Var.Map.empty in
   resolve_implicit ~vset ~pos env no_reinst iname sch
 
-let resolve_method ?(vset=Var.Set.empty) ~pos env ?method_env mname sch =
+let resolve_method ?(vset=Var.Map.empty) ~pos env ?method_env mname sch =
   resolve_method ~vset ~pos env ?method_env mname sch

@@ -808,6 +808,11 @@ module Type : sig
     of unification variables accordingly. On error, it returns escaping type
     variable. *)
   val shrink_scope : scope:Scope.t -> typ -> (typ, tvar) result
+
+  (** Compute size of a type. Unification variables have size one, so
+    this function is not stable under instantiation of unification variables.
+  *)
+  val size : typ -> int
 end
 
 (* ========================================================================= *)
