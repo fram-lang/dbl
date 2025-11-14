@@ -197,7 +197,7 @@ and tr_scheme_field (fld : Raw.ty_field) =
     make (SA_Val(n, scheme_wildcard fld.pos))
   | FldNameVal(n, tp) ->
     make (SA_Val(n, tr_scheme_expr tp))
-  | FldNameAnnot _ | FldModule _ | FldOpen ->
+  | FldNameAnnot _ | FldModule _ | FldOpen | FldNameFn _ | FldNameEffectFn _ ->
     assert false
 
 (** Translate a type expression as a type variable with kind annotation *)
@@ -377,6 +377,8 @@ and tr_named_pattern ~public (fld : Raw.field) =
   | FldModule { data = NPName name; _ } -> make (NP_Module(public, name))
   | FldModule _ -> Error.fatal (Error.desugar_error fld.pos)
   | FldOpen     -> make (NP_Open public)
+  | FldNameFn _ | FldNameEffectFn _ -> 
+    Error.fatal (Error.desugar_error fld.pos)
 
 (** Translate a parameter declaration *)
 let tr_param_decl (fld : Raw.field) =
@@ -392,9 +394,10 @@ let tr_param_decl (fld : Raw.field) =
     Either.Right (n, ident_of_name n, None)
   | FldNameAnnot(n, sch) ->
     Either.Right (n, ident_of_name n, Some (tr_scheme_expr sch))
-
-  | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen ->
+  | FldTypeVal _ | FldNameVal _ | FldModule _ | FldOpen 
+  | FldNameFn _ | FldNameEffectFn _ ->
     Error.fatal (Error.desugar_error fld.pos)
+
 
 (** Translate an expression as a let-pattern. *)
 let rec tr_let_pattern ~public (p : Raw.expr) =
@@ -671,10 +674,18 @@ and tr_explicit_inst (fld : Raw.field) =
     make (IVal(n, make (PE_Poly pe)))
   | FldNameVal(n, e) ->
     make (IVal(n, tr_poly_expr_def e))
+
   | FldModule path -> make (IModule path)
   | FldOpen -> make IOpen
   | FldNameAnnot _ | FldType(_, Some _) ->
     Error.fatal (Error.desugar_error fld.pos)
+  | FldNameFn (n, es , e) ->
+    make (IVal(n, (tr_poly_expr_def ({pos = fld.pos; data = EFn(es, e)}))))
+  | FldNameEffectFn (n, label, es, resumption, e) ->
+    make (IVal(n, tr_poly_expr_def
+      { pos = fld.pos;
+        data = EEffect({label; args = es; resumption; body = e})
+      })) 
 
 and tr_def ?(public=false) (def : Raw.def) =
   let pos = def.pos in

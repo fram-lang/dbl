@@ -1,0 +1,9 @@
+data Triples X Y Z = Triple of  X, Y, Z
+
+let _ = 
+  let f {type X, type Y, foo : X -> Y -> Triples X Y Y, bar : X ->[] X} x y =
+    foo (bar x) y
+  in
+  match f {foo x y = (Triple x y y), bar (x : Unit) = x} () () with
+  | Triple _ _ _ => ()
+  end 

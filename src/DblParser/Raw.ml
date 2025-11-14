@@ -78,6 +78,12 @@ type ('tp, 'e) field_data =
   | FldNameVal of name * 'e
     (** Named implicit parameter together with a value *)
 
+  | FldNameFn of name * 'e list * 'e 
+    (** Explicit instantiation with a function *)
+
+  | FldNameEffectFn of name * 'e option * 'e list * 'e option * 'e
+    (** Explicit instantiation with an effectful function *)
+
   | FldNameAnnot of name * 'tp
     (** type-annotated implicit parameter *)
 
