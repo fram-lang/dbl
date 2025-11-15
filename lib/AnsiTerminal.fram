@@ -59,7 +59,7 @@ pub module Cursor
 
   ## Saves the current cursor position.
   pub let savePosition    = csi + "s"
-  ## Restores the current cursor position.
+  ## Restores saved cursor position.
   pub let restorePosition = csi + "u"
 end
 
@@ -80,7 +80,7 @@ pub module Erase
   pub let eraseInLine  = csi + "K"
   ## Erases from the cursor to end of the line.
   pub let eraseEndLine = csi + "0K"
-  ## Erases from the cursor to the beggining of the line.
+  ## Erases from the cursor to the beginning of the line.
   pub let eraseBegLine = csi + "1K"
   ## Erases the entire line.
   pub let eraseLine    = csi + "2K"
@@ -148,9 +148,9 @@ pub module Font
     setMode False ((cl.colorCode + 40 : Int) >.toString)
 
   ## Sets the default foreground color.
-  let setDflFgColor = setMode False "39"
+  pub let setDflFgColor = setMode False "39"
   ## Sets the default background color.
-  let setDflBgColor = setMode False "49"
+  pub let setDflBgColor = setMode False "49"
 end
 
 ## Submodule for screen buffering and cursor visibility control.
