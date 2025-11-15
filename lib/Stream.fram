@@ -23,17 +23,20 @@ rec
     | Nil
 end
 
+parameter X : type
+
 method unstream (Stream xs) = xs
 
 {## Creates stream from given list. ##}
-pub let rec fromList {X} (xs : List X) = Stream (lazy (fn _ =>
-  match xs with
-  | x :: xs => Cons x (fromList xs)
-  | []      => Nil
-  end)) : Stream X
+pub let rec fromList (xs : List X) =
+  Stream (lazy (fn _ =>
+    match xs with
+    | x :: xs => Cons x (fromList xs)
+    | []      => Nil
+    end)) : Stream X
 
 {## Returns all elements of a stream as a list. ##}
-pub let rec toList {X} (Stream xs : Stream X) =
+pub let rec toList (Stream xs : Stream X) =
   match xs.force with
   | Cons x xs => x :: toList xs
   | Nil       => [] : List X
@@ -44,12 +47,12 @@ pub let rec toList {X} (Stream xs : Stream X) =
 
   This function may generate infinite stream.
  ##}
-pub let rec unfold {X, Y}
-  (seed : X) (f : X ->[] Option (Pair Y X)) = Stream (lazy (fn _ =>
+pub let rec unfold {S} (seed : S) (f : S ->[] Option (Pair X S)) =
+  Stream (lazy (fn _ =>
     match f seed with
     | None             => Nil
     | Some (val, seed) => Cons val (unfold seed f)
-    end)) : Stream Y
+    end)) : Stream X
 
 {## Creates an empty stream. ##}
 pub let empty {X} = (Stream (pureLazy Nil) : Stream X)
@@ -62,22 +65,22 @@ pub let isEmpty {X} (Stream xs : Stream X) =
   end
 
 {## Creates a stream from given element. ##}
-pub let singleton {X} (elem : X) =
+pub let singleton (elem : X) =
   Stream (pureLazy (Cons elem empty))
 
 {## Adds an element to the head of a stream. ##}
-pub let cons {X} (elem : X) (tail : Stream X) =
+pub let cons (elem : X) (tail : Stream X) =
   Stream (pureLazy (Cons elem tail))
 
 {## Adds a deffered element to the head of a stream. ##}
-pub let lazyCons {X} (elem : Lazy X) (tail : Stream X) =
+pub let lazyCons (elem : Lazy X) (tail : Stream X) =
   Stream (lazy (fn _ => Cons elem.force tail))
 
 {##
   Returns head and tail of a stream.
   Returns `None` if stream is empty.
  ##}
-pub let uncons {X} (Stream xs : Stream X) =
+pub let uncons (Stream xs : Stream X) =
   match xs.force with
   | Nil       => None
   | Cons x xs => Some (x, xs)
@@ -86,7 +89,7 @@ pub let uncons {X} (Stream xs : Stream X) =
 {##
   Creates a new stream with mapped values.
  ##}
-pub let rec map {X, Y} (f : X ->> Y) (Stream xs : Stream X) =
+pub let rec map {Y} (f : X ->> Y) (Stream xs : Stream X) =
   Stream (lazy (fn _ =>
     match xs.force with
     | Cons x xs => Cons (f x) (map f xs)
@@ -94,7 +97,7 @@ pub let rec map {X, Y} (f : X ->> Y) (Stream xs : Stream X) =
     end)) : Stream Y
 
 {## Appends two streams together. ##}
-pub let rec append {X} (Stream xs : Stream X) (ys : Stream X) =
+pub let rec append (Stream xs : Stream X) (ys : Stream X) =
   Stream (lazy (fn _ =>
     match xs.force with
     | Cons x xs => Cons x (append xs ys)
@@ -102,7 +105,7 @@ pub let rec append {X} (Stream xs : Stream X) (ys : Stream X) =
     end)) : Stream X
 
 {## Performs monadic bind over a stream. ##}
-pub let rec concatMap {X, Y} (f : X ->> Stream Y) (Stream xs : Stream X) =
+pub let rec concatMap {Y} (f : X ->> Stream Y) (Stream xs : Stream X) =
   Stream (lazy (fn _ =>
     match xs.force with
     | Cons x xs => append (f x) (concatMap f xs) >.unstream >.force
@@ -112,7 +115,7 @@ pub let rec concatMap {X, Y} (f : X ->> Stream Y) (Stream xs : Stream X) =
 {##
   Returns a longest prefix of a stream that satisfies given predicate
  ##}
-pub let rec takeWhile {X} (f : X ->> Bool) (Stream xs : Stream X) =
+pub let rec takeWhile (f : X ->> Bool) (Stream xs : Stream X) =
   Stream (lazy (fn _ =>
     match xs.force with
     | Cons x xs =>
@@ -124,7 +127,7 @@ pub let rec takeWhile {X} (f : X ->> Bool) (Stream xs : Stream X) =
     end)) : Stream X
 
 {## Returns a substream with values that satisfies given predicate. ##}
-pub let rec filter {X} (f : X ->> Bool) (Stream xs : Stream X) =
+pub let rec filter (f : X ->> Bool) (Stream xs : Stream X) =
   Stream (lazy (fn _ =>
     match xs.force with
     | Nil       => Nil
@@ -138,7 +141,7 @@ pub let rec filter {X} (f : X ->> Bool) (Stream xs : Stream X) =
 {##
   Folds stream to a single value, beginning with right-most value.
  ##}
-pub let rec foldRight {X, A}
+pub let rec foldRight {A}
   (f : X -> A ->> A) (Stream xs : Stream X) (acc : A) =
     match xs.force with
     | Cons x xs => f x (foldRight f xs acc)
@@ -152,7 +155,7 @@ pub let rec foldRight {X, A}
 
   @param ~onError Fallback for an empty stream.
  ##}
-pub let foldRight1Err {X, ~onError : Unit ->> X}
+pub let foldRight1Err {~onError : Unit ->> X}
   (f : X -> X ->> X) (Stream xs : Stream X) =
     let rec foldRight1ErrAux y (Stream xs) =
       match xs.force with
@@ -167,7 +170,7 @@ pub let foldRight1Err {X, ~onError : Unit ->> X}
     
 {## Checks if all elements of given streams are equal pairwise. ##}
 pub let equal
-  {X, method equal : X -> X ->[] Bool}
+  {method equal : X -> X ->[] Bool}
   (xs : Stream X)
   (ys : Stream X) =
     let rec equalAux ((Stream xs) : Stream X) ((Stream ys) : Stream X) =
@@ -180,10 +183,10 @@ pub let equal
           False
       | _ => False
     end in
-  equalAux xs ys
+    equalAux xs ys
 
 {## Enables stream showing in REPL. ##}
-pub let show {X} (_ : Stream X) = "#Stream"
+pub let show (_ : Stream X) = "#Stream"
 
 parameter ~onError
 
