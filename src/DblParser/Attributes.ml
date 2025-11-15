@@ -31,43 +31,44 @@ type attr_conf = {
 }
 
 (* ===== Public/Abstract ===== *)
+
+let rec make_vis_pattern (pt : Lang.Surface.pattern) =
+  map_node begin function
+  | PWildcard -> PWildcard
+  | PId (_, ident) -> PId (true, ident)
+  | PAnnot (pt, scheme) -> PAnnot (make_vis_pattern pt, scheme)
+  | PCtor (pth, xs, ys) -> 
+    PCtor 
+      (pth, List.map make_vis_named_pattern xs, List.map make_vis_pattern ys)
+  end pt
+and make_vis_named_pattern (npt : Lang.Surface.named_pattern) =
+  map_node begin function
+  | NP_Type (_, nta) -> NP_Type (true, nta)
+  | NP_Module (_, name) -> NP_Module (true, name)
+  | NP_Open _ -> NP_Open true
+  | NP_Val (name, pt, scheme) -> NP_Val (name, make_vis_pattern pt, scheme)
+  end npt 
+and make_vis_def ~is_abstract def =
+  map_node begin function
+  | DLetId (_, ident, ped) -> 
+    DLetId (true, ident, ped)
+  | DLetPat (pattern, expr) -> 
+    DLetPat (make_vis_pattern pattern, expr)
+  | DHandlePat (pattern, ty, expr) ->
+    DHandlePat (make_vis_pattern pattern, ty, expr)
+  | DData data -> 
+    DData { data with public_tp = true; public_ctors = not is_abstract}
+  | DModule (_, v, ds) -> DModule (true, v, ds)
+  | DOpen (_, pth) -> DOpen (true, pth)
+  | DRec ds -> DRec (List.map (make_vis_def ~is_abstract) ds) 
+  | DBlock block -> DBlock (List.map (make_vis_def ~is_abstract) block)
+  | DType ty -> DType {ty with public_tp = true}
+  | other -> other
+  end def
+
 let make_visible ~is_abstract args attrs ds = 
-  let rec make_vis_pattern (pt : Lang.Surface.pattern) =
-    map_node begin function
-    | PWildcard -> PWildcard
-    | PId (_, ident) -> PId (true, ident)
-    | PAnnot (pt, scheme) -> PAnnot (make_vis_pattern pt, scheme)
-    | PCtor (pth, xs, ys) -> 
-      PCtor 
-        (pth, List.map make_vis_named_pattern xs, List.map make_vis_pattern ys)
-    end pt
-  and make_vis_named_pattern (npt : Lang.Surface.named_pattern) =
-    map_node begin function
-    | NP_Type (_, nta) -> NP_Type (true, nta)
-    | NP_Module (_, name) -> NP_Module (true, name)
-    | NP_Open _ -> NP_Open true
-    | NP_Val (name, pt, scheme) -> NP_Val (name, make_vis_pattern pt, scheme)
-    end npt 
-  and make_vis_def def =
-    map_node begin function
-    | DLetId (_, ident, ped) -> 
-      DLetId (true, ident, ped)
-    | DLetPat (pattern, expr) -> 
-      DLetPat (make_vis_pattern pattern, expr)
-    | DHandlePat (pattern, ty, expr) ->
-      DHandlePat (make_vis_pattern pattern, ty, expr)
-    | DData data -> 
-      DData { data with public_tp = true; public_ctors = not is_abstract}
-    | DModule (_, v, ds) -> DModule (true, v, ds)
-    | DOpen (_, pth) -> DOpen (true, pth)
-    | DRec ds -> DRec (List.map make_vis_def ds) 
-    | DBlock block -> DBlock (List.map make_vis_def block)
-    | DType ty -> DType {ty with public_tp = true}
-    | other -> other
-    end def
-  in 
   match attr_args args.data with
-  | [] -> (attrs, List.map make_vis_def ds)
+  | [] -> (attrs, List.map (make_vis_def ~is_abstract) ds)
   | xs -> 
     Error.fatal 
       (Error.attribute_argument_arity_mismatch args.pos 0 (List.length xs))

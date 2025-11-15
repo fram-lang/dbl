@@ -293,7 +293,7 @@ let rec tr_ctor_pattern (p : Raw.expr) =
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
-let rec tr_pattern ~public (p : Raw.expr) =
+let rec tr_pattern (p : Raw.expr) =
   let make data = { p with data = data } in
   match p.data with
   | EWildcard   -> make PWildcard
@@ -304,28 +304,28 @@ let rec tr_pattern ~public (p : Raw.expr) =
   | EStr _      -> Error.fatal (Error.desugar_error p.pos)
   | EChr _      -> Error.fatal (Error.desugar_error p.pos)
   | EInterp _   -> Error.fatal (Error.desugar_error p.pos)
-  | EParen    p -> make (tr_pattern ~public p).data
-  | EVar      x -> make (PId(public, IdVar x))
-  | EBOpID    n -> make (PId(public, IdVar (tr_bop_id (make n))))
-  | EUOpID    n -> make (PId(public, IdVar (make_uop_id n)))
-  | EImplicit n -> make (PId(public, IdImplicit n))
+  | EParen    p -> make (tr_pattern p).data
+  | EVar      x -> make (PId(false, IdVar x))
+  | EBOpID    n -> make (PId(false, IdVar (tr_bop_id (make n))))
+  | EUOpID    n -> make (PId(false, IdVar (make_uop_id n)))
+  | EImplicit n -> make (PId(false, IdImplicit n))
   | EApp(p1, ps) ->
     let cpath = tr_ctor_pattern p1 in
     let (flds, _, ps) = collect_fields ~ppos:p1.pos ps in
     let named = List.map tr_named_pattern flds in
-    let ps = List.map (tr_pattern ~public) ps in
+    let ps = List.map (tr_pattern) ps in
     make (PCtor(cpath, named, ps))
-  | EAnnot(p, sch) -> make (PAnnot(tr_pattern ~public p, tr_scheme_expr sch))
+  | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
   | EBOp(p1, op, p2) ->
     let c_name = {op with data = NPName (tr_bop_id op)} in
-    let ps = [tr_pattern ~public p1; tr_pattern ~public p2] in
+    let ps = [tr_pattern p1; tr_pattern p2] in
     make (PCtor(c_name, [], ps))
   | EUOp(op, p1) ->
     let c_name = {op with data = NPName (make_uop_id op.data)} in
-    make (PCtor(c_name, [], [tr_pattern ~public p1]))
+    make (PCtor(c_name, [], [tr_pattern p1]))
   | EList ps ->
     let cons pe xs =
-      let pe  = tr_pattern ~public pe in
+      let pe  = tr_pattern pe in
       let pos = Position.join pe.pos p.pos in
       let cpath = make (NPName (tr_ctor_name' (CNBOp "::"))) in
       { pos; data = PCtor(cpath, [], [pe; xs]) }
@@ -333,7 +333,7 @@ let rec tr_pattern ~public (p : Raw.expr) =
     let nil_path = make (NPName (tr_ctor_name' CNNil)) in
     let pnil = make (PCtor(nil_path, [], [])) in
     make (List.fold_right cons ps pnil).data
-  | EPub p -> make (tr_pattern ~public:true p).data
+  | EPub p -> make (Attributes.make_vis_pattern (tr_pattern p)).data
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
@@ -349,12 +349,12 @@ and tr_annot_pattern (p : Raw.expr) =
     | pat, None -> { pat with pos }, None
     | (_, Some _) as res -> res
     end
-  | EAnnot(p, sch) -> tr_pattern ~public:false p, Some (tr_scheme_expr sch)
+  | EAnnot(p, sch) -> tr_pattern p, Some (tr_scheme_expr sch)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
   | ENum _ | ENum64 _ | EStr _ |  EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
   | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ | EInterp (_, _) ->
-    tr_pattern ~public:false p, None
+    tr_pattern p, None
 
 and tr_named_pattern (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -419,7 +419,7 @@ let rec tr_let_pattern (p : Raw.expr) =
 
     | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | ECtor _ | ESelect _
     | EInterp (_, _) | EList _ ->
-      LP_Pat(tr_pattern ~public:false p)
+      LP_Pat(tr_pattern p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
     | EMatch _ | EHandler _| EEffect _ | ERecord _ | EMethod _ 
@@ -430,7 +430,7 @@ let rec tr_let_pattern (p : Raw.expr) =
   | EWildcard | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _
   | ECtor _ | EAnnot _ | EBOp _  | EUOp _  | ESelect _ | EList _ | EPub _ 
   | EInterp (_, _) ->
-    LP_Pat (tr_pattern ~public:false p)
+    LP_Pat (tr_pattern p)
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
   | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
@@ -442,7 +442,7 @@ let rec tr_function args body =
   | [] -> body
   | arg :: args ->
     { pos  = Position.join arg.pos body.pos;
-      data = EFn(tr_pattern ~public:false arg, tr_function args body)
+      data = EFn(tr_pattern arg, tr_function args body)
     }
 
 (** Translate a polymorphic function *)
@@ -567,7 +567,7 @@ and tr_expr (e : Raw.expr) =
     let (pos, res) =
       match resumption with
       | None     -> (e.pos, make (PId(false, IdVar("resume"))))
-      | Some res -> (Position.join res.pos e.pos, tr_pattern ~public:false res)
+      | Some res -> (Position.join res.pos e.pos, tr_pattern res)
     in
     let e = EEffect(Option.map tr_expr label, res, tr_expr body) in
     make (tr_function args { pos; data = e }).data
@@ -639,7 +639,7 @@ and tr_match_clause (cl : Raw.match_clause) =
   let make data = { cl with data = data } in
   match cl.data with
   | Clause(pat, body) ->
-    make (Clause(tr_pattern ~public:false pat, tr_expr body))
+    make (Clause(tr_pattern pat, tr_expr body))
 
 and tr_explicit_inst (fld : Raw.field) =
   let make data = { fld with data = data } in
@@ -729,11 +729,11 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
           })
       ]
   | DLabel(pat, eff_opt) ->
-    let pat = tr_pattern ~public:false pat in
+    let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     make_attr [ make (DLabel (eff, pat)) ]
   | DHandle(pat, eff_opt, body, hcs) ->
-    let pat = tr_pattern ~public:false pat in
+    let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
@@ -749,7 +749,7 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
           Error.fatal (Error.type_alias_with_args pos)
       ]
   | DHandleWith(pat, eff_opt, body) ->
-    let pat = tr_pattern ~public:false pat in
+    let pat = tr_pattern pat in
     let eff = tr_type_arg_opt pos eff_opt in
     let body = tr_expr body in
     make_attr [ make (DHandlePat(pat, eff, body)) ]
@@ -797,9 +797,9 @@ and tr_h_clause (hc : Raw.h_clause) =
   let make data = { hc with data = data } in
   match hc.data with
   | HCReturn(pat, body) ->
-    Either.Left (make (Clause(tr_pattern ~public:false pat, tr_expr body)))
+    Either.Left (make (Clause(tr_pattern pat, tr_expr body)))
   | HCFinally(pat, body) ->
-    Either.Right (make (Clause(tr_pattern ~public:false pat, tr_expr body)))
+    Either.Right (make (Clause(tr_pattern pat, tr_expr body)))
 
 let tr_program (p : Raw.program) =
   { p with data = tr_defs p.data }
