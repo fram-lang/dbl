@@ -6,6 +6,8 @@
 
 let src_extension = ".fram"
 
+let prog_args : string list ref = ref []
+
 let stdlib_path =
   match Sys.getenv_opt "DBL_LIB" with
   | Some path -> path
@@ -43,6 +45,9 @@ let test_tagless = ref false
 let test_active (tags : string list) =
   match tags with
   | [] -> !test_tagless
-  | _ -> 
+  | _  -> 
     List.exists 
       (fun s -> List.exists (fun g -> Dune_glob.V1.test g s) !test_globs) tags
+
+(** Use `show` method for pretty-printing in REPL. *)
+let repl_show_printing = ref true

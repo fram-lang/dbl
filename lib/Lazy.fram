@@ -1,0 +1,63 @@
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
+
+## # First-class lazy values
+
+{##
+  This module provides first-class lazy values, also known as suspensions,
+  representing deferred computations evaluated on demand.
+
+  A suspension encapsulates a computation that is executed only when its
+  result is first required. Once evaluated, the resulting value is memoized,
+  guaranteeing that subsequent forcings complete in constant time.
+
+  To preserve determinism, only effect-free thunks may be used as deferred
+  computations.
+ ##}
+
+# Mutability utilities
+data RefP = RefP of {Ref : type -> type}
+
+let RefP {Ref} = (extern dbl_abstrType : Unit ->[IO] RefP) ()
+
+let ref {type X}    = (extern dbl_ref    : X ->[] Ref X)
+method get {type X} = (extern dbl_refGet : Ref X ->[] X)
+method set {type X} = (extern dbl_refSet : Ref X -> X ->[] Unit)
+
+# Internal representation of lazy state
+data LazyState A =
+  | Thunk of (Unit ->[] A)
+  | Lock
+  | Done of A
+
+{## Represents a suspension. ##}
+abstr data Lazy X = Lazy of Ref (LazyState X)
+
+{## Creates new suspension from a given computation. ##}
+pub let lazy {type X} (f : Unit ->[] X) = Lazy (ref (Thunk f))
+
+{## Initializes a lazy with a value directly. ##}
+pub let pureLazy {type X} (v : X) = Lazy (ref (Done v))
+
+{##
+  Forces the evaluation of a suspension.
+
+  If the suspension has not yet been evaluated, its computation is executed
+  and the resulting value is stored. If the suspension is currently under
+  evaluation, a runtime error is raised to prevent re-entrant forcing.
+ ##}
+pub method force (Lazy ref) =
+  match ref.get with
+  | Done x => x
+  | Lock => runtimeError "Forcing lazy value during its evaluation"
+  | Thunk f =>
+    ref.set Lock;
+    let val = f () in
+    ref.set (Done val);
+    val
+  end
+
+{## Creates new lazy value with mapped results. ##}
+pub method map {X : type} (self : Lazy X) f =
+  lazy (fn _ => f self.force)
