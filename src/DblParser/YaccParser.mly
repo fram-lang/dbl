@@ -10,8 +10,8 @@
 %token<int64> NUM64
 %token<string> STR CSTR BSTR ESTR
 %token<char> CHR
-%token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
-%token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT ATTR_OPEN
+%token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS ATTR_OPEN
+%token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
@@ -44,8 +44,6 @@ let make data =
 (** Make potentially recursive definition *)
 let make_def is_rec data =
   if is_rec then DRec([make ([], data)]) else data 
-
-let append xs ys = xs @ ys
 
 %}
 
@@ -536,7 +534,7 @@ def
 | ATTR_OPEN CBR_CLS def_base 
   { make $3 }
 | ATTR_OPEN attrs CBR_CLS def_base 
-  { let (attrs', def) = $4 in make (append $2 attrs', def) }
+  { let (attrs', def) = $4 in make ($2 @ attrs', def) }
 ;
 
 def_base

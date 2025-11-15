@@ -68,7 +68,7 @@ let cmd_args_options = Arg.align
       (fun s -> String.split_on_char ',' s 
       |> List.map String.trim 
       |> List.map DblConfig.compile_glob 
-      |> fun s -> DblConfig.test_globs := s),
+      |> fun s -> DblConfig.test_globs := !DblConfig.test_globs @ s),
     " Run tagged tests matching globs";
   
     "-no-show-printing",

@@ -706,10 +706,11 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
       let ctors = [ make { cd_name; cd_named_args; cd_arg_schemes = [] } ] in
       let record_attr = [make (Raw.Attribute ("#record", []))] in
       let expr = DData { 
-        public_tp=false; 
-        public_ctors=false; 
-        tvar = cd_name; 
-        args; ctors 
+        public_tp    = false; 
+        public_ctors = false; 
+        tvar         = cd_name; 
+        args;
+        ctors 
       } in
       (record_attr, [make expr])
     end
@@ -720,8 +721,8 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
           let args = List.map tr_named_type_arg args in
           let ctors = List.map tr_ctor_decl cs in
           make (DData { 
-            public_tp=false; 
-            public_ctors=false; 
+            public_tp    = false; 
+            public_ctors = false; 
             tvar; 
             args; 
             ctors 

@@ -39,9 +39,14 @@ let print_colors_of_string = function
 
 let compile_glob = Dune_glob.V1.of_string
 
+(** List of globs to compare with tagged tests. *)
 let test_globs : Dune_glob.V1.t list ref = ref [ ]
+
+(** Enables tagless test code. *)
 let test_tagless = ref false
 
+(** Checks if code with given list of tags should be enabled in
+    current session. *)
 let test_active (tags : string list) =
   match tags with
   | [] -> !test_tagless
