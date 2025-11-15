@@ -162,6 +162,8 @@ module GVar = struct
     let compare gv1 gv2 = UID.compare gv1.uid gv2.uid
   end
 
+  let equal gv1 gv2 = gv1.uid = gv2.uid
+
   let scope gv =
     match BRef.get gv.state with
     | GVar scope -> scope

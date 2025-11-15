@@ -283,6 +283,9 @@ module GVar : sig
   (** Get the scope of a generalizable variable *)
   val scope : gvar -> Scope.t
 
+  (** Check equality of generalizable variables *)
+  val equal : gvar -> gvar -> bool
+
   (** Check if generalizable variable belongs to the given scope. *)
   val in_scope : gvar -> Scope.t -> bool
 
