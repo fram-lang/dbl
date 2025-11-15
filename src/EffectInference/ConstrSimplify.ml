@@ -60,8 +60,8 @@ let set_gvar st gv eff =
   let (_, eff_gvs) = T.Effct.view eff in
   let eff_gvs =
     eff_gvs
-    |> List.filter_map (fun (gv', _) ->
-        if T.GVar.in_scope gv st.scope then None else Some gv')
+    |> List.filter_map (fun (gv, _) ->
+        if T.GVar.in_scope gv st.scope then None else Some gv)
     |> T.GVar.Set.of_list
   in
   if T.GVar.Set.mem gv st.pgvs then
