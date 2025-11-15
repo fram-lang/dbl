@@ -59,6 +59,18 @@ let cmd_args_options = Arg.align
       (fun s -> DblConfig.print_colors_of_string s)),
     " Use colors when printing Errors.";
 
+    "-test",
+    Arg.Set DblConfig.test_tagless,
+    " Run tagless tests";
+
+    "-test-tags",
+    Arg.String 
+      (fun s -> String.split_on_char ',' s 
+      |> List.map String.trim 
+      |> List.map DblConfig.compile_glob 
+      |> fun s -> DblConfig.test_globs := !DblConfig.test_globs @ s),
+    " Run tagged tests matching globs";
+  
     "-no-show-printing",
     Arg.Clear DblConfig.repl_show_printing,
     " Disable REPL from using method `show' for pretty-printing.";
