@@ -14,6 +14,9 @@ type t
 
 (** Operations on generalizable variables *)
 module GVar : sig
+  (** Check equality of two generalizable variables *)
+  val equal : gvar -> gvar -> bool
+
   (** Get the scope of a generalizable variable *)
   val scope : gvar -> Scope.t
 

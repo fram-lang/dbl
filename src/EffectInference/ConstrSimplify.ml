@@ -51,23 +51,31 @@ let rhs_gvars st cs =
     T.GVar.Set.empty
     cs
 
+(** [set_gvar] sets the variable [gv] to the effect [eff], and updates the
+    positive/negative sets accordingly. It is assumed that [gv] is not in the
+    outer scope ([st.scope]) and that [eff] does not contain [gv] itself. *)
+let set_gvar st gv eff =
+  assert (IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv));
+  assert (not (T.GVar.in_scope gv st.scope));
+  let (_, eff_gvs) = T.Effct.view eff in
+  let eff_gvs =
+    eff_gvs
+    |> List.filter_map (fun (gv', _) ->
+        if T.GVar.in_scope gv st.scope then None else Some gv')
+    |> T.GVar.Set.of_list
+  in
+  if T.GVar.Set.mem gv st.pgvs then
+    st.pgvs <- T.GVar.Set.remove gv (T.GVar.Set.union st.pgvs eff_gvs);
+  if T.GVar.Set.mem gv st.ngvs then
+    st.ngvs <- T.GVar.Set.remove gv (T.GVar.Set.union st.ngvs eff_gvs);
+  T.GVar.set gv eff
+
 let close_positive st gv =
-  st.pgvs <- T.GVar.Set.remove gv st.pgvs;
-  T.GVar.set gv T.Effct.pure
+  set_gvar st gv T.Effct.pure
 
 let set_negative st (gv, eff) =
-  if IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv) then begin
-    if T.GVar.Set.mem gv st.ngvs then begin
-      let (_, tvars) = T.Effct.view eff in
-      List.iter
-        (fun (gv', _) ->
-          if not (T.GVar.in_scope gv' st.scope) then
-            st.ngvs <- T.GVar.Set.add gv' st.ngvs)
-        tvars;
-      st.ngvs <- T.GVar.Set.remove gv st.ngvs
-    end;
-    T.GVar.set gv eff
-  end
+  if IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv) then
+    set_gvar st gv eff
 
 let build_gvar_bounds st eff2 bnd (gv, p) =
   if T.GVar.in_scope gv st.scope then bnd
@@ -86,6 +94,22 @@ let build_bounds st bnd (Constr.CSubeffect(_, eff1, eff2)) =
   let (_, gvars) = T.Effct.view eff1 in
   List.fold_left (build_gvar_bounds st eff2) bnd gvars
 
+(** [remove_gvar eff gv] removes [gv] from effect [eff]. *)
+let remove_gvar eff gv =
+  let (tvs, gvs) = T.Effct.view eff in
+  let gvs = List.filter (fun (gv', _) -> not (T.GVar.equal gv gv')) gvs in
+  let eff = T.Effct.pure in
+  let eff =
+    List.fold_left
+      (fun eff (x, p) ->
+        T.Effct.join (T.Effct.guard (T.Effct.var x) p) eff)
+      eff tvs
+  in
+  List.fold_left
+    (fun eff (gv', p) ->
+      T.Effct.join (T.Effct.guard (T.Effct.gvar gv') p) eff)
+    eff gvs
+
 (** [set_variant_nb st cs gv] sets [gv] to the join of all its lower-bounds
     in [cs]. The variable [gv] is assumed to have no positive nor negative
     occurrence, i.e., it should not appear in [st.pgvs] nor [st.ngvs]. *)
@@ -103,7 +127,13 @@ let set_variant_nb st cs gv =
       T.Effct.pure
       cs
   in
-  T.GVar.set gv lower_bound
+  let lower_bound =
+    if IncrSAT.Formula.is_false (T.Effct.lookup_gvar lower_bound gv) then
+      lower_bound
+    else
+      remove_gvar lower_bound gv
+  in
+  set_gvar st gv lower_bound
 
 (** Check if effect [eff1] is trivially a subeffect of [eff2]. *)
 let trivial_subeffect eff1 eff2 =
