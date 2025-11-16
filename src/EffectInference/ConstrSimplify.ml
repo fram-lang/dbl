@@ -185,7 +185,7 @@ let normalize st (c : Constr.t) =
   List.concat_map (normalize_gvar_constr st orig eff2) gvs
 
 (** The inverse of [normalize], converting internal representation
-    back to standard constraints. *)
+  back to standard constraints. *)
 let to_constr (c : constr) =
   let eff1 = T.Effct.guard (effect_of_eff_var c.eff_var) c.pformula in
   let eff2 =
