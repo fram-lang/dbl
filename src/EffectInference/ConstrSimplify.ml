@@ -222,7 +222,7 @@ let set_gvar st gv eff =
   T.GVar.set gv eff;
   st.progress <- true
 
-(** Variables that appears on the left-hand-side of any constraint. *)
+(** Variables that appear on the left-hand-side of any constraint. *)
 let lhs_gvars st cs =
   let scope = st.scope in
   List.fold_left
@@ -234,7 +234,7 @@ let lhs_gvars st cs =
     T.GVar.Set.empty
     cs
 
-(** Variables that appears on the right-hand-side of any constraint. *)
+(** Variables that appear on the right-hand-side of any constraint. *)
 let rhs_gvars st cs =
   let scope = st.scope in
   List.fold_left
@@ -246,7 +246,7 @@ let rhs_gvars st cs =
 (* ========================================================================= *)
 (* Rule: close positive generalizable variables *)
 
-(* Sets variables that occur only positively or on the left-hand-side of
+(** Sets variables that occur only positively or on the left-hand-side of
   constraints to pure effect. *)
 
 let rule_close_positive st cs =
@@ -261,7 +261,7 @@ let rule_close_positive st cs =
 (* ========================================================================= *)
 (* Rule: move up negative generalizable variables *)
 
-(* Sets variables that occur only negatively to their upper-bound, if they
+(** Sets variables that occur only negatively to their upper-bound, if they
   have exactly one. *)
 
 (** Update a map of upper-bounds for generalizable variables that occur
@@ -313,7 +313,7 @@ let rule_move_up_negative st cs =
 (* Rule: move down variant generalizable variables that do not have
     upper-bounds *)
 
-(* Sets variant variables (with no positive nor negative occurrence) that
+(** Sets variant variables (with no positive nor negative occurrence) that
   have no upper-bound to the join of all their lower-bounds. *)
 
 (** Join [lb] with the lower-bound provided by constraint [c] for
@@ -357,7 +357,7 @@ let rule_move_down_variant st cs =
 (* ========================================================================= *)
 (* Rule: remove redundant constraints *)
 
-(* Removes constraints that are implied by other constraints. *)
+(** Removes constraints that are implied by other constraints. *)
 
 (** Check if effect [eff1] is trivially a subeffect of [eff2]. *)
 let trivial_subeffect eff1 eff2 =
