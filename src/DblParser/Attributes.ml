@@ -25,7 +25,7 @@ type attr_resolver =
 type attr_conf = {
   name      : string;
   is_unique : bool;
-  preceeds  : string list;
+  precedes  : string list;
   conflicts : string list;
   resolver  : attr_resolver
 }
@@ -76,7 +76,7 @@ let make_visible ~is_abstract args attrs ds =
 let public_attribute : attr_conf = {
   name      = "#pub";
   is_unique = true;
-  preceeds  = [];
+  precedes  = [];
   conflicts = ["#abstr"];
   resolver  = make_visible ~is_abstract:false
 }
@@ -84,7 +84,7 @@ let public_attribute : attr_conf = {
 let abstr_attribute : attr_conf = {
   name      = "#abstr";
   is_unique = true;
-  preceeds  = [];
+  precedes  = [];
   conflicts = ["#pub"];
   resolver  = make_visible ~is_abstract:true
 }
@@ -104,7 +104,7 @@ let make_test args attrs defs =
 let test_attribute : attr_conf = {
   name      = "test";
   is_unique = false;
-  preceeds  = [];
+  precedes  = [];
   conflicts = [];
   resolver  = make_test
 }
@@ -189,14 +189,15 @@ let tr_record args attrs (defs : Lang.Surface.def list) =
       List.filter_map 
       (create_accessor_method method_named_args pattern_gen) cd_named_args in
     (attrs, dd :: sels)
-  | (xs, _) -> 
-    Error.fatal 
-      (Error.attribute_argument_arity_mismatch args.pos 0 (List.length xs))
+  | _ ->
+    (* This code should not be reachable. *)
+    Error.fatal
+      (Error.attribute_internal_error args.pos "#record")
 
 let record_attribute : attr_conf = {
   name      = "#record";
   is_unique = true;
-  preceeds  = ["#pub"; "#abstr"];
+  precedes  = ["#pub"; "#abstr"];
   conflicts = [];
   resolver  = tr_record
 }
@@ -214,7 +215,7 @@ let tr_existential args attrs defs =
 let ignore_existential_attribute : attr_conf = {
   name      = "ignoreExistential";
   is_unique = true;
-  preceeds  = ["#record"];
+  precedes  = ["#record"];
   conflicts = [];
   resolver  = tr_existential
 }
@@ -233,7 +234,7 @@ let attributes =
    and runs checks on them *)
 let parse_attributes (attrs : attributes) =
 
-  (* Reduces multiple occurences of given attribute 
+  (* Reduces multiple occurrences of given attribute 
      to a list and puts them on a map *)
   let fold_attrs (attrs : attributes) : attributes M.t =
     let rec iter (acc : attributes M.t) = function
@@ -247,10 +248,10 @@ let parse_attributes (attrs : attributes) =
         iter acc' attrs
     in iter M.empty attrs in
 
-  (* checks if attribute matches decalted configuration *)
+  (* checks if attribute matches declared configuration *)
   let static_check conf curr_attrs other_attrs =
     let first = List.hd curr_attrs in
-    (* uniquness check *)
+    (* uniqueness check *)
     let _ = match (curr_attrs, conf.is_unique) with
     | ([], true) | ([_], true) | (_, false)  -> ()
     | (_, true) -> 
@@ -277,9 +278,9 @@ let parse_attributes (attrs : attributes) =
       | Some conf ->
         let to_visit = M.remove key to_visit in
         let _ = static_check conf xs to_visit in
-        let req = conf.preceeds in
+        let prerequisites = conf.precedes in
         let (to_visit, stack) = 
-          List.fold_right visit req (to_visit, stack) in
+          List.fold_right visit prerequisites (to_visit, stack) in
         (to_visit, xs @ stack) 
       end in
   

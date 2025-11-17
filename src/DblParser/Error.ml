@@ -94,6 +94,9 @@ let attribute_argument_arity_mismatch pos expected actual =
     "Attribute expected " ^ Int.to_string expected 
       ^ " arguments. Got: " ^ Int.to_string actual)
 
+let attribute_internal_error pos att =
+  (Some pos, "An error occured while resolving " ^ att ^ " attribute")
+
 let unknown_attribute pos name = 
   (Some pos, "Unknown attribute " ^ name)
 

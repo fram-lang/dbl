@@ -43,6 +43,7 @@ val type_alias_with_args : Position.t -> t
 val attribute_conflict : Position.t -> string -> string -> t
 val attribute_not_unique : Position.t -> string -> t
 val attribute_argument_arity_mismatch : Position.t -> int -> int -> t
+val attribute_internal_error : Position.t -> string -> t
 val unknown_attribute : Position.t -> string -> t
 
 val finally_before_return_clause : Position.t -> t

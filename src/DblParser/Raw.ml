@@ -126,7 +126,7 @@ and ctor_decl_data =
 (** Attributes *)
 type attribute = attribute_data node
 and attribute_data = Attribute of string * string list 
-  (** Atributes constructor with expicit name *)
+  (** Attributes constructor with expicit name *)
 
 (** Expressions *)
 type expr = expr_data node
