@@ -58,10 +58,9 @@ val resolve_implicit :
 (** Resolve a method parameter of given scheme in given environment. If the
   [~method_env] argument is provided, the method is searched in the
   [~method_env] environment, but its parameters are resolved in the given
-  environment. The [~vset] argument is for the internal use only, but it is
-  visible in the interface because it is used by the constraint solver.
-  Do not use it directly. *)
+  environment. The [~pcyc] argument is the internal state of the parameter
+  cycle detection, saved when a method resolution was delayed. *)
 val resolve_method :
-  ?vset:int Var.Map.t ->
+  ?pcyc:ParamCycleDetect.t ->
   pos:Position.t -> 'st Env.t -> ?method_env:'st Env.t ->
     S.method_name -> T.scheme -> T.poly_fun * Constr.t list
