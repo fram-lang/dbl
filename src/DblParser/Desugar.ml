@@ -673,7 +673,6 @@ and tr_explicit_inst (fld : Raw.field) =
     make (IVal(n, make (PE_Poly pe)))
   | FldNameVal(n, e) ->
     make (IVal(n, tr_poly_expr_def e))
-
   | FldModule path -> make (IModule path)
   | FldOpen -> make IOpen
   | FldNameAnnot _ | FldType(_, Some _) ->
