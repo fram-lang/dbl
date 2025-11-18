@@ -398,7 +398,6 @@ let tr_param_decl (fld : Raw.field) =
   | FldNameFn _ | FldNameEffectFn _ ->
     Error.fatal (Error.desugar_error fld.pos)
 
-
 (** Translate an expression as a let-pattern. *)
 let rec tr_let_pattern ~public (p : Raw.expr) =
   let make data = { p with data = data } in
