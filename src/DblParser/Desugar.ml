@@ -677,7 +677,7 @@ and tr_explicit_inst (fld : Raw.field) =
   | FldOpen -> make IOpen
   | FldNameAnnot _ | FldType(_, Some _) ->
     Error.fatal (Error.desugar_error fld.pos)
-  | FldNameFn (n, es , e) ->
+  | FldNameFn (n, es, e) ->
     make (IVal(n, tr_poly_expr_def ({pos = fld.pos; data = EFn(es, e)})))
   | FldNameEffectFn (n, label, es, resumption, e) ->
     make (IVal(n, tr_poly_expr_def
