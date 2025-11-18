@@ -685,7 +685,7 @@ and tr_explicit_inst (fld : Raw.field) =
     make (IVal(n, tr_poly_expr_def
       { pos = fld.pos;
         data = EEffect({label; args = es; resumption; body = e})
-      })) 
+      }))
 
 and tr_def ?(public=false) (def : Raw.def) =
   let pos = def.pos in
