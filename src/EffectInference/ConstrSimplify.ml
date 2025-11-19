@@ -93,16 +93,26 @@ let add_irrelevant_constr st c =
   st.irr <- c :: st.irr
 
 (** Get the generalizable variable from an effect assumed to be a
-  single generalizable variable. *)
+  single generalizable variable. This function cannot be used after
+  some generalizable variables have been set until the next iteration
+  that normalizes the constraints again. *)
 let get_gvar eff =
   match T.Effct.view eff with
   | ([], [(gv, p)]) when IncrSAT.Formula.is_true p -> gv
-  | _ -> assert false
+  | _ ->
+    InterpLib.InternalError.report
+      ~reason:"Violation of constraint simplification invariant: \
+        Extracting generalizable variable from left-hand-side effect \
+        after some generalizable variables have been set."
+      ()
 
 let effect_of_eff_var = function
   | TVar x    -> T.Effct.var x
   | GVar eff1 -> eff1
 
+(** Module for effect variables, to be used in maps. It cannot be used
+  after some generalizable variables have been set until the next
+  iteration that normalizes the constraints again. *)
 module EffVar = struct
   type t = eff_var
   let compare ev1 ev2 =
@@ -119,7 +129,7 @@ module EffVarMap = Map.Make(EffVar)
 (* Constraint normalization *)
 
 (** Check if effect [eff] is irrelevant, i.e., it does not contain any
-  generalizable variable outside of the current scope. *)
+  generalizable variable outside of the current outer scope. *)
 let is_eff_irrelevant st eff =
   let (_, gvars) = T.Effct.view eff in
   List.for_all
@@ -127,7 +137,7 @@ let is_eff_irrelevant st eff =
     gvars
 
 (** Check if generalizable variable [gv] is irrelevant, i.e., it belongs
-  to the current scope. *)
+  to the current outer scope. *)
 let is_gvar_irrelevant st gv =
   T.GVar.in_scope gv st.scope
 
@@ -275,7 +285,7 @@ let build_single_upper_bounds st bnd (c : constr) =
   | GVar eff ->
     let gv = get_gvar eff in
     if T.GVar.in_scope gv st.scope then
-      (* Variable is in scope, ignore it. *)
+      (* Variable is irrelevant (it is in the outer scope), ignore it. *)
       bnd
     else if T.GVar.Set.mem gv st.pgvs then
       (* Variable occurs positively, ignore it. *)
