@@ -21,9 +21,10 @@ data RefP = RefP of {Ref : type -> type}
 
 let RefP {Ref} = (extern dbl_abstrType : Unit ->[IO] RefP) ()
 
-let ref {type X}    = (extern dbl_ref    : X ->[] Ref X)
-method get {type X} = (extern dbl_refGet : Ref X ->[] X)
-method set {type X} = (extern dbl_refSet : Ref X -> X ->[] Unit)
+let ref {type X}     = (extern dbl_ref    : X ->[] Ref X)
+let pureRef {type X} = (extern dbl_ref    : X -> Ref X)
+method get {type X}  = (extern dbl_refGet : Ref X ->[] X)
+method set {type X}  = (extern dbl_refSet : Ref X -> X ->[] Unit)
 
 # Internal representation of lazy state
 data LazyState A =
@@ -37,8 +38,12 @@ abstr data Lazy X = Lazy of Ref (LazyState X)
 {## Creates new suspension from a given computation. ##}
 pub let lazy {type X} (f : Unit ->[] X) = Lazy (ref (Thunk f))
 
-{## Initializes a lazy with a value directly. ##}
-pub let pureLazy {type X} (v : X) = Lazy (ref (Done v))
+{##
+  Creates a lazy value containing a fully evaluated result.
+  This is equivalent to constructing an immutable value directly,
+  so this function is pure.
+ ##}
+pub let pureLazy {type X} (v : X) = Lazy (pureRef (Done v))
 
 {##
   Forces the evaluation of a suspension.
