@@ -120,9 +120,11 @@ let escaping_effect_var ~origin x =
   (pos, msg1 ^ msg2 ^ T.Pretty.additional_info pp_ctx)
 
 let non_exhaustive_match ~pos ctx =
-  (* TODO: counterexample in the message. *)
+  let counterex = PatternContext.to_pattern ctx in
+  let ex_str = PatternContext.pp_ex_pattern counterex in
   let msg = Printf.sprintf
-    "This pattern-matching is not exhaustive."
+    "This pattern-matching is not exhaustive.\nHere is an example of a case that is not matched:\n  %s"
+    ex_str
   in (pos, msg)
 
 let unused_pattern ~pos =
