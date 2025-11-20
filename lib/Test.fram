@@ -84,8 +84,7 @@ let printErrorInfo (ErrorInfo { msg, line, file, errorType }) =
 
 method printTestSuccess (TestCase { name, line, file }) =
   printStr   "[ \{ Color.setFgColor Color.Green | strFmt }OK";
-  printStr   "\{Color.resetAll | strFmt} ]";
-  printStrLn " \"\{ name | strFmt}\" from \{ file | strFmt }:\{ line | strFmt }"
+  printStrLn "\{Color.resetAll | strFmt} ] \"\{ name | strFmt}\""
 
 method printTestFailure (TestCase { name, line, file }) assertInfos =
   printStr   "[\{ Color.setFgColor Color.Red | strFmt }FAIL";
@@ -95,11 +94,11 @@ method printTestFailure (TestCase { name, line, file }) assertInfos =
 
 {# Printing for suites #}
 method printTestsPreamble (TestSuite {file, line, name}) (prefix : String) =
-  printStrLn "[====] Running test suite [\{prefix}]/\{name}";
+  printStrLn "[====] Running test suite \{prefix}/\{name}";
   printStrLn "[    ] from \{file | strFmt}:\{line}"
 
 method printSuitesPreamble (TestSuite {file, line, name}) (prefix : String) =
-  printStrLn "[====] Running subsuites of [\{prefix}]/\{name}";
+  printStrLn "[====] Running subsuites of \{prefix}/\{name}";
   printStrLn ""
 
 method reportNoTests (TestSuite { name }) =
@@ -113,34 +112,24 @@ let printTestsResult (testResults : Pair Int Int) =
   let (succ, fail) = testResults in
   if succ == 0 && fail == 0 then
     printStrLn "[====] No tests have been run"
-  else if succ == 1 && fail == 0 then
-    printStrLn "[====] A test have passed!"
-  else if succ == 2 && fail == 0 then
-    printStrLn "[====] Both tests passed!"
   else if fail == 0 then
-    printStrLn "[====] All \{succ} tests have passed"
+    printStrLn "[====] All \{succ} test(s) have passed"
   else
-    printStrLn "[====] \{succ}/\{fail + succ} tests have passed";
+    printStrLn "[====] \{succ}/\{fail + succ} test(s) have passed";
   (fail == 0)
 
 method printSubSuitesResult (TestSuite { name }) (prefix : String)
     (subsuiteResults : Pair Int Int) =
   let (succ, fail) = subsuiteResults in
   if succ == 0 && fail == 0 then (
-    printStr "[====] No subsuites of [\{ prefix | strFmt }]";
+    printStr "[====] No subsuites of \{ prefix | strFmt }";
     printStr "/\{ name | strFmt } have been run")
-  else if succ == 1 && fail == 0 then (
-    printStr "[====] A subsuite of [\{ prefix | strFmt }]";
-    printStr "/\{ name | strFmt } have passed!")
-  else if succ == 2 && fail == 0 then (
-    printStr "[====] Both subsuites of [\{ prefix | strFmt }]";
-    printStr "/\{ name | strFmt } passed!")
   else if fail == 0 then (
-    printStr "[====] All \{succ} subsuites of [\{ prefix | strFmt }]";
+    printStr "[====] All \{succ} subsuite(s) of \{ prefix | strFmt }";
     printStr "/\{ name | strFmt } have passed")
   else
-    printStr "[====] \{succ}/\{fail + succ} subsuites of [\{
-      prefix | strFmt }]/\{ name | strFmt } have passed";
+    printStr "[====] \{succ}/\{fail + succ} subsuite(s) of \{
+      prefix | strFmt }/\{ name | strFmt } have passed";
   printStrLn "";
   printStrLn "";
   (fail == 0)
