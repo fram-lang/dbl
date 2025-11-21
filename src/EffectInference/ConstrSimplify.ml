@@ -277,8 +277,10 @@ let rule_close_positive st cs =
 (** Update a map of upper-bounds for generalizable variables that occur
   negatively, based on a single constraint. The map associates each
   generalizable variable to [Some eff] if it has exactly one upper-bound
-  [eff], or to [None] if it has multiple upper-bounds, or bounds are not
-  clear. Variables that have no upper-bound are not present in the map. *)
+  [eff], or to [None] otherwise. In particular, [None] is used when the
+  variable has multiple upper-bounds, or has at least one upper-bound that
+  might be trivially satisfied. Variables that have no upper-bound are not
+  present in the map. *)
 let build_single_upper_bounds st bnd (c : constr) =
   match c.eff_var with
   | TVar _   -> bnd (* Not a generalizable variable. *)
@@ -291,10 +293,10 @@ let build_single_upper_bounds st bnd (c : constr) =
       (* Variable occurs positively, ignore it. *)
       bnd
     else if not (IncrSAT.Formula.is_true c.pformula) then
-      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      (* Upper-bound might be trivially satisfied. *)
       T.GVar.Map.add gv None bnd
     else if not (IncrSAT.Formula.is_false c.nformula) then
-      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      (* Upper-bound might be trivially satisfied. *)
       T.GVar.Map.add gv None bnd
     else
       match T.GVar.Map.find_opt gv bnd with
