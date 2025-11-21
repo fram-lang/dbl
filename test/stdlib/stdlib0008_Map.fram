@@ -1,0 +1,72 @@
+import Map
+
+let (Map { module IntMap  }) = Map.make { Key = Int }
+let (Map { module StrMap  }) = Map.make { Key = String }
+let (Map { module IntMap2 }) =
+  Map.make { Key = Int, method lt = fn x y => x > y }
+
+# Basic tests
+let _ =
+  assert (IntMap.empty {Val=Bool} >.isEmpty);
+  assert (IntMap.empty {Val=Int}  >.size == 0);
+  assert (IntMap.singleton 13 "A" >.isEmpty == False);
+  assert (IntMap.singleton 42 True >.size == 1)
+
+# Randomized tests
+handle
+  rand = effect () => fn seed =>
+    let seed = (seed * 39989 + 7) % 65536 in
+    resume (seed >> 12) seed
+  return x => fn _ => x
+  finally c => c 0
+
+let doExtraTest (map : IntMap.T Int) (bitSet : Int) (bitMap : Int) =
+  assert (map.fold (fn _ acc => acc + 1) 0 == map.size);
+  let rest = map.fold
+    (fn {key} v bitSet =>
+      let bit = 1 << key in
+      assert ((bitSet &&& bit) != 0);
+      assert (v == key + (bitMap &&& bit));
+      bitSet ^^^ bit)
+    bitSet
+  in
+  assert (rest == 0)
+
+let rec randTest (map : IntMap.T _) (bitSet : Int) (bitMap : Int) (n : Int) =
+  if n == 0 then ()
+  else (
+    let op  = rand () in
+    if op == 0 then doExtraTest map bitSet bitMap;
+    let key = rand ()
+    let bit = 1 << key
+    in
+    if (bitSet &&& bit) == 0 then (
+      assert (not (map.mem key));
+      assert (map.find key >.unwrapOr (-1) == -1);
+      assert (map.findErr {~onError = fn () => -1} key == -1))
+    else (
+      assert (map.mem key);
+      assert (map.find key >.unwrapOr (-1) == key + (bitMap &&& bit));
+      assert (map.findErr {~onError = fn () => -1} key ==
+        key + (bitMap &&& bit)));
+    if op < 8 then (
+      let v = if op < 4 then 0 else bit
+      let map = map.add key (key + v)
+      let bitSet = bitSet ||| bit
+      let bitMap = bitMap ^^^ (bitMap &&& bit) ^^^ v
+      in
+      assert (map.mem key);
+      assert (map.find key >.unwrapOr (-1) == key + v);
+      assert (map.findErr {~onError = fn () => -1} key == key + v);
+      randTest map bitSet bitMap (n - 1))
+    else (
+      let map = map.remove key
+      let bitSet = bitSet ^^^ (bitSet &&& bit)
+      in
+      assert (not (map.mem key));
+      assert (map.find key >.unwrapOr (-1) == -1);
+      assert (map.findErr {~onError = fn () => -1} key == -1);
+      randTest map bitSet bitMap (n - 1))
+  )
+
+let _ = randTest IntMap.empty 0 0 1000

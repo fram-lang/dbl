@@ -1,0 +1,650 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+## # Finite maps from comparable keys to values.
+
+{##
+This module provides finite maps (a.k.a. associative arrays or dictionaries)
+from keys to values. The keys must support equality (method `equal`) and a
+total ordering (method `lt`). The implementation is based on balanced trees
+(2-3 trees), providing logarithmic time complexity for insertion, deletion,
+and lookup operations. Since the correctness of the implementation relies on
+invariants related to the ordering of keys, the comparison methods are the
+parameters of the whole construction, instead of particular map operations.
+Therefore, maps are implemented as a functor `make` that takes the type with
+the comparison methods and returns a record that contains existential type
+representing the map and all the operations on it.
+
+To create a map, use the `make` function, and unpack the resulting method.
+Resulting operations may be packed into a module using `module` pattern.
+For instance, to create a map from integers, one may write:
+```
+let (Map { module IntMap }) = make { Key = Int }
+```
+Thanks to type inference, it is not necessary to provide the comparison
+methods if they are already defined for the key type. However, they may be
+overridden by providing them explicitly, for instance to change the ordering.
+```
+let (Map { module IntMap }) = make
+  { Key = Int
+  , method lt x y = x > y # reverse order
+  }
+```
+##}
+
+{## Signature of the map type and its operations.
+
+  This is the record type returned by the `make` functor. Parameter `Key` is
+  the type of keys used in the map. ##}
+pub data MapSig Key = Map of
+  {## Type `T Val` represents a map from keys to values of type `Val`. ##}
+  { T : type -> type
+
+  {## Empty map. ##}
+  , empty     : {Val} -> T Val
+
+  {## Singleton map containing a single key-value pair. ##}
+  , singleton : {Val} -> Key -> Val -> T Val
+
+  {## Add a key-value pair to the map. If the key already exists, its value
+    is replaced. ##}
+  , method add       : {Val} -> T Val -> Key -> Val ->[] T Val
+
+  {## Remove a key (and its value) from the map. If the key does not exist,
+    the map is returned unchanged. ##}
+  , method remove    : {Val} -> T Val -> Key ->[] T Val
+
+  {## Remove and return the key-value pair with the smallest key. If the map
+    is empty, `None` is returned. ##}
+  , method popMin    : {Val} -> T Val ->[] Option (Pair (Pair Key Val) (T Val))
+
+  {## Like `popMin`, but calls `~onError` if the map is empty. ##}
+  , method popMinErr :
+    {Val, E, ~onError : Unit ->[E] Pair (Pair Key Val) (T Val)} ->
+      T Val ->[E] Pair (Pair Key Val) (T Val)
+
+  {## Check whether the map is empty. ##}
+  , method isEmpty   : {Val} -> T Val -> Bool
+
+  {## Find the value associated with a key. Returns `None` if the key is not
+    present in the map. ##}
+  , method find      : {Val} -> T Val -> Key ->[] Option Val
+
+  {## Check whether a key is present in the map. ##}
+  , method mem       : {Val} -> T Val -> Key ->[] Bool
+
+  {## Like `find`, but calls `~onError` if the key is not present. The
+    `~onError` function may be used to provide a default value or to raise an
+    error. ##}
+  , method findErr   :
+    {Val, E, ~onError : Unit ->[E] Val} -> T Val -> Key ->[E] Val
+
+  {## Get the number of key-value pairs in the map. ##}
+  , method size      : {Val} -> T Val -> Int
+
+  {## Create a new map by applying a function to all values in the map. The
+    function receives the key as an additional named parameter. ##}
+  , method map       : {A, B, E} -> T A -> ({key:Key} -> A ->[E] B) ->[E] T B
+
+  {## Fold over all key-value pairs in the map. The function receives the key
+    as an additional named parameter. Elements are processed in ascending
+    order of keys. ##}
+  , method fold      :
+    {Val, Acc, E} -> T Val ->
+      ({key:Key} -> Val -> Acc ->[E] Acc) -> Acc ->[E] Acc
+
+  {## Iterate over all key-value pairs in the map. The function receives the
+    key as an additional named parameter. Elements are processed in ascending
+    order of keys. ##}
+  , method iter      :
+    {Val, E} -> T Val -> ({key:Key} -> Val ->[E] Unit) ->[E] Unit
+  }
+
+#==============================================================================
+# Implementation of the map type and its operations.
+#==============================================================================
+
+{# The implementation is based on balanced 2-3 trees: ordered trees where
+each internal node has either two or three children, and all leaves are at the
+same depth. Interestingly, the latter invariant is enforced by types, using
+nested datatypes approach. To do so, we define the following two types.
+#}
+
+data Leaf = Leaf
+
+data Node Key Val Repr =
+  | Node2 of Repr, Key, Val, Repr
+  | Node3 of Repr, Key, Val, Repr, Key, Val, Repr
+
+{# By applying `Node Key Val` to `Leaf` n times, we get the type of balanced
+2-3 trees of height n. For instance, `Node Key Val (Node Key Val Leaf)` is the
+type of trees of height 2: below the root, there are nodes whose children are
+leaves. To represent maps of arbitrary size, we define another datatype that
+counts the height of the tree in its type. This is the only recursive type in
+the whole construction. #}
+
+data rec Tree Key Val Repr =
+  | Tree of Repr
+  | Succ of Tree Key Val (Node Key Val Repr)
+
+{# The `Tree Key Val Leaf` type represents balanced 2-3 trees of arbitrary
+height. A tree of height n is represented as `Succ` applied n times to
+`Tree t`, where `t` is the actual tree representation.
+
+Finally, to keep track of the number of elements in the map, we define the
+following wrapper type. #}
+
+data SizedTree Key Val =
+  { tree : Tree Key Val Leaf
+  , size : Int
+  }
+
+{# We start by simple operations with strightforward implementations. #}
+
+let empty = SizedTree
+  { tree = Tree Leaf
+  , size = 0
+  }
+
+let singleton k v = SizedTree
+  { tree = Succ (Tree (Node2 Leaf k v Leaf))
+  , size = 1
+  }
+
+method isEmpty (SizedTree { tree }) =
+  match tree with
+  | Tree Leaf => True
+  | Succ _    => False
+  end
+
+{# To implement addition and removal of elements, some auxiliary definitions
+are needed. First, when adding an element to a tree, it may happen that the
+tree needs to be split into two trees of the same height (plus a key-value
+pair) to maintain the balance. We define the following datatype to represent
+the result of addition to a tree represented by `Repr`. #}
+
+data AddResult Key Val Repr =
+  | AR_Ok    of Repr
+  | AR_Split of Repr, Key, Val, Repr
+
+{# For removal, situation is similar, but slightly more complex. Removal may
+result in decreasing the height of the tree, but how to represent that, when
+the type of trees is represented abstractly by `Repr`? To solve this, handle
+separately the case when the tree is empty (represented by `Leaf`), and the
+case when the tree is non-empty (represented by `Node Key Val Repr`). For the
+latter case, we define the following datatype to represent the result of
+removal. #}
+
+data RemResult Key Val Repr =
+  | RR_Ok        of Node Key Val Repr
+  | RR_Underflow of Repr
+
+{# Both types above can be converted back to `Tree` type. #}
+
+method toTree ar =
+  match ar with
+  | AR_Ok repr       => Tree repr
+  | AR_Split l k v r => Succ (Tree (Node2 l k v r))
+  end
+
+method toTree rr =
+  match rr with
+  | RR_Ok        node => Succ (Tree node)
+  | RR_Underflow repr => Tree repr
+  end
+
+#------------------------------------------------------------------------------
+# Smart constructors for nodes with addition and removal results.
+
+{# We define the following smart constructors for nodes, when one of their
+subtrees is a result of addition or removal. These constructors maintain the
+balance of the tree and return appropriate addition or removal results. Thanks
+to the nested datatype representation, the types ensure that the resulting
+trees are balanced. #}
+
+let node2AL l k1 v1 r =
+  match l with
+  | AR_Ok l =>
+    AR_Ok (Node2 l k1 v1 r)
+  | AR_Split l k v m =>
+    AR_Ok (Node3 l k v m k1 v1 r)
+  end
+
+let node2AR l k1 v1 r =
+  match r with
+  | AR_Ok r =>
+    AR_Ok (Node2 l k1 v1 r)
+  | AR_Split m k v r =>
+    AR_Ok (Node3 l k1 v1 m k v r)
+  end
+
+let node3AL l k1 v1 m k2 v2 r =
+  match l with
+  | AR_Ok l =>
+    AR_Ok (Node3 l k1 v1 m k2 v2 r)
+  | AR_Split ll k v lm =>
+    AR_Split (Node2 ll k v lm) k1 v1 (Node2 m k2 v2 r)
+  end
+
+let node3AM l k1 v1 m k2 v2 r =
+  match m with
+  | AR_Ok m =>
+    AR_Ok (Node3 l k1 v1 m k2 v2 r)
+  | AR_Split ml k v mr =>
+    AR_Split (Node2 l k1 v1 ml) k v (Node2 mr k2 v2 r)
+  end
+
+let node3AR l k1 v1 m k2 v2 r =
+  match r with
+  | AR_Ok r =>
+    AR_Ok (Node3 l k1 v1 m k2 v2 r)
+  | AR_Split mr k v rr =>
+    AR_Split (Node2 l k1 v1 m) k2 v2 (Node2 mr k v rr)
+  end
+
+let node2RL l k1 v1 r =
+  match l with
+  | RR_Ok l =>
+    RR_Ok (Node2 l k1 v1 r)
+  | RR_Underflow l =>
+    match r with
+    | Node2 m k2 v2 r =>
+      RR_Underflow (Node3 l k1 v1 m k2 v2 r)
+    | Node3 ml k2 v2 mr k3 v3 r =>
+      RR_Ok (Node2 (Node2 l k1 v1 ml) k2 v2 (Node2 mr k3 v3 r))
+    end
+  end
+
+let node2RR l k1 v1 r =
+  match r with
+  | RR_Ok r =>
+    RR_Ok (Node2 l k1 v1 r)
+  | RR_Underflow r =>
+    match l with
+    | Node2 l k2 v2 m =>
+      RR_Underflow (Node3 l k2 v2 m k1 v1 r)
+    | Node3 ll k3 v3 lm k2 v2 m =>
+      RR_Ok (Node2 (Node2 ll k3 v3 lm) k2 v2 (Node2 m k1 v1 r))
+    end
+  end
+
+let node3RL l k1 v1 m k2 v2 r =
+  match l with
+  | RR_Ok l =>
+    RR_Ok (Node3 l k1 v1 m k2 v2 r)
+  | RR_Underflow l =>
+    match m with
+    | Node2 ml k v mr =>
+      RR_Ok (Node2 (Node3 l k1 v1 ml k v mr) k2 v2 r)
+    | Node3 ml kl vl mm kr vr mr =>
+      RR_Ok (Node3 (Node2 l k1 v1 ml) kl vl (Node2 mm kr vr mr) k2 v2 r)
+    end
+  end
+
+let node3RM l k1 v1 m k2 v2 r =
+  match m with
+  | RR_Ok m =>
+    RR_Ok (Node3 l k1 v1 m k2 v2 r)
+  | RR_Underflow m =>
+    match r with
+    | Node2 rl k3 v3 rr =>
+      RR_Ok (Node2 l k1 v1 (Node3 m k2 v2 rl k3 v3 rr))
+    | Node3 rl k3 v3 rm k4 v4 rr =>
+      RR_Ok (Node3 l k1 v1 (Node2 m k2 v2 rl) k3 v3 (Node2 rm k4 v4 rr))
+    end
+  end
+
+let node3RR l k1 v1 m k2 v2 r =
+  match r with
+  | RR_Ok r =>
+    RR_Ok (Node3 l k1 v1 m k2 v2 r)
+  | RR_Underflow r =>
+    match m with
+    | Node2 ml k v mr =>
+      RR_Ok (Node2 l k1 v1 (Node3 ml k v mr k2 v2 r))
+    | Node3 ml kl vl mm kr vr mr =>
+      RR_Ok (Node3 l k1 v1 (Node2 ml kl vl mm) kr vr (Node2 mr k2 v2 r))
+    end
+  end
+
+#------------------------------------------------------------------------------
+# Other auxiliary definitions.
+
+{# Non-empty heights of trees.
+
+Auxiliary methods for removal need to know that the tree is non-empty, i.e.,
+they are reprsented by `Node Key Val Repr`. Since the methods in Fram are
+attached to type variables at head position in the type of self, we cannot
+overload them based on the type `Repr`. As a workaround, we define dummy types
+to represent heights of non-empty trees, and define removal methods on
+elements of these types. For instance, removing from tree of a height 1
+has type `H1 -> Node Key Val Leaf ->> _`, and removing from higher trees
+has type `HS H -> Node Key Val (Node Key Val Repr) ->> _`, where `H` is the
+height of `Node Key Val Repr`. #}
+
+data H1   = H1
+data HS H = HS of H
+
+{# Handler for resize effect, used to keep track of the size of the map. #}
+
+let hResize size =
+  handler effect d => fn size => resume () (size + d)
+    return tree => fn size => SizedTree { tree, size }
+    finally c   => c size
+  end
+
+#==============================================================================
+# popMin
+
+method popMin H1 (t : Node _ _ Leaf) =
+  match t with
+  | Node2 Leaf k1 v1 Leaf =>
+    (k1, v1, RR_Underflow Leaf)
+  | Node3 Leaf k1 v1 Leaf k2 v2 Leaf =>
+    (k1, v1, RR_Ok (Node2 Leaf k2 v2 Leaf))
+  end
+
+method popMin
+    { Repr, H
+    , method popMin : H -> Node _ _ Repr ->[] Pair _ (RemResult _ _ Repr)
+    } (HS (ops : H)) (t : Node _ _ (Node _ _ Repr)) =
+  match t with
+  | Node2 l k1 v1 r =>
+    let (kv, l) = ops.popMin l in
+    (kv, node2RL l k1 v1 r)
+  | Node3 l k1 v1 m k2 v2 r =>
+    let (kv, l) = ops.popMin l in
+    (kv, node3RL l k1 v1 m k2 v2 r)
+  end
+
+method rec popMin
+    { Repr, H
+    , method popMin : H -> Node _ _ Repr ->[] Pair _ (RemResult _ _ Repr)
+    } (t : Tree _ _ (Node _ _ Repr)) (ops : H) =
+  match t with
+  | Tree repr =>
+    let (kv, repr) = ops.popMin repr in
+    (kv, repr.toTree)
+  | Succ tree =>
+    let (kv, tree) = tree.popMin (HS ops) in
+    (kv, Succ tree)
+  end : Pair _ (Tree _ _ Repr)
+
+method popMin (SizedTree { tree, size }) =
+  match tree with
+  | Tree Leaf =>
+    assert (size == 0);
+    None
+  | Succ tree =>
+    let (kv, tree) = tree.popMin H1 in
+    Some (kv, SizedTree { tree, size = size - 1 })
+  end
+
+method popMinErr {~onError} (sizedTree : SizedTree _ _) =
+  sizedTree.popMin.unwrapErr
+
+#==============================================================================
+# Operations that depend on Key comparison
+
+section
+  parameter Key
+  parameter method equal : Key -> Key ->[] Bool
+  parameter method lt    : Key -> Key ->[] Bool
+
+  parameter E
+  parameter ~resize : Int ->[E] Unit
+
+  #============================================================================
+  # add
+
+  method add Leaf k v =
+    ~resize 1;
+    AR_Split Leaf k v Leaf
+
+  method add
+      { Repr
+      , method add : Repr -> Key -> _ ->> AddResult Key _ Repr
+      } (t : Node Key _ Repr) (k : Key) v =
+    match t with
+    | Node2 l k1 v1 r =>
+      if k == k1 then
+        AR_Ok (Node2 l k v r)
+      else if k < k1 then
+        node2AL (l.add k v) k1 v1 r
+      else
+        node2AR l k1 v1 (r.add k v)
+    | Node3 l k1 v1 m k2 v2 r =>
+      if k == k1 then
+        AR_Ok (Node3 l k v m k2 v2 r)
+      else if k < k1 then
+        node3AL (l.add k v) k1 v1 m k2 v2 r
+      else if k == k2 then
+        AR_Ok (Node3 l k1 v1 m k v r)
+      else if k < k2 then
+        node3AM l k1 v1 (m.add k v) k2 v2 r
+      else
+        node3AR l k1 v1 m k2 v2 (r.add k v)
+    end
+
+  method rec add
+      { Repr
+      , method add : Repr -> Key -> _ ->> AddResult Key _ Repr
+      }
+      (t : Tree Key _ Repr) (k : Key) v =
+    match t with
+    | Tree repr => repr.add k v >.toTree
+    | Succ tree => Succ (tree.add k v)
+    end : Tree Key _ Repr
+
+  method add (SizedTree { tree, size }) (k : Key) v =
+    handle ~resize with hResize size in
+    tree.add k v
+
+  #============================================================================
+  # remove
+
+  method remove H1 (t : Node Key _ Leaf) (k : Key) =
+    match t with
+    | Node2 Leaf k1 v1 Leaf =>
+      if k == k1 then
+        (~resize (-1); RR_Underflow Leaf)
+      else
+        RR_Ok t
+    | Node3 Leaf k1 v1 Leaf k2 v2 Leaf =>
+      if k == k1 then
+        (~resize (-1); RR_Ok (Node2 Leaf k2 v2 Leaf))
+      else if k == k2 then
+        (~resize (-1); RR_Ok (Node2 Leaf k1 v1 Leaf))
+      else
+        RR_Ok t
+    end
+
+  method remove
+      { Repr, H
+      , method remove : H -> Node Key _ Repr -> Key ->> RemResult Key _ Repr
+      , method popMin :
+          H -> Node Key _ Repr ->[]
+            Pair (Pair Key _) (RemResult Key _ Repr)
+      } (HS (ops : H)) (t : Node Key _ (Node Key _ Repr)) (k : Key) =
+    match t with
+    | Node2 l k1 v1 r =>
+      if k == k1 then (
+        ~resize (-1);
+        let (k1, v1, r) = ops.popMin r in
+        node2RR l k1 v1 r)
+      else if k < k1 then
+        node2RL (ops.remove l k) k1 v1 r
+      else
+        node2RR l k1 v1 (ops.remove r k)
+    | Node3 l k1 v1 m k2 v2 r =>
+      if k == k1 then (
+        ~resize (-1);
+        let (k1, v1, m) = ops.popMin m in
+        node3RM l k1 v1 m k2 v2 r)
+      else if k < k1 then
+        node3RL (ops.remove l k) k1 v1 m k2 v2 r
+      else if k == k2 then (
+        ~resize (-1);
+        let (k2, v2, r) = ops.popMin r in
+        node3RR l k1 v1 m k2 v2 r)
+      else if k < k2 then
+        node3RM l k1 v1 (ops.remove m k) k2 v2 r
+      else
+        node3RR l k1 v1 m k2 v2 (ops.remove r k)
+    end
+
+  method rec remove
+      { Repr, H
+      , method remove : H -> Node Key _ Repr -> Key ->> RemResult Key _ Repr
+      , method popMin :
+          H -> Node Key _ Repr ->[]
+            Pair (Pair Key _) (RemResult Key _ Repr)
+      }
+      (t : Tree Key _ (Node Key _ Repr)) (ops : H) (k : Key) =
+    match t with
+    | Tree repr => ops.remove repr k >.toTree
+    | Succ tree => Succ (tree.remove (HS ops) k)
+    end : Tree Key _ Repr
+
+  method remove (SizedTree { tree, size }) (k : Key) =
+    match tree with
+    | Tree Leaf =>
+      assert (size == 0);
+      empty
+    | Succ tree =>
+      handle ~resize with hResize size in
+      tree.remove H1 k
+    end
+
+  #============================================================================
+  # find
+
+  method find Leaf k = None
+
+  method find
+      { Repr
+      , method find : Repr -> Key ->[] Option _
+      } (t : Node Key _ Repr) (k : Key) =
+    match t with
+    | Node2 l k1 v1 r =>
+      if k == k1 then
+        Some v1
+      else if k < k1 then
+        l.find k
+      else
+        r.find k
+    | Node3 l k1 v1 m k2 v2 r =>
+      if k == k1 then
+        Some v1
+      else if k < k1 then
+        l.find k
+      else if k == k2 then
+        Some v2
+      else if k < k2 then
+        m.find k
+      else
+        r.find k
+    end
+
+  method rec find
+      { Repr
+      , method find : Repr -> Key ->[] Option _
+      } (t : Tree Key _ Repr) (k : Key) =
+    match t with
+    | Tree repr => repr.find k
+    | Succ tree => tree.find k
+    end
+
+  method find (SizedTree { tree }) (k : Key) =
+    tree.find k
+
+  method findErr {~onError} (SizedTree { tree }) (k : Key) =
+    tree.find k >.unwrapErr
+
+  method mem (SizedTree { tree }) (k : Key) =
+    match tree.find k with
+    | Some _ => True
+    | None   => False
+    end
+end
+
+#==============================================================================
+# map
+
+method map Leaf (f : {key} -> _) = Leaf
+
+method map
+    { ReprA, ReprB
+    , method map : ReprA -> ({key} -> _) ->> ReprB
+    } (t : Node _ _ ReprA) (f : {key} -> _) =
+  match t with
+  | Node2 l k v r =>
+    Node2 (l.map f) k (f {key=k} v) (r.map f)
+  | Node3 l k1 v1 m k2 v2 r =>
+    Node3 (l.map f) k1 (f {key=k1} v1) (m.map f) k2 (f {key=k2} v2) (r.map f)
+  end
+
+method rec map
+    { ReprA, ReprB
+    , method map : ReprA -> ({key} -> _) ->> ReprB
+    } (t : Tree _ _ ReprA) (f : {key} -> _) =
+  match t with
+  | Tree repr => Tree (repr.map f)
+  | Succ tree => Succ (tree.map f)
+  end : Tree _ _ ReprB
+
+method map (SizedTree { tree, size }) (f : {key} -> _) =
+  SizedTree { tree = tree.map f, size }
+
+#==============================================================================
+# fold
+
+method fold Leaf (f : {key} -> _) acc = acc
+
+method fold
+    { Repr
+    , method fold : Repr -> ({key} -> _) ->> _
+    } (t : Node _ _ Repr) (f : {key} -> _) acc =
+  match t with
+  | Node2 l k1 v1 r =>
+    let acc = r.fold f acc
+    let acc = f {key=k1} v1 acc
+    in
+    l.fold f acc
+  | Node3 l k1 v1 m k2 v2 r =>
+    let acc = r.fold f acc
+    let acc = f {key=k2} v2 acc
+    let acc = m.fold f acc
+    let acc = f {key=k1} v1 acc
+    in
+    l.fold f acc
+  end
+
+method rec fold
+    { Repr
+    , method fold : Repr -> ({key} -> _) ->> _
+    } (t : Tree _ _ Repr) (f : {key} -> _) acc =
+  match t with
+  | Tree repr => repr.fold f acc
+  | Succ tree => tree.fold f acc
+  end
+
+method fold (SizedTree { tree }) (f : {key} -> _) acc =
+  tree.fold f acc
+
+#==============================================================================
+# iter
+
+method iter (SizedTree { tree }) (f : {key} -> _) =
+  tree.fold (fn {key} v () => f {key} v) ()
+
+#==============================================================================
+
+{## Functor to create a map type with operations for a given key type. ##}
+pub let make
+    { Key
+    , method equal : Key -> Key ->[] Bool
+    , method lt    : Key -> Key ->[] Bool
+    } =
+  Map { Key, empty, singleton }
