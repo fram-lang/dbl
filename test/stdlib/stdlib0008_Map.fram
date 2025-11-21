@@ -27,6 +27,8 @@ let doExtraTest (map : IntMap.T Int) (bitSet : Int) (bitMap : Int) =
       let bit = 1 << key in
       assert ((bitSet &&& bit) != 0);
       assert (v == key + (bitMap &&& bit));
+      # check if the order is ascending
+      assert ((bitSet ^^^ bit) == (bitSet &&& (bitSet - 1)));
       bitSet ^^^ bit)
     bitSet
   in

@@ -16,9 +16,9 @@ Therefore, maps are implemented as a functor `make` that takes the type with
 the comparison methods and returns a record that contains existential type
 representing the map and all the operations on it.
 
-To create a map, use the `make` function, and unpack the resulting method.
-Resulting operations may be packed into a module using `module` pattern.
-For instance, to create a map from integers, one may write:
+To create a map, use the `make` function, and unpack the result. Resulting
+operations may be packed into a module using `module` pattern. For instance,
+to create a map from integers, one may write:
 ```
 let (Map { module IntMap }) = make { Key = Int }
 ```
@@ -140,7 +140,7 @@ data SizedTree Key Val =
   , size : Int
   }
 
-{# We start by simple operations with strightforward implementations. #}
+{# We start by simple operations with straightforward implementations. #}
 
 let empty = SizedTree
   { tree = Tree Leaf
@@ -314,7 +314,7 @@ let node3RR l k1 v1 m k2 v2 r =
 {# Non-empty heights of trees.
 
 Auxiliary methods for removal need to know that the tree is non-empty, i.e.,
-they are reprsented by `Node Key Val Repr`. Since the methods in Fram are
+they are represented by `Node Key Val Repr`. Since the methods in Fram are
 attached to type variables at head position in the type of self, we cannot
 overload them based on the type `Repr`. As a workaround, we define dummy types
 to represent heights of non-empty trees, and define removal methods on
@@ -608,17 +608,17 @@ method fold
     } (t : Node _ _ Repr) (f : {key} -> _) acc =
   match t with
   | Node2 l k1 v1 r =>
-    let acc = r.fold f acc
+    let acc = l.fold f acc
     let acc = f {key=k1} v1 acc
     in
-    l.fold f acc
+    r.fold f acc
   | Node3 l k1 v1 m k2 v2 r =>
-    let acc = r.fold f acc
-    let acc = f {key=k2} v2 acc
-    let acc = m.fold f acc
+    let acc = l.fold f acc
     let acc = f {key=k1} v1 acc
+    let acc = m.fold f acc
+    let acc = f {key=k2} v2 acc
     in
-    l.fold f acc
+    r.fold f acc
   end
 
 method rec fold
