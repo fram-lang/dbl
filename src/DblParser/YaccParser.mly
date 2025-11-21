@@ -17,7 +17,7 @@
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
 %token KW_PARAMETER KW_PUB
 %token KW_REC
-%token KW_RETURN KW_THEN KW_TYPE KW_WITH
+%token KW_RETURN KW_SECTION KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -537,6 +537,7 @@ def
 | pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
 | pub KW_MODULE rec_opt UID def_list KW_END
     { make_def $3 (DModule($1, $4, $5)) }
+| pub KW_SECTION def_list KW_END { make (DSection($1, $3)) }
 | pub KW_REC def_list KW_END { make (DRec($1, $3)) }
 | pub KW_OPEN uid_path { make (DOpen($1, $3)) }
 ;

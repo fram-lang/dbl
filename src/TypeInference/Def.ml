@@ -218,7 +218,7 @@ let check_def : type st dir. tcfix:tcfix ->
       er_constr = rest.er_constr
     }
 
-  | DBlock defs ->
+  | DSection defs ->
     let env = Env.enter_section env in
     check_defs env defs req
       { run = fun env req ->

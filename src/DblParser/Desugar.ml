@@ -773,6 +773,9 @@ and tr_def ?(public=false) (def : Raw.def) =
   | DModule(pub, x, defs) ->
     let public = public || pub in
     [ make (DModule(public, x, tr_defs defs)) ]
+  | DSection(pub, defs) ->
+    let public = public || pub in
+    [ make (DSection(tr_defs ~public defs)) ]
   | DOpen(pub, path) -> 
     let public = public || pub in
     [ make (DOpen(public, path)) ]

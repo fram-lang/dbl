@@ -275,6 +275,9 @@ and def_data =
   | DModule of is_public * module_name * def list
     (** Definition of a module *)
 
+  | DSection of is_public * def list
+    (** Block of definitions that share parameter declarations *)
+
   | DOpen of is_public * module_name path
     (** Opening a module *)
 

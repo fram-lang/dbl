@@ -92,7 +92,7 @@ let rec prepare_rec_data env (def : S.def) =
     (* TODO: recursive type aliases are not supported, yet *)
     Error.fatal (Error.invalid_rec_def ~pos:def.pos)
 
-  | DBlock defs | DRec defs ->
+  | DSection defs | DRec defs ->
     let (env, defs) = List.fold_left_map prepare_rec_data env defs in
     (env, make (D1_Section defs))
 
