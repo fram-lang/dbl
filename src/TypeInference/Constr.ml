@@ -9,7 +9,7 @@ open Common
 type t =
   | ResolveMethod : {
       hole       : T.poly_fun option BRef.t;
-      vset       : Var.Set.t;
+      pcyc       : ParamCycleDetect.t;
       pos        : Position.t;
       env        : 'st Env.t;
       method_env : 'st Env.t;
