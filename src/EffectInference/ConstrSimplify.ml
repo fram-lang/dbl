@@ -426,6 +426,65 @@ let rule_remove_redundant st cs =
     cs
 
 (* ========================================================================= *)
+(* Rule: substitute equalities *)
+
+(** Substitute generalizable variables that are equal to some effect
+  throughout the constraints. For each constraint of the form [gv <: eff],
+  where [gv] is a generalizable variable that does not occur in [eff], we
+  can set [gv] to [eff] if we are able to prove (by transitivity) that
+  [eff <: gv] holds. *)
+
+(** Build the largest lower-bound for given effect that can be inferred from
+  the constraints. *)
+let rec lower_bound_closure cs eff =
+  let progress = ref false in
+  let eff =
+    List.fold_left
+      (fun eff (Constr.CSubeffect(_, eff1, eff2)) ->
+        if trivial_subeffect eff2 eff && not (trivial_subeffect eff1 eff)
+        then begin
+          progress := true;
+          T.Effct.join eff eff1
+        end else
+          eff)
+      eff
+      cs
+  in
+  if !progress then
+    lower_bound_closure cs eff
+  else
+    eff
+
+let constr_as_gvar_equality st cs (c : constr) =
+  match c.eff_var with
+  | TVar _   -> None (* Not a generalizable variable. *)
+  | GVar eff ->
+    let gv = get_gvar eff in
+    if T.GVar.in_scope gv st.scope then
+      (* Variable is in scope, ignore it. *)
+      None
+    else if not (IncrSAT.Formula.is_true c.pformula) then
+      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      None
+    else if not (IncrSAT.Formula.is_false c.nformula) then
+      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      None
+    else if
+      trivial_subeffect c.rhs_effect (lower_bound_closure cs eff)
+    then
+      Some (gv, c.rhs_effect)
+    else
+      None
+
+let rule_subst_equality st cs =
+  let cs_list = List.map to_constr cs in
+  match List.find_map (constr_as_gvar_equality st cs_list) cs with
+  | None -> cs
+  | Some (gv, eff) ->
+    set_gvar st gv eff;
+    cs
+
+(* ========================================================================= *)
 (* Rule combinators *)
 
 let rec try_rules rules st cs =
@@ -445,6 +504,7 @@ let rules =
     rule_move_up_negative;
     rule_move_down_variant;
     rule_remove_redundant;
+    rule_subst_equality;
   ]
 
 let rec simplify_loop st cs =
