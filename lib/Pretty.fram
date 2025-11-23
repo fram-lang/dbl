@@ -1,5 +1,4 @@
 import Pretty/Core
-import /Test
 import /List
 import Pretty/Style
 

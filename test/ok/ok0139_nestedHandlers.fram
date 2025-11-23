@@ -1,0 +1,22 @@
+let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
+let addInt = extern dbl_addInt : Int -> Int -> Int
+method toString = (extern dbl_intToString : Int -> String)
+
+data Reader E X = {
+   ask : Unit ->[E] X
+}
+
+let hReader init =
+  handler Reader
+    { ask = effect () / r => r init
+    }
+  end
+
+let (res : Int) = 
+  handle r1 with hReader 1 in
+  handle r2 with hReader 5 in
+  addInt (r1.ask ()) (r2.ask ())
+
+let _ = printStrLn res.toString
+# @stdout:6
+

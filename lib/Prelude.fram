@@ -11,12 +11,12 @@ import /Base/Int
 import /Base/Int64
 import /Base/Char
 import /Base/String
-import /Base/Format
+import /Base/Show
 
 pub open Types
 pub open Operators
 pub open Assert
-pub open Format
+pub open Show
 
 pub let id x = x
 
@@ -51,17 +51,24 @@ pub module Int64
   pub let ofInt (n : Int) = n.toInt64
 end
 
-pub let max (x : Int) (y : Int) =
-  if x > y then x else y
+## Returns the greater of two elements `x` and `y`.
+pub let max {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
+  if y < x then x else y
 
+## Returns the smaller of two elements `x` and `y`.
+pub let min {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
+  if y < x then y else x
+
+## Concatenates list of strings in linear time.
 pub let strListCat = extern dbl_strListCat : List String -> String
 
-pub let rec mkStr (s : String) (l : Int) = 
-  if l <= 0 then
+## Creates a string with `n` repetitions.
+pub let rec replicate (s : String) (n : Int) = 
+  if n <= 0 then
     ""
-  else if l % 2 == 0 then
-   (let s' = mkStr s (l / 2) in
+  else if n % 2 == 0 then
+   (let s' = replicate s (n / 2) in
     s' + s')
   else
-   (let s' = mkStr s (l / 2) in
+   (let s' = replicate s (n / 2) in
     s' + (s' + s))

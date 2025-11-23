@@ -1,6 +1,5 @@
 import open /Lazy
 import /List
-import open /Test
 import Size
 import open Style
 import /Stream
@@ -33,11 +32,11 @@ data rec L =
 
   | LStyled of Style, L
 
-method format {?fmt : Unit} (self : L) =
+method toString {?fmt : Unit} (self : L) =
   let rec iter l xs = match l with
     | LCat l1 l2 => iter l1 (" " :: iter l2 xs)
     | LFill n l => "f\{n}" :: xs
-    | LStr s => s.format :: xs
+    | LStr s => s.toString :: xs
     | LEmpty => "e" :: xs
     | LShift l => "&(" :: (iter l (")" :: xs))
     | LReset slist l => "*(" :: (iter l (")" :: xs))
@@ -48,7 +47,7 @@ method format {?fmt : Unit} (self : L) =
 
 data Line = {fill : L, str : L}
 
-method format {?fmt : Unit} (Line {fill, str}) =
+method toString {?fmt : Unit} (Line {fill, str}) =
   "Line {fill = \{fill},\n      line = \{str}}"
 
 pub let emptyLine = Line {fill = LEmpty, str = LEmpty}
@@ -181,7 +180,7 @@ let rec genL {~h : State _, ~s : Stylist _} (self : L) = match self with
   | LStr str => ~h.move str.length; str
   | LShift tl =>
     let s = ~h.getShift in
-    mkStr " " s + genL tl
+    replicate " " s + genL tl
   | LReset sl tl =>
     let (_, sh, n) = ~h.get () in
     ~h.putShifts sl;
@@ -191,14 +190,14 @@ let rec genL {~h : State _, ~s : Stylist _} (self : L) = match self with
     res
   | LFill i tl =>
       ~h.move i;
-      mkStr " " i + genL tl
+      replicate " " i + genL tl
   | LCat l1 l2 => genL l1 + genL l2
   | LJump {n, static} l1 l2 =>
     let (nth, column) = ~h.calculateAlignment n static in
     let s1 = genL l1 in
     let jmp = ~h.getAlignment nth column in
     let s2 = genL l2 in
-    s1 + mkStr " " jmp + s2
+    s1 + replicate " " jmp + s2
   | LStyled sty l =>
     let opn = ~s.pushStyle sty
     let line = genL l
@@ -209,7 +208,7 @@ let rec genL {~h : State _, ~s : Stylist _} (self : L) = match self with
 pub let rec debugLines (xs : Lines) =
   match xs with
   | [] => ""
-  | x :: xs => (x : Line).format + "\n" + debugLines xs
+  | x :: xs => (x : Line).toString + "\n" + debugLines xs
   end
 
 pub let unlines w (xs : Lines) =
@@ -230,24 +229,22 @@ pub let textLines (str : String) =
   (lazy (fn _ => [Line {fill = LFill str.length LEmpty, str = LStr str}]) : DocLines)
 
 pub method flush (lines : DocLines) =
-  pureLazy (fn _ => lines.force.flush)
+  lazy (fn _ => lines.force.flush)
 
 pub method reset (lines : DocLines) slist =
-  pureLazy (fn _ => lines.force.reset slist)
+  lazy (fn _ => lines.force.reset slist)
 
 pub method shift (lines : DocLines) =
-  pureLazy (fn _ => lines.force.shift)
+  lazy (fn _ => lines.force.shift)
 
 pub method combine (lines1 : DocLines) (lines2 : DocLines) =
-  pureLazy (fn _ => lines1.force.combine lines2.force)
+  lazy (fn _ => lines1.force.combine lines2.force)
 
 pub method seq (lines1 : DocLines) (lines2 : DocLines) (align : Pair Int Int) =
-  pureLazy (fn _ => lines1.force.seq lines2.force align)
+  lazy (fn _ => lines1.force.seq lines2.force align)
 
 pub method style (lines : DocLines) (sty : Style) =
-  pureLazy (fn _ => lines.force.style sty)
+  lazy (fn _ => lines.force.style sty)
 
 pub let (vsep : DocLines) =
-  pureLazy (fn _ => [Line {fill = LStr " | ", str = LStr " | "}])
-
-pub let runTests () = testSuite "/Pretty/Lines" (fn _ => ())
+  lazy (fn _ => [Line {fill = LStr " | ", str = LStr " | "}])

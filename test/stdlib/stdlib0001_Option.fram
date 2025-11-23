@@ -4,4 +4,5 @@ let _ =
   assert ((Some 42).unwrap == 42);
   let ~onError () = 0 in
   assert ((None).unwrapErr == 0);
-  assert ((Some 42).unwrapErr == 42)
+  assert ((Some 42).unwrapErr == 42);
+  assert (Some 42 >.map (fn x => 1 + x) >.unwrapErr == 43)

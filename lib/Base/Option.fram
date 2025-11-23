@@ -32,7 +32,7 @@ pub method unwrap {~__line__, ~__file__, ?msg} self =
   | Some x => x
   end
 
-{## Maps value stored in `Some'. ##}
+{## Maps value stored in `Some`. ##}
 pub method map self f =
   match self with
   | None   => None

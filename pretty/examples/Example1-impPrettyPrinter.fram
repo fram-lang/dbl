@@ -27,7 +27,7 @@ data rec Imp =
   | While of BExp, Imp
 
 method rec pretty (self : AExp) = match self with
-  | AVal v => style {fg=Style.Magenta} (text v.format)
+  | AVal v => style {fg=Style.Magenta} (text v.toString)
   | AOp op e1 e2 =>
     style {fg=Style.Red} (text "(")
       <> (e1.pretty </> (text op <+> e2.pretty))
@@ -37,7 +37,7 @@ method rec pretty (self : AExp) = match self with
   end
 
 method rec pretty (self : BExp) = match self with
-  | BVal v => style {fg=Style.Green} (text v.format)
+  | BVal v => style {fg=Style.Green} (text v.toString)
   | BOp op e1 e2 =>
     style {fg=Style.Red} (text "(")
       <> (e1.pretty </> (text op <+> e2.pretty))

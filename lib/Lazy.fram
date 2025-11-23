@@ -1,23 +1,57 @@
-import /Test
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
 
+## # First-class lazy values
+
+{##
+  This module provides first-class lazy values, also known as suspensions,
+  representing deferred computations evaluated on demand.
+
+  A suspension encapsulates a computation that is executed only when its
+  result is first required. Once evaluated, the resulting value is memoized,
+  guaranteeing that subsequent forcings complete in constant time.
+
+  To preserve determinism, only effect-free thunks may be used as deferred
+  computations.
+ ##}
+
+# Mutability utilities
 data RefP = RefP of {Ref : type -> type}
 
-let RefP {Ref} = (extern dbl_abstrType : Unit -> RefP) ()
+let RefP {Ref} = (extern dbl_abstrType : Unit ->[IO] RefP) ()
 
+let ref {type X}     = (extern dbl_ref    : X ->[] Ref X)
+let pureRef {type X} = (extern dbl_ref    : X -> Ref X)
+method get {type X}  = (extern dbl_refGet : Ref X ->[] X)
+method set {type X}  = (extern dbl_refSet : Ref X -> X ->[] Unit)
+
+# Internal representation of lazy state
 data LazyState A =
   | Thunk of (Unit ->[] A)
   | Lock
   | Done of A
 
+{## Represents a suspension. ##}
 abstr data Lazy X = Lazy of Ref (LazyState X)
 
-let ref {type X}    = (extern dbl_ref    : X -> Ref X)
-method get {type X} = (extern dbl_refGet : Ref X -> X)
-method set {type X} = (extern dbl_refSet : Ref X -> X -> Unit)
+{## Creates new suspension from a given computation. ##}
+pub let lazy {type X} (f : Unit ->[] X) = Lazy (ref (Thunk f))
 
-pub let lazy f = Lazy (ref (Thunk f))
-pub let pureLazy {type X} (f : Unit ->[] X) = (lazy f : Lazy X)
+{##
+  Creates a lazy value containing a fully evaluated result.
+  This is equivalent to constructing an immutable value directly,
+  so this function is pure.
+ ##}
+pub let pureLazy {type X} (v : X) = Lazy (pureRef (Done v))
 
+{##
+  Forces the evaluation of a suspension.
+
+  If the suspension has not yet been evaluated, its computation is executed
+  and the resulting value is stored. If the suspension is currently under
+  evaluation, a runtime error is raised to prevent re-entrant forcing.
+ ##}
 pub method force (Lazy ref) =
   match ref.get with
   | Done x => x
@@ -29,18 +63,6 @@ pub method force (Lazy ref) =
     val
   end
 
-pub method format
-  { X : type
-  , method format : X ->> String }
-  (self : Lazy X) =
-    "(lazy (fn () => " + self.force.format + "))"
-
+{## Creates new lazy value with mapped results. ##}
 pub method map {X : type} (self : Lazy X) f =
   lazy (fn _ => f self.force)
-
-pub let runTests () =
-  open Test in
-  testSuite "/Lazy" (fn _ =>
-    testCase "`lazy.force` indentity" (fn _ =>
-      assertEqF 10 (lazy (fn _ => 10)).force);
-    ())

@@ -11,10 +11,8 @@ type t =
       hole : T.poly_fun option BRef.t;
         (** Hole to be filled with method implementation *)
 
-      vset : Var.Set.t;
-        (** Set of variables that cannot be used during method resolution.
-          This set is just passed as [~vset] to [ParamResolve.resolve_method].
-        *)
+      pcyc : ParamCycleDetect.t;
+        (** Parameter cycle detector state *)
 
       pos : Position.t;
         (** Position of the place where parameter resoultion is requested *)

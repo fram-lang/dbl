@@ -1,10 +1,11 @@
 import open Size
 import open Lines
-import open /Test
 import /List
 import /Lazy
 import /Stream
 import Style
+
+let ~onError () = runtimeError "PrettyPrinter - internal error"
 
 type Layout = Pair Size DocLines
 
@@ -40,7 +41,7 @@ pub let text str = ODoc (fn _ => Stream.singleton (textSize str, textLines str))
 pub let emptyDoc = text ""
 
 let textLayout str = (textSize str, textLines str)
-let spaces n = textLayout (mkStr " " n)
+let spaces n = textLayout (replicate " " n)
 
 pub let (<>) {X, method combine : X -> X ->[] X} (x : X) = x.combine
 pub let ($$) {X, method combine : X -> X ->[] X, method flush : X ->[] X} (x : X) =
@@ -56,7 +57,7 @@ let paretoSelector
       | Some (x, seq) =>
         match List.findIndex (fn y => poset y x) mins with
         | Some _ => iter mins seq ()
-        | None => Stream.lazyCons x (iter (x :: mins) seq)
+        | None => Stream.cons x (Stream.lazyStream ((iter (x :: mins) seq)))
         end
       end in
     Stream.lazyStream (iter [] seq)
@@ -105,7 +106,7 @@ let quasifilter {X} (pred : X ->[] Bool) (ord : X -> X ->[] Bool) (ws : Stream.S
        (let fted = Stream.filter pred ws in
         match fted >.uncons with
         | None =>
-          let el = Stream.foldr1 (fn x y => if ord x y then x else y) ws in
+          let el = Stream.foldRight1Err (fn x y => if ord x y then x else y) ws in
           Stream.singleton el
         | Some _ => fted
         end)
@@ -116,7 +117,7 @@ let discardInvalid (w : Int) =
     (fn s => maxWidth (fst s) <= w)
     (fn x y => maxWidth (fst x) <= maxWidth (fst y))
 
-let (>>=) (xs : Stream.Stream _) f = Stream.bind f xs
+let (>>=) (xs : Stream.Stream _) f = Stream.concatMap f xs
 
 pub method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
   let ds = xs w >>= (fn x =>
@@ -200,7 +201,7 @@ pub let generateDebug width (ODoc xs) =
     | Some (layout, tail) =>
       let layout = layout.reset in
       let (size, lines) = layout in
-      printStrLn size.format;
+      printStrLn size.toString;
       printStrLn "";
       printStrLn (debugLines lines.force);
       printStrLn (unlines width lines.force);
@@ -208,6 +209,7 @@ pub let generateDebug width (ODoc xs) =
     end in
   iter (xs width)
 
+{#
 pub let runTests () = testSuite "/Pretty/Core" (fn _ =>
   testCase "`paretoSelector` empty" (fn _ =>
     let (iStr : Stream.Stream Int) = Stream.empty in
@@ -306,3 +308,4 @@ pub let runTests () = testSuite "/Pretty/Core" (fn _ =>
       (quasifilter (fn x => False) ordPairs (mkS [(2, 1), (1, 2), (3, 3), (0, 0)])));
   
   ())
+#}

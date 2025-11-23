@@ -12,14 +12,14 @@ pub data Color =
 
 method toAnsi (color : Color) =
   match color with
-  | Black   => Term.Color.Black
-  | Red     => Term.Color.Red
-  | Green   => Term.Color.Green
-  | Yellow  => Term.Color.Yellow
-  | Blue    => Term.Color.Blue
-  | Magenta => Term.Color.Magenta
-  | Cyan    => Term.Color.Cyan
-  | White   => Term.Color.White
+  | Black   => Term.Font.Black
+  | Red     => Term.Font.Red
+  | Green   => Term.Font.Green
+  | Yellow  => Term.Font.Yellow
+  | Blue    => Term.Font.Blue
+  | Magenta => Term.Font.Magenta
+  | Cyan    => Term.Font.Cyan
+  | White   => Term.Font.White
   end
 
 pub data Style =
@@ -31,24 +31,24 @@ pub data Style =
              }
 
 method getCode (self : Style) = match self with
-  | Clear => Term.Color.resetAll
+  | Clear => Term.Font.resetAll
   | Style {fg, bg, underline, strike} =>
       match fg with
-      | Some c => Term.Color.setFgColor c.toAnsi
+      | Some c => Term.Font.setFgColor c.toAnsi
       | None => ""
       end
     + match bg with
-      | Some c => Term.Color.setBgColor c.toAnsi
+      | Some c => Term.Font.setBgColor c.toAnsi
       | None => ""
       end
     + match underline with
-      | Some True => Term.Color.setUnderline
-      | Some False => Term.Color.resetUnderline
+      | Some True => Term.Font.setUnderline
+      | Some False => Term.Font.resetUnderline
       | None => ""
       end
     + match strike with
-      | Some True => Term.Color.setStrikeout
-      | Some False => Term.Color.resetStrikeout
+      | Some True => Term.Font.setStrikeout
+      | Some False => Term.Font.resetStrikeout
       | None => ""
       end
   end

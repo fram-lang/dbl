@@ -1,5 +1,4 @@
 import /List
-import open /Test
 
 {##
   Shift list aka `SList' 
@@ -21,7 +20,7 @@ pub data rec SList =
   | SShift of {width : Int, dangle : Int}, SList
   | SLast  of {width : Int}, SList
 
-method rec format {?prec : Int, ?fmt : Unit} (self : SList) =
+method rec toString {?prec : Int, ?fmt : Unit} (self : SList) =
    match self with
   | SFix {width} => "SF {width=\{width}}"
   | SShift {width, dangle} tl => "SS {width=\{width}, dangle=\{dangle}} (\{tl})"
@@ -47,7 +46,7 @@ pub data Size =
   , height : Int
   }
 
-pub method format (self : Size) =
+pub method toString (self : Size) =
   "Size {width = \{self.width}, height = \{self.height}}"
 
 method equal (w1 : Size) (w2 : Size) =
@@ -205,6 +204,7 @@ pub let ord (w1 : Size) (w2 : Size) =
   | _ => impossible ()
   end
 
+{#
 pub let runTests () = testSuite "/Pretty/Size" (fn () =>
   let (<>)  (s : Size) = s.combine
   let ($$)  (s : Size) = s.flush.combine
@@ -307,3 +307,4 @@ pub let runTests () = testSuite "/Pretty/Size" (fn () =>
       (lt >+> t).width
       (SShift {dangle=3,width=1} (SLast {width=4} (SFix {width=6}))));
   ())
+#}

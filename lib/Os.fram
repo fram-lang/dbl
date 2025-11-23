@@ -1,0 +1,59 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+import List
+
+{# ========================================================================= #}
+## ## Os interaction
+
+abstr data OsErr = OsErr of String
+pub method toString (OsErr msg) = msg
+
+{## Get the command line arguments. ##}
+pub let argv = (extern dbl_argv : Unit -> List String) ()
+
+{## Get the value of an environment variable. ##}
+pub let getEnv = (extern dbl_getEnv : String ->[IO] Option String)
+
+{## Check if a file exists. ##}
+pub let fileExists = (extern dbl_fileExists : String ->[IO] Bool)
+
+{## Check if a file is a directory. ##}
+pub let isDirectory =
+  (extern dbl_isDirectory : String ->[IO] Result Bool OsErr)
+
+{## Check if a file is a regular file. ##}
+pub let isRegularFile =
+  (extern dbl_isRegularFile : String ->[IO] Result Bool OsErr)
+
+{## Remove a file. ##}
+pub let removeFile =
+  (extern dbl_removeFile : String ->[IO] Result Unit OsErr)
+
+{## Rename a file. ##}
+pub let renameFile =
+  (extern dbl_renameFile : String -> String ->[IO] Result Unit OsErr)
+
+{## Change the current directory. ##}
+pub let changeDirectory =
+  (extern dbl_changeDirectory : String ->[IO] Result Unit OsErr)
+
+{## Create a directory with a given permissions. ##}
+pub let makeDirectory =
+  (extern dbl_makeDirectory : String -> Int ->[IO] Result Unit OsErr)
+
+{## Remove a directory. ##}
+pub let removeDirectory =
+  (extern dbl_removeDirectory : String ->[IO] Result Unit OsErr)
+
+{## Get the current directory. ##}
+pub let getCurrentDirectory =
+  (extern dbl_getCurrentDirectory : Unit ->[IO] String)
+
+{## Read a directory. ##}
+pub let readDirectory =
+  (extern dbl_readDirectory : String ->[IO] Result (List String) OsErr)
+
+{## Get the current time in Unix format. ##}
+pub let getUnixTime = (extern dbl_getUnixTime : Unit ->[IO] Int)
