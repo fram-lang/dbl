@@ -1,6 +1,4 @@
-rec
-  data MyList = MyNil | MyCons of MyList
-end
+data rec MyList = MyNil | MyCons of MyList
 
 let test = fn lst =>
   match lst with
