@@ -19,6 +19,9 @@ val clone_unif : scope:Scope.t -> UnifCommon.TVar.t -> t
 (** Fresh type variable that uses the metadata from the given type variable *)
 val clone : scope:Scope.t -> t -> t
 
+(** Comparator for type variables *)
+val compare : t -> t -> int
+
 (** Check equality of type variables *)
 val equal : t -> t -> bool
 
