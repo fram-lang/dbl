@@ -121,8 +121,7 @@ let rec pp_ex_pattern_wrap need_parens ex =
 (** Pretty-print an example pattern *)
 and pp_ex_pattern ex =
   match ex with
-  | ExHole -> "_"
-  | ExWildcard -> "_"
+  | ExHole | ExWildcard -> "_"
   | ExCtor(name, ims, args) ->
     let pp_named (n, ex) =
       pp_name n ^ " = " ^ pp_ex_pattern ex
