@@ -2,7 +2,7 @@
  # See LICENSE for details.
  #}
 
-## # Ansi terminal commands
+## # ANSI terminal commands
 
 {##
   Module provides a wide variety of ANSI escape codes
@@ -19,7 +19,7 @@ pub let csi = "\x1b["
 
 ## Submodule for cursor related functionality.
 pub module Cursor
-  ## Moves the cursor to the beginning of the line.
+  ## Moves the cursor to the home position (line 1, column 1).
   pub let moveHome = csi + "H"
 
   ## Moves cursor to the specified line and column.
@@ -71,20 +71,20 @@ pub module Erase
   ## Erases from the cursor to the end of the screen.
   pub let eraseEndScreen     = csi + "0J"
   ## Erases from the cursor to the beginning of the screen.
-  pub let eraseBegScreen     = csi + "1J"
+  pub let eraseStartScreen   = csi + "1J"
   ## Erases the entire screen.
   pub let eraseScreen        = csi + "2J"
   ## Erases saved lines.
   pub let eraseSavedLines    = csi + "3J"
 
   ## Erases within the current line.
-  pub let eraseInLine  = csi + "K"
+  pub let eraseInLine    = csi + "K"
   ## Erases from the cursor to end of the line.
-  pub let eraseEndLine = csi + "0K"
+  pub let eraseEndLine   = csi + "0K"
   ## Erases from the cursor to the beginning of the line.
-  pub let eraseBegLine = csi + "1K"
+  pub let eraseStartLine = csi + "1K"
   ## Erases the entire line.
-  pub let eraseLine    = csi + "2K"
+  pub let eraseLine      = csi + "2K"
 end
 
 ## Submodule for font and color control.
@@ -156,10 +156,10 @@ pub module Buffering
   ## Makes the cursor invisible.
   pub let cursorInvisible = csi + "?25l"
 
-  ## Restores the screen from the buffer.
-  pub let restoreScreen = csi + "?47l"
   ## Stores the screen to the buffer.
   pub let saveScreen    = csi + "?47h"
+  ## Restores the screen from the buffer.
+  pub let restoreScreen = csi + "?47l"
 
   ## Enables the alternative screen buffer.
   pub let enableAltBuffer  = csi + "?1049h"
