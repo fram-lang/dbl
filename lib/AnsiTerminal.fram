@@ -1,0 +1,168 @@
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
+
+## # ANSI terminal commands
+
+{##
+  Module provides a wide variety of ANSI escape codes
+  for terminal control and text styling.
+ ##}
+
+## Character that initializes a terminal command.
+pub let esc = '\x1b'
+{##
+  String that precedes any terminal command.
+  Referred to as "Control Sequence Introducer".
+ ##}
+pub let csi = "\x1b["
+
+## Submodule for cursor related functionality.
+pub module Cursor
+  ## Moves the cursor to the home position (line 1, column 1).
+  pub let moveHome = csi + "H"
+
+  ## Moves cursor to the specified line and column.
+  pub let moveTo (line : Int) (col : Int) = 
+    csi + line.toString + ";" + col.toString + "H"
+
+  let move (n : Option Int) (dir : String) = 
+    match n with 
+    | None => csi + dir
+    | Some n => 
+      if n <= 0
+        then ""
+        else csi + n.toString + dir
+    end
+
+  ## Moves the cursor up by `n` lines (default: 1).
+  pub let moveUp    {?n : Int} () = move n "A"
+  ## Moves the cursor down by `n` lines (default: 1).
+  pub let moveDown  {?n : Int} () = move n "B"
+  ## Moves the cursor right by `n` columns (default: 1).
+  pub let moveRight {?n : Int} () = move n "C"
+  ## Moves the cursor left by `n` columns (default: 1).
+  pub let moveLeft  {?n : Int} () = move n "D"
+
+  {##
+    Moves the cursor down by `n` lines (default: 1) and places
+    it at the beginning of the line.
+   ##}
+  pub let moveDownHome {?n : Int} () = move n "E"
+  {##
+    Moves the cursor up by `n` lines (default: 1) and places
+    it at the beginning of the line.
+   ##}
+  pub let moveUpHome   {?n : Int} () = move n "F"
+
+  ## Requests cursor position.
+  pub let requestPosition = csi + "6n"
+
+  ## Saves the current cursor position.
+  pub let savePosition    = csi + "s"
+  ## Restores saved cursor position.
+  pub let restorePosition = csi + "u"
+end
+
+## Submodule for clearing and erasing terminal content.
+pub module Erase
+  ## Erases the screen (default mode).
+  pub let eraseScreenDefault = csi + "J"
+  ## Erases from the cursor to the end of the screen.
+  pub let eraseEndScreen     = csi + "0J"
+  ## Erases from the cursor to the beginning of the screen.
+  pub let eraseStartScreen   = csi + "1J"
+  ## Erases the entire screen.
+  pub let eraseScreen        = csi + "2J"
+  ## Erases saved lines.
+  pub let eraseSavedLines    = csi + "3J"
+
+  ## Erases within the current line.
+  pub let eraseInLine    = csi + "K"
+  ## Erases from the cursor to end of the line.
+  pub let eraseEndLine   = csi + "0K"
+  ## Erases from the cursor to the beginning of the line.
+  pub let eraseStartLine = csi + "1K"
+  ## Erases the entire line.
+  pub let eraseLine      = csi + "2K"
+end
+
+## Submodule for font and color control.
+pub module Font
+  {##
+    Generic text style control function.
+   ##}
+  pub let setMode flag = csi + flag + "m"
+
+  ## Resets all text styles.
+  pub let resetAll = setMode "0"
+
+  ## Enables bold text.
+  pub let setBoldMode   = setMode "1"
+  ## Disables bold text.
+  pub let resetBoldMode = setMode "22"
+
+  ## Enables underlined text.
+  pub let setUnderline   = setMode "4"
+  ## Disables underlined text.
+  pub let resetUnderline = setMode "24"
+
+  ## Enables strikethrough text.
+  pub let setStrikeout   = setMode "9"
+  ## Disables strikethrough text.
+  pub let resetStrikeout = setMode "29"
+
+  ## Supported color values.
+  pub data Color =
+    | Black
+    | Red
+    | Green
+    | Yellow
+    | Blue
+    | Magenta
+    | Cyan
+    | White
+
+  ## Returns the numeric ANSI color code for a given color.
+  pub method colorCode cl = 
+    match cl with
+    | Black   => 0
+    | Red     => 1
+    | Green   => 2
+    | Yellow  => 3
+    | Blue    => 4
+    | Magenta => 5
+    | Cyan    => 6
+    | White   => 7
+    end
+
+  ## Sets the foreground color.
+  pub let setFgColor (cl : Color) =
+    setMode ((cl.colorCode + 30 : Int) >.toString)
+  ## Sets the background color.
+  pub let setBgColor (cl : Color) =
+    setMode ((cl.colorCode + 40 : Int) >.toString)
+
+  ## Sets the default foreground color.
+  pub let setDflFgColor = setMode "39"
+  ## Sets the default background color.
+  pub let setDflBgColor = setMode "49"
+end
+
+## Submodule for screen buffering and cursor visibility control.
+pub module Buffering
+  ## Makes the cursor visible.
+  pub let cursorVisible   = csi + "?25h"
+  ## Makes the cursor invisible.
+  pub let cursorInvisible = csi + "?25l"
+
+  ## Stores the screen to the buffer.
+  pub let saveScreen    = csi + "?47h"
+  ## Restores the screen from the buffer.
+  pub let restoreScreen = csi + "?47l"
+
+  ## Enables the alternative screen buffer.
+  pub let enableAltBuffer  = csi + "?1049h"
+  ## Disables the alternative screen buffer.
+  pub let disableAltBuffer = csi + "?1049l"
+end
