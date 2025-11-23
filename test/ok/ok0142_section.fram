@@ -1,0 +1,10 @@
+section
+  parameter x
+  parameter y
+
+  let f g = g x y : Unit
+  let h g = g y x : Int
+end
+
+let _ = f {x=(), y=()}
+let _ = h {x=42, y=13}

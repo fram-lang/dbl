@@ -61,7 +61,7 @@ and make_vis_def ~is_abstract def =
   | DModule (_, v, ds) -> DModule (true, v, ds)
   | DOpen (_, pth) -> DOpen (true, pth)
   | DRec ds -> DRec (List.map (make_vis_def ~is_abstract) ds) 
-  | DBlock block -> DBlock (List.map (make_vis_def ~is_abstract) block)
+  | DSection sec -> DSection (List.map (make_vis_def ~is_abstract) sec)
   | DType ty -> DType {ty with public_tp = true}
   | other -> other
   end def

@@ -23,7 +23,9 @@ pub let id x = x
 pub let flip f x y = f y x
 
 pub let fst (x, _) = x
+pub method fst = fst
 pub let snd (_, y) = y
+pub method snd = snd
 
 pub let not b = if b then False else True
 
@@ -48,3 +50,25 @@ pub module Int64
   pub let one  = 1L
   pub let ofInt (n : Int) = n.toInt64
 end
+
+## Returns the greater of two elements `x` and `y`.
+pub let max {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
+  if y < x then x else y
+
+## Returns the smaller of two elements `x` and `y`.
+pub let min {T, method lt : T -> T ->> Bool} (x : T) (y : T) =
+  if y < x then y else x
+
+## Concatenates list of strings in linear time.
+pub let strListCat = extern dbl_strListCat : List String -> String
+
+## Creates a string with `n` repetitions.
+pub let rec replicate (s : String) (n : Int) = 
+  if n <= 0 then
+    ""
+  else if n % 2 == 0 then
+   (let s' = replicate s (n / 2) in
+    s' + s')
+  else
+   (let s' = replicate s (n / 2) in
+    s' + (s' + s))
