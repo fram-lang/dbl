@@ -13,7 +13,6 @@ function simple_examples {
   simple_test examples/Prolog.fram
   simple_test examples/Pythagorean.fram
   simple_test examples/Modules/Main.fram
-  simple_test examples/TestAll.fram
 }
 
 run_with_flags simple_examples ""

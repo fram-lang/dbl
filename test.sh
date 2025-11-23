@@ -10,7 +10,7 @@ fi
 
 export DBL_LIB="lib/"
 
-TIMEOUT=3.0
+TIMEOUT=1.0
 
 binary="_build/default/src/$1.exe"
 flags=""
