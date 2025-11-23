@@ -123,7 +123,8 @@ let non_exhaustive_match ~pos ctx =
   let counterex = PatternContext.to_pattern ctx in
   let ex_str = PatternContext.pp_ex_pattern counterex in
   let msg = Printf.sprintf
-    "This pattern-matching is not exhaustive.\nHere is an example of a case that is not matched:\n  %s"
+    "This pattern-matching is not exhaustive.\n\
+    Here is an example of a case that is not matched:\n  %s"
     ex_str
   in (pos, msg)
 
