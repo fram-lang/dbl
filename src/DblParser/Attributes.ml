@@ -190,9 +190,11 @@ let tr_record args attrs (defs : Lang.Surface.def list) =
       (create_accessor_method method_named_args pattern_gen) cd_named_args in
     (attrs, dd :: sels)
   | _ ->
-    (* This code should not be reachable. *)
-    Error.fatal
-      (Error.attribute_internal_error args.pos "#record")
+    (* This code should not be reachable.
+       The function is designed to translate internal #record attribute,
+       for which the user cannot provide own arguments. *)
+    InterpLib.InternalError.report
+      ~reason:"Error while resolving #record attribute" ()
 
 let record_attribute : attr_conf = {
   name      = "#record";
