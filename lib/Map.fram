@@ -326,7 +326,8 @@ height of `Node Key Val Repr`. #}
 data H1   = H1
 data HS H = HS of H
 
-{# Handler for resize effect, used to keep track of the size of the map. #}
+{# Handler for resize effect, used to keep track of the size of the map.
+Implemented as a standard state-like handler. #}
 
 let hResize size =
   handler effect d => fn size => resume () (size + d)
