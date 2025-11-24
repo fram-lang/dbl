@@ -10,7 +10,7 @@
 %token<int64> NUM64
 %token<string> STR CSTR BSTR ESTR
 %token<char> CHR
-%token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS
+%token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS ATTR_OPEN
 %token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPORT
@@ -43,8 +43,7 @@ let make data =
 
 (** Make potentially recursive definition *)
 let make_def is_rec data =
-  let def = make data in
-  if is_rec then make (DRec(false, [def])) else def
+  if is_rec then DRec([make ([], data)]) else data 
 
 %}
 
@@ -504,14 +503,14 @@ field_list
 /* ========================================================================= */
 
 data_vis
-: /* empty */ { DV_Private  }
-| KW_PUB      { DV_Public   }
-| KW_ABSTR    { DV_Abstract }
+: /* empty */ { [] }
+| KW_PUB      { [ make (Attribute("#pub",   [])) ] }
+| KW_ABSTR    { [ make (Attribute("#abstr", [])) ] }
 ;
 
 pub
-: /* empty */ { false }
-| KW_PUB      { true  }
+: /* empty */ { [] }
+| KW_PUB      { [ make (Attribute("#pub", [])) ] }
 ;
 
 rec_opt
@@ -519,27 +518,56 @@ rec_opt
 | KW_REC      { true  }
 ;
 
+attr_args
+: /* empty */   { []       }
+| LID attr_args { $1 :: $2 }
+;
+
+attr
+: LID attr_args { make (Attribute($1, $2)) }
+; 
+
+attrs
+: attr COMMA attrs { $1 :: $3 }
+| attr             { [ $1 ]   }
+;
+
 def
-: pub KW_LET rec_opt expr_70 EQ expr { make_def $3 (DLet($1, $4, $6)) }
-| KW_PARAMETER field { make (DParam $2) }
+: def_base 
+  { make $1 }
+| ATTR_OPEN CBR_CLS def_base 
+  { make $3 }
+| ATTR_OPEN attrs CBR_CLS def_base 
+  { let (attrs', def) = $4 in make ($2 @ attrs', def) }
+;
+
+def_base
+: pub KW_LET rec_opt expr_70 EQ expr 
+    { ($1, make_def $3 (DLet($4, $6))) }
+| KW_PARAMETER field 
+    { ([], DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
-    { make_def $3 (DData($1, $4, $7)) }
+    { ($1, make_def $3 (DData($4, $7))) }
 | data_vis KW_DATA rec_opt ty_expr EQ CBR_OPN ty_field_list CBR_CLS
-    { make_def $3 (DRecord($1, $4, $7)) }
+    { ($1, make_def $3 (DRecord($4, $7))) }
 | pub KW_LABEL rec_opt expr_100 effect_var_opt
-    { make_def $3 (DLabel($1, $4, $5)) }
+    { ($1, make_def $3 (DLabel($4, $5))) }
 | pub KW_TYPE rec_opt ty_expr EQ ty_expr
-    { make_def $3 (DType($1, $4, $6)) }
+    { ($1, make_def $3 (DType($4, $6))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt EQ expr h_clauses
-    { make_def $3 (DHandle($1, $4, $5, $7, $8)) }
+    { ($1, make_def $3 (DHandle($4, $5, $7, $8))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr
-    { make_def $3 (DHandleWith($1, $4, $5, $7)) }
-| pub KW_METHOD rec_opt expr_70 EQ expr { make_def $3 (DMethod($1, $4, $6)) }
+    { ($1, make_def $3 (DHandleWith($4, $5, $7))) }
+| pub KW_METHOD rec_opt expr_70 EQ expr 
+    { ($1, make_def $3 (DMethod($4, $6))) }
 | pub KW_MODULE rec_opt UID def_list KW_END
-    { make_def $3 (DModule($1, $4, $5)) }
-| pub KW_SECTION def_list KW_END { make (DSection($1, $3)) }
-| pub KW_REC def_list KW_END { make (DRec($1, $3)) }
-| pub KW_OPEN uid_path { make (DOpen($1, $3)) }
+    { ($1, make_def $3 (DModule($4, $5))) }
+| pub KW_SECTION def_list KW_END
+    { ($1, DSection($3)) }
+| pub KW_REC def_list KW_END 
+    { ($1, DRec($3)) }
+| pub KW_OPEN uid_path 
+    { ($1, DOpen($3)) }
 ;
 
 def_list

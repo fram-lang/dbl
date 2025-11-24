@@ -36,5 +36,23 @@ let print_colors_of_string = function
   | "auto"   -> display_colors := print_colors_auto ()
   | _ -> assert false
 
+
+let compile_glob = Dune_glob.V1.of_string
+
+(** List of globs to compare with tagged tests. *)
+let test_globs : Dune_glob.V1.t list ref = ref [ ]
+
+(** Enables tagless test code. *)
+let test_tagless = ref false
+
+(** Checks if code with given list of tags should be enabled in
+    current session. *)
+let test_active (tags : string list) =
+  match tags with
+  | [] -> !test_tagless
+  | _  -> 
+    List.exists 
+      (fun s -> List.exists (fun g -> Dune_glob.V1.test g s) !test_globs) tags
+
 (** Use `show` method for pretty-printing in REPL. *)
 let repl_show_printing = ref true
