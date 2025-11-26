@@ -17,7 +17,7 @@ let adt_positive ~scope ~nonrec_scope args ctors =
 (* ========================================================================= *)
 
 let kind args =
-  T.Kind.k_arrows
+  T.Kind.k_noneff_arrows
     (List.map (fun (_, _, x) -> T.TVar.kind x) args)
     T.Kind.k_type
 

@@ -24,7 +24,7 @@ let tv_bool = TVar.fresh ~scope:Scope.initial Kind.k_type
 
 (** Option type *)
 let tv_option = TVar.fresh ~scope:Scope.initial
-  (Kind.k_arrow Kind.k_type Kind.k_type)
+  (Kind.k_noneff_arrow Kind.k_type Kind.k_type)
 
 (** IO effect *)
 let tv_io = TVar.fresh ~scope:Scope.initial Kind.k_effect

@@ -101,6 +101,9 @@ let named_type_kind_mismatch ~pos name k1 k2 =
     (T.Pretty.pp_kind pp_ctx k2)
   in (pos, msg, [])
 
+let effect_arrow_kind ~pos =
+  (pos, "Effect kind cannot be used as a codomain of an arrow kind", [])
+
 let kind_annot_mismatch ~pos k k_annot = 
   let pp_ctx = T.Pretty.empty_context () in 
   let msg = Printf.sprintf
