@@ -8,7 +8,7 @@ open Common
 
 (** Internal state of the simplification procedure. *)
 type state =
-  {         scope    : Scope.t;
+  {         outer_scope : Scope.t;
       (** The current outer scope. Generalizable variables that do not belong
         to this scope can be altered by the simplification process. *)
 
@@ -19,8 +19,8 @@ type state =
       (** Positive generalizable variables, or more precisely, generalizable
         variables that appear on non-negative positions of the generalized
         type. Simplification procedure cares about variables that do not
-        belong to [scope], so other variables may not be in this set, even
-        if they are positive. *)
+        belong to [outer_scope], so other variables may not be in this set,
+        even if they are positive. *)
 
     mutable ngvs     : T.GVar.Set.t;
       (** Negative generalizable variables, or more precisely, generalizable
@@ -40,8 +40,8 @@ type state =
 
     mutable irr      : Constr.t list
       (** Irrelevant constraints, i.e., that do not contain any generalizable
-        variable outside of [scope]. Such constraints are stored here to be
-        re-added at the end of the simplification process. *)
+        variable outside of [outer_scope]. Such constraints are stored here to
+        be re-added at the end of the simplification process. *)
   }
 
 (** Effect variable (regular or generalizable). Generalizable variables are
@@ -79,8 +79,8 @@ type constr =
 (* ========================================================================= *)
 (* Basic operations *)
 
-let initial_state ~scope ~pgvs ~ngvs =
-  { scope;
+let initial_state ~outer_scope ~pgvs ~ngvs =
+  { outer_scope;
     progress = false;
     pgvs;
     ngvs;
@@ -133,13 +133,13 @@ module EffVarMap = Map.Make(EffVar)
 let is_eff_irrelevant st eff =
   let (_, gvars) = T.Effct.view eff in
   List.for_all
-    (fun (gv, _) -> T.GVar.in_scope gv st.scope)
+    (fun (gv, _) -> T.GVar.in_scope gv st.outer_scope)
     gvars
 
 (** Check if generalizable variable [gv] is irrelevant, i.e., it belongs
   to the current outer scope. *)
 let is_gvar_irrelevant st gv =
-  T.GVar.in_scope gv st.scope
+  T.GVar.in_scope gv st.outer_scope
 
 (** Normalize a constraint of the form [x ? p <: eff2], where [x] is a type
   variable. *)
@@ -211,16 +211,16 @@ let to_constr (c : constr) =
 
 (** [set_gvar st gv eff] sets the variable [gv] to the effect [eff], and
   updates the positive/negative sets accordingly. It is assumed that [gv] is
-  not in the outer scope ([st.scope]) and that [eff] does not contain [gv]
-  itself. *)
+  not in the outer scope ([st.outer_scope]) and that [eff] does not contain
+  [gv] itself. *)
 let set_gvar st gv eff =
   assert (IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv));
-  assert (not (T.GVar.in_scope gv st.scope));
+  assert (not (T.GVar.in_scope gv st.outer_scope));
   let (_, eff_gvs) = T.Effct.view eff in
   let eff_gvs =
     eff_gvs
     |> List.filter_map (fun (gv, _) ->
-        if T.GVar.in_scope gv st.scope then None else Some gv)
+        if T.GVar.in_scope gv st.outer_scope then None else Some gv)
     |> T.GVar.Set.of_list
   in
   if T.GVar.Set.mem gv st.pgvs then begin
@@ -234,22 +234,22 @@ let set_gvar st gv eff =
 
 (** Variables that appear on the left-hand-side of any constraint. *)
 let lhs_gvars st cs =
-  let scope = st.scope in
+  let outer_scope = st.outer_scope in
   List.fold_left
     (fun gvs (c : constr) ->
       match c.eff_var with
       | GVar eff_var ->
-        T.Effct.collect_gvars ~scope eff_var gvs
+        T.Effct.collect_gvars ~outer_scope eff_var gvs
       | TVar _ -> gvs)
     T.GVar.Set.empty
     cs
 
 (** Variables that appear on the right-hand-side of any constraint. *)
 let rhs_gvars st cs =
-  let scope = st.scope in
+  let outer_scope = st.outer_scope in
   List.fold_left
     (fun gvs (c : constr) ->
-      T.Effct.collect_gvars ~scope c.rhs_effect gvs)
+      T.Effct.collect_gvars ~outer_scope c.rhs_effect gvs)
     T.GVar.Set.empty
     cs
 
@@ -286,7 +286,7 @@ let build_single_upper_bounds st bnd (c : constr) =
   | TVar _   -> bnd (* Not a generalizable variable. *)
   | GVar eff ->
     let gv = get_gvar eff in
-    if T.GVar.in_scope gv st.scope then
+    if T.GVar.in_scope gv st.outer_scope then
       (* Variable is irrelevant (it is in the outer scope), ignore it. *)
       bnd
     else if T.GVar.Set.mem gv st.pgvs then
@@ -462,7 +462,7 @@ let rec simplify_loop st cs =
   else
     cs
 
-let simplify ~scope ~pgvs ~ngvs cs =
-  let st = initial_state ~scope ~pgvs ~ngvs in
+let simplify ~outer_scope ~pgvs ~ngvs cs =
+  let st = initial_state ~outer_scope ~pgvs ~ngvs in
   let cs = simplify_loop st cs in
   cs @ st.irr

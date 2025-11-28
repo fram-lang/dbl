@@ -34,14 +34,14 @@ let rec tr_type env (tp : S.typ) =
   | THandler(x, cap_tp, in_tp, out_tp) ->
     let out_tp  = tr_type env out_tp in
     let out_eff = Env.fresh_gvar env in
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, x) = Env.add_tvar env x in
     let cap_tp = tr_type env cap_tp in
     let in_tp  = tr_type env in_tp in
     let in_eff = T.Effct.join (T.Effct.var x) (Env.fresh_gvar env) in
     let tp = T.Type.t_handler x cap_tp in_tp in_eff out_tp out_eff in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:[x]
+    ConstrSolver.leave_scope_with_scheme ~outer_env ~tvars:[x]
       (Env.constraints env) (T.Scheme.of_type tp);
     tp
 
@@ -69,7 +69,7 @@ and tr_scheme env (sch : S.scheme) =
       T.sch_body  = tr_type env sch.sch_body
     }
   | targs ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, targs) = Env.add_named_tvars env sch.sch_targs in
     let sch =
@@ -77,8 +77,8 @@ and tr_scheme env (sch : S.scheme) =
         T.sch_named = List.map (tr_named_scheme env) sch.sch_named;
         T.sch_body  = tr_type env sch.sch_body
       } in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:(List.map snd targs)
-      (Env.constraints env) sch;
+    ConstrSolver.leave_scope_with_scheme ~outer_env
+      ~tvars:(List.map snd targs) (Env.constraints env) sch;
     sch
 
 and tr_named_scheme env (name, sch) =
@@ -108,14 +108,14 @@ let rec tr_type_expr env (tp : S.type_expr) =
   | TE_Handler h ->
     let out_type = tr_type_expr env h.out_type in
     let out_eff  = tr_effect_expr env h.out_eff in
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, x) = Env.add_tvar env h.eff_var in
     let cap_type = tr_type_expr env h.cap_type in
     let in_type  = tr_type_expr env h.in_type in
     let in_eff   = tr_effect_expr env h.in_eff in
     let tp = T.Type.t_handler x cap_type in_type in_eff out_type out_eff in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:[x]
+    ConstrSolver.leave_scope_with_scheme ~outer_env ~tvars:[x]
       (Env.constraints env) (T.Scheme.of_type tp);
     tp
 
@@ -147,7 +147,7 @@ and tr_scheme_expr env (se : S.scheme_expr) =
     }
 
   | _ ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, targs) = Env.add_named_tvars env se.se_targs in
     let sch =
@@ -155,8 +155,8 @@ and tr_scheme_expr env (se : S.scheme_expr) =
         T.sch_named = List.map (tr_named_scheme_expr env) se.se_named;
         T.sch_body  = tr_type_expr env se.se_body
       } in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:(List.map snd targs)
-      (Env.constraints env) sch;
+    ConstrSolver.leave_scope_with_scheme ~outer_env
+      ~tvars:(List.map snd targs) (Env.constraints env) sch;
     sch
 
 and tr_named_scheme_expr env (name, sch) =
