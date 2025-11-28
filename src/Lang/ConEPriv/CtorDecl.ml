@@ -6,17 +6,17 @@
 
 open TypeBase
 
-let collect_gvars ~scope ctor gvs =
+let collect_gvars ~outer_scope ctor gvs =
   let { ctor_name = _; ctor_targs = _; ctor_named; ctor_arg_schemes } = ctor
   in
   let gvs =
     List.fold_left
-      (fun gvs (_, sch) -> Type.collect_scheme_gvars ~scope sch gvs)
+      (fun gvs (_, sch) -> Type.collect_scheme_gvars ~outer_scope sch gvs)
       gvs
       ctor_named
   in
   List.fold_left
-    (fun gvs sch -> Type.collect_scheme_gvars ~scope sch gvs)
+    (fun gvs sch -> Type.collect_scheme_gvars ~outer_scope sch gvs)
     gvs
     ctor_arg_schemes
 

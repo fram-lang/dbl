@@ -7,7 +7,7 @@
 open Common
 
 let tr_ctor_decl_expr env (ctor : S.ctor_decl_expr) =
-  let env0 = env in
+  let outer_env = env in
   let env = Env.enter_scope env in
   let (env, targs) = Env.add_named_tvars env ctor.cde_targs in
   let named = List.map (Type.tr_named_scheme_expr env) ctor.cde_named in
@@ -18,7 +18,7 @@ let tr_ctor_decl_expr env (ctor : S.ctor_decl_expr) =
       T.ctor_named       = named;
       T.ctor_arg_schemes = arg_schemes
     } in
-  ConstrSolver.leave_scope_with_ctors ~env0 ~tvars:(List.map snd targs)
+  ConstrSolver.leave_scope_with_ctors ~outer_env ~tvars:(List.map snd targs)
     (Env.constraints env) [ctor];
   ctor
 
@@ -34,16 +34,15 @@ let prepare_data_def env (dd : S.data_def) =
     let (env, x) = Env.add_tvar env l.tvar in
     (env, (x, dd))
 
-let tr_data_def env (x, (dd : S.data_def)) =
+let tr_data_def outer_env (x, (dd : S.data_def)) =
   match dd with
   | DD_Data d ->
-    let env0 = env in
-    let env = Env.enter_scope env in
-    let (env, args) = Env.add_named_tvars env d.args in
-    let ctors = List.map (tr_ctor_decl_expr env) d.ctors in
-    ConstrSolver.leave_scope_with_ctors ~env0 ~tvars:(List.map snd args)
-      (Env.constraints env) ctors;
-    let env = env0 in
+    let inner_env = Env.enter_scope outer_env in
+    let (inner_env, args) = Env.add_named_tvars inner_env d.args in
+    let ctors = List.map (tr_ctor_decl_expr inner_env) d.ctors in
+    ConstrSolver.leave_scope_with_ctors ~outer_env ~tvars:(List.map snd args)
+      (Env.constraints inner_env) ctors;
+    let env = outer_env in
     let tp =
       T.Type.t_apps (T.Type.t_var x)
         (List.map (fun (_, x) -> T.Type.t_var x) args) in
@@ -68,6 +67,7 @@ let tr_data_def env (x, (dd : S.data_def)) =
     (env, dd)
 
   | DD_Label l ->
+    let env = outer_env in
     let delim_tp  = Type.tr_type env l.delim_tp in
     let delim_eff = Env.fresh_gvar env in
     let lbl_tp  = T.Type.t_label (T.Effct.var x) delim_tp delim_eff in

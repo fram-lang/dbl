@@ -21,7 +21,7 @@ type origin =
     (** Constraint generated during instantiation of a scheme. *)
 
   | ODataScope of Position.t * PPTree.t * T.typ * T.ceffect
-    (** Constraint generated during checking if data definitions doesn't
+    (** Constraint generated during checking if data definitions don't
       escape their scope. *)
 
   | OHandlerScope of Position.t * PPTree.t * T.tvar * T.typ

@@ -51,9 +51,9 @@ module PEnv = struct
     | []     -> false
     | _ :: _ -> true
 
-  let collect_gvars ~scope penv gvs =
+  let collect_gvars ~outer_scope penv gvs =
     List.fold_left
-      (fun gvs (_, sch) -> T.Scheme.collect_gvars ~scope sch gvs)
+      (fun gvs (_, sch) -> T.Scheme.collect_gvars ~outer_scope sch gvs)
       gvs
       penv.vars
 end
@@ -126,7 +126,7 @@ let rec check_type env (pat : S.pattern) tp =
         }, penv)
 
     | _ ->
-      let env0 = env in
+      let outer_env = env in
       let env = Env.enter_scope env in
       let (env, penv, sub, tvars) =
         open_tvars env ctor.ctor_targs tvars in
@@ -135,8 +135,9 @@ let rec check_type env (pat : S.pattern) tp =
       let (penv, pats2) =
         check_patterns env penv sub pats2 ctor.ctor_arg_schemes in
       let gvs =
-        PEnv.collect_gvars ~scope:(Env.scope env0) penv T.GVar.Set.empty in
-      ConstrSolver.leave_scope_with_gvars ~env0 ~tvars
+        PEnv.collect_gvars ~outer_scope:(Env.scope outer_env)
+          penv T.GVar.Set.empty in
+      ConstrSolver.leave_scope_with_gvars ~outer_env ~tvars
         (Env.constraints env) gvs;
       (PCtor
         { name  = name;
