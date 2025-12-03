@@ -221,12 +221,27 @@ let rec check_scheme env (pat : S.pattern) sch =
       ~on_error:(Error.pattern_annot_mismatch ~pp sch sch');
     check_scheme env pat sch'
 
+  | POr(pat1, pat2) ->
+    let (penv1, pat1, eff1) = check_scheme env pat1 sch in
+    let (penv2, pat2, eff2) = check_scheme env pat2 sch in
+    let check_schemes sch1 sch2 =
+      Error.check_unify_result ~pos
+        (Unification.equal_scheme env sch1 sch2)
+        ~on_error:(Error.or_pattern_scheme_mismatch ~pp sch1 sch2)
+    in
+    let scope = Env.scope env in
+    let (penv, ren) = PartialEnv.intersect ~check_schemes ~pp ~pos ~scope penv1 penv2 in
+    let pat2 = T.Ren.rename_pattern ren pat2 in
+    let pat = make (T.POr(pat1, pat2)) in
+    let eff = T.Effect.join eff1 eff2 in
+    (penv, pat, eff)
+
 and check_type env (pat : S.pattern) tp =
   let pos = pat.pos in
   let pp = Env.pp_tree env in
   let make data = T.{ pos; pp; data } in
   match pat.data with
-  | PWildcard | PId _ | PAnnot _ ->
+  | PWildcard | PId _ | PAnnot _ | POr _ ->
     let sch = T.Scheme.of_type tp in
     check_scheme env pat sch
 
@@ -369,7 +384,7 @@ and check_named_pattern env np tvars named =
 
 let infer_scheme env (pat : S.pattern) =
   match pat.data with
-  | PWildcard | PId _ | PCtor _ ->
+  | PWildcard | PId _ | PCtor _ | POr _ ->
     let tp = Env.fresh_uvar ~pos:pat.pos env T.Kind.k_type in
     let tp_expr =
       { T.pos  = pat.pos;

@@ -316,6 +316,8 @@ let rec tr_pattern (p : Raw.expr) =
     let ps = List.map (tr_pattern) ps in
     make (PCtor(cpath, named, ps))
   | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
+  | EBOp(p1, op, p2) when op.data = "|" ->
+    make (POr(tr_pattern p1, tr_pattern p2))
   | EBOp(p1, op, p2) ->
     let c_name = {op with data = NPName (tr_bop_id op)} in
     let ps = [tr_pattern p1; tr_pattern p2] in

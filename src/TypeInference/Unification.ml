@@ -252,6 +252,12 @@ let subscheme env sch1 sch2 =
   | exception Error -> Unify_Fail []
   | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
 
+let equal_scheme env sch1 sch2 =
+  match BRef.bracket (fun () -> unify_scheme env sch1 sch2) with
+  | ()              -> Unify_Success
+  | exception Error -> Unify_Fail []
+  | exception Escapes_scope(env, tv) -> Unify_Fail [TVarEscapesScope(env, tv)]
+
 let rec to_arrow ~pos env tp =
   match T.Type.view tp with
   | TUVar u ->

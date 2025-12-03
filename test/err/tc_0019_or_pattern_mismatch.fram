@@ -1,0 +1,6 @@
+data Result E A = Error of E | Ok of A
+
+let test_bad x =
+  match x with
+  | Error _ | Ok a => a
+  end

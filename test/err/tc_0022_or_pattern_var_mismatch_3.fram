@@ -1,0 +1,6 @@
+data Option A = None | Some of A
+
+let bad3 x =
+  match x with
+  | None | Some x => x
+  end

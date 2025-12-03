@@ -466,9 +466,21 @@ str_interp
 ;
 
 /* ========================================================================= */
+/* PATTERNS */
+
+pattern_or
+: pattern_no_or                  { $1 }
+| pattern_no_or BAR pattern_or   { make (EBOp($1, make "|", $3)) }
+;
+
+pattern_no_or
+: expr { $1 }
+;
+
+/* ========================================================================= */
 
 match_clause
-: expr ARROW2 expr { make (Clause($1, $3)) }
+: pattern_or ARROW2 expr { make (Clause($1, $3)) }
 ;
 
 match_clause_list

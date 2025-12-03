@@ -43,6 +43,7 @@ type t =
         named : (T.name * t) list;
         args  : t list
       }
+  | POr       of t * t
 
 (** Translate a pattern of a given type *)
 val check_type : Env.t -> S.pattern -> T.typ -> t * PEnv.t
