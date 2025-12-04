@@ -1,0 +1,353 @@
+import List
+
+parameter ~onError
+let ~onError _ = exit 1
+let retEmpty _ = []
+
+let isNone opt =
+  match opt with
+  | Some _ => False
+  | None   => True
+  end
+
+let xs = [1,2,3,4]
+let ys = [5,6,7,8]
+
+{# State effect for List.iter* functions #}
+data State E X = State of
+  { get    : Unit ->[E] X
+  , put    : X ->[E] Unit
+  , update : {F} -> (X ->[E,F] X) ->[E,F] Unit
+  }
+
+parameter E_st
+parameter ~st : State E_st _
+
+let get x = let (State { get }) = ~st in get x
+let put x = let (State { put }) = ~st in put x
+let update f = let (State { update }) = ~st in update f
+
+handle ~st =
+  let get = effect x / r => fn s => r s  s
+  let put = effect s / r => fn _ => r () s
+  let update f = put (f (get ())) in
+    State { get, put, update }
+  return  x => fn _ => x
+  finally c => c 0
+
+{# Tests #}
+
+let _ = assert { msg = "isEmpty" } (List.isEmpty xs == False)
+{# Without specifying List type:
+   fatal error: Unsolved unification variables left.
+ #}
+let _ = assert { msg = "isEmpty" } (List.isEmpty ([] : List Int))
+
+let _ = assert { msg = "length" } (List.length xs == 4)
+let _ = assert { msg = "length" } (List.length ([] : List Int) == 0)
+
+let _ =
+  assert { msg = "hd" }
+    (match List.hd xs with
+    | Some v => v == 1
+    | None   => False
+    end)
+let _ =
+  assert { msg = "hd" }
+    (match List.hd ([] : List Int) with
+    | None => True
+    | _    => False
+    end)
+let _ = assert { msg = "hdErr" } (List.hdErr xs == 1)
+let _ =
+  assert { msg = "hdErr" }
+    (List.hdErr {~onError = fn _ => -1} ([] : List Int) == -1)
+let _ =
+  assert { msg = "tl" }
+    (match List.tl xs with
+    | Some xs => xs == [2,3,4]
+    | None    => False
+    end)
+let _ =
+  assert { msg = "tl" }
+    (match List.tl ([] : List Int) with
+    | None => True
+    | _    => False
+    end)
+let _ = assert { msg = "tlErr" } (List.tlErr xs == [2,3,4])
+let _ =
+  assert { msg = "tlErr" }
+    (List.isEmpty (List.tlErr { ~onError = retEmpty } ([] : List Int)))
+
+let _ =
+  assert {msg = "dropLast"}
+    (List.dropLast [1, 2, 3] >.unwrapOr [] == [1, 2])
+let _ = assert {msg = "dropLast"} (isNone (List.dropLast ([] : List Int)))
+
+let _ =
+  assert {msg = "dropLastErr"}
+    (List.dropLastErr {~onError=retEmpty} [1, 2, 3] == [1, 2])
+let _ =
+  assert {msg = "dropLastErr"}
+    (List.dropLastErr {~onError=retEmpty} ([] : List Int) >.isEmpty)
+
+let _ =
+  assert { msg = "nth" }
+    (match List.nth xs 2 with
+    | Some v => v == 3
+    | None   => False
+    end)
+let _ =
+  assert { msg = "nth" }
+    (match List.nth xs 10 with
+    | None   => True
+    | Some _ => False
+    end)
+let _ = assert { msg = "nthErr" } (List.nthErr xs 2 == 3)
+let _ =
+  assert { msg = "nthErr" }
+    (List.nthErr {~onError = fn _ => -1} xs 10 == -1)
+
+let _ = assert {msg="last"} (isNone (List.last ([] : List Int)))
+let _ = assert {msg="last"} (List.last [1, 2] >.unwrapOr 0 == 2)
+
+let _ = assert {msg="lastErr"} (List.lastErr {~onError = fn _ => 0} [] == 0)
+let _ = assert {msg="lastErr"} (List.lastErr {~onError = fn _ => 0} [1, 2] == 2)
+
+let _ = assert {msg="dropTakeLast"}
+  match List.dropTakeLast [1, 2, 3] with
+  | Some (xs, x) => (3 == x) && ([1, 2] == xs)
+  | None         => False
+  end
+let _ = assert {msg="dropTakeLast"}
+  (isNone (List.dropTakeLast ([] : List Int)))
+
+let _ = assert {msg="dropTakeLastErr"}
+ (let (xs, x) = List.dropTakeLastErr {~onError = fn _ => ([], 0)} [1, 2, 3]
+  in [1, 2] == xs && 3 == x)
+
+let _ = assert {msg="dropTakeLastErr"}
+ (let (xs, x) = List.dropTakeLastErr {~onError = fn _ => ([], 0)} []
+  in ([] : List Int) == xs && 0 == x)
+
+let _ = assert { msg = "append" } (xs + ys == [1,2,3,4,5,6,7,8])
+
+let _ = assert { msg = "rev" } (List.rev xs == [4,3,2,1])
+
+let _ = assert { msg = "concat" } (List.concat [xs, ys] == [1,2,3,4,5,6,7,8])
+
+let _ =
+  assert { msg = "map" }
+    (List.map (fn (x : Int) => x * 2) xs == [2,4,6,8])
+let _ =
+  assert { msg = "mapi" }
+    (List.mapi (fn x i => x + i) xs == [1,3,5,7])
+let _ =
+  assert { msg = "mapi" }
+    (List.mapi {i = 5} (fn x i => x + i) xs == [6,8,10,12])
+let _ =
+  assert { msg = "map2" }
+    (List.map2 (fn (x : Int) y => x + y) xs ys == [6,8,10,12])
+let _ =
+  assert { msg = "map2" }
+  (List.map2 {~onError = retEmpty } (fn (x : Int) y => x + y) xs [5,6] == [6,8])
+
+let _ =
+  assert { msg = "revMap" }
+    (List.revMap (fn (x: Int) => x * 2) xs == [8,6,4,2])
+let _ =
+  assert { msg = "revMap2" }
+    (List.revMap2 (fn (x : Int) y => x + y) xs ys == [12,10,8,6])
+let _ =
+  assert { msg = "revMap2" } (List.isEmpty
+  (List.revMap2 {~onError = retEmpty } (fn (x : Int) y => x + y) xs [5,6]))
+
+let _ =
+  assert { msg = "filter" }
+    (List.filter (fn (x : Int) => (x % 2) == 0) xs == [2,4])
+let _ =
+  assert { msg = "filteri" }
+    (List.filteri (fn (i : Int) x => i % 2 == 0) xs == [1,3])
+let _ =
+  assert { msg = "filterMap" }
+    (List.filterMap
+      (fn (x : Int) => if x % 2 == 0 then Some x else None) xs == [2,4])
+let _ =
+  assert { msg = "filterMapi" }
+    (List.filterMapi
+      (fn x (i : Int) => if i % 2 == 0 then Some x else None) xs == [1,3])
+
+let _ =
+  assert { msg = "concatMap" }
+    (List.concatMap (fn x => [x,x]) xs == [1,1,2,2,3,3,4,4])
+
+let _ = assert { msg = "take" } (List.take 4 (xs + ys) == xs)
+let _ = assert { msg = "drop" } (List.drop 4 (xs + ys) == ys)
+
+let _ =
+  assert { msg = "takeWhile" }
+    (List.takeWhile (fn (x : Int) => x <= 2) xs == [1,2])
+let _ =
+  assert { msg = "dropWhile" }
+    (List.dropWhile (fn (x : Int) => x <= 2) xs == [3,4])
+
+let _ = put 0
+let _ = List.iter (fn (x : Int) => update (fn (s: Int) => x + s)) xs
+let _ = assert { msg = "iter" } (get () == 10)
+
+let _ = put 0
+let _ =
+  List.iteri (fn (x: Int) (i: Int) => update (fn (s: Int) => (x*i) + s)) xs
+let _ = assert { msg = "iteri" } (get () == 20)
+let _ = put 0
+let _ =
+  List.iteri {i = 1}
+  (fn (x: Int) (i: Int) => update (fn (s: Int) => (x*i) + s)) xs
+let _ = assert { msg = "iteri" } (get () == 30)
+
+let _ = put 0
+let _ =
+  List.iter2 (fn (x: Int) (y: Int) => update (fn (s: Int) => x*y + s)) xs xs
+let _ = assert { msg = "iter2" } (get () == 30)
+let _ = put 0
+let _ =
+  List.iter2 {~onError = fn _ => ()}
+  (fn (x: Int) (y: Int) => update (fn (s: Int) => x*y + s)) xs [1,2]
+let _ = assert { msg = "iter2" } (get () == 5)
+
+let _ = assert { msg = "init" } (List.init 5 id == [0,1,2,3,4])
+
+let _ =
+  assert { msg = "foldLeft" }
+    (List.foldLeft (fn (a : Int) b => a + b) 0 xs == 10)
+let _ =
+  assert {msg = "foldleft1"}
+    (List.foldLeft1 (fn (a : Int) b => a + b) xs >.unwrapOr 0 == 10)
+let _ =
+  assert {msg = "foldleft1"}
+    (List.foldLeft1 (fn (a : Int) b => a + b) ([] : List Int) >.unwrapOr 0 == 0)
+let _ =
+  assert {msg = "foldleft1Err"}
+    (List.foldLeft1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) xs == 10)
+let _ =
+  assert {msg = "foldleft1Err"}
+    (List.foldLeft1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) ([] : List Int) == 0)
+
+let _ =
+  assert { msg = "foldRight" }
+    (List.foldRight (fn (a : Int) b => a + b) xs 0 == 10)
+let _ =
+  assert {msg = "foldRight1"}
+    (List.foldRight1 (fn (a : Int) b => a + b) xs >.unwrapOr 0 == 10)
+let _ =
+  assert {msg = "foldRight1"}
+    (List.foldRight1 (fn (a : Int) b => a + b) ([] : List Int) >.unwrapOr 0 == 0)
+let _ =
+  assert {msg = "foldRight1Err"}
+    (List.foldRight1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) xs == 10)
+let _ =
+  assert {msg = "foldRight1Err"}
+    (List.foldRight1Err {~onError = fn _ => 0}
+      (fn (a : Int) b => a + b) ([] : List Int) == 0)
+let _ =
+  assert { msg = "foldLeft2" }
+    (List.foldLeft2 (fn (a : Int) b c => a + b + c) 0 xs ys == 36)
+let _ =
+  assert { msg = "foldRight2" }
+    (List.foldRight2 (fn (a : Int) b c => a + b + c) xs ys 0 == 36)
+
+let _ =
+  assert { msg = "forAll" }
+    (List.forAll (fn (x : Int) => x % 2 == 1) [1,3,5,7,9])
+let _ =
+  assert { msg = "forAll" }
+    (List.forAll (fn (x : Int) => x % 2 == 1) [2,4,6,8,10] == False)
+let _ =
+  assert { msg = "exists" }
+    (List.exists (fn (x : Int) => x == 42) [1,2,3,42,5,6,7])
+let _ =
+  assert { msg = "exists" }
+    (List.exists (fn (x : Int) => x == 42) [1,2,3,5,6,7] == False)
+
+let _ =
+  assert { msg = "find" }
+    (match List.find (fn (x : String) => x == "b") ["a","b","c"] with
+    | Some s => s == "b"
+    | _      => False
+    end)
+let _ =
+  assert { msg = "find" }
+    (match List.find (fn (x : String) => x == "d") ["a","b","c"] with
+    | None   => True
+    | Some _ => False
+    end)
+
+let _ =
+  assert { msg = "findIndex" }
+    (match List.findIndex (fn (x : String) => x == "b") ["a","b","c"] with
+    | Some s => s == 1
+    | _      => False
+    end)
+let _ =
+  assert { msg = "findIndex" }
+    (match List.findIndex (fn (x : String) => x == "d") ["a","b","c"] with
+    | None => True
+    | _    => False
+    end)
+
+let _ =
+  assert { msg = "findMap" }
+    (match List.findMap
+    (fn (x : String) => if x == "b" then Some x else None) ["a","b","c"] with
+    | Some x => x == "b"
+    | _      => False
+    end)
+let _ =
+  assert { msg = "findMap" }
+    (match List.findMap
+    (fn (x : String) => if x == "d" then Some x else None) ["a","b","c"] with
+    | None => True
+    | _    => False
+    end)
+
+let _ =
+  assert { msg = "findMapi" }
+    (match List.findMapi
+    (fn (x : Int) (i : Int) => if x == i then Some x else None) [1,2,3,4,4] with
+    | Some v => v == 4
+    | None   => False
+    end)
+let _ =
+  assert { msg = "findMapi" }
+    (match List.findMapi {i = 1}
+    (fn (x : Int) (i : Int) => if x == i then Some x else None) [2,3,4,5,5] with
+    | Some v => v == 5
+    | None   => False
+    end)
+
+let _ =
+  assert { msg = "foldLeftMap" }
+    (let (v,xs) =
+      List.foldLeftMap (fn (acc : Int) (x : Int) => acc + x, x*x) 0 xs in
+    v == 10 && xs == [1,4,9,16])
+
+let _ =
+  assert { msg = "foldLeftFilterMap" }
+    (let (v,xs) =
+      List.foldLeftFilterMap
+      (fn (acc : Int) (x : Int) => if x%2 == 0 then Some (acc+x, x*x) else None)
+      0 xs in
+    v == 6 && xs == [4,16])
+
+let _ =
+  assert { msg = "foldLeftConcatMap" }
+    (let (v,xs) =
+      List.foldLeftConcatMap
+      (fn (acc : Int) (x : Int) => acc+x, List.init x (fn _ => x)) 0 xs in
+    v == 10 && xs == [1,2,2,3,3,3,4,4,4,4])
+
+let _ = assert { msg = "mem" } (List.mem {E=String} "b" ["a","b","c"])
+let _ = assert { msg = "mem" } (not (List.mem {E=String} "d" ["a","b","c"]))

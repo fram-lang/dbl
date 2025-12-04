@@ -1,0 +1,3 @@
+let foo (x : {X, x : X} -> Int) = 42
+let bar {X, x : X} = 42
+let _ = foo bar

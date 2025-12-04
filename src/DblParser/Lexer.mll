@@ -39,6 +39,7 @@ let kw_map =
   ; "pub",       KW_PUB
   ; "rec",       KW_REC
   ; "return",    KW_RETURN
+  ; "section",   KW_SECTION
   ; "then",      KW_THEN
   ; "type",      KW_TYPE
   ; "with",      KW_WITH
@@ -168,9 +169,13 @@ rule token = parse
   | '['  { YaccParser.SBR_OPN    }
   | ']'  { YaccParser.SBR_CLS    }
   | '{'  { 
-    open_cbrackets := !open_cbrackets + 1;
-    YaccParser.CBR_OPN    
-  }
+      open_cbrackets := !open_cbrackets + 1;
+      YaccParser.CBR_OPN    
+    }
+  | "@{" {
+      open_cbrackets := !open_cbrackets + 1;
+      YaccParser.ATTR_OPEN
+    }
   | '}'  {
       if !open_cbrackets = 0 then
         let buf = Buffer.create 32 in

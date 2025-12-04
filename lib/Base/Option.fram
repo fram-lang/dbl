@@ -31,3 +31,10 @@ pub method unwrap {~__line__, ~__file__, ?msg} self =
   | None   => runtimeError (msg.unwrapOr "Called `unwrap` on `None`")
   | Some x => x
   end
+
+{## Maps value stored in `Some`. ##}
+pub method map self f =
+  match self with
+  | None   => None
+  | Some x => Some (f x)
+  end

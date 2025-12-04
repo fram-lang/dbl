@@ -270,3 +270,20 @@ let scheme_is_monomorphic sch =
   match scheme_to_type sch with
   | Some _ -> true
   | None   -> false
+
+(* ========================================================================= *)
+
+let rec size tp =
+  match view tp with
+  | TEffect | TUVar _ | TVar _ -> 1
+  | TArrow(sch, tp, _)         -> scheme_size sch + size tp
+  | THandler(_, tp, itp, otp)  -> size tp + size itp + size otp
+  | TLabel tp                  -> 1 + size tp
+  | TApp(tp1, tp2)             -> size tp1 + size tp2
+  | TAlias(_, tp)              -> size tp
+
+and scheme_size sch =
+  List.fold_left
+    (fun acc (_, sch) -> acc + scheme_size sch)
+    (size sch.sch_body)
+    sch.sch_named

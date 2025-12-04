@@ -10,3 +10,4 @@ pub data Either X Y = Left of X | Right of Y
 
 pub data Ordered = Lt | Eq | Gt
 
+pub data Result A E = Ok of A | Err of E

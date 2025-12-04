@@ -4,7 +4,7 @@
 
 open Value
 
-exception Runtime_error = External.Runtime_error
+exception Runtime_error = ExternalUtils.Runtime_error
 
 (** Evaluator *)
 (* ========================================================================= *)
@@ -65,7 +65,8 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
   | EApp(e1, v2) ->
     eval_expr env e1 (function
     | VFn f -> f (eval_value env v2) cont
-    | _ -> failwith "Runtime error!")
+    | v ->
+      failwith ("Runtime error: expected <fun>, actual: "^to_string v^"!"))
   | ECtor(n, vs) ->
     cont (VCtor(n, List.map (eval_value env) vs))
   | EMatch(v, cls) ->
@@ -74,7 +75,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
       let (xs, body) = List.nth cls n in
       let env = List.fold_left2 Env.extend env xs vs in
       eval_expr env body cont
-    | _ -> failwith "Runtime error!"
+    | v -> failwith ("Runtime error: expected <ctor>, actual: "^to_string v^"!")
     end
   | ELabel(x, e) ->
     let l = UID.fresh () in
@@ -88,7 +89,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
           let env = Env.extend env x k in
           eval_expr env e)
         cont
-    | _ -> failwith "Runtime error!"
+    | v -> failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
     end
   | EReset(v, vs, e1, x, e2) ->
     begin match eval_value env v with
@@ -97,13 +98,13 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
       reset0 l vs (eval_expr env e1)
         (fun v -> eval_expr (Env.extend env x v) e2)
         cont
-    | _ -> failwith "Runtime error!"
+    | v -> failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
     end
   | ERepl func -> eval_repl env func cont
   | EReplExpr(e1, tp, e2) ->
     Printf.printf ": %s\n%!" tp;
     eval_expr env e1 (fun v1 ->
-      Printf.printf "= %s\n" (to_string v1);
+      Printf.printf "= %s\n" (as_string v1);
       eval_expr env e2 cont)
 
 and eval_rec_defs env rds cont =

@@ -70,7 +70,7 @@ let rec zip tree zipper =
  #  and also satisfies the red-black 
  #  invariant except possibly locally
  #}
-let rec zipRed value left right zipper =
+pub let rec zipRed value left right zipper =
   match zipper with
   # Root case
   | [] => makeNode Black left value right
@@ -303,7 +303,7 @@ pub let rec zipBlack tree zipper =
  end
 
 # search splits tree according to compare function and builds zipper
-let rec search func tree zipper =
+pub let rec search func tree zipper =
   match tree with
   | Leaf => (Leaf, zipper)
   | Node {color, left, value, right} =>

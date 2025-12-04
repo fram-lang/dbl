@@ -454,9 +454,20 @@ and expr_data =
       an expression to evaluate, usually containing another REPL expression.
       *)
 
-  | EReplExpr of expr * expr
-    (** Print the type of the first expression, evaluate and print the first
-      expression, then continue to the second expression. *)
+  | EReplExpr of (** Single expression typed in REPL *)
+    { body   : expr;
+      (** The REPL prints the type of this expression, evaluates it,
+        passes to the [to_str] function, prints the result, and continues to
+        the [rest] expression. *)
+
+      to_str : expr;
+      (** The expression that should evaluate to a function that converts the
+        result of [body] to string. The returned string is printed by the
+        REPL. *)
+
+      rest   : expr
+      (** The expression to continue the REPL. *)
+    }
 
 (** Definition of recursive value *)
 and rec_def =
@@ -797,6 +808,11 @@ module Type : sig
     of unification variables accordingly. On error, it returns escaping type
     variable. *)
   val shrink_scope : scope:Scope.t -> typ -> (typ, tvar) result
+
+  (** Compute size of a type. Unification variables have size one, so
+    this function is not stable under instantiation of unification variables.
+  *)
+  val size : typ -> int
 end
 
 (* ========================================================================= *)
