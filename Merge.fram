@@ -1,0 +1,59 @@
+import Map
+import Mutable as M
+import /String as S
+import List
+
+
+let Map {module SMap} = Map.make {Key = String}
+
+
+data rec Trie = {nodes : (M.Ref IO (SMap.T Trie))}
+
+let rec mergeTrie (Trie {nodes=n1}) (Trie {nodes=n2}) =
+  n2.get.iter (fn {key} t =>
+    if n1.get.mem key then
+      mergeTrie (n1.get.findErr {~onError = impossible} key) t
+    else
+      n1.set (n1.get.add key t))
+
+let ~print = printStrLn
+
+let rec printTrie {~print} (Trie {nodes}) =
+  nodes.get.iter (fn {key} t =>
+    ~print key;
+    let ~print s = ~print ("  " + s) in
+    printTrie t)
+
+let rec trieFromString (str : String) = 
+  let s = str.splitOn ':' in
+  let rec iter s =
+    match s with
+    | [] => Trie {nodes = M.ioMut.ref SMap.empty}
+    | key :: s =>
+      let st = iter s in
+      Trie {nodes = M.ioMut.ref (SMap.singleton key st)}
+    end
+  in
+  iter s
+
+let mainTrie = trieFromString ""
+
+let tries = [
+  "abd:def:dgd",
+  "abc:asdsad",
+  "shds:Asd:sad",
+  "abc:asd:s"
+] >.map trieFromString >. iter (mergeTrie mainTrie)
+
+# let _ =printTrie mainTrie
+
+let sanitizeFileName {~__file__ : String} () =
+  let ~__file__ =
+    if ~__file__.get 0 == '.' then
+      ~__file__.substring 0 2
+    else
+      ~__file__
+  let idx = S.findChar ~__file__ '.' >.unwrap in
+  ~__file__.substring 0 idx
+
+let _ = printStrLn (sanitizeFileName ())

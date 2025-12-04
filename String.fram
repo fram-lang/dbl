@@ -1,0 +1,55 @@
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
+
+## # String utilities
+
+{##
+  Module provides basic and much needed string manipulation functions.
+ ##}
+
+pub let substring {~__line__, ~__file__} (str : String) (b : Int) (e : Int) =
+  assert (0 <= b && b <= e && e <= str.length);
+  let ~onErrror = impossible in
+  let rec iter i acc =
+    if i < b
+      then acc
+      else iter (i - 1) (str.get i :: acc)
+  in
+  charListToStr (iter (e - 1) [])
+
+#let _ = printStrLn (substring "abcdef" 1 4).show
+
+pub let findChar {?beg} (str : String) (chr : Char) =
+  let beg = beg.unwrapOr 0
+  let rec iter i =
+    if i >= str.length then
+      None
+    else if str.get i == chr then
+      Some i
+    else
+      iter (i + 1)
+  in
+  iter beg 
+
+pub let splitOn (str : String) (delim : Char) =
+  let ~onError = impossible in
+  let rec iter i e acc =
+    if i <= -1 then
+      substring str (i + 1) e :: acc
+    else if str.get i == delim then
+      iter (i - 1) i (substring str (i + 1) e :: acc)
+    else
+      iter (i - 1) e acc
+  in
+  iter (str.length - 1) str.length []
+
+#let _ = printStrLn (splitOn "ab:def:get" ':').show
+#let _ = printStrLn (splitOn "ab:def:get:" ':').show
+#let _ = printStrLn (splitOn ":ab:def:get" ':').show
+#let _ = printStrLn (splitOn "" ':').show
+#let _ = printStrLn (splitOn ":" ':').show
+
+pub method substring = substring
+pub method splitOn = splitOn
+

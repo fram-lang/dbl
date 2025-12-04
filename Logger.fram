@@ -1,0 +1,16 @@
+import List
+
+data TestLogger E = {log : String ->[E] Unit, getLogs : Unit ->[E] List String}
+
+let testLoggerH =
+  handler TestLogger
+    { log     = effect log / r => fn logs => r () (log :: logs)
+    , getLogs = effect _ / r   => fn logs => r (logs) logs }
+    return s => fn _ => s
+    finally c => c ([] : List String)
+  end
+
+
+let withLogs (f : {E, ~logger : TestLogger E} -> Unit ->> Unit) =
+  handle ~logger with testLoggerH in f ()
+

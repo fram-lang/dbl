@@ -1,0 +1,4 @@
+import Testing as T
+
+
+let _ = T.addTest "fooTest"

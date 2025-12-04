@@ -1,0 +1,129 @@
+import Map
+import Mutable as M
+import String as S
+import List
+
+# let _ =printTrie mainTrie
+
+let sanitizeFileName {~__file__ = file} () =
+  # clear realative path
+  let file =
+    if (file : String).get 0 == '.' then
+      file.substring 2 (file.length)
+    else
+      file in
+  # clear extension
+  match S.findChar file '.' with
+  | None => file
+  | Some idx => file.substring 0 idx
+  end
+
+
+#pub let testSuite {~__file__ : String} (name : String) (f : {~__file__} -> Unit ->> Unit) =
+#  let ~__file__ = sanitizeFileName () + "/" + name in
+#  f ()
+#
+#pub let addTest {~__file__ : String} (name : String) =
+#  tests := (sanitizeFileName () + "/" + name) :: tests.get
+#
+#pub let printAll () =
+#  tests.get.iter printStrLn
+#
+data Loc = {file : String, line : Int}
+
+let mkLoc {~__line__ = line, ~__file__ = file} = Loc {line, file}
+
+data TestResult = TR_Accept | TR_Reject
+
+data TestCaseTracker E =
+  { hardFail  : {X} -> Unit ->[E] X
+  , softFail  : Unit ->[E] Unit
+  , acceptAll : {X} -> Unit ->[E] X
+  }
+
+let testCaseTrackerH =
+  handler TestCaseTracker
+    { softFail  = effect _ / r => fn _ => r () TR_Reject
+    , hardFail  = effect _     => fn _ => TR_Reject
+    , acceptAll = effect _     => fn _ => TR_Accept
+    }
+    return _ => id
+    finally c => c TR_Accept
+  end
+
+data LogType =
+  | LT_Accept
+  | LT_Fail
+  | LT_Expect
+  | LT_UserInfo
+
+data LogMessage =
+  { logType : LogType
+  , message : String
+  , loc     : Loc
+  }
+
+data TestLogger E = {log : LogMessage ->[E] Unit, getLogs : Unit ->[E] List LogMessage}
+
+let testLoggerH =
+  handler TestLogger
+    { log     = effect log / r => fn logs => r () (log :: logs)
+    , getLogs = effect _ / r   => fn logs => r (logs) logs }
+    return s => fn logs => (s, List.rev logs)
+    finally c => c ([] : List LogMessage)
+  end
+
+data TestCase =
+  { name : String
+  , loc  : Loc
+  , body : Unit ->[] Pair TestResult (List LogMessage)
+  }
+
+data TestLogs  =
+  { testCase : TestCase
+  , result   : TestResult
+  , logs     : List LogMessage
+  }
+
+data SessionLogger E = {reportTest : TestLogs ->[E] Int}
+
+let sessionLoggerH =
+  handler SessionLogger
+    { reportTest = effect log / r => fn (id, logs) => r id (1 + id, (id, log) :: logs)}
+    return _ => fn (_, logs) => List.rev logs
+    finally c => c (1, [])
+  end
+
+data SessionTestCounter E = {countTest : TestResult ->[E] Unit}
+
+let sessionTestCounterH =
+  handler SessionTestCounter
+    { countTest = effect tr / r => fn (acc, fail) =>
+        match tr with
+        | TR_Accept => r () (acc + 1, fail)
+        | TR_Reject => r () (acc, fail + 1)
+        end
+    }
+    return _ => id
+    finally c => c (0, 0)
+  end
+
+
+let tests = M.ioMut.ref ([] : List TestCase)
+
+pub let testCase
+  {~__file__, ~__line__}
+  (name : String)
+  (f : {E, F, ~testLogger : TestLogger E, ~testCaseTracker : TestCaseTracker F} -> Unit ->[] Unit) =
+    let name    = "\{sanitizeFileName ()}/\{name}"
+    let loc     = mkLoc
+    let body () = 
+      handle ~testLogger with testLoggerH in
+      handle ~testCaseTracker with testCaseTrackerH in
+        f () 
+    in
+    TestCase {name, loc, body}
+
+
+let f {~__file__} () = printStrLn (sanitizeFileName ())
+let _ = f ()

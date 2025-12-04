@@ -1,0 +1,6 @@
+import Testing as T
+
+let _ = T.testSuite "S1" (fn () =>
+  T.testSuite "S2" (fn () =>
+    T.addTest "Hehe"))
+
