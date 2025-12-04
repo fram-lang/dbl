@@ -1,4 +1,4 @@
 import Testing as T
 
 
-let _ = T.addTest "fooTest"
+let _ = T.testCase "fooTest"

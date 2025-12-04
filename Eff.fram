@@ -1,0 +1,19 @@
+
+data Fail E = {fail : {X} -> Unit ->[E] X}
+
+let failH =
+  handler
+    Fail {fail = effect _ => None}
+    return x => Some x
+  end  
+
+let divide (fail : Fail _) (x : Int) (y : Int) =
+  if y == 0 then fail.fail () else x / y
+
+let safeDivie x y =
+  handle fail with failH in divide fail x y
+
+let _ = printStrLn (safeDivie 10 0 >.show)
+
+
+

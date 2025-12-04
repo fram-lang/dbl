@@ -33,6 +33,8 @@ data Loc = {file : String, line : Int}
 
 let mkLoc {~__line__ = line, ~__file__ = file} = Loc {line, file}
 
+method toString (Loc {file, line}) = "\{file}:\{line}"
+
 data TestResult = TR_Accept | TR_Reject
 
 data TestCaseTracker E =
@@ -90,7 +92,7 @@ data SessionLogger E = {reportTest : TestLogs ->[E] Int}
 let sessionLoggerH =
   handler SessionLogger
     { reportTest = effect log / r => fn (id, logs) => r id (1 + id, (id, log) :: logs)}
-    return _ => fn (_, logs) => List.rev logs
+    return s => fn (_, logs) => (s, List.rev logs)
     finally c => c (1, [])
   end
 
@@ -111,19 +113,52 @@ let sessionTestCounterH =
 
 let tests = M.ioMut.ref ([] : List TestCase)
 
+parameter E_TL : effect
+parameter E_TT : effect
+
 pub let testCase
   {~__file__, ~__line__}
   (name : String)
-  (f : {E, F, ~testLogger : TestLogger E, ~testCaseTracker : TestCaseTracker F} -> Unit ->[] Unit) =
+  (f : {E_TL, E_TT, ~testLogger : TestLogger E_TL, ~testCaseTracker : TestCaseTracker E_TT} -> Unit ->[E_TL, E_TT] Unit) =
     let name    = "\{sanitizeFileName ()}/\{name}"
     let loc     = mkLoc
     let body () = 
-      handle ~testLogger with testLoggerH in
-      handle ~testCaseTracker with testCaseTrackerH in
-        f () 
+      handle ~testLogger / E_TL with testLoggerH in
+      handle ~testCaseTracker / E_TT with testCaseTrackerH in
+        f {E_TL, E_TT} () 
+    let tc = TestCase {name, loc, body}
     in
-    TestCase {name, loc, body}
+    tests := (tc :: tests.get)
+
+let runTest {E_SL, ~sessionLogger : SessionLogger E_SL, E_ST, ~sessionTestCounter : SessionTestCounter E_ST}
+  (TestCase {loc, name, body}) =
+    printStrLn "\{name} :: \{loc}";
+    ~sessionTestCounter.countTest (fst (body ()))
+
+pub let runTests () =
+  let tests = tests.get.rev in
+  let ((succ, fail), logs) =
+    handle ~sessionLogger / E_SL with sessionLoggerH in
+    handle ~sessionTestCounter / E_ST with sessionTestCounterH in
+      List.iter (runTest {E_SL, E_ST}) tests
+  in
+  printStrLn "\{succ}/\{fail + succ}"
+
+# let f {~__file__} () = printStrLn (sanitizeFileName ())
+# let _ = f ()
+
+{##
+  Asserts that given value is True.
+ ##}
+
+pub let assertTrue
+    {~__line__, ~__file__, E_TL, E_TT, ~testCaseTracker : TestCaseTracker E_TT, ~testLogger : TestLogger E_TL, ?msg : String}
+    cond =
+  if cond then
+    ()
+  else
+   (let message = msg.unwrapOr "Assertion Failed: Expected to be true" in
+      ~testLogger.log (LogMessage {loc=mkLoc, logType=LT_Fail, message});
+      ~testCaseTracker.hardFail ())
 
 
-let f {~__file__} () = printStrLn (sanitizeFileName ())
-let _ = f ()

@@ -3,6 +3,8 @@ import Foo/Tests2
 
 import Testing
 
-let _ = Testing.printAll ()
-let f {~__file__} () = printStrLn ~__file__
-let _ = f ()
+#let _ = Testing.printAll ()
+# let f {~__file__} () = printStrLn ~__file__
+# let _ = f ()
+
+let _ = Testing.runTests ()
