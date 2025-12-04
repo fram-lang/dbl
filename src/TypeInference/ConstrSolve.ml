@@ -24,7 +24,7 @@ let rec try_solve_loop acc changed cs =
     | Some _ ->
       let (e, cs') =
         ParamResolve.resolve_method
-          ~vset:c.vset ~pos:c.pos c.env ~method_env:c.method_env c.mname c.sch
+          ~pcyc:c.pcyc ~pos:c.pos c.env ~method_env:c.method_env c.mname c.sch
       in
       BRef.set c.hole (Some e);
       try_solve_loop (List.rev_append cs' acc) true cs

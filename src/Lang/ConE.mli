@@ -204,8 +204,9 @@ type expr =
       *)
 
   | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the first expression,
-      then continue to the second expression. *)
+    (** Print type (the second parameter), evaluate and print the string
+      produced by the first expression, and continue with the last
+      expression. *)
 
 (** Recursive definition *)
 and rec_def =
@@ -257,6 +258,9 @@ module TVar : sig
   (** Fresh type variable that uses the metadata from the given type variable *)
   val clone : scope:Scope.t -> tvar -> tvar
 
+  (** Comparator for type variables *)
+  val compare : tvar -> tvar -> int
+
   (** Check equality of type variables *)
   val equal : tvar -> tvar -> bool
 
@@ -279,6 +283,9 @@ end
 (* ========================================================================= *)
 (** Operations on generalizable variables *)
 module GVar : sig
+  (** Comparator for generalizable variables *)
+  val compare : gvar -> gvar -> int
+
   (** Get the scope of a generalizable variable *)
   val scope : gvar -> Scope.t
 
@@ -353,6 +360,14 @@ module Effct : sig
   (** Lookup a generalizable variable in the effect. Returns formula that
     indicates if a generalizable variable is included in the effect. *)
   val lookup_gvar : effct -> gvar -> formula
+
+  (** Remove all occurrences of the given type variable from the effect.
+    Equivalent to substituting it with the pure effect. *)
+  val remove_tvar : tvar -> effct -> effct
+
+  (** Remove all occurrences of the given generalizable variable from the
+    effect. *)
+  val remove_gvar : gvar -> effct -> effct
 
   (** Collect all generalizable variables that do not belong to the given
     scope and add them to the given set. *)

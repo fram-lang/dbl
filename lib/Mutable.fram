@@ -127,6 +127,9 @@ let unsafeSetArray {E, type T} =
 let unsafeMakeArray {E, type T} =
   extern dbl_mkArray : Int ->[E] Array E T
 
+{## Get the maximum length of an array. ##}
+pub let maxArrayLength = (extern dbl_maxArrayLength : Int)
+
 {## Get the length of an array. ##}
 pub method length {E} =
   extern dbl_arrayLength : Array E _ -> Int
@@ -188,7 +191,7 @@ pub method toArray {E, ~mut : Mut E} (self : List _) =
   self.iteri (unsafeSetArray {E} arr);
   arr
 
-{## Create a new array initialized with the results of a pure function.
+{## Creates a new array initialized with the results of a pure function.
 
   A call `mut.pureInitArray n f` creates an array built from elements `f 0`,
   ..., `f (n-1)`, calling this function from left to right. The function `f`
@@ -213,14 +216,14 @@ pub method pureInitArray
 pub method initArray {E} (self : Mut E) n f =
   (List.init n f).toArray {~mut=self}
 
-{## Create an array initialized with the default element.
+{## Creates an array initialized with the default element.
 
   A call `mut.makeArray n v` is equivalent to `mut.initArray n (fn _ => v)`.
 ##}
 pub method makeArray {E} (self : Mut E) n v =
   self.pureInitArray n (fn _ => v)
 
-{## Create a copy of a given array.
+{## Creates a copy of a given array.
 
   This method returns a shallow copy, i.e., elements are shared between arrays.
 ##}
@@ -230,7 +233,7 @@ pub method clone {E, type T} (self : Array E T) =
 {# ------------------------------------------------------------------------- #}
 ## ### Higher order functions on arrays 
 
-{## Iterate over all elements of an array and their indices.
+{## Iterates over all elements of an array and their indices.
 
   In `arr.iteri f` for each element of array `arr` function `f` is applied to
   the index of the element (counting from 0) and the element itself. The array
@@ -246,11 +249,117 @@ pub method iteri {E} (self : Array E _) f =
   in
   loop 0
 
-{## Iterate function over all elements of an array.
+{## Iterates function over all elements of an array.
 
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
 pub method iter {E} (self : Array E _) f =
   self.iteri (fn _ => f)
+
+{## Performs right fold on array.
+
+  For `arr` equal to `[a1, a2, ..., an].toArray`
+  call `arr.foldRight f init` is equivalent to
+  `f a1 (f a2 (... (f an init) ...))`
+##}
+pub method foldRight {E} (self : Array E _) f init =
+  let rec loop (i : Int) acc =
+    if i < 0 then acc
+    else loop (i - 1) (f (unsafeGetArray {E} self i) acc)
+  in 
+  loop (self.length - 1) init
+
+{## Performs left fold on array.
+
+  For `arr` equal to `[a1, a2, ..., an].toArray`
+  call `arr.foldLeft f init` is equivalent to
+  `f (... (f (f init a1) a2) ...) an`
+##}
+pub method foldLeft {E} (self : Array E _) f init =
+  let rec loop (i: Int) acc = 
+    if i >= self.length then acc
+    else loop (i + 1) (f acc (unsafeGetArray {E} self i))
+  in
+  loop 0 init
+
+{## Maps a function over an array in place.
+
+ `arr.mapInPlace f` maps function `f` over array `arr`
+##}
+pub method mapInPlace {E} (self : Array E _) f =
+  let rec loop (i: Int) =
+    if i >= self.length then ()
+    else (
+      self.at i := (f (unsafeGetArray {E} self i));
+      loop (i + 1))
+  in
+  loop 0
+
+{## Creates a new array from mapped elements of an array.
+
+  `arr.pureMap f` creates a new array consisting of
+  elements `(f x)` where `x` are elements of `arr`.
+  `f` must be pure. For impure functions use `map` method.
+##}
+pub method pureMap {E} (self : Array E _) (f : _ ->[] _) =
+  unsafeInitArray {E} self.length (
+    fn i => f (unsafeGetArray {E} self i))
+
+{## Creates a new array from mapped elements of an array.
+
+  `arr.map f` creates a new array consisting of
+  elements `(f x)` where `x` are elements of `arr`.
+##}
+pub method map {E} (self : Array E _) f =
+  {# Convert to a list and back to an array in order to avoid array overriding
+  when function f returns more than once. #}
+  let xs = self.toList.map f in
+  xs.toArray {~mut=Mut {E}}
+
+{## Concatenates two arrays.
+
+  `arr1.concat arr2` returns new array with
+  elements from `arr1` followed by elements from `arr2`
+##}
+pub method concat {E} (self: Array E _ ) (other : Array E _) =
+  let a = self.length in
+  let b = other.length in
+  unsafeInitArray {E} (a+b) 
+    (fn i =>
+      if i < a then
+        unsafeGetArray {E} self i
+      else
+        unsafeGetArray {E} other (i-a))
+
+{## Reverses an array.
+
+  `arr.reverse` returns new array with elements in reversed order
+##}
+pub method reverse {E} (self: Array E _) =
+  let n = self.length in
+  unsafeInitArray {E} n
+    (fn i => unsafeGetArray {E} self (n - i - 1))
+
+{## Checks if any element of an array satisfies a condition.
+
+  `arr.exists f` returns `True` if function `f`
+  returns `True` on any element of an array `arr`,
+  otherwise it returns `False`
+##}
+pub method exists {E} (self : Array E _) f =
+  let rec loop (i: Int) =
+    if i >= self.length then False
+    else (f (unsafeGetArray {E} self i)) || loop (i + 1)
+  in
+  loop 0
+
+{## Checks if all elements of an array satisfy a condition.
+
+  `arr.forall f` returns `False` if function `f`
+  returns `False` on any element of the array `arr`,
+  otherwise it returns `True`
+##}
+pub method forall {E} (self : Array E _) f =
+  not (self.exists (fn x => not (f x)))
 
 {# ========================================================================= #}
 ## ## Immutable arrays
@@ -314,7 +423,7 @@ pub let hMutArray (f : {E : effect} -> Mut E ->[E] Array E _) =
 pub method toConstArray (self : List _) =
   hMutArray (fn ~mut => self.toArray)
 
-{## Create a new immutable array initialized with results of a pure function.
+{## Creates a new immutable array initialized with results of a pure function.
 
   A call `mut.pureInitConstArray n f` creates an immutable array built from
   elements `f 0`, ..., `f (n-1)`, calling this function from left to right.
@@ -331,7 +440,7 @@ pub let initConstArray n f =
 {# ------------------------------------------------------------------------- #}
 ## ### Higher order functions on immutable arrays 
 
-{## Iterate over all elements of an immutable array and their indices.
+{## Iterates over all elements of an immutable array and their indices.
 
   In `arr.iteri f` for each element of the array `arr` the function `f` is
   applied to the index of the element (counting from 0) and the element itself.
@@ -345,8 +454,76 @@ pub method iteri (self : ConstArray _) f =
   in
   loop 0
 
-{## Iterate function over all elements of an immutable array.
+{## Iterates function over all elements of an immutable array.
 
   Call `arr.iter f` is equivalent to `arr.iteri (fn _ => f)`. ##}
 pub method iter (self : ConstArray _) f =
   self.iteri (fn _ => f)
+
+{## Performs right fold on an immutable array.
+
+  For `arr` equal to `[a1, a2, ..., an].toConstArray`
+  call `arr.foldRight f init` is
+  equivalent to `f a1 (f a2 (... (f an init) ...))`
+##}
+pub method foldRight (self : ConstArray _) f init =
+  let rec loop (i : Int) acc =
+    if i < 0 then acc
+    else loop (i - 1) (f (unsafeGetConstArray self i) acc)
+  in 
+  loop (self.length - 1) init
+
+{## Performs left fold on an immutable array.
+
+  For `arr` equal to `[a1, a2, ..., an].toConstArray`
+  call `arr.foldLeft f init` is
+  equivalent to `f (... (f (f init a1) a2) ...) an`
+##}
+pub method foldLeft (self : ConstArray  _) f init =
+  let rec loop (i: Int) acc = 
+    if i >= self.length then acc
+    else loop (i + 1) (f acc (unsafeGetConstArray self i))
+  in
+  loop 0 init
+
+{## Checks if any element of an immutable array satisfies a condition.
+
+  `arr.exists f` returns `True` if function
+  `f` returns `True` on any element of an immutable array `arr`,
+   otherwise it returns `False`
+##}
+pub method exists (self : ConstArray _) f =
+  let rec loop (i: Int) =
+    if i >= self.length then False
+    else (f (unsafeGetConstArray self i)) || loop (i + 1)
+  in
+  loop 0
+
+{## Checks if all elements of an immutable array satisfy a condition.
+
+  `arr.forall f` returns `False` if function
+  `f` returns `False` on any element of the array `arr`,
+  otherwise it returns `True`
+##}
+pub method forall (self : ConstArray _) f =
+  not (self.exists (fn x => not (f x)))
+
+{## Creates a new immutable array from mapped elements of an immutable array.
+
+  `arr.pureMap f` creates a new immutable array consisting of elements
+  `(f x)` where `x` are elements of `arr`. 
+  `f` must be pure.
+##}
+pub method pureMap (self : ConstArray _) (f : _ ->[] _) =
+  pureInitConstArray self.length
+    (fn i => f (self.get i))
+
+{## Creates a new immutable array from mapped elements of an immutable array.
+
+  `arr.map f` creates a new immutable array consisting of elements
+  `(f x)` where `x` are elements of `arr`.
+##}
+pub method map (self : ConstArray _) f =
+  {# Convert to a list and back to an array in order to avoid array overriding
+  when function f returns more than once. #}
+  self.toList.map f >.toConstArray
