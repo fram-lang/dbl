@@ -1,0 +1,15 @@
+module M1
+  let x = 42
+end
+
+module M2
+  let x = "foo"
+end
+
+data T = A | B
+
+let f t =
+  match t with
+  | A { module M = M1 } | B { module M = M2 } =>
+    M.x
+  end

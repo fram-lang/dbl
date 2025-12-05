@@ -1,0 +1,6 @@
+data Two A = First of A | Second of A
+
+let extract t =
+  match t with
+  | First a | Second a => a
+  end
