@@ -285,16 +285,142 @@ section
   parameter ~testCaseTracker : TestCaseTracker _
   parameter ~testLogger : TestLogger _
 
-  let log {~__line__, ~__file__} lt msg = ~testLogger.log (mkLogMsg lt msg)
+  let log' {~__line__, ~__file__} lt msg = ~testLogger.log (mkLogMsg lt msg)
 
-  let hardFail () = ~testCaseTracker.hardFail ()
-  let softFail () = ~testCaseTracker.softFail ()
+  let hardFail  () = ~testCaseTracker.hardFail ()
+  let softFail  () = ~testCaseTracker.softFail ()
+  let acceptAll () = ~testCaseTracker.acceptAll ()
 
   pub let assertTrue
       {~__line__, ~__file__, ?msg : String}
       cond =
     if not cond then
      (let message = msg.unwrapOr "Assertion Failed: Expected to be true" in
-      log LT_Fail message;
+      log' LT_Fail message;
+      hardFail ())
+
+  pub let assertFalse
+      {~__line__, ~__file__, ?msg : String}
+      cond =
+    assertTrue
+      {msg=msg.unwrapOr "Assertion Failed: Expected to be false"} (not cond)
+
+  pub let assertEq 
+      { ~__line__
+      , ~__file__
+      , ?msg : String
+      , X : type
+      , Y : type
+      , method equal : X ->> Y ->> Bool } 
+      (expected : X) (actual : Y) =
+    assertTrue
+      {msg = "Assertion Failed: Expected values to be equal"}
+      (expected.equal actual)
+
+  pub let assertEqF
+      { ~__line__
+      , ~__file__
+      , ?msg : String
+      , X : type
+      , Y : type
+      , method toString : X ->> String
+      , method toString : Y ->> String
+      , method equal : X ->> Y ->> Bool } 
+      (expected : X) (actual : Y) =
+    assertTrue
+      {msg =
+        "Assertion Failed: Expected \{expected} and \{actual} to be equal"}
+      (expected.equal actual)
+
+  pub let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
+    handle
+      ~onError = effect _ => True
+      return _ => False
+    in f ()
+
+  pub let assertCallsOnError
+      { ~__line__
+      , ~__file__
+      , ?msg : String }
+      (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+    assertTrue
+      {msg = "Assertion Failed: Expected function to call on error implicit"}
+      (callsOnError f)
+
+  pub let assertDoesNotCallOnError
+      { ~__line__
+      , ~__file__
+      , ?msg : String }
+      (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+    assertFalse
+      {msg = "Assertion Failed: Expected function to not call on error implicit"}
+      (callsOnError f)
+
+  pub let expectTrue
+      {~__line__, ~__file__, ?msg : String}
+      cond =
+    if not cond then
+     (let message = msg.unwrapOr "Expectation Failed: Expected to be true" in
+      log' LT_Expect message;
       softFail ())
+
+  pub let expectFalse
+      {~__line__, ~__file__, ?msg : String}
+      cond =
+    expectTrue
+      {msg=msg.unwrapOr "Expectation Failed: Expected to be false"}
+      (not cond)
+
+  pub let expectEq 
+      { ~__line__
+      , ~__file__
+      , ?msg : String
+      , X : type
+      , Y : type
+      , method equal : X ->> Y ->> Bool } 
+      (expected : X) (actual : Y) =
+    expectTrue
+      {msg = "Expectation Failed: Expected values to be equal"}
+      (expected.equal actual)
+
+  pub let expectEqF
+      { ~__line__
+      , ~__file__
+      , ?msg : String
+      , X : type
+      , Y : type
+      , method toString : X ->> String
+      , method toString : Y ->> String
+      , method equal : X ->> Y ->> Bool } 
+      (expected : X) (actual : Y) =
+    expectTrue
+      {msg =
+        "Expectation Failed: Expected: \{expected} and \{actual} to be equal"}
+      (expected.equal actual)
+
+  pub let expectCallsOnError
+      { ~__line__
+      , ~__file__
+      , ?msg : String }
+      (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+    expectTrue
+      {msg = "Expectation Failed: Expected function to call on error implicit"}
+      (callsOnError f)
+
+  pub let expectDoesNotCallOnError
+      { ~__line__
+      , ~__file__
+      , ~testArbiter
+      , ?msg : String }
+      (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
+    expectFalse
+      {msg =
+        "Expectation Failed: Expected function to not call on error implicit"}
+      (callsOnError f)
+
+  pub let log {~__file__, ~__line__} = log' LT_UserInfo
+
+  pub let accept {~__file__, ~__line__, ?msg : String} () =
+    log' LT_Accept (msg.unwrapOr "Test accepted manually");
+    acceptAll ()
 end
