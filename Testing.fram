@@ -3,7 +3,7 @@ import Mutable as M
 import String as S
 import List
 
-# let _ =printTrie mainTrie
+let Map {module SMap} = Map.make {Key=String}
 
 let sanitizeFileName {~__file__ = file} () =
   # clear realative path
@@ -18,17 +18,6 @@ let sanitizeFileName {~__file__ = file} () =
   | Some idx => file.substring 0 idx
   end
 
-
-#pub let testSuite {~__file__ : String} (name : String) (f : {~__file__} -> Unit ->> Unit) =
-#  let ~__file__ = sanitizeFileName () + "/" + name in
-#  f ()
-#
-#pub let addTest {~__file__ : String} (name : String) =
-#  tests := (sanitizeFileName () + "/" + name) :: tests.get
-#
-#pub let printAll () =
-#  tests.get.iter printStrLn
-#
 data Loc = {file : String, line : Int}
 
 let mkLoc {~__line__ = line, ~__file__ = file} = Loc {line, file}
@@ -65,6 +54,8 @@ data LogMessage =
   , loc     : Loc
   }
 
+let mkLogMsg {~__line__, ~__file__} logType message = LogMessage {loc = mkLoc, message, logType}
+
 data TestLogger E = {log : LogMessage ->[E] Unit, getLogs : Unit ->[E] List LogMessage}
 
 let testLoggerH =
@@ -86,6 +77,10 @@ data TestLogs  =
   , result   : TestResult
   , logs     : List LogMessage
   }
+
+let printLogs (logs : TestLogs) (idx : Int) =
+  printStrLn "\{idx} \{logs.testCase.name} \{logs.testCase.loc}";
+  logs.logs.iter (fn (log : LogMessage) => printStrLn log.message)
 
 data SessionLogger E = {reportTest : TestLogs ->[E] Int}
 
@@ -110,11 +105,43 @@ let sessionTestCounterH =
     finally c => c (0, 0)
   end
 
+type NestedCase = Pair String TestCase
+
+data rec TestTree = {tests : List NestedCase, suites : SMap.T TestTree}
+let emptyTestTree = TestTree {tests=[], suites=SMap.empty}
+
+method addTest (tree : TestTree) (test : TestCase) =
+  let (path, name) = test.name.splitOn '/' >.dropTakeLast >.unwrap in
+  let rec visit (TestTree {tests, suites}) path =
+    match path with
+    | [] => TestTree {tests = (name, test) :: tests, suites}
+    | ns :: path =>
+      let sub = suites.find ns >.unwrapOr emptyTestTree in
+      TestTree {tests, suites = suites.add ns (visit sub path)}
+    end
+  in
+  visit tree path
+
+let constructTestTree (tests : List TestCase) = 
+  tests.foldRight (fn test (tree : TestTree) => tree.addTest test) emptyTestTree
+
+method iter (tree : TestTree) (f : {nesting : Int} -> Either String NestedCase ->> Unit) =
+  let rec iter (tree : TestTree) (nesting : Int) =
+    let nesting = nesting + 1 in
+    tree.tests.rev.iter (fn tc => f {nesting} (Right tc));
+    tree.suites.iter (fn {key} suite => f {nesting} (Left key); iter suite nesting)
+  in
+  iter tree 0
+
+let printTree (tree : TestTree) =
+  tree.iter (fn {nesting} case =>
+    printStr (replicate "  " nesting);
+    match case with
+    | Left name => printStrLn name
+    | Right (name, _) => printStrLn "+ \{name}"
+    end)
 
 let tests = M.ioMut.ref ([] : List TestCase)
-
-parameter E_TL : effect
-parameter E_TT : effect
 
 pub let testCase
   {~__file__, ~__line__}
@@ -131,34 +158,50 @@ pub let testCase
     tests := (tc :: tests.get)
 
 let runTest {E_SL, ~sessionLogger : SessionLogger E_SL, E_ST, ~sessionTestCounter : SessionTestCounter E_ST}
-  (TestCase {loc, name, body}) =
-    printStrLn "\{name} :: \{loc}";
-    ~sessionTestCounter.countTest (fst (body ()))
+  (tc : TestCase) =
+    let TestCase {loc, name, body} = tc in
+    # printStrLn "\{name} :: \{loc}";
+    let (result, logs) = body () in
+    let logNum = 
+      match result with
+      | TR_Reject => Some (~sessionLogger.reportTest (TestLogs {testCase=tc, logs, result}))
+      | TR_Accept => None
+      end
+    in
+    ~sessionTestCounter.countTest result
 
 pub let runTests () =
   let tests = tests.get.rev in
+  let tree = constructTestTree tests in
   let ((succ, fail), logs) =
     handle ~sessionLogger / E_SL with sessionLoggerH in
     handle ~sessionTestCounter / E_ST with sessionTestCounterH in
-      List.iter (runTest {E_SL, E_ST}) tests
+      tree.iter (fn {nesting} node =>
+        printStr (replicate "  " nesting);
+        match node with
+        | Left ns => printStrLn ns
+        | Right (name, test) =>
+          printStrLn name;
+          runTest {E_SL, E_ST} test
+        end)
   in
+  logs.iter (fn (idx, logs) => printLogs logs idx);
   printStrLn "\{succ}/\{fail + succ}"
 
-# let f {~__file__} () = printStrLn (sanitizeFileName ())
-# let _ = f ()
+section
+  parameter ~testCaseTracker : TestCaseTracker _
+  parameter ~testLogger : TestLogger _
 
-{##
-  Asserts that given value is True.
- ##}
+  let log {~__line__, ~__file__} lt msg = ~testLogger.log (mkLogMsg lt msg)
 
-pub let assertTrue
-    {~__line__, ~__file__, E_TL, E_TT, ~testCaseTracker : TestCaseTracker E_TT, ~testLogger : TestLogger E_TL, ?msg : String}
-    cond =
-  if cond then
-    ()
-  else
-   (let message = msg.unwrapOr "Assertion Failed: Expected to be true" in
-      ~testLogger.log (LogMessage {loc=mkLoc, logType=LT_Fail, message});
-      ~testCaseTracker.hardFail ())
+  let hardFail () = ~testCaseTracker.hardFail ()
+  let softFail () = ~testCaseTracker.softFail ()
 
-
+  pub let assertTrue
+      {~__line__, ~__file__, ?msg : String}
+      cond =
+    if not cond then
+     (let message = msg.unwrapOr "Assertion Failed: Expected to be true" in
+      log LT_Fail message;
+      softFail ())
+end
