@@ -44,12 +44,6 @@ pub let splitOn (str : String) (delim : Char) =
   in
   iter (str.length - 1) str.length []
 
-#let _ = printStrLn (splitOn "ab:def:get" ':').show
-#let _ = printStrLn (splitOn "ab:def:get:" ':').show
-#let _ = printStrLn (splitOn ":ab:def:get" ':').show
-#let _ = printStrLn (splitOn "" ':').show
-#let _ = printStrLn (splitOn ":" ':').show
-
+pub method findChar = findChar
 pub method substring = substring
 pub method splitOn = splitOn
-

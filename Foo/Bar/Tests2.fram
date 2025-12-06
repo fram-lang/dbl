@@ -1,5 +1,0 @@
-import Testing as T
-
-
-let _ = T.testCase "fooTest" (fn _ =>
-  T.assertTrue True)
