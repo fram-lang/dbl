@@ -135,7 +135,7 @@ let constructTestTree (tests : List TestCase) =
 method iter (tree : TestTree) (f : {nesting : Int} -> Either String NestedCase ->> Unit) =
   let rec iter (tree : TestTree) (nesting : Int) =
     let nesting = nesting + 1 in
-    tree.tests.rev.iter (fn tc => f {nesting} (Right tc));
+    tree.tests.iter (fn tc => f {nesting} (Right tc));
     tree.suites.iter (fn {key} suite => f {nesting} (Left key); iter suite nesting)
   in
   iter tree (-1)
@@ -238,6 +238,10 @@ let shouldLogResult tr =
   | TR_Reject => logFailed.get
   end
 
+pub let testSuite {~__file__} (name : String) (f : {~__file__} -> Unit ->> Unit) =
+  let ~__file__ = "\{sanitizeFileName ()}/\{name}" in
+  f ()
+
 pub let testCase
   {~__file__, ~__line__}
   name
@@ -260,7 +264,7 @@ let runTest {E_SL, ~sessionLogger : SessionLogger E_SL, E_ST, ~sessionTestCounte
     ~sessionTestCounter.countTest result;
     (testCase.name, result, logNum)
 
-pub let runTests () =
+let runTests () =
   printSessnionPreamble ();
   let tests = tests.get.rev in
   let tree = constructTestTree tests in
@@ -275,9 +279,19 @@ pub let runTests () =
           printTreeTestResult name result logNum nesting
         end)
   in
-  printStrLn "";
+  if tests.length > 0 then
+    printStrLn "";
   printSessionLogs logs;
-  printSessionSummary succ fail
+  printSessionSummary succ fail;
+  if fail > 0 then
+    exit 1
+  else
+    exit 0;
+  ()
+
+handle _ = ()
+  return _ => runTests ()
+  finally _ => ()
 
 # ==== Test Case tools ====
 

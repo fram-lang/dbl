@@ -1,0 +1,49 @@
+import /List
+import open /String
+import open Testing
+
+let _ = testSuite "substring" (fn _ =>
+  
+  testCase "takes whole string" (fn _ =>
+    assertEqF (substring "abcdef" 0 6) "abcdef");
+    
+  testCase "returns empty string for empty range" (fn _ =>
+    assertEqF (substring "abcdef" 0 0) "";
+    assertEqF (substring "abcdef" 4 4) "";
+    assertEqF (substring "" 0 0) "");
+  
+  testCase "returns substring on non empty range" (fn _ =>
+    assertEqF (substring "abcdef" 1 4) "bcd"))
+
+let _ = testSuite "findChar" (fn _ =>
+  
+  testCase "does not find char" (fn _ =>
+    assertEq (findChar "abcdef" ':') None;
+    assertEq (findChar "" ':') None);
+  
+  testCase "finds index from beginning" (fn _ =>
+    assertEq (findChar "abc:def" ':') (Some 3);
+    assertEq (findChar "ab:cd:ef" ':') (Some 2));
+  
+  testCase "finds all indexes iterativately" (fn _ =>
+    let str = "do:re:mi:fa" in
+    expectEq (findChar {beg=0} str ':') (Some 2);
+    expectEq (findChar {beg=3} str ':') (Some 5);
+    expectEq (findChar {beg=6} str ':') (Some 8);
+    expectEq (findChar {beg=9} str ':') None))
+
+let _ = testSuite "splitOn" (fn _ =>
+  
+  testCase "returns unsplitted string" (fn _ =>
+    expectEq (splitOn "abcdef" ':') ["abcdef"];
+    expectEq (splitOn "" ':') [""]);
+  
+  testCase "singular split" (fn _ =>
+    expectEq (splitOn "abc:def" ':') ["abc", "def"];
+    expectEq (splitOn "abc:" ':') ["abc", ""];
+    expectEq (splitOn ":abc" ':') ["", "abc"];
+    expectEq (splitOn ":" ':') ["", ""]);
+  
+  testCase "multiple plits" (fn _ =>
+    expectEq (splitOn "do:re:mi" ':') ["do", "re", "mi"];
+    expectEq (splitOn ":::" ':') ["", "", "", ""]))
