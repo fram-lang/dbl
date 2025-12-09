@@ -6,28 +6,50 @@ import AnsiTerminal as T
 
 ## # Testing framework
 
-# ===== Utilities =====
+# Location
 
 # Source code location tracker
 data Loc = {file : String, line : Int}
 
+# Position smart constructor
 let mkLoc {~__line__ = line, ~__file__ = file} = Loc {line, file}
 
 method toString (Loc {file, line}) = "\{file}:\{line}"
+
+# ====== Pathing ======
 
 # Relative path and extenstion removal function
 let sanitizeFileName {~__file__ = file} () =
   # clear realative path
   let file =
     if (file : String).get 0 == '.' then
-      file.substring 2 (file.length)
+      file.substring 2 (file.length - 2) >.unwrap
     else
       file in
   # clear extension
   match S.findChar file '.' with
   | None => file
-  | Some idx => file.substring 0 idx
+  | Some idx => file.substring 0 idx >.unwrap
   end
+
+# Keeps track of namespace nesting level
+data Path = {path : Option (List String)}
+
+pub let ~suitePath = Path {path=None}
+
+section
+  parameter ~suitePath : Path
+
+  let getPath {~__file__} () =
+    match ~suitePath.path with
+    | Some pth => pth
+    | None     => sanitizeFileName () >.splitOn '/'
+    end
+
+  let extendPath {~__file__} (name : String) =
+    let pth = getPath () in
+    Path {path = Some (pth + [name])}
+end
 
 # ===== Data Structures =====
 
@@ -45,11 +67,13 @@ data LogMessage =
   , loc     : Loc
   }
 
+# Log message smart contructor
 let mkLogMsg {~__line__, ~__file__} logType message =
   LogMessage {loc = mkLoc, message, logType}
 
 data TestCase =
   { name : String
+  , path : List String
   , loc  : Loc
   , body : Unit ->[] Pair TestResult (List LogMessage)
   }
@@ -62,6 +86,7 @@ data TestLogs  =
 
 # ===== TestCases' effect handlers =====
 
+{# Tracks state of a test case. Allows "soft" failing. #}
 data TestCaseTracker E =
   { hardFail  : {X} -> Unit ->[E] X
   , softFail  : Unit ->[E] Unit
@@ -78,6 +103,7 @@ let testCaseTrackerH =
     finally c => c TR_Accept
   end
 
+{# Stores all logs from a test case execution. #}
 data TestLogger E =
   { log : LogMessage ->[E] Unit
   , getLogs : Unit ->[E] List LogMessage
@@ -91,25 +117,29 @@ let testLoggerH =
     finally c => c ([] : List LogMessage)
   end
 
+{#
+  Test case smart constructor.
+  Wraps test execution with required handlers.
+#}
 let mkTestCase
-  {~__file__, ~__line__}
+  {~__file__, ~__line__, ~suitePath : Path}
   (name : String)
   (f : { E_TL
        , E_TT
        , ~testLogger : TestLogger E_TL
        , ~testCaseTracker : TestCaseTracker E_TT
        } -> Unit ->[E_TL, E_TT] Unit) =
-    let name    = "\{sanitizeFileName ()}/\{name}"
     let loc     = mkLoc
     let body () = 
       handle ~testLogger / E_TL with testLoggerH in
       handle ~testCaseTracker / E_TT with testCaseTrackerH in
         f {E_TL, E_TT} ()
     in
-    TestCase {name, loc, body}
+    TestCase {name, path=getPath (), loc, body}
 
 # ===== TestTree =====
 
+# Organizes all registered tets into a tree structure
 let Map {module SMap} = Map.make {Key=String}
 
 type NestedCase = Pair String TestCase
@@ -118,7 +148,7 @@ data rec TestTree = {tests : List NestedCase, suites : SMap.T TestTree}
 let emptyTestTree = TestTree {tests=[], suites=SMap.empty}
 
 method addTest (tree : TestTree) (test : TestCase) =
-  let (path, name) = test.name.splitOn '/' >.dropTakeLast >.unwrap in
+  let TestCase {path, name} = test in
   let rec visit (TestTree {tests, suites}) path =
     match path with
     | [] => TestTree {tests = (name, test) :: tests, suites}
@@ -130,27 +160,38 @@ method addTest (tree : TestTree) (test : TestCase) =
   visit tree path
 
 let constructTestTree (tests : List TestCase) = 
-  tests.foldRight (fn test (tree : TestTree) => tree.addTest test) emptyTestTree
+  tests.foldRight
+    (fn test (tree : TestTree) => tree.addTest test)
+    emptyTestTree
 
-method iter (tree : TestTree) (f : {nesting : Int} -> Either String NestedCase ->> Unit) =
-  let rec iter (tree : TestTree) (nesting : Int) =
-    let nesting = nesting + 1 in
-    tree.tests.iter (fn tc => f {nesting} (Right tc));
-    tree.suites.iter (fn {key} suite => f {nesting} (Left key); iter suite nesting)
-  in
-  iter tree (-1)
+method iter
+  (tree : TestTree)
+  (f : {nesting : Int} -> Either String NestedCase ->> Unit) =
+    let rec iter (tree : TestTree) (nesting : Int) =
+      let nesting = nesting + 1 in
+      tree.tests.iter (fn tc => f {nesting} (Right tc));
+      tree.suites.iter (fn {key} suite => f {nesting} (Left key);
+                                          iter suite nesting)
+    in
+    iter tree (-1)
 
 # ==== Session effect handlers =====
 
+{#
+  Tracks all logs from all tests. Assigns numbers for each entry for easier
+  for easier test reffering
+#}
 data SessionLogger E = {reportTest : TestLogs ->[E] Int}
 
 let sessionLoggerH =
   handler SessionLogger
-    { reportTest = effect log / r => fn (id, logs) => r id (1 + id, (id, log) :: logs)}
+    { reportTest = effect log / r =>
+      fn (id, logs) => r id (1 + id, (id, log) :: logs)}
     return s => fn (_, logs) => (s, List.rev logs)
     finally c => c (1, [])
   end
 
+{# Counts all failed and succeeded tests. #}
 data SessionTestCounter E = {countTest : TestResult ->[E] Unit}
 
 let sessionTestCounterH =
@@ -174,18 +215,22 @@ let printTreeNamespace namespace nest =
   printNesting nest;
   printStrLn namespace
 
-let printTreeTestResult (name : String) (result : TestResult) (idx : Option Int) nest =
-  printNesting nest;
-  printStr 
-    match result with
-    | TR_Accept => "\{T.Font.setFgColor T.Font.Green}✔ "
-    | TR_Reject => "\{T.Font.setFgColor T.Font.Red}✖ "
+let printTreeTestResult
+  (name : String)
+  (result : TestResult)
+  (idx : Option Int)
+  nest =
+    printNesting nest;
+    printStr 
+      match result with
+      | TR_Accept => "\{T.Font.setFgColor T.Font.Green}✔ "
+      | TR_Reject => "\{T.Font.setFgColor T.Font.Red}✖ "
+      end;
+    match idx with
+    | Some idx => printStr "(\{idx}) "
+    | None => ()
     end;
-  match idx with
-  | Some idx => printStr "(\{idx}) "
-  | None => ()
-  end;
-  printStrLn "\{T.Font.resetAll}\{name}"
+    printStrLn "\{T.Font.resetAll}\{name}"
 
 let printLogMessage (log : LogMessage) =
   let (col, name) =
@@ -196,9 +241,9 @@ let printLogMessage (log : LogMessage) =
       | LT_UserInfo => (T.Font.Blue,  " LOG  ")
       end
   in
-  printStrLn "[\{T.Font.setFgColor col}\{name}\{T.Font.resetAll}] from \{log.loc}";
+  printStrLn
+    "[\{T.Font.setFgColor col}\{name}\{T.Font.resetAll}] from \{log.loc}";
   printStrLn "[      ] \{log.message}"
-
 
 let printTestLogs (tl : TestLogs) (num : Int) =
   let col =
@@ -208,13 +253,17 @@ let printTestLogs (tl : TestLogs) (num : Int) =
       | TR_Reject => T.Font.Red
       end
   let preamble = "\{col}(\{num})\{T.Font.resetAll}"
-  let preamble = preamble + " \{tl.testCase.name} from \{tl.testCase.loc}"
+  let testFullName =
+    tl.testCase.path.foldRight
+      (fn (s1 : String) s2 => s1 + "/" + s2)
+      tl.testCase.name
+  let preamble = preamble + " \{testFullName} from \{tl.testCase.loc}"
   in
   printStrLn preamble;
   tl.logs.iter printLogMessage;
   printStrLn ""
 
-let printSessnionPreamble () =
+let printSessionPreamble () =
   printStrLn "Running all tests...";
   printStrLn ""
 
@@ -229,7 +278,10 @@ let printSessionSummary (succ : Int) (fail : Int) =
 
 # ===== Top Level ======
 
+# Keeps track of all registered tests.
 let tests = M.ioMut.ref ([] : List TestCase)
+
+# Additional option - enables showing logs of failed tests.
 let logFailed = M.ioMut.ref True
 
 let shouldLogResult tr =
@@ -238,12 +290,16 @@ let shouldLogResult tr =
   | TR_Reject => logFailed.get
   end
 
-pub let testSuite {~__file__} (name : String) (f : {~__file__} -> Unit ->> Unit) =
-  let ~__file__ = "\{sanitizeFileName ()}/\{name}" in
-  f ()
+## Adds a nested test suite.
+pub let testSuite
+  {~__file__, ~suitePath : Path} (name : String)
+  (f : {~suitePath : Path} -> Unit ->> Unit) =
+    let ~suitePath = extendPath name in
+    f ()
 
+## Creates a test case.
 pub let testCase
-  {~__file__, ~__line__}
+  {~__file__, ~__line__, ~suitePath : Path}
   name
   (f : { E_TL
        , E_TT
@@ -252,20 +308,25 @@ pub let testCase
        } -> Unit ->[E_TL, E_TT] Unit) =
     tests := (mkTestCase name f :: tests.get)
 
-let runTest {E_SL, ~sessionLogger : SessionLogger E_SL, E_ST, ~sessionTestCounter : SessionTestCounter E_ST}
-  (testCase : TestCase) =
-    let (result, logs) = testCase.body () in
-    let logNum = 
-      if shouldLogResult result then
-        Some (~sessionLogger.reportTest (TestLogs {testCase, logs, result}))
-      else
-        None
-    in
-    ~sessionTestCounter.countTest result;
-    (testCase.name, result, logNum)
+let runTest
+  { E_SL
+  , ~sessionLogger : SessionLogger E_SL
+  , E_ST
+  , ~sessionTestCounter : SessionTestCounter E_ST }
+    (testCase : TestCase) =
+      let (result, logs) = testCase.body () in
+      let logNum = 
+        if shouldLogResult result then
+          Some (~sessionLogger.reportTest (TestLogs {testCase, logs, result}))
+        else
+          None
+      in
+      ~sessionTestCounter.countTest result;
+      (testCase.name, result, logNum)
 
+# Test routine
 let runTests () =
-  printSessnionPreamble ();
+  printSessionPreamble ();
   let tests = tests.get.rev in
   let tree = constructTestTree tests in
   let ((succ, fail), logs) =
@@ -289,6 +350,7 @@ let runTests () =
     exit 0;
   ()
 
+# Global handler. Forces test evaulation at the end of session.
 handle _ = ()
   return _ => runTests ()
   finally _ => ()
@@ -305,6 +367,15 @@ section
   let softFail  () = ~testCaseTracker.softFail ()
   let acceptAll () = ~testCaseTracker.acceptAll ()
 
+  {##
+    ## Test assertions
+
+    Test asserions checks if given condition is true.
+    If not, they terminate test execution and report
+    test failure.
+   ##}
+
+  {## Asserts that given condition is true. ##}
   pub let assertTrue
       {~__line__, ~__file__, ?msg : String}
       cond =
@@ -313,12 +384,14 @@ section
       log' LT_Fail message;
       hardFail ())
 
+  {## Asserts that given condition is false. ##}
   pub let assertFalse
       {~__line__, ~__file__, ?msg : String}
       cond =
     assertTrue
       {msg=msg.unwrapOr "Assertion Failed: Expected to be false"} (not cond)
 
+  {## Asserts that given values are equal. ##}
   pub let assertEq 
       { ~__line__
       , ~__file__
@@ -331,45 +404,66 @@ section
       {msg = "Assertion Failed: Expected values to be equal"}
       (expected.equal actual)
 
-  pub let assertEqF
+  {##
+    Asserts that given values are equal.
+    Uses `show` method for more elaborate logging.
+   ##}
+  pub let assertEqS
       { ~__line__
       , ~__file__
       , ?msg : String
       , X : type
       , Y : type
-      , method toString : X ->> String
-      , method toString : Y ->> String
+      , method show : X ->> String
+      , method show : Y ->> String
       , method equal : X ->> Y ->> Bool } 
       (expected : X) (actual : Y) =
     assertTrue
       {msg =
-        "Assertion Failed: Expected \{expected} and \{actual} to be equal"}
+        "Assertion Failed: Expected \{expected.show} and \{actual.show} to be equal"}
       (expected.equal actual)
 
-  pub let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
+  let callsOnError (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _) =
     handle
       ~onError = effect _ => True
       return _ => False
     in f ()
 
+  {##
+    Asserts that given function will call ~onError function.
+    Function results are discarded.
+   ##}
   pub let assertCallsOnError
       { ~__line__
       , ~__file__
       , ?msg : String }
       (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     assertTrue
-      {msg = "Assertion Failed: Expected function to call on error implicit"}
+      {msg = "Assertion Failed: Expected function to call ~onError implicit"}
       (callsOnError f)
 
+  {##
+    Asserts that given function will not call ~onError function.
+   ##}
   pub let assertDoesNotCallOnError
       { ~__line__
       , ~__file__
       , ?msg : String }
       (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     assertFalse
-      {msg = "Assertion Failed: Expected function to not call on error implicit"}
+      {msg =
+        "Assertion Failed: Expected function to not call ~onError implicit"}
       (callsOnError f)
 
+  {##
+    # Expectations
+
+    Expectations checks if given conditions holds. On fail, they report test
+    failure, but don't terminate test execution. This enables to compose
+    more elaborate test log. Test still may be manually accepted.
+   ##}
+
+  {## Expects given condition to be true. ##}
   pub let expectTrue
       {~__line__, ~__file__, ?msg : String}
       cond =
@@ -385,6 +479,7 @@ section
       {msg=msg.unwrapOr "Expectation Failed: Expected to be false"}
       (not cond)
 
+  {## Expects given values to be equal. ##}
   pub let expectEq 
       { ~__line__
       , ~__file__
@@ -397,30 +492,40 @@ section
       {msg = "Expectation Failed: Expected values to be equal"}
       (expected.equal actual)
 
-  pub let expectEqF
+  {##
+    Expects given values to be equal.
+    Uses `show` method for better error printing.
+   ##}
+  pub let expectEqS
       { ~__line__
       , ~__file__
       , ?msg : String
       , X : type
       , Y : type
-      , method toString : X ->> String
-      , method toString : Y ->> String
+      , method show : X ->> String
+      , method show : Y ->> String
       , method equal : X ->> Y ->> Bool } 
       (expected : X) (actual : Y) =
     expectTrue
       {msg =
-        "Expectation Failed: Expected: \{expected} and \{actual} to be equal"}
+        "Expectation Failed: Expected: \{expected.show} and \{actual.show} to be equal"}
       (expected.equal actual)
 
+  {##
+    Expects given function to call ~onError function.
+   ##}
   pub let expectCallsOnError
       { ~__line__
       , ~__file__
       , ?msg : String }
       (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     expectTrue
-      {msg = "Expectation Failed: Expected function to call on error implicit"}
+      {msg = "Expectation Failed: Expected function to call ~onError implicit"}
       (callsOnError f)
 
+  {##
+    Expects that given function will not call ~onError function.
+   ##}
   pub let expectDoesNotCallOnError
       { ~__line__
       , ~__file__
@@ -429,11 +534,18 @@ section
       (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     expectFalse
       {msg =
-        "Expectation Failed: Expected function to not call on error implicit"}
+        "Expectation Failed: Expected function to not call ~onError implicit"}
       (callsOnError f)
 
+  ## ## Other utilities
+
+  ## Logs user message.
   pub let log {~__file__, ~__line__} = log' LT_UserInfo
 
+  {##
+    Terminates test and reports success. Will override failed
+    expectations.
+   ##}
   pub let accept {~__file__, ~__line__, ?msg : String} () =
     log' LT_Accept (msg.unwrapOr "Test accepted manually");
     acceptAll ()

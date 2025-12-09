@@ -5,15 +5,20 @@ import open Testing
 let _ = testSuite "substring" (fn _ =>
   
   testCase "takes whole string" (fn _ =>
-    assertEqF (substring "abcdef" 0 6) "abcdef");
+    assertEqS (substring "abcdef" 0 6) (Some "abcdef"));
     
   testCase "returns empty string for empty range" (fn _ =>
-    assertEqF (substring "abcdef" 0 0) "";
-    assertEqF (substring "abcdef" 4 4) "";
-    assertEqF (substring "" 0 0) "");
+    assertEqS (substring "abcdef" 0 0) (Some "");
+    assertEqS (substring "abcdef" 4 0) (Some "");
+    assertEqS (substring "" 0 0) (Some ""));
   
   testCase "returns substring on non empty range" (fn _ =>
-    assertEqF (substring "abcdef" 1 4) "bcd"))
+    assertEqS (substring "abcdef" 1 3) (Some "bcd"));
+  
+  testCase "returns None for invalid range" (fn _ =>
+    assertEqS (substring "abcdef" (-1) 10) None;
+    assertEqS (substring "abcdef" 0 10) None;
+    assertEqS (substring "abcdef" 10 0) None))
 
 let _ = testSuite "findChar" (fn _ =>
   

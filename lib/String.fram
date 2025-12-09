@@ -2,24 +2,30 @@
  # See LICENSE for details.
  #}
 
-## # String utilities
+## # String operations 
 
 {##
-  Module provides basic and much needed string manipulation functions.
+  Returns a substring of length `len` starting at index `pos`. Returns `None`
+  when requested range is no contained within string.
  ##}
+pub let substring (str : String) (pos : Int) (len : Int) =
+  if (pos < 0 || len < 0 || pos + len > str.length) then
+    None
+  else
+   (let rec iter i acc =
+      if i < pos
+        then acc
+        else iter (i - 1) (str.get i :: acc)
+    in
+    Some (charListToStr (iter (pos + len - 1) [])))
 
-pub let substring {~__line__, ~__file__} (str : String) (b : Int) (e : Int) =
-  assert (0 <= b && b <= e && e <= str.length);
-  let ~onErrror = impossible in
-  let rec iter i acc =
-    if i < b
-      then acc
-      else iter (i - 1) (str.get i :: acc)
-  in
-  charListToStr (iter (e - 1) [])
+{##
+  Returns a index of first occurence of given char and `None` if
+  such position was not found.
 
-#let _ = printStrLn (substring "abcdef" 1 4).show
-
+  @param ?beg Initial search position. Allows to iterativately
+    find all occurences of given char.
+ ##}
 pub let findChar {?beg} (str : String) (chr : Char) =
   let beg = beg.unwrapOr 0
   let rec iter i =
@@ -32,17 +38,20 @@ pub let findChar {?beg} (str : String) (chr : Char) =
   in
   iter beg 
 
+{##
+  Returns a list of strings aquired by splitting the string on
+  a delimiting character.
+ ##}
 pub let splitOn (str : String) (delim : Char) =
-  let ~onError = impossible in
   let rec iter i e acc =
     if i <= -1 then
-      substring str (i + 1) e :: acc
+      substring str (i + 1) e >.unwrap :: acc
     else if str.get i == delim then
-      iter (i - 1) i (substring str (i + 1) e :: acc)
+      iter (i - 1) i (substring str (i + 1) (e - i - 1) >.unwrap :: acc)
     else
       iter (i - 1) e acc
   in
-  iter (str.length - 1) str.length []
+  iter (str.length - 1) str.length ([] : List String)
 
 pub method findChar = findChar
 pub method substring = substring
