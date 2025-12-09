@@ -44,6 +44,7 @@ let kw_map =
   ; "type",      KW_TYPE
   ; "with",      KW_WITH
   ; "_",         UNDERSCORE
+  ; ":t",        DIR_TYPE
   ] |> List.to_seq |> Hashtbl.of_seq
 
 (* let op_map = Hashtbl.create 32 *)

@@ -309,6 +309,10 @@ and import_data =
   | IImportOpen of import_path
     (** Import and immediately open the module *)
 
+(** REPL Directives *)
+type directive = 
+  | Directive_Type of expr
+
 (** Program *)
 type program = def list node
 
@@ -325,3 +329,6 @@ type repl_cmd =
 
   | REPL_Import of import
     (** Import a module *)
+
+  | REPL_Dir of directive
+    (** Do some directive *)
