@@ -27,148 +27,153 @@ let is_effect_var x =
   | KEffect -> true
   | _ -> false
 
-let gvar_leave_scope ~scope ~tvars gv =
-  let _ : T.gvar = T.GVar.update_scope ~scope ~tvars gv in ()
+let gvar_leave_scope ~outer_scope ~tvars gv =
+  let _ : T.gvar = T.GVar.update_scope ~scope:outer_scope ~tvars gv in ()
 
-let tvar_constr_leave_scope ~env0 ~origin eff2 (x, p) =
-  let scope = Env.scope env0 in
-  if T.TVar.in_scope x scope then begin
+let tvar_constr_leave_scope ~outer_env ~origin eff2 (x, p) =
+  let outer_scope = Env.scope outer_env in
+  if T.TVar.in_scope x outer_scope then begin
     let eff1 = T.Effct.guard (T.Effct.var x) p in
-    let eff2 = T.Effct.filter_to_scope ~scope eff2 in
+    let eff2 = T.Effct.filter_to_scope ~scope:outer_scope eff2 in
     let c = Constr.CSubeffect(origin, eff1, eff2) in
-    Env.add_constraints env0 [c]
+    Env.add_constraints outer_env [c]
   end else begin
     let p2 = T.Effct.lookup_tvar eff2 x in
-    Env.add_formula_constraint env0 ~origin x p p2
+    Env.add_formula_constraint outer_env ~origin x p p2
   end
 
-let gvar_constr_leave_scope ~env0 ~origin eff2 (gv, p) =
-  let scope = Env.scope env0 in
-  assert (T.GVar.in_scope gv scope);
+let gvar_constr_leave_scope ~outer_env ~origin eff2 (gv, p) =
+  let outer_scope = Env.scope outer_env in
+  (* All remaining gvars from the inner scope were already promoted to tvars.
+   *)
+  assert (T.GVar.in_scope gv outer_scope);
   let eff1 = T.Effct.guard (T.Effct.gvar gv) p in
-  let eff2 = T.Effct.filter_to_scope ~scope eff2 in
+  let eff2 = T.Effct.filter_to_scope ~scope:outer_scope eff2 in
   let c = Constr.CSubeffect(origin, eff1, eff2) in
-  Env.add_constraints env0 [c]
+  Env.add_constraints outer_env [c]
 
-let constr_leave_scope ~env0 c =
+let constr_leave_scope ~outer_env c =
   match c with
   | Constr.CSubeffect(origin, eff1, eff2) ->
     let (tvars, gvars) = T.Effct.view eff1 in
-    List.iter (tvar_constr_leave_scope ~env0 ~origin eff2) tvars;
-    List.iter (gvar_constr_leave_scope ~env0 ~origin eff2) gvars
+    List.iter (tvar_constr_leave_scope ~outer_env ~origin eff2) tvars;
+    List.iter (gvar_constr_leave_scope ~outer_env ~origin eff2) gvars
 
-let leave_scope_with_gvars ~env0 ~tvars cs gvs =
-  let scope = Env.scope env0 in
-  let gvs = Constr.collect_gvars ~scope cs gvs in
+let leave_scope_with_gvars ~outer_env ~tvars cs gvs =
+  let outer_scope = Env.scope outer_env in
+  let gvs = Constr.collect_gvars ~outer_scope cs gvs in
   let tvars = List.filter is_effect_var tvars in
-  T.GVar.Set.iter (gvar_leave_scope ~scope ~tvars) gvs;
-  List.iter (constr_leave_scope ~env0) cs;
-  solve_partial env0
+  T.GVar.Set.iter (gvar_leave_scope ~outer_scope ~tvars) gvs;
+  List.iter (constr_leave_scope ~outer_env) cs;
+  solve_partial outer_env
 
 (* ========================================================================= *)
 
-(** Split all generalizable variables that are not in the given scope but
-  appear on the RHS of given constraints to a join of fresh generalizable
-  variables, one at given scope, and one at the original scope. *)
-let prepare_generalize ~scope cs =
+(** Split all generalizable variables that are not in the given outer scope
+  but appear on the RHS of given constraints to a join of fresh generalizable
+  variables, one at given (outer) scope, and one at the original (inner)
+  scope. *)
+let prepare_generalize ~outer_scope cs =
   cs
   |> List.fold_left
       (fun gvs (Constr.CSubeffect(_, _, eff)) ->
-        T.Effct.collect_gvars ~scope eff gvs)
+        T.Effct.collect_gvars ~outer_scope eff gvs)
       T.GVar.Set.empty
   |> T.GVar.Set.elements
   |> List.iter (fun gv ->
-    let gv1 = T.Effct.fresh_gvar ~scope in
+    let gv1 = T.Effct.fresh_gvar ~scope:outer_scope in
     let gv2 = T.Effct.fresh_gvar ~scope:(T.GVar.scope gv) in
     T.GVar.set gv (T.Effct.join gv1 gv2))
 
-let split_tvar_constr ~env0 ~origin eff2 (x, p) =
-  let scope = Env.scope env0 in
-  if T.TVar.in_scope x scope then begin
+let split_tvar_constr ~outer_env ~origin eff2 (x, p) =
+  let outer_scope = Env.scope outer_env in
+  if T.TVar.in_scope x outer_scope then begin
     let eff1 = T.Effct.guard (T.Effct.var x) p in
-    let eff2 = T.Effct.filter_to_scope ~scope eff2 in
+    let eff2 = T.Effct.filter_to_scope ~scope:outer_scope eff2 in
     let c = Constr.CSubeffect(origin, eff1, eff2) in
-    Env.add_constraints env0 [c];
+    Env.add_constraints outer_env [c];
     []
   end else begin
     let eff1 = T.Effct.guard (T.Effct.var x) p in
     [(eff1, eff2)]
   end
 
-let split_constr ~env0 c =
+let split_constr ~outer_env c =
   match c with
   | Constr.CSubeffect(origin, eff1, eff2) ->
     let (tvars, gvars) = T.Effct.view eff1 in
-    List.iter (gvar_constr_leave_scope ~env0 ~origin eff2) gvars;
-    List.concat_map (split_tvar_constr ~env0 ~origin eff2) tvars
+    List.iter (gvar_constr_leave_scope ~outer_env ~origin eff2) gvars;
+    List.concat_map (split_tvar_constr ~outer_env ~origin eff2) tvars
 
-let effect_gvars ~scope effs =
+let effect_gvars ~outer_scope effs =
   List.fold_left
-    (fun gvs eff -> T.Effct.collect_gvars ~scope eff gvs)
+    (fun gvs eff -> T.Effct.collect_gvars ~outer_scope eff gvs)
     T.GVar.Set.empty
     effs
 
-let generalize_with_gvars ~env0 cs (pgvs, ngvs) =
+let generalize_with_gvars ~outer_env cs (pgvs, ngvs) =
   let effs =
     T.GVar.Set.union pgvs ngvs
     |> T.GVar.Set.elements
     |> List.map T.Effct.gvar
   in
-  let scope = Env.scope env0 in
-  let cs = ConstrSimplify.simplify ~scope ~pgvs ~ngvs cs in
-  prepare_generalize ~scope cs;
-  let gvs = Constr.collect_gvars ~scope cs (effect_gvars ~scope effs) in
+  let outer_scope = Env.scope outer_env in
+  let cs = ConstrSimplify.simplify ~outer_scope ~pgvs ~ngvs cs in
+  prepare_generalize ~outer_scope cs;
+  let gvs =
+    Constr.collect_gvars ~outer_scope cs (effect_gvars ~outer_scope effs) in
   let evs = List.map T.GVar.fix (T.GVar.Set.elements gvs) in
-  let cs  = List.concat_map (split_constr ~env0) cs in
+  let cs  = List.concat_map (split_constr ~outer_env) cs in
   (evs, cs)
 
 (* ========================================================================= *)
 
-let leave_scope ~env0 ~tvars cs =
-  leave_scope_with_gvars ~env0 ~tvars cs T.GVar.Set.empty
+let leave_scope ~outer_env ~tvars cs =
+  leave_scope_with_gvars ~outer_env ~tvars cs T.GVar.Set.empty
 
-let leave_scope_with_scheme ~env0 ~tvars cs sch =
-  let scope = Env.scope env0 in
-  leave_scope_with_gvars ~env0 ~tvars cs
-    (T.Scheme.collect_gvars ~scope sch T.GVar.Set.empty)
+let leave_scope_with_scheme ~outer_env ~tvars cs sch =
+  let outer_scope = Env.scope outer_env in
+  leave_scope_with_gvars ~outer_env ~tvars cs
+    (T.Scheme.collect_gvars ~outer_scope sch T.GVar.Set.empty)
 
-let leave_scope_with_schemes ~env0 ~tvars cs schs =
-  let scope = Env.scope env0 in
-  leave_scope_with_gvars ~env0 ~tvars cs
+let leave_scope_with_schemes ~outer_env ~tvars cs schs =
+  let outer_scope = Env.scope outer_env in
+  leave_scope_with_gvars ~outer_env ~tvars cs
     (List.fold_left
-      (fun gvs sch -> T.Scheme.collect_gvars ~scope sch gvs)
+      (fun gvs sch -> T.Scheme.collect_gvars ~outer_scope sch gvs)
       T.GVar.Set.empty
       schs)
 
-let leave_scope_with_type_eff ~env0 ~tvars cs tp eff =
-  let scope = Env.scope env0 in
+let leave_scope_with_type_eff ~outer_env ~tvars cs tp eff =
+  let outer_scope = Env.scope outer_env in
   let gvs =
     T.GVar.Set.empty
-    |> T.Type.collect_gvars ~scope tp
-    |> T.CEffect.collect_gvars ~scope eff
+    |> T.Type.collect_gvars ~outer_scope tp
+    |> T.CEffect.collect_gvars ~outer_scope eff
   in
-  leave_scope_with_gvars ~env0 ~tvars cs gvs
+  leave_scope_with_gvars ~outer_env ~tvars cs gvs
 
-let leave_scope_with_ctors ~env0 ~tvars cs ctors =
-  let scope = Env.scope env0 in
+let leave_scope_with_ctors ~outer_env ~tvars cs ctors =
+  let outer_scope = Env.scope outer_env in
   let gvs =
     List.fold_left
-      (fun gvs ctor -> T.CtorDecl.collect_gvars ~scope ctor gvs)
+      (fun gvs ctor -> T.CtorDecl.collect_gvars ~outer_scope ctor gvs)
       T.GVar.Set.empty
       ctors
   in
-  leave_scope_with_gvars ~env0 ~tvars cs gvs
+  leave_scope_with_gvars ~outer_env ~tvars cs gvs
 
-let generalize_with_scheme ~env0 cs sch =
-  let scope = Env.scope env0 in
+let generalize_with_scheme ~outer_env cs sch =
+  let outer_scope = Env.scope outer_env in
   let gvsp = (T.GVar.Set.empty, T.GVar.Set.empty) in
-  generalize_with_gvars ~env0 cs (T.Scheme.collect_gvars_p ~scope sch gvsp)
+  generalize_with_gvars ~outer_env cs
+    (T.Scheme.collect_gvars_p ~outer_scope sch gvsp)
 
-let generalize_with_schemes ~env0 cs schs =
-  let scope = Env.scope env0 in
-  generalize_with_gvars ~env0 cs
+let generalize_with_schemes ~outer_env cs schs =
+  let outer_scope = Env.scope outer_env in
+  generalize_with_gvars ~outer_env cs
     (List.fold_left
-      (fun gvsp sch -> T.Scheme.collect_gvars_p ~scope sch gvsp)
+      (fun gvsp sch -> T.Scheme.collect_gvars_p ~outer_scope sch gvsp)
       (T.GVar.Set.empty, T.GVar.Set.empty)
       schs)
 
@@ -209,7 +214,7 @@ let final_sat_solve env =
 let final_solve env =
   let cs  = Env.constraints env in
   Env.clear_constraints env;
-  let gvs = Constr.collect_gvars ~scope:Scope.root cs T.GVar.Set.empty in
+  let gvs = Constr.collect_gvars ~outer_scope:Scope.root cs T.GVar.Set.empty in
   let tvars = List.filter is_effect_var (Env.all_tvars env) in
   T.GVar.Set.iter (gvar_final_solve ~tvars) gvs;
   List.iter (constr_final_solve env) cs;

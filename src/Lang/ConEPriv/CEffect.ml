@@ -16,10 +16,10 @@ let join eff1 eff2 =
   | _, Pure -> eff1
   | Impure eff1, Impure eff2 -> Impure (Effct.join eff1 eff2)
 
-let collect_gvars ~scope eff gvs =
+let collect_gvars ~outer_scope eff gvs =
   match eff with
   | Pure       -> gvs
-  | Impure eff -> Effct.collect_gvars ~scope eff gvs
+  | Impure eff -> Effct.collect_gvars ~outer_scope eff gvs
 
 let to_sexpr eff =
   match eff with
