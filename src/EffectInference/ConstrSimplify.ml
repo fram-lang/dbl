@@ -76,6 +76,20 @@ type constr =
         during the simplification process. *)
   }
 
+let eff_var_to_sexpr =
+  function
+  | TVar x   -> SExpr.List [ Sym "tvar"; T.TVar.to_sexpr x ]
+  | GVar eff -> SExpr.List [ Sym "gvar"; T.Effct.to_sexpr eff ]
+
+let constr_to_sexpr c =
+  SExpr.List [
+    eff_var_to_sexpr c.eff_var;
+    List [ Sym "if";     IncrSAT.Formula.to_sexpr c.pformula ];
+    List [ Sym "unless"; IncrSAT.Formula.to_sexpr c.nformula ];
+    Sym "<:";
+    T.Effct.to_sexpr c.rhs_effect
+  ]
+
 (* ========================================================================= *)
 (* Basic operations *)
 
@@ -318,7 +332,15 @@ let rule_move_up_negative st cs =
       (fun (gv, bnd) -> Option.map (fun eff -> (gv, eff)) bnd)
       (T.GVar.Map.bindings bounds)
   in
-  List.iter (fun (gv, eff) -> set_gvar st gv eff) bounds;
+  List.iter
+    (fun (gv, eff) ->
+      (* Skip constraints, where [eff] contains [gv]. For normalized
+        constraints it is impossible, but such constraints may appear after
+        setting some generalizable variables in this loop. For instance, when
+        we have [a <: b] and [b <: a]. *)
+      if IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv) then
+        set_gvar st gv eff)
+    bounds;
   cs
 
 (* ========================================================================= *)
