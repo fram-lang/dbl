@@ -6,7 +6,7 @@
 
 {##
   Returns a substring of length `len` starting at index `pos`. Returns `None`
-  when requested range is no contained within string.
+  when requested range is not contained within string.
  ##}
 pub let substring (str : String) (pos : Int) (len : Int) =
   if (pos < 0 || len < 0 || pos + len > str.length) then
@@ -20,11 +20,11 @@ pub let substring (str : String) (pos : Int) (len : Int) =
     Some (charListToStr (iter (pos + len - 1) [])))
 
 {##
-  Returns a index of first occurence of given char and `None` if
+  Returns a index of first ocurrence of given char and `None` if
   such position was not found.
 
-  @param ?beg Initial search position. Allows to iterativately
-    find all occurences of given char.
+  @param ?beg Initial search position. Allows to iteratively
+    find all ocurrences of given char.
  ##}
 pub let findChar {?beg} (str : String) (chr : Char) =
   let beg = beg.unwrapOr 0
@@ -39,7 +39,7 @@ pub let findChar {?beg} (str : String) (chr : Char) =
   iter beg 
 
 {##
-  Returns a list of strings aquired by splitting the string on
+  Returns a list of strings acquired by splitting the string on
   a delimiting character.
  ##}
 pub let splitOn (str : String) (delim : Char) =

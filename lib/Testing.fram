@@ -18,9 +18,9 @@ method toString (Loc {file, line}) = "\{file}:\{line}"
 
 # ====== Pathing ======
 
-# Relative path and extenstion removal function
+# Relative path and extension removal function
 let sanitizeFileName {~__file__ = file} () =
-  # clear realative path
+  # clear relative path
   let file =
     if (file : String).get 0 == '.' then
       file.substring 2 (file.length - 2) >.unwrap
@@ -139,7 +139,7 @@ let mkTestCase
 
 # ===== TestTree =====
 
-# Organizes all registered tets into a tree structure
+# Organizes all registered tests into a tree structure
 let Map {module SMap} = Map.make {Key=String}
 
 type NestedCase = Pair String TestCase
@@ -179,7 +179,7 @@ method iter
 
 {#
   Tracks all logs from all tests. Assigns numbers for each entry for easier
-  for easier test reffering
+  test referring.
 #}
 data SessionLogger E = {reportTest : TestLogs ->[E] Int}
 
@@ -238,12 +238,12 @@ let printLogMessage (log : LogMessage) =
       | LT_Accept   => (T.Font.Green, "ACCEPT")
       | LT_Fail     => (T.Font.Red,   "ASSERT")
       | LT_Expect   => (T.Font.Red,   "EXPECT")
-      | LT_UserInfo => (T.Font.Blue,  " LOG  ")
+      | LT_UserInfo => (T.Font.Blue,  "LOG")
       end
   in
   printStrLn
-    "[\{T.Font.setFgColor col}\{name}\{T.Font.resetAll}] from \{log.loc}";
-  printStrLn "[      ] \{log.message}"
+    "> \{T.Font.setFgColor col}\{name}\{T.Font.resetAll} (\{log.loc})";
+  printStrLn log.message
 
 let printTestLogs (tl : TestLogs) (num : Int) =
   let col =
@@ -257,7 +257,7 @@ let printTestLogs (tl : TestLogs) (num : Int) =
     tl.testCase.path.foldRight
       (fn (s1 : String) s2 => s1 + "/" + s2)
       tl.testCase.name
-  let preamble = preamble + " \{testFullName} from \{tl.testCase.loc}"
+  let preamble = preamble + " \{testFullName}\n\tfrom \{tl.testCase.loc}"
   in
   printStrLn preamble;
   tl.logs.iter printLogMessage;
@@ -370,7 +370,7 @@ section
   {##
     ## Test assertions
 
-    Test asserions checks if given condition is true.
+    Test assertions checks if given condition is true.
     If not, they terminate test execution and report
     test failure.
    ##}
@@ -529,7 +529,6 @@ section
   pub let expectDoesNotCallOnError
       { ~__line__
       , ~__file__
-      , ~testArbiter
       , ?msg : String }
       (f : {E, ~onError : _ ->[E] _} -> Unit ->[E] _ ) =
     expectFalse

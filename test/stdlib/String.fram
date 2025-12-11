@@ -30,7 +30,7 @@ let _ = testSuite "findChar" (fn _ =>
     assertEq (findChar "abc:def" ':') (Some 3);
     assertEq (findChar "ab:cd:ef" ':') (Some 2));
   
-  testCase "finds all indexes iterativately" (fn _ =>
+  testCase "finds all indexes iteratively" (fn _ =>
     let str = "do:re:mi:fa" in
     expectEq (findChar {beg=0} str ':') (Some 2);
     expectEq (findChar {beg=3} str ':') (Some 5);
@@ -49,6 +49,6 @@ let _ = testSuite "splitOn" (fn _ =>
     expectEq (splitOn ":abc" ':') ["", "abc"];
     expectEq (splitOn ":" ':') ["", ""]);
   
-  testCase "multiple plits" (fn _ =>
+  testCase "multiple splits" (fn _ =>
     expectEq (splitOn "do:re:mi" ':') ["do", "re", "mi"];
     expectEq (splitOn ":::" ':') ["", "", "", ""]))
