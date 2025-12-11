@@ -548,6 +548,7 @@ and infer_type : type ed.
     let ctx = T.Pretty.empty_context () in
     let tp1 = T.Pretty.pp_type ctx body.pp tp1 in
     (* Build the result *)
+    print_string tp1; 
     let res = T.EReplExpr(T.EApp(to_str_expr, e1), tp1, rest) in
     let eff_resp =
       eff_resp_join eff_resp1 [ eff_resp2; eff_resp3; eff_resp4 ] in
