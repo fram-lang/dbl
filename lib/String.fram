@@ -11,23 +11,19 @@
 pub let substring (str : String) (pos : Int) (len : Int) =
   if (pos < 0 || len < 0 || pos + len > str.length) then
     None
-  else
-   (let rec iter i acc =
-      if i < pos
-        then acc
-        else iter (i - 1) (str.get i :: acc)
-    in
-    Some (charListToStr (iter (pos + len - 1) [])))
+  else (
+    let substr = extern dbl_subStr : String -> Int -> Int ->[] String in
+    Some (substr str pos len))
 
 {##
   Returns a index of first ocurrence of given char and `None` if
   such position was not found.
 
-  @param ?beg Initial search position. Allows to iteratively
+  @param ?begin Initial search position. Allows to iteratively
     find all ocurrences of given char.
  ##}
-pub let findChar {?beg} (str : String) (chr : Char) =
-  let beg = beg.unwrapOr 0
+pub let findChar {?begin} (str : String) (chr : Char) =
+  let begin = begin.unwrapOr 0
   let rec iter i =
     if i >= str.length then
       None
@@ -36,7 +32,7 @@ pub let findChar {?beg} (str : String) (chr : Char) =
     else
       iter (i + 1)
   in
-  iter beg 
+  iter begin 
 
 {##
   Returns a list of strings acquired by splitting the string on
@@ -56,3 +52,4 @@ pub let splitOn (str : String) (delim : Char) =
 pub method findChar = findChar
 pub method substring = substring
 pub method splitOn = splitOn
+pub method pow = replicate

@@ -32,10 +32,10 @@ let _ = testSuite "findChar" (fn _ =>
   
   testCase "finds all indexes iteratively" (fn _ =>
     let str = "do:re:mi:fa" in
-    expectEq (findChar {beg=0} str ':') (Some 2);
-    expectEq (findChar {beg=3} str ':') (Some 5);
-    expectEq (findChar {beg=6} str ':') (Some 8);
-    expectEq (findChar {beg=9} str ':') None))
+    expectEq (findChar {begin=0} str ':') (Some 2);
+    expectEq (findChar {begin=3} str ':') (Some 5);
+    expectEq (findChar {begin=6} str ':') (Some 8);
+    expectEq (findChar {begin=9} str ':') None))
 
 let _ = testSuite "splitOn" (fn _ =>
   
