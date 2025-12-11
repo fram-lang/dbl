@@ -1,0 +1,5 @@
+data T = A of Int | B of String
+
+let f x = match x with
+| A y | B y => y
+end

@@ -1,0 +1,8 @@
+module M
+  data Pair X Y = Pair of X, Y
+
+  let choose p =
+    match p with
+    | Pair (pub x) _ | Pair _ (pub x) => x
+    end
+end

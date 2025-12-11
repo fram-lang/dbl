@@ -88,7 +88,7 @@ let drop_wildcard (cl : iclause) =
 let rec simplify_as_pattern x (cl : iclause) =
   match cl.c_patterns with
   | [] -> assert false
-  | (PWildcard | PCtor _) :: pats -> cl
+  | (PWildcard | PCtor _ | POr _) :: pats -> cl
   | PAs(pat, y) :: pats ->
     let cl =
       { cl with
@@ -97,8 +97,18 @@ let rec simplify_as_pattern x (cl : iclause) =
       } in
     simplify_as_pattern x cl
 
+(** Expand or-patterns at head position (recursively for nested or-patterns) *)
+let rec expand_or_at_head (cl : iclause) =
+  match cl.c_patterns with
+  | POr(pat1, pat2) :: pats ->
+    expand_or_at_head { cl with c_patterns = pat1 :: pats } @
+    expand_or_at_head { cl with c_patterns = pat2 :: pats }
+  | _ -> [cl]
+
 (** Simplify as-patterns on the head position in given clause list *)
 let simplify_as_patterns x cls =
+  (* First expand or-patterns, then simplify as-patterns *)
+  let cls = List.concat_map expand_or_at_head cls in
   List.map (simplify_as_pattern x) cls
 
 (* ========================================================================= *)
@@ -131,8 +141,8 @@ let simplify_ctor idx (ctor : T.ctor_decl) tvs cl =
 
   | PCtor _ :: _ -> None
 
-  | PAs _ :: _ ->
-    (* As-patterns should be already simplified *)
+  | PAs _ :: _ | POr _ :: _ ->
+    (* As-patterns and or-patterns should be already simplified *)
     assert false
 
 (* ========================================================================= *)
@@ -157,8 +167,8 @@ let rec column_class (cls : iclause list) =
     | [] -> assert false
     | PWildcard :: _ -> column_class cls
     | PCtor cp :: _ -> CC_ADT(cp.proof, cp.ctors)
-    | PAs _ :: _ ->
-      (* As-patterns should be already simplified *)
+    | PAs _ :: _ | POr _ :: _ ->
+      (* As-patterns and or-patterns should be already simplified *)
       assert false
     end
 
