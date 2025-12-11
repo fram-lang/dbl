@@ -40,6 +40,7 @@ let rec make_vis_pattern (pt : Lang.Surface.pattern) =
   | PCtor (pth, xs, ys) -> 
     PCtor 
       (pth, List.map make_vis_named_pattern xs, List.map make_vis_pattern ys)
+  | POr (pt1, pt2) -> POr (make_vis_pattern pt1, make_vis_pattern pt2)
   end pt
 and make_vis_named_pattern (npt : Lang.Surface.named_pattern) =
   map_node begin function

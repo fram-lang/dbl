@@ -27,7 +27,14 @@ module PEnv = struct
       eff   = T.CEffect.join penv1.eff penv2.eff
     }
 
+  (** Intersect two pattern environments from or-pattern branches.
+      We keep only the bindings from penv1 since at this point (after type
+      checking), both branches bind the same variables with compatible types.
+      The variables in penv2 are equivalent to those in penv1, so we can
+      safely discard them. *)
   let intersect penv1 penv2 =
+    assert (List.length penv1.tvars = List.length penv2.tvars);
+    assert (List.length penv1.vars = List.length penv2.vars);
     { tvars = penv1.tvars;
       vars  = penv1.vars;
       eff   = T.CEffect.join penv1.eff penv2.eff

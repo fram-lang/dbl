@@ -3,3 +3,4 @@ data T = A of Int | B of String
 let f x = match x with
 | A y | B y => y
 end
+# @stderr:error: Or-pattern branches must bind the same variables with the same types. A variable has scheme Int in one branch, but String in another.

@@ -511,6 +511,11 @@ let or_pattern_modules_mismatch ~pos name =
       name,
     [])
 
+let or_pattern_existential_type ~pos =
+  (pos,
+    "Or-patterns cannot bind existential type variables.",
+    [])
+
 let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is bound more than once in single definition"

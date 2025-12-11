@@ -1,15 +1,7 @@
-module M1
-  let x = 42
-end
+data T = A of { x : Int } | B
 
-module M2
-  let x = "foo"
-end
-
-data T = A | B
-
-let f t =
-  match t with
-  | A { module M = M1 } | B { module M = M2 } =>
-    M.x
+let f x =
+  match x with
+  | A { module M } | B => ()
   end
+# @stderr:error: Or-pattern branches must bind the same modules, but M is not bound in all branches

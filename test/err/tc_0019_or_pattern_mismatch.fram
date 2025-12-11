@@ -4,3 +4,4 @@ let test_bad x =
   match x with
   | Error _ | Ok a => a
   end
+# @stderr:error: Or-pattern branches must bind the same variables, but variable a is not bound in all branches

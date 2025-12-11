@@ -215,7 +215,8 @@ let join ~pp penv1 penv2 =
 let merge_opts ~on_mismatch ~on_both opt1 opt2 =
   match opt1, opt2 with
   | None, None -> None
-  | Some _, None | None, Some _ -> on_mismatch (); None
+  | Some v1, None -> on_mismatch (); Some v1
+  | None, Some v2 -> on_mismatch (); Some v2
   | Some v1, Some v2 -> on_both v1 v2
 
 let intersect_tvar_info ~pos name info1 info2 =
@@ -268,6 +269,10 @@ let intersect_module_info ~check_schemes ~pp ~pos name info1 info2 =
       Some info1)
 
 let intersect ?check_schemes ~pp ~pos ~scope penv1 penv2 =
+  (* Or-patterns with existential types are not supported YET *)
+  if not (T.TVar.Map.is_empty penv1.tvar_tab) ||
+     not (T.TVar.Map.is_empty penv2.tvar_tab) then
+    Error.report (Error.or_pattern_existential_type ~pos);
   let ren =
     Name.Map.fold (fun name info2 ren ->
       match Name.Map.find_opt name penv1.val_map with
