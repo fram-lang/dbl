@@ -38,3 +38,10 @@ pub method map self f =
   | None   => None
   | Some x => Some (f x)
   end
+
+pub method equal {X, method equal : X -> X ->[] Bool} (o1 : Option X) o2 =
+  match (o1, o2) with
+  | (Some x1, Some x2) => x1.equal x2
+  | (None,    None   ) => True
+  | (_,       _      ) => False
+  end
