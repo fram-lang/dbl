@@ -1,0 +1,2 @@
+data T (E : type -> effect) = T of (Unit ->[E Unit] Unit)
+# @stderr:1:13-26: fatal error: Effect kind
