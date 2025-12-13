@@ -7,7 +7,8 @@
 module S = Lang.ConE
 module T = Lang.Core
 
-(** Translate kind *)
+(** Translate kind. It also instantiates all kind unification variables to
+  [KType], since they are not representable in the Core language. *)
 let rec tr_kind k =
   match Lang.Unif.Kind.view k with
   | KType   -> T.Kind.Ex KType
