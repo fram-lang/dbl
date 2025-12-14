@@ -76,6 +76,20 @@ type constr =
         during the simplification process. *)
   }
 
+let eff_var_to_sexpr =
+  function
+  | TVar x   -> SExpr.List [ Sym "tvar"; T.TVar.to_sexpr x ]
+  | GVar eff -> SExpr.List [ Sym "gvar"; T.Effct.to_sexpr eff ]
+
+let constr_to_sexpr c =
+  SExpr.List [
+    eff_var_to_sexpr c.eff_var;
+    List [ Sym "if";     IncrSAT.Formula.to_sexpr c.pformula ];
+    List [ Sym "unless"; IncrSAT.Formula.to_sexpr c.nformula ];
+    Sym "<:";
+    T.Effct.to_sexpr c.rhs_effect
+  ]
+
 (* ========================================================================= *)
 (* Basic operations *)
 
@@ -318,7 +332,15 @@ let rule_move_up_negative st cs =
       (fun (gv, bnd) -> Option.map (fun eff -> (gv, eff)) bnd)
       (T.GVar.Map.bindings bounds)
   in
-  List.iter (fun (gv, eff) -> set_gvar st gv eff) bounds;
+  List.iter
+    (fun (gv, eff) ->
+      (* Skip constraints, where [eff] contains [gv]. For normalized
+        constraints it is impossible, but such constraints may appear after
+        setting some generalizable variables in this loop. For instance, when
+        we have [a <: b] and [b <: a]. *)
+      if IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv) then
+        set_gvar st gv eff)
+    bounds;
   cs
 
 (* ========================================================================= *)
@@ -426,6 +448,65 @@ let rule_remove_redundant st cs =
     cs
 
 (* ========================================================================= *)
+(* Rule: substitute equalities *)
+
+(** Substitute generalizable variables that are equal to some effect
+  throughout the constraints. For each constraint of the form [gv <: eff],
+  where [gv] is a generalizable variable that does not occur in [eff], we
+  can set [gv] to [eff] if we are able to prove (by transitivity) that
+  [eff <: gv] holds. *)
+
+(** Build the largest lower-bound for given effect that can be inferred from
+  the constraints. *)
+let rec lower_bound_closure cs eff =
+  let progress = ref false in
+  let eff =
+    List.fold_left
+      (fun eff (Constr.CSubeffect(_, eff1, eff2)) ->
+        if trivial_subeffect eff2 eff && not (trivial_subeffect eff1 eff)
+        then begin
+          progress := true;
+          T.Effct.join eff eff1
+        end else
+          eff)
+      eff
+      cs
+  in
+  if !progress then
+    lower_bound_closure cs eff
+  else
+    eff
+
+let constr_as_gvar_equality st cs (c : constr) =
+  match c.eff_var with
+  | TVar _   -> None (* Not a generalizable variable. *)
+  | GVar eff ->
+    let gv = get_gvar eff in
+    if T.GVar.in_scope gv st.scope then
+      (* Variable is in scope, ignore it. *)
+      None
+    else if not (IncrSAT.Formula.is_true c.pformula) then
+      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      None
+    else if not (IncrSAT.Formula.is_false c.nformula) then
+      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      None
+    else if
+      trivial_subeffect c.rhs_effect (lower_bound_closure cs eff)
+    then
+      Some (gv, c.rhs_effect)
+    else
+      None
+
+let rule_subst_equality st cs =
+  let cs_list = List.map to_constr cs in
+  match List.find_map (constr_as_gvar_equality st cs_list) cs with
+  | None -> cs
+  | Some (gv, eff) ->
+    set_gvar st gv eff;
+    cs
+
+(* ========================================================================= *)
 (* Rule combinators *)
 
 let rec try_rules rules st cs =
@@ -445,6 +526,7 @@ let rules =
     rule_move_up_negative;
     rule_move_down_variant;
     rule_remove_redundant;
+    rule_subst_equality;
   ]
 
 let rec simplify_loop st cs =
