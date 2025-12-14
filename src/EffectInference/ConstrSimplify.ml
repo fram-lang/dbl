@@ -391,9 +391,9 @@ let rule_move_down_variant st cs =
 (* ========================================================================= *)
 (** Rule: fast cycle elimination *)
 
-(** Eliminates simple cycles of the form the set of constrains. A cycle
-  is simple if it is a strongly connected component in a graph where nodes
-  are effect variables and edges are constraints of the form [ev1 <: ev2 ? p].
+(** Eliminates simple cycles in the set of constrains. A cycle is simple if it
+  is a strongly connected component in a graph where nodes are effect
+  variables and edges are constraints of the form [ev1 <: ev2 ? p].
   Constraints that have guards on the left-hand-side are ignored. This rule
   is subsumed by [rule_subst_equality], but it is much faster to apply, so we
   use it as a separate rule. *)
@@ -477,9 +477,10 @@ let find_cycles graph =
   !result
 
 (** Pick a root effect variable from a cycle. The root is chosen to be
-  effect variable (non-generalizable) if any, otherwise an arbitrary
+  type variable (non-generalizable) if any, otherwise an arbitrary
   generalizable variable. *)
 let pick_root cycle =
+  assert (not (List.is_empty cycle));
   match
     List.find_opt
       (function TVar _ -> true | GVar _ -> false)
