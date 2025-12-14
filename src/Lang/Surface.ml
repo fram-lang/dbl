@@ -366,8 +366,12 @@ and def_data =
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
+  | DReplDir of directive 
+   (** Some kind of directive *)
 
- 
+(** Directives *)
+and directive = 
+ | Type_Directive of expr
 
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node

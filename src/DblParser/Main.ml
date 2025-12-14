@@ -55,8 +55,8 @@ and repl_seq_main imported () =
   | Raw.REPL_Dir directive ->
     begin match directive with 
      | Directive_Type e ->
-        let def = make_nowhere (Lang.Surface.DReplExpr(Desugar.tr_expr e)) in
-        Seq.Cons([], repl_seq imported)
+        let def = make_nowhere (Lang.Surface.DReplDir(Type_Directive (Desugar.tr_expr e))) in
+        Seq.Cons([def], repl_seq imported)
     end
 
 

@@ -469,6 +469,9 @@ and expr_data =
       (** The expression to continue the REPL. *)
     }
 
+  | EReplDir 
+    
+
 (** Definition of recursive value *)
 and rec_def =
   { rd_pos      : Position.t;
