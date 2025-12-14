@@ -263,7 +263,7 @@ let check_def : type st dir. tcfix:tcfix ->
     let (body_env, params) = Env.begin_generalize env in
     let expr   = infer_expr_type body_env e in
     let cs     = ConstrSolve.solve_partial expr.er_constr in
-    let tp     = expr_result_type expr in             
+    let tp     = expr_result_type expr in
     let to_str = ReplUtils.show_expr ~tcfix ~pos:e.pos env tp in
     ParamGen.end_generalize_impure params (T.Type.uvars tp);
     let rest = cont.run env req in
@@ -289,7 +289,7 @@ let check_def : type st dir. tcfix:tcfix ->
             let tp1 = Lang.Unif.Pretty.pp_type ctx expr.er_expr.pp tp in 
             print_endline tp1;
 
-(* abugu start *)
+
 let e =  {Lang.Surface.data =Lang.Surface.EUnit; pos= Position.nowhere}    in
        let (body_env, params) = Env.begin_generalize env in
     let expr   = infer_expr_type body_env e in
@@ -308,29 +308,6 @@ let e =  {Lang.Surface.data =Lang.Surface.EUnit; pos= Position.nowhere}    in
         [ expr.er_effect; to_str.er_effect; rest.er_effect ];
       er_constr = cs @ to_str.er_constr @ rest.er_constr
     }
-
-
-(* abugu end *)
-
-
-            (* let to_str = ReplUtils.show_expr ~tcfix ~pos:e.pos env tp in *)
-    (* ParamGen.end_generalize_impure params (T.Type.uvars tp); *)
-    (* let rest = cont.run env req in *)
-  (*   { er_expr   = {data = (T.EReplExpr
-        { body   = { pos = Position.nowhere; pp = PPTree.empty; data = (T.ENum 42)};
-          to_str = to_str.er_expr;
-          rest   = rest.er_expr
-        }); pos = Position.nowhere; pp =PPTree.empty};
-      er_type   = failwith "!";
-      er_effect = Pure;
-      er_constr = []
-    } *)
-(*  let make data = T.{ pos; pp; data } in
-    { er_expr   = make (T.EInst(make (T.ECtor([], T.PE_Unit, 0)), [], []));
-      er_type   = BiDirectional.Checked;
-      er_effect = Pure;
-      er_constr = []
-    } *)
       end
           
 

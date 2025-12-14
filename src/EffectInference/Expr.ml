@@ -556,7 +556,7 @@ and infer_type : type ed.
    | EReplDir -> 
     let tp = T.Type.t_var (T.BuiltinType.tv_int) in
     (T.ENum 0, tp, return_pure eff_req)
-    (** Obrzydliwa zapchaj-dziura*)
+    (** I probably need to fix this before PR*)
 
 
 and check_type : type ed.
