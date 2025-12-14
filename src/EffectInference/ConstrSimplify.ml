@@ -389,6 +389,127 @@ let rule_move_down_variant st cs =
   cs
 
 (* ========================================================================= *)
+(** Rule: fast cycle elimination *)
+
+(** Eliminates simple cycles of the form the set of constrains. A cycle
+  is simple if it is a strongly connected component in a graph where nodes
+  are effect variables and edges are constraints of the form [ev1 <: ev2 ? p].
+  Constraints that have guards on the left-hand-side are ignored. This rule
+  is subsumed by [rule_subst_equality], but it is much faster to apply, so we
+  use it as a separate rule. *)
+
+(** Subeffect graphs *)
+module Graph = struct
+  type t = eff_var list EffVarMap.t
+
+  let empty = EffVarMap.empty
+
+  let neighbors graph ev =
+    match EffVarMap.find_opt ev graph with
+    | None      -> []
+    | Some neig -> neig
+
+  let add_edge graph ev1 ev2 =
+    EffVarMap.add ev1 (ev2 :: neighbors graph ev1) graph
+end
+
+(** Build the subeffect graph from the constraints. *)
+let build_subeffect_graph cs =
+  let add_to_graph graph (c : constr) =
+    (* Ignore guarded constraints. *)
+    if not (IncrSAT.Formula.is_true c.pformula) then graph
+    else if not (IncrSAT.Formula.is_false c.nformula) then graph
+    else
+      match T.Effct.view c.rhs_effect with
+      | ([x, _], [])    ->
+        Graph.add_edge graph c.eff_var (TVar x)
+      | ([], [(gv, _)]) ->
+        Graph.add_edge graph c.eff_var (GVar (T.Effct.gvar gv))
+      | _               -> graph
+  in
+  List.fold_left add_to_graph Graph.empty cs
+
+type node_state =
+  | Visited
+  | OnStack of int
+
+(** Find cycles in the subeffect graph using Tarjan's algorithm. Returns
+  a list of strongly connected components. *)
+let find_cycles graph =
+  let result = ref [] in
+  let node_states = ref EffVarMap.empty in
+  let stack = ref [] in
+  let index = ref 0 in
+  let rec build_scc ev st acc =
+    match st with
+    | [] -> assert false (* The stack should contain at least [ev]. *)
+    | top :: st ->
+      node_states := EffVarMap.add top Visited !node_states;
+      if EffVar.compare top ev = 0 then begin
+        (* Finished building the strongly connected component. *)
+        result := (top :: acc) :: !result;
+        st
+      end else
+        build_scc ev st (top :: acc)
+  in
+  let rec visit ev =
+    match EffVarMap.find_opt ev !node_states with
+    | Some Visited           -> !index
+    | Some (OnStack lowlink) -> lowlink
+    | None ->
+      let curr_index = !index in
+      index := curr_index + 1;
+      node_states :=
+        EffVarMap.add ev (OnStack(curr_index)) !node_states;
+      stack := ev :: !stack;
+      let lowlink =
+        List.fold_left
+          (fun lowlink ev2 -> min lowlink (visit ev2))
+          curr_index
+          (Graph.neighbors graph ev)
+      in
+      if lowlink = curr_index then
+        (* Found a strongly connected component *)
+        stack := build_scc ev !stack [];
+      curr_index
+  in
+  EffVarMap.iter (fun ev _ -> ignore (visit ev)) graph;
+  !result
+
+(** Pick a root effect variable from a cycle. The root is chosen to be
+  effect variable (non-generalizable) if any, otherwise an arbitrary
+  generalizable variable. *)
+let pick_root cycle =
+  match
+    List.find_opt
+      (function TVar _ -> true | GVar _ -> false)
+      cycle
+  with
+  | Some ev -> ev
+  | None    -> List.hd cycle
+
+(** Collapse a cycle by setting all generalizable variables in the cycle
+  to the root effect variable. *)
+let collapse_cycle st root cycle =
+  let root_eff = effect_of_eff_var root in
+  cycle |> List.iter
+    (fun ev ->
+      if EffVar.compare ev root <> 0 then
+        match ev with
+        | TVar _   -> ()
+        | GVar eff -> set_gvar st (get_gvar eff) root_eff)
+
+let rule_fast_cycle_elim st cs =
+  let graph = build_subeffect_graph cs in
+  let cycles = find_cycles graph in
+  List.iter
+    (fun cycle ->
+      let root = pick_root cycle in
+      collapse_cycle st root cycle)
+    cycles;
+  cs
+
+(* ========================================================================= *)
 (* Rule: remove redundant constraints *)
 
 (** Removes constraints that are implied by other constraints. *)
@@ -525,6 +646,7 @@ let rules =
     rule_close_positive;
     rule_move_up_negative;
     rule_move_down_variant;
+    rule_fast_cycle_elim;
     rule_remove_redundant;
     rule_subst_equality;
   ]
