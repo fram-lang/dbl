@@ -391,7 +391,7 @@ let rule_move_down_variant st cs =
 (* ========================================================================= *)
 (** Rule: fast cycle elimination *)
 
-(** Eliminates simple cycles in the set of constrains. A cycle is simple if it
+(** Eliminates simple cycles in the set of constraints. A cycle is simple if it
   is a strongly connected component in a graph where nodes are effect
   variables and edges are constraints of the form [ev1 <: ev2 ? p].
   Constraints that have guards on the left-hand-side are ignored. This rule
@@ -421,7 +421,7 @@ let build_subeffect_graph cs =
     else if not (IncrSAT.Formula.is_false c.nformula) then graph
     else
       match T.Effct.view c.rhs_effect with
-      | ([x, _], [])    ->
+      | ([(x, _)], [])    ->
         Graph.add_edge graph c.eff_var (TVar x)
       | ([], [(gv, _)]) ->
         Graph.add_edge graph c.eff_var (GVar (T.Effct.gvar gv))
