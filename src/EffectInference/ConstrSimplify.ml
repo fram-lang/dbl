@@ -471,7 +471,7 @@ let find_cycles graph =
       if lowlink = curr_index then
         (* Found a strongly connected component *)
         stack := build_scc ev !stack [];
-      curr_index
+      lowlink
   in
   EffVarMap.iter (fun ev _ -> ignore (visit ev)) graph;
   !result
