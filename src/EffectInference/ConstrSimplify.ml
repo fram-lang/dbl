@@ -482,7 +482,7 @@ let constr_as_gvar_equality st cs (c : constr) =
   | TVar _   -> None (* Not a generalizable variable. *)
   | GVar eff ->
     let gv = get_gvar eff in
-    if T.GVar.in_scope gv st.scope then
+    if T.GVar.in_scope gv st.outer_scope then
       (* Variable is in scope, ignore it. *)
       None
     else if not (IncrSAT.Formula.is_true c.pformula) then
