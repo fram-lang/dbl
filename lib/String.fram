@@ -9,9 +9,10 @@
 
   @asserts Range must be contained within string.
  ##}
-pub let substring (str : String) (pos : Int) (len : Int) =
+pub let substring
+    {~__line__, ~__file__} (str : String) (pos : Int) (len : Int) =
   assert
-    {msg="asdsad"}
+    {msg="Substring range is outside string."}
     (pos >= 0 || len >= 0 || pos + len <= str.length);
   let substr = extern dbl_subStr : String -> Int -> Int ->[] String in
   substr str pos len
