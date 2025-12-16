@@ -13,7 +13,12 @@ let rec tr_kind (k : S.kind_expr) =
   | KWildcard      -> T.Kind.fresh_uvar ()
   | KType          -> T.Kind.k_type
   | KEffect        -> T.Kind.k_effect
-  | KArrow(k1, k2) -> T.Kind.k_arrow (tr_kind k1) (tr_kind k2)
+  | KArrow(k1, k2) ->
+    begin match T.Kind.k_arrow (tr_kind k1) (tr_kind k2) with
+    | Some k -> k
+    | None ->
+      Error.fatal (Error.effect_arrow_kind ~pos:k.pos)
+    end
 
 let rec infer_kind env (tp : S.type_expr) =
   let pos = tp.pos in

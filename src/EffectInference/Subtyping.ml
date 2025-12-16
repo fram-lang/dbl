@@ -78,8 +78,8 @@ let rec type_equiv ~origin env tp1 tp2 =
 
   | THandler h1, THandler h2 ->
     begin
-      let env0 = env in
-      let env  = Env.enter_scope env in
+      let outer_env = env in
+      let env = Env.enter_scope env in
       let x = T.TVar.clone ~scope:(Env.scope env) h1.tvar in
       let sub1 = T.Subst.rename T.Subst.empty h1.tvar x in
       let sub2 = T.Subst.rename T.Subst.empty h2.tvar x in
@@ -89,7 +89,7 @@ let rec type_equiv ~origin env tp1 tp2 =
         (T.Type.subst sub1 h1.in_tp)    (T.Type.subst sub2 h2.in_tp);
       effect_equiv' ~origin env
         (T.Effct.subst sub1 h1.in_eff)  (T.Effct.subst sub2 h2.in_eff);
-      ConstrSolver.leave_scope ~env0 ~tvars:[x] (Env.constraints env)
+      ConstrSolver.leave_scope ~outer_env ~tvars:[x] (Env.constraints env)
     end;
     type_equiv ~origin env h1.out_tp h2.out_tp;
     effect_equiv' ~origin env h1.out_eff h2.out_eff
@@ -110,7 +110,7 @@ and scheme_equiv ~origin env sch1 sch2 =
     type_equiv ~origin env sch1.sch_body sch2.sch_body
 
   | _ ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (sub1, sub2, tvars) =
       open_named_tvars2 ~scope:(Env.scope env) sch1.sch_targs sch2.sch_targs
@@ -124,7 +124,7 @@ and scheme_equiv ~origin env sch1 sch2 =
     type_equiv ~origin env
       (T.Type.subst sub1 sch1.sch_body)
       (T.Type.subst sub2 sch2.sch_body);
-    ConstrSolver.leave_scope ~env0 ~tvars (Env.constraints env)
+    ConstrSolver.leave_scope ~outer_env ~tvars (Env.constraints env)
 
 and named_scheme_equiv ~origin env (_, sch1) (_, sch2) =
   scheme_equiv ~origin env sch1 sch2
@@ -167,8 +167,8 @@ let rec subtype ~origin env tp1 tp2 =
 
   | THandler h1, THandler h2 ->
     begin
-      let env0 = env in
-      let env  = Env.enter_scope env in
+      let outer_env = env in
+      let env = Env.enter_scope env in
       let x = T.TVar.clone ~scope:(Env.scope env) h1.tvar in
       let sub1 = T.Subst.rename T.Subst.empty h1.tvar x in
       let sub2 = T.Subst.rename T.Subst.empty h2.tvar x in
@@ -178,7 +178,7 @@ let rec subtype ~origin env tp1 tp2 =
         (T.Type.subst sub2 h2.in_tp)    (T.Type.subst sub1 h1.in_tp);
       subeffect' ~origin env (*contravariant *)
         (T.Effct.subst sub2 h2.in_eff) (T.Effct.subst sub1 h1.in_eff);
-      ConstrSolver.leave_scope ~env0 ~tvars:[x] (Env.constraints env)
+      ConstrSolver.leave_scope ~outer_env ~tvars:[x] (Env.constraints env)
     end;
     subtype ~origin env h1.out_tp  h2.out_tp;
     subeffect' ~origin env h1.out_eff h2.out_eff
@@ -198,7 +198,7 @@ and subscheme ~origin env (sch1 : T.scheme) (sch2 : T.scheme) =
     subtype ~origin env sch1.sch_body sch2.sch_body
 
   | _ ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (sub1, sub2, tvars) =
       open_named_tvars2 ~scope:(Env.scope env) sch1.sch_targs sch2.sch_targs
@@ -214,7 +214,7 @@ and subscheme ~origin env (sch1 : T.scheme) (sch2 : T.scheme) =
     subtype ~origin env
       (T.Type.subst sub1 sch1.sch_body)
       (T.Type.subst sub2 sch2.sch_body);
-    ConstrSolver.leave_scope ~env0 ~tvars (Env.constraints env)
+    ConstrSolver.leave_scope ~outer_env ~tvars (Env.constraints env)
 
 and named_subscheme ~origin env (name1, sch1) (name2, sch2) =
   assert (name1 = name2);
@@ -222,87 +222,87 @@ and named_subscheme ~origin env (name1, sch1) (name2, sch2) =
 
 (* ========================================================================= *)
 
-let ceffect_shape env (eff : T.ceffect) =
+let ceffect_shape ~outer_env (eff : T.ceffect) =
   match eff with
   | Pure     -> T.Pure
-  | Impure _ -> T.Impure (Env.fresh_gvar env)
+  | Impure _ -> T.Impure (Env.fresh_gvar outer_env)
 
-let rec type_shape env tp =
+let rec type_shape ~outer_env tp =
   match T.Type.view tp with
   | TVar x ->
-    if T.TVar.in_scope x (Env.scope env) then T.Type.t_var x
+    if T.TVar.in_scope x (Env.scope outer_env) then T.Type.t_var x
     else
       begin match Lang.Unif.Kind.view (T.TVar.kind x) with
-      | KEffect -> T.Type.t_effect (Env.fresh_gvar env)
+      | KEffect -> T.Type.t_effect (Env.fresh_gvar outer_env)
       | _ -> assert false
       end
 
   | TArrow(sch, tp, eff) ->
     T.Type.t_arrow
-      (scheme_shape  env sch)
-      (type_shape    env tp)
-      (ceffect_shape env eff)
+      (scheme_shape  ~outer_env sch)
+      (type_shape    ~outer_env tp)
+      (ceffect_shape ~outer_env eff)
 
   | TLabel(_, delim_tp, _) ->
     T.Type.t_label
-      (Env.fresh_gvar env)
-      (type_shape env delim_tp)
-      (Env.fresh_gvar env)
+      (Env.fresh_gvar outer_env)
+      (type_shape ~outer_env delim_tp)
+      (Env.fresh_gvar outer_env)
 
   | THandler h ->
-    let out_tp  = type_shape env h.out_tp in
-    let out_eff = Env.fresh_gvar env in
-    let env0 = env in
-    let env = Env.enter_scope env in
+    let out_tp  = type_shape ~outer_env h.out_tp in
+    let out_eff = Env.fresh_gvar outer_env in
+    let env = Env.enter_scope outer_env in
     let x = T.TVar.clone ~scope:(Env.scope env) h.tvar in
     let sub = T.Subst.rename T.Subst.empty h.tvar x in
-    let cap_tp = type_shape env (T.Type.subst sub h.cap_tp) in
-    let in_tp  = type_shape env (T.Type.subst sub h.in_tp) in
+    let cap_tp = type_shape ~outer_env:env (T.Type.subst sub h.cap_tp) in
+    let in_tp  = type_shape ~outer_env:env (T.Type.subst sub h.in_tp) in
     let in_eff = Env.fresh_gvar env in
     let tp = T.Type.t_handler x cap_tp in_tp in_eff out_tp out_eff in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:[x]
+    ConstrSolver.leave_scope_with_scheme ~outer_env ~tvars:[x]
       (Env.constraints env) (T.Scheme.of_type tp);
     tp
 
-  | TEffect _ -> T.Type.t_effect (Env.fresh_gvar env)
+  | TEffect _ ->
+    T.Type.t_effect (Env.fresh_gvar outer_env)
 
   | TApp(tp1, tp2) ->
-    T.Type.t_app (type_shape env tp1) (type_shape env tp2)
+    T.Type.t_app (type_shape ~outer_env tp1) (type_shape ~outer_env tp2)
 
   | TAlias(_, tp) ->
-    type_shape env tp
+    type_shape ~outer_env tp
 
-and scheme_shape env (sch : T.scheme) =
+and scheme_shape ~outer_env (sch : T.scheme) =
   match sch.sch_targs with
   | [] ->
     { T.sch_targs = [];
-      T.sch_named = List.map (named_scheme_shape env) sch.sch_named;
-      T.sch_body  = type_shape env sch.sch_body
+      T.sch_named = List.map (named_scheme_shape ~outer_env) sch.sch_named;
+      T.sch_body  = type_shape ~outer_env sch.sch_body
     }
 
   | _ ->
-    let env0 = env in
-    let env = Env.enter_scope env in
+    let env = Env.enter_scope outer_env in
     let (sub, targs) =
       open_named_tvars1 ~scope:(Env.scope env) sch.sch_targs in
     let named =
       List.map
         (fun (name, sch) ->
-          (name, scheme_shape env (T.Scheme.subst sub sch)))
+          (name, scheme_shape ~outer_env:env (T.Scheme.subst sub sch)))
         sch.sch_named
     in
     let sch =
       { T.sch_targs = targs;
         T.sch_named = named;
-        T.sch_body  = type_shape env (T.Type.subst sub sch.sch_body)
+        T.sch_body  =
+          type_shape ~outer_env:env (T.Type.subst sub sch.sch_body)
       }
     in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:(List.map snd targs)
-      (Env.constraints env) sch;
+    ConstrSolver.leave_scope_with_scheme ~outer_env
+      ~tvars:(List.map snd targs) (Env.constraints env) sch;
     sch
 
-and named_scheme_shape env (name, sch) =
-  (name, scheme_shape env sch)
+and named_scheme_shape ~outer_env (name, sch) =
+  (name, scheme_shape ~outer_env sch)
 
 (* ========================================================================= *)
 

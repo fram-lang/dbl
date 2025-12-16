@@ -128,7 +128,7 @@ let check_def : type st dir. tcfix:tcfix ->
     }
 
   | DHandlePat(pat, heff, hexp) ->
-    let env0 = env in
+    let outer_env = env in
     let (hexp_env, params) = Env.begin_generalize env in
     let hexp = infer_expr_type hexp_env hexp in
     let hexp_tp = expr_result_type hexp in
@@ -153,9 +153,9 @@ let check_def : type st dir. tcfix:tcfix ->
         match req with
         | Infer    -> Infered tp_out
         | Check tp ->
-          let pp = Env.pp_tree env0 in
+          let pp = Env.pp_tree outer_env in
           Error.check_unify_result ~pos
-            (Unification.subtype env0 tp_out tp)
+            (Unification.subtype outer_env tp_out tp)
             ~on_error:(Error.expr_type_mismatch ~pp tp_out tp);
           Checked
       in

@@ -150,14 +150,20 @@ let add_import import defs =
 
 let add_imports = List.fold_right add_import
 
+let define_module_path path =
+  let open Lang.Surface in
+  let make data = { pos = Position.nowhere; data } in
+  make (DLetId(false, IdImplicit "~__modulePath__",
+    make (PE_Expr (make (EStr path)))))
+
 let import_many imported imports =
   let mk_mod_def (n, imports, (d : File.def_list)) =
-    let defs = add_imports imports d.data in
+    let defs = define_module_path n :: add_imports imports d.data in
     { d with data = Lang.Surface.DModule(false, n, defs) }
   in
   let mods, imports = collect_imports ~imported imports in
   let defs = List.map mk_mod_def (top_sort mods) in
-  let defs = defs @ add_imports imports [] in
+  let defs = defs @ define_module_path "Main" :: add_imports imports [] in
   let imported = StrSet.add_seq (StrMap.to_seq mods |> Seq.map fst) imported in
   (imported, defs)
 
