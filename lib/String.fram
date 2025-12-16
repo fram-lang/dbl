@@ -5,15 +5,16 @@
 ## # String operations 
 
 {##
-  Returns a substring of length `len` starting at index `pos`. Returns `None`
-  when requested range is not contained within string.
+  Returns a substring of length `len` starting at index `pos`.
+
+  @asserts Range must be contained within string.
  ##}
 pub let substring (str : String) (pos : Int) (len : Int) =
-  if (pos < 0 || len < 0 || pos + len > str.length) then
-    None
-  else (
-    let substr = extern dbl_subStr : String -> Int -> Int ->[] String in
-    Some (substr str pos len))
+  assert
+    {msg="asdsad"}
+    (pos >= 0 || len >= 0 || pos + len <= str.length);
+  let substr = extern dbl_subStr : String -> Int -> Int ->[] String in
+  substr str pos len
 
 {##
   Returns a index of first ocurrence of given char and `None` if
@@ -41,9 +42,9 @@ pub let findChar {?begin} (str : String) (chr : Char) =
 pub let splitOn (str : String) (delim : Char) =
   let rec iter i e acc =
     if i <= -1 then
-      substring str (i + 1) e >.unwrap :: acc
+      substring str (i + 1) e :: acc
     else if str.get i == delim then
-      iter (i - 1) i (substring str (i + 1) (e - i - 1) >.unwrap :: acc)
+      iter (i - 1) i (substring str (i + 1) (e - i - 1) :: acc)
     else
       iter (i - 1) e acc
   in

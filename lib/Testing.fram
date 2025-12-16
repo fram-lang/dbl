@@ -27,20 +27,6 @@ method toString (Loc {file, line}) = "\{file}:\{line}"
 # -----------------------------------------------------------------------------
 # Pathing
 
-# Relative path and extension removal function`
-let sanitizeFileName {~__file__ = file} () =
-  # clear relative path
-  let file =
-    if (file : String).get 0 == '.' then
-      file.substring 2 (file.length - 2) >.unwrap
-    else
-      file in
-  # clear extension
-  match S.findChar file '.' with
-  | None => file
-  | Some idx => file.substring 0 idx >.unwrap
-  end
-
 # Keeps track of namespace nesting level
 data Path = {path : Option (List String)}
 
@@ -48,14 +34,26 @@ pub let ~suitePath = Path {path=None}
 
 section
   parameter ~suitePath : Path
+  parameter ~__modulePath__ : String
 
-  let getPath {~__file__} () =
-    match ~suitePath.path with
-    | Some pth => pth
-    | None     => sanitizeFileName () >.splitOn '/'
+  let parseModulePath () =
+    let toks = ~__modulePath__.splitOn '/' in
+    match toks with
+    | [] => impossible ()
+    | pref :: toks' =>
+      if pref == ""
+        then toks'
+        else toks
     end
 
-  let extendPath {~__file__} (name : String) =
+  let getPath () =
+    match ~suitePath.path with
+    | Some pth => pth
+    | None     => parseModulePath ()
+    end
+
+  let extendPath (name : String) =
+    printStrLn ~__modulePath__;
     let pth = getPath () in
     Path {path = Some (pth + [name])}
 end
@@ -254,7 +252,7 @@ method toString (lt : LogType) =
   "\{T.Font.setFgColor col}\{name}\{T.Font.resetAll}"
 
 let printLogMessage (log : LogMessage) =
-  printStrLn "> {log.logType} (\{log.loc})";
+  printStrLn "> \{log.logType} (\{log.loc})";
   printStrLn log.message
 
 let printTestLogs (tl : TestLogs) (num : Int) =
@@ -305,7 +303,8 @@ let shouldLogResult tr =
 
 ## Adds a nested test suite.
 pub let testSuite
-    {~__file__, ~suitePath : Path} (name : String)
+    {~__modulePath__, ~suitePath : Path}
+    (name : String)
     (f : {~suitePath : Path} -> Unit ->> Unit) =
   let ~suitePath = extendPath name in
   f ()
