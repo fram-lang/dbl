@@ -564,7 +564,7 @@ section
   pub let log {~__file__, ~__line__} = log' LT_UserInfo
 
   {##
-    Terminates test. Preserves test status.
+    Terminates test early with status it's currently in.
    ##}
   pub let testExit {~__file__, ~__line__, ?msg : String} () =
     log' LT_Exit (msg.unwrapOr "Test terminated early.");
