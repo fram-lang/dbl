@@ -1,0 +1,57 @@
+{# This file is part of DBL, released under the MIT license.
+ # See LICENSE for details.
+ #}
+
+## # String operations 
+
+{##
+  Returns a substring of length `len` starting at index `pos`.
+
+  @asserts Range must be contained within string.
+ ##}
+pub let substring
+    {~__line__, ~__file__} (str : String) (pos : Int) (len : Int) =
+  assert
+    {msg="Substring range is outside string."}
+    (pos >= 0 || len >= 0 || pos + len <= str.length);
+  let substr = extern dbl_subStr : String -> Int -> Int ->[] String in
+  substr str pos len
+
+{##
+  Returns a index of first ocurrence of given char and `None` if
+  such position was not found.
+
+  @param ?begin Initial search position. Allows to iteratively
+    find all ocurrences of given char.
+ ##}
+pub let findChar {?begin} (str : String) (chr : Char) =
+  let begin = begin.unwrapOr 0
+  let rec iter i =
+    if i >= str.length then
+      None
+    else if str.get i == chr then
+      Some i
+    else
+      iter (i + 1)
+  in
+  iter begin 
+
+{##
+  Returns a list of strings acquired by splitting the string on
+  a delimiting character.
+ ##}
+pub let splitOn (str : String) (delim : Char) =
+  let rec iter i e acc =
+    if i <= -1 then
+      substring str (i + 1) e :: acc
+    else if str.get i == delim then
+      iter (i - 1) i (substring str (i + 1) (e - i - 1) :: acc)
+    else
+      iter (i - 1) e acc
+  in
+  iter (str.length - 1) str.length ([] : List String)
+
+pub method findChar = findChar
+pub method substring = substring
+pub method splitOn = splitOn
+pub method pow = replicate
