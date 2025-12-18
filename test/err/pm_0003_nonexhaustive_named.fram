@@ -1,0 +1,13 @@
+data Color = 
+| RGB of { red: Int, green: Int, blue: Int }
+| CMYK of { cyan: Int, magenta: Int, yellow: Int, black: Int }
+
+data Box T = Box of { value: T } 
+
+let grayscale_of_boxed_color = fn boxed_color =>
+  match boxed_color with
+  | Box { value = RGB { red, blue, green }} => (red + blue + green) / 3
+  end
+
+# @stderr:not exhaustive
+# @stderr:Err _
