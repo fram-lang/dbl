@@ -97,14 +97,10 @@ let focus_with ctx ex =
 
 (** Convert a context to a complete example pattern by filling all remaining
     holes with wildcards *)
-let to_pattern ctx =
+let rec to_pattern ctx =
   match ctx with
-  | CtxRoot -> ExWildcard
   | CtxDone ex -> ex
-  | _ ->
-    match refocus_with ctx ExWildcard with
-    | CtxDone ex -> ex
-    | _ -> ExWildcard (* Should not happen, but safe fallback *)
+  | _ -> to_pattern (refocus_with ctx ExWildcard)
 
 (** Pretty-print a name *)
 let pp_name (name : T.name) =
