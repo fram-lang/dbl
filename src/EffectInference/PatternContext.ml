@@ -120,11 +120,14 @@ and pp_ex_pattern ex =
   | ExHole -> "_"
   | ExWildcard -> "_"
   | ExCtor(name, ims, args) ->
-    let pp_named (n, ex) =
-      pp_name n ^ " = " ^ pp_ex_pattern ex
+    let pp_nontrivial_named (n, ex) =
+      match ex with
+      | ExHole | ExWildcard -> None
+      | ExCtor _ -> Some (pp_name n ^ " = " ^ pp_ex_pattern ex)
     in
-    let named_str = String.concat ", " (List.map pp_named ims) in
-    match ims, args with
+    let ims_strs = List.filter_map pp_nontrivial_named ims in
+    let named_str = String.concat ", " ims_strs in
+    match ims_strs, args with
     | [], [] -> name
     | [], _ ->
       let args_str = String.concat " " (List.map (pp_ex_pattern_wrap true) args) in
