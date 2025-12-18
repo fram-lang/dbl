@@ -1,16 +1,19 @@
 import Map
 
-let (Map { module IntMap  }) = Map.make { Key = Int }
-let (Map { module StrMap  }) = Map.make { Key = String }
+let compareI (x : Int) (y : Int) = if x < y then Lt else if x > y then Gt else Eq  
+let compareS (x : String) (y : String) = if x < y then Lt else if x > y then Gt else Eq  
+
+let (Map { module IntMap  }) = Map.make compareI
+let (Map { module StrMap  }) = Map.make compareS
 let (Map { module IntMap2 }) =
-  Map.make { Key = Int, method lt = fn x y => x > y }
+  Map.make (fn (x : Int) (y : Int) => if x > y then Lt else if x < y then Gt else Eq)
 
 # Basic tests
 let _ =
-  assert (IntMap.empty {Val=Bool} >.isEmpty);
-  assert (IntMap.empty {Val=Int}  >.size == 0);
-  assert (IntMap.singleton 13 "A" >.isEmpty == False);
-  assert (IntMap.singleton 42 True >.size == 1)
+  assert ((IntMap.empty {Val = Bool} ) >.isEmpty);
+  assert (IntMap.empty {Val = Int} >.size == 0);
+  assert (IntMap.empty >.insert 13 "A" >.isEmpty == False);
+  assert (IntMap.empty >.insert 42 True >.size == 1)
 
 # Randomized tests
 handle
@@ -21,9 +24,9 @@ handle
   finally c => c 0
 
 let doExtraTest (map : IntMap.T Int) (bitSet : Int) (bitMap : Int) =
-  assert (map.fold (fn _ acc => acc + 1) 0 == map.size);
-  let rest = map.fold
-    (fn {key} v bitSet =>
+  assert (map.foldl (fn _ _ acc => acc + 1) 0 == map.size);
+  let rest = map.foldl
+    (fn key v bitSet =>
       let bit = 1 << key in
       assert ((bitSet &&& bit) != 0);
       assert (v == key + (bitMap &&& bit));
@@ -43,21 +46,21 @@ let rec randTest (map : IntMap.T _) (bitSet : Int) (bitMap : Int) (n : Int) =
     let bit = 1 << key
     in
     if (bitSet &&& bit) == 0 then (
-      assert (not (map.mem key));
+      assert (not (map.member key));
       assert (map.find key >.unwrapOr (-1) == -1);
       assert (map.findErr {~onError = fn () => -1} key == -1))
     else (
-      assert (map.mem key);
+      assert (map.member key);
       assert (map.find key >.unwrapOr (-1) == key + (bitMap &&& bit));
       assert (map.findErr {~onError = fn () => -1} key ==
         key + (bitMap &&& bit)));
     if op < 8 then (
       let v = if op < 4 then 0 else bit
-      let map = map.add key (key + v)
+      let map = map.insert key (key + v)
       let bitSet = bitSet ||| bit
       let bitMap = bitMap ^^^ (bitMap &&& bit) ^^^ v
       in
-      assert (map.mem key);
+      assert (map.member key);
       assert (map.find key >.unwrapOr (-1) == key + v);
       assert (map.findErr {~onError = fn () => -1} key == key + v);
       randTest map bitSet bitMap (n - 1))
@@ -65,10 +68,88 @@ let rec randTest (map : IntMap.T _) (bitSet : Int) (bitMap : Int) (n : Int) =
       let map = map.remove key
       let bitSet = bitSet ^^^ (bitSet &&& bit)
       in
-      assert (not (map.mem key));
+      assert (not (map.member key));
       assert (map.find key >.unwrapOr (-1) == -1);
       assert (map.findErr {~onError = fn () => -1} key == -1);
       randTest map bitSet bitMap (n - 1))
   )
 
 let _ = randTest IntMap.empty 0 0 1000
+
+let x = IntMap.empty
+
+# insert check
+let y = x.insert 1 1
+let z = x.insert 1 "a"
+
+# isEmpty check
+let _ = assert {msg="Failed isEmpty"} (y.isEmpty == False)
+let _ = assert {msg="Failed isEmpty"} (z.isEmpty == False)
+let _ = assert {msg="Failed isEmpty"} (y.remove 1 >. isEmpty)
+
+# domain check
+let z = y.insert 2 1 >. insert 3 2 >. insert 4 3
+let _ = assert {msg="Failed domain"}
+  (z.domain == [1,2,3,4] && z.toValueList ==  [1,1,2,3])
+
+# toList check
+let _ = assert {msg="Failed toList"} ((z.toList.foldLeft
+  (fn acc (key,val) => val :: acc) []) == [1,1,2,3].rev)
+
+# foldl check
+let _ = assert {msg="Failed foldl"}
+  (z.foldl (fn key val acc => key :: acc) [] == [1,2,3,4].rev)
+
+
+# member check
+let _ = assert {msg="Failed member"} (z.member 1)
+
+# find check
+let _ = assert {msg="Failed find"}
+  (match z.find 1 with | None => False | _ => True end)
+
+# update change check
+let _ = assert {msg="Failed update"}
+  (let f a =
+    match a with
+    | None => Some 2
+    | Some _ => Some 0
+    end in
+  z.update 1 f
+  >. toValueList == [0,1,2,3])
+
+# update add check
+let _ = assert {msg="Failed update"}
+  (let f a =
+    match a with
+    | None => Some 2
+    | Some _ => Some 0
+    end in
+  z.update 0 f
+  >. toValueList == [2,1,1,2,3])
+
+# map check
+let _ = assert {msg="Failed map"}
+  (z.mapVal (fn x => if x == x.shiftr 1 >. shiftl 1 then -x else x)
+  >. toValueList == [1,1,(0-2),3])
+
+# union check
+let y = x.insert 1.neg 2 >. insert 2.neg 3 >. insert 0 1 >. insert 1 10
+let w = z.union y (fn key val1 val2 => val2)
+let _ = assert {msg="Failed union"} (w.toValueList == [3,2,1,10,1,2,3])
+
+# partion check
+let q = w.partion 0
+let _ = assert {msg="Failed partion"} (fst (fst q) >. toValueList == [3,2])
+let _ = assert {msg="Failed partion"} (snd q >. toValueList == [10,1,2,3])
+
+# partionLt check
+let q = w.partionLt 0
+let _ = assert {msg="Failed partionLt"} (fst q >. toValueList == [3,2,1])
+let _ = assert {msg="Failed partionLt"} (snd q >. toValueList == [10,1,2,3])
+
+# partionGt check
+let q = w.partionGt 0
+let _ = assert {msg="Failed partionGt"} (fst q >. toValueList == [3,2])
+let _ = assert {msg="Failed partionGt"} (snd q >. toValueList == [1,10,1,2,3])
+
