@@ -1,75 +1,75 @@
 import /List
 
-## # Format methods
+## # ToString methods
 
 {##
-  This module provides more advanced format methods.
+  This module provides more advanced toString methods.
   
   Each type has an associated data type that carries additional formatting
   options. Those structures may contain a nested format for subtypes.
 
   Default formatting should produce syntactically correct Fram expression.
-  This constraint requires format methods to respect the operator and function
-  application precedence and insert parenthesis if needed. It is handled by
-  passing a precedence index of parent node. Application precedence strength
-  defaults to 10. Parentheses might be disabled.
+  This constraint requires toString methods to respect the operator and
+  function application precedence and insert parenthesis if needed. It is
+  handled by passing a precedence index of parent node. Application precedence
+  strength defaults to 200. Parentheses might be disabled.
  ##}
 
 # Handles parenthesis insertion
 let addParenths
-  (str : String)
-  (precedence : Int)
-  (parent : Option Int)
-  (addParents : Option Bool) =
-    if addParents.unwrapOr True then
-     (let parent = parent.unwrapOr 0 in
-      if precedence <= parent then
-        "(" + str + ")"
-      else
-        str)
+    (str : String)
+    (precedence : Int)
+    (parent : Option Int)
+    (addParents : Option Bool) =
+  if addParents.unwrapOr True then
+    (let parent = parent.unwrapOr 0 in
+    if precedence <= parent then
+      "(" + str + ")"
     else
-      str
+      str)
+  else
+    str
 
 # Handles padding options
 let padding 
-  (str : String) 
-  (size : Option Int) 
-  (fill : Option Char) 
-  (alignLeft : Option Bool) =
+    (str : String) 
+    (size : Option Int) 
+    (fill : Option Char) 
+    (alignLeft : Option Bool) =
 
-    let size = size.unwrapOr 0
-    let fill = fill.unwrapOr ' '
-    let alignLeft = alignLeft.unwrapOr False
+  let size = size.unwrapOr 0
+  let fill = fill.unwrapOr ' '
+  let alignLeft = alignLeft.unwrapOr False
 
-    let _  = assert {msg="Negative padding"} (size >= 0)
+  let _  = assert {msg="Negative padding"} (size >= 0)
 
-    let df = size - str.length
-    let df = if df < 0 then 0 else df
-    let rec padding df = 
-      if 0 == df then
-        []
-      else
-        fill :: padding (df - 1)
-    let padding = charListToStr (padding df) in
-    if alignLeft then
-      str + padding
+  let df = size - str.length
+  let df = if df < 0 then 0 else df
+  let rec padding df = 
+    if 0 == df then
+      []
     else
-      padding + str
+      fill :: padding (df - 1)
+  let padding = charListToStr (padding df) in
+  if alignLeft then
+    str + padding
+  else
+    padding + str
 
 parameter X
 parameter XFmt
-parameter method format : {?fmt : XFmt, ?prec : Int} -> X ->> String
+parameter method toString : {?fmt : XFmt, ?prec : Int} -> X ->> String
 
 parameter Y
 parameter YFmt
-parameter method format : {?fmt : YFmt, ?prec : Int} -> Y ->> String
+parameter method toString : {?fmt : YFmt, ?prec : Int} -> Y ->> String
 
 ## ## Unit
 
 {## Unit format options ##}
 pub data UnitFmt =
   {##
-    Unit format options
+    Unit toString options
 
     @param ?unit Overrides constructor name.
     @param ?size Total size to occupy.
@@ -82,22 +82,22 @@ pub data UnitFmt =
              , ?alignLeft : Bool }
 
 {##
-  Unit format method.
+  Unit toString method.
 
   @param ?prec Parent precedence.
   @param ?fmt Format options.
  ##}
-pub method format {?prec : Int, ?fmt : UnitFmt} () =
+pub method toString {?prec : Int, ?fmt : UnitFmt} () =
   let UnitFmt {unit, size, fill, alignLeft} = fmt.unwrapOr UnitFmt in
   let ctor = unit.unwrapOr "()" in
   padding ctor size fill alignLeft
 
 ## # Int
 
-{## Int format options ##}
+{## Int toString options ##}
 pub data IntFmt =
   {##
-    Int format options.
+    Int toString options.
 
     @param ?base Number base. Function accepts bases from 2 to 36.
     @param ?prefix Prefix, by default empty.
@@ -113,7 +113,7 @@ pub data IntFmt =
             , ?alignLeft : Bool
             , ?parenths : Bool }
 
-pub method format {?prec : Int, ?fmt : IntFmt} (self : Int) =
+pub method toString {?prec : Int, ?fmt : IntFmt} (self : Int) =
   let IntFmt {base, prefix, parenths} = fmt.unwrapOr IntFmt
   let IntFmt {size, fill, alignLeft}  = fmt.unwrapOr IntFmt
   let base = base.unwrapOr 10
@@ -147,10 +147,10 @@ pub method format {?prec : Int, ?fmt : IntFmt} (self : Int) =
 
 ## ## Char
 
-{## Char format options. ##}
+{## Char toString options. ##}
 pub data CharFmt = 
   {##
-    Char format options.
+    Char toString options.
 
     @param ?escape Escapes Chars. Defaults to True.
     @param ?asInt Converts char to int and formats as such.
@@ -188,20 +188,20 @@ pub let charRepr (x : Char) =
     if 32 <= code && code <= 127 then
       x.toString
     else
-      code.format {fmt=IntFmt {base=16, prefix="\\x"}}
+      code.toString {fmt=IntFmt {base=16, prefix="\\x"}}
   end
 
 {##
-  Char format method.
+  Char toString method.
 
   @param ?prec Parent precedence.
   @param ?fmt Format arguments.
  ##}
-pub method format {?prec : Int, ?fmt : CharFmt} (self : Char) =
+pub method toStringg {?prec : Int, ?fmt : CharFmt} (self : Char) =
   let CharFmt {escape, asInt}         = fmt.unwrapOr CharFmt
   let CharFmt {size, fill, alignLeft} = fmt.unwrapOr CharFmt in
   match asInt with
-    | Some fmt => self.code.format {prec=prec.unwrapOr 0, fmt}
+    | Some fmt => self.code.toString {prec=prec.unwrapOr 0, fmt}
     | None =>
       let res = 
         if escape.unwrapOr True == False then
@@ -214,10 +214,10 @@ pub method format {?prec : Int, ?fmt : CharFmt} (self : Char) =
 
 ## ## String
 
-{## String format options ##}
+{## String toString options ##}
 pub data StringFmt =
   {##
-    String format options.
+    String toString options.
 
     @param ?escape Enables string escaping. On by default.
     @param ?size Total size.
@@ -230,12 +230,12 @@ pub data StringFmt =
                , ?alignLeft : Bool }
 
 {##
-  String format method.
+  String toString method.
 
   @param ?prec Parent precedence.
   @param ?fmt Format options.
  ##}
-pub method format {?prec : Int, ?fmt : StringFmt} (self : String) =
+pub method toString {?prec : Int, ?fmt : StringFmt} (self : String) =
   let StringFmt {escape, size, fill, alignLeft} = fmt.unwrapOr StringFmt in
   if escape.unwrapOr True == False then
     padding self size fill alignLeft
@@ -246,10 +246,10 @@ pub method format {?prec : Int, ?fmt : StringFmt} (self : String) =
 
 ## ## Bool
 
-{## Bool format options. ##}
+{## Bool toString options. ##}
 pub data BoolFmt = 
   {##
-    Bool format options
+    Bool toString options
 
     @param ?true Overrides True constructor.
     @param ?false Overrides False constructor.
@@ -264,12 +264,12 @@ pub data BoolFmt =
              , ?alignLeft : Bool }
 
 {##
-  Bool format method.
+  Bool toString method.
 
   @param ?prec Parend precedence.
-  @param ?fmt Bool format options.
+  @param ?fmt Bool toString options.
  ##}
-pub method format {?prec : Int, ?fmt : BoolFmt} (self : Bool) =
+pub method toString {?prec : Int, ?fmt : BoolFmt} (self : Bool) =
   let BoolFmt {true, false}           = fmt.unwrapOr BoolFmt 
   let BoolFmt {size, fill, alignLeft} = fmt.unwrapOr BoolFmt
   let ctor = 
@@ -283,12 +283,12 @@ pub method format {?prec : Int, ?fmt : BoolFmt} (self : Bool) =
 
 pub data ListFmt A =
   {##
-    Bool format options
+    Bool toString options
 
     @param ?opn Overrides opening bracket.
     @param ?sep Overrides separator.
     @param ?cls Overrides closing bracket.
-    @param ?inner Inner values' format.
+    @param ?inner Inner values' toString.
     @param ?false Overrides False constructor.
     @param ?size Total size.
     @param ?fill Padding fill character.
@@ -303,43 +303,43 @@ pub data ListFmt A =
              , ?alignLeft : Bool }
 
 {##
-  List format method.
+  List toString method.
 
   @param ?prec Parend precedence.
-  @param ?fmt Bool format options.
+  @param ?fmt Bool toString options.
  ##}
-pub method format
-  {?prec : Int, ?fmt : ListFmt XFmt } (self : List X) =
-    let ListFmt {opn, sep, cls, inner}  = fmt.unwrapOr ListFmt
-    let ListFmt {size, fill, alignLeft} = fmt.unwrapOr ListFmt
-    let opn = opn.unwrapOr "["
-    let sep = sep.unwrapOr ", "
-    let cls = cls.unwrapOr "]"
-    # handles application of optional format param
-    let appInner (x : X) =
-      match inner with
-      | Some fmt => x.format {fmt}
-      | None     => x.format
-      end
-    let rec iter (xs : List X) =
-      match xs with
-      | [] => cls
-      | [x] => appInner x + cls
-      | x :: xs => appInner x + sep + iter xs
-      end in
-    let xs = opn + iter self in
-    padding xs size fill alignLeft
+pub method toString
+    {?prec : Int, ?fmt : ListFmt XFmt } (self : List X) =
+  let ListFmt {opn, sep, cls, inner}  = fmt.unwrapOr ListFmt
+  let ListFmt {size, fill, alignLeft} = fmt.unwrapOr ListFmt
+  let opn = opn.unwrapOr "["
+  let sep = sep.unwrapOr ", "
+  let cls = cls.unwrapOr "]"
+  # handles application of optional toString param
+  let appInner (x : X) =
+    match inner with
+    | Some fmt => x.toString {fmt}
+    | None     => x.toString
+    end
+  let rec iter (xs : List X) =
+    match xs with
+    | [] => cls
+    | [x] => appInner x + cls
+    | x :: xs => appInner x + sep + iter xs
+    end in
+  let xs = opn + iter self in
+  padding xs size fill alignLeft
 
 ## ## Option
 
-{## Option format options. ##}
+{## Option toString options. ##}
 pub data OptionFmt A = 
   {##
-    Option format options.
+    Option toString options.
 
     @param ?some Overrides Some constructor.
     @param ?none Overrides None constructor.
-    @param ?inner Inner value's format.
+    @param ?inner Inner value's toString.
     @param ?size Total size.
     @param ?fill Padding fill character.
     @param ?alignLeft Padding direction.
@@ -354,35 +354,35 @@ pub data OptionFmt A =
                , ?parenths : Bool }
 
 {##
-  Option format method.
+  Option toString method.
 
   @param ?prec Parend precedence.
-  @param ?fmt Bool format options.
+  @param ?fmt Bool toString options.
  ##}
-pub method format
-  {?prec : Int, ?fmt : OptionFmt XFmt } (self : Option X) =
-    let OptionFmt {some, none, inner, parenths} = fmt.unwrapOr OptionFmt
-    let OptionFmt {size, fill, alignLeft}       = fmt.unwrapOr OptionFmt
-    let appInner (x : X) =
-      match inner with
-      | Some fmt => x.format {prec=200, fmt}
-      | None     => x.format {prec=200}
-      end
-    let str =
-      match self with
-      | None => none.unwrapOr "None"
-      | Some x => 
-        let str = some.unwrapOr "Some " + appInner x in
-        addParenths str 200 prec parenths
-      end in
-    padding str size fill alignLeft
+pub method toString
+    {?prec : Int, ?fmt : OptionFmt XFmt } (self : Option X) =
+  let OptionFmt {some, none, inner, parenths} = fmt.unwrapOr OptionFmt
+  let OptionFmt {size, fill, alignLeft}       = fmt.unwrapOr OptionFmt
+  let appInner (x : X) =
+    match inner with
+    | Some fmt => x.toString {prec=200, fmt}
+    | None     => x.toString {prec=200}
+    end
+  let str =
+    match self with
+    | None => none.unwrapOr "None"
+    | Some x => 
+      let str = some.unwrapOr "Some " + appInner x in
+      addParenths str 200 prec parenths
+    end in
+  padding str size fill alignLeft
 
 ## ## Pair
 
-{## Pair format options. ##}
+{## Pair toString options. ##}
 pub data PairFmt A B =
   {##
-    Pair format options.
+    Pair toString options.
 
     @param ?opn Overrides opening parenth.
     @param ?sep Overrides separator.
@@ -403,23 +403,25 @@ pub data PairFmt A B =
              , ?alignLeft : Bool }
 
 {##
-  Pair format method.
+  Pair toString method.
 
   @param ?prec Parend precedence.
-  @param ?fmt Bool format options.
+  @param ?fmt Bool toString options.
  ##}
-pub method format {?fmt : PairFmt XFmt YFmt, ?prec : Int } ((v1, v2) : Pair X Y) =
+pub method toString
+    {?fmt : PairFmt XFmt YFmt, ?prec : Int }
+    ((v1, v2) : Pair X Y) =
   let PairFmt {opn, sep, cls}         = fmt.unwrapOr PairFmt
   let PairFmt {fst, snd}              = fmt.unwrapOr PairFmt
   let PairFmt {size, fill, alignLeft} = fmt.unwrapOr PairFmt
   
   let fst = match fst with 
-            | Some fmt => v1.format {fmt} 
-            | None     => v1.format 
+            | Some fmt => v1.toString {fmt} 
+            | None     => v1.toString 
             end
   let snd = match snd with
-            | Some fmt => v2.format {fmt}
-            | None     => v2.format
+            | Some fmt => v2.toString {fmt}
+            | None     => v2.toString
             end
   
   let opn = opn.unwrapOr "("
@@ -430,10 +432,10 @@ pub method format {?fmt : PairFmt XFmt YFmt, ?prec : Int } ((v1, v2) : Pair X Y)
 
 {# Either #}
 
-{## Either format options. ##}
+{## Either toString options. ##}
 pub data EitherFmt A B =
   {##
-    Either format options.
+    Either toString options.
 
     @param ?left Overrides Left constructor.
     @param ?right Overrides Right constructor.
@@ -454,12 +456,14 @@ pub data EitherFmt A B =
                , ?parenths : Bool }
 
 {##
-  Either format method.
+  Either toString method.
 
   @param ?prec Parend precedence.
-  @param ?fmt Bool format options.
+  @param ?fmt Bool toString options.
  ##}
-pub method format {?fmt : EitherFmt XFmt YFmt, ?prec : Int } (self : Either X Y) =
+pub method toString
+    {?fmt : EitherFmt XFmt YFmt, ?prec : Int }
+    (self : Either X Y) =
   let EitherFmt {size, fill, alignLeft, parenths} = fmt.unwrapOr EitherFmt
   let res = 
     match self with
@@ -467,15 +471,15 @@ pub method format {?fmt : EitherFmt XFmt YFmt, ?prec : Int } (self : Either X Y)
       let EitherFmt {left, innerL} = fmt.unwrapOr EitherFmt
       let left = left.unwrapOr "Left " in
       match innerL with
-      | Some fmt => left + x.format {prec=200, fmt}
-      | None     => left + x.format {prec=200}
+      | Some fmt => left + x.toString {prec=200, fmt}
+      | None     => left + x.toString {prec=200}
       end
     | Right y =>
       let EitherFmt {right, innerR} = fmt.unwrapOr EitherFmt
       let right = right.unwrapOr "Right " in
       match innerR with
-      | Some fmt => right + y.format {prec=200, fmt}
-      | None     => right + y.format {prec=200}
+      | Some fmt => right + y.toString {prec=200, fmt}
+      | None     => right + y.toString {prec=200}
       end
     end
   let res = addParenths res 200 prec parenths in
