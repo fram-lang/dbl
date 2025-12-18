@@ -26,6 +26,15 @@ let _ = testCase "Int" (fn _ =>
   let fmt = IntFmt {prefix="36x", base=36} in
   assertEq (num.toString {fmt}) "36xFRAM")
 
+let _ = testCase "Int64" (fn _ => 
+  assertEq 10L.toString "10L";
+  assertEq (-10L).toString "-10L";
+  assertEq ((-10L).toString {prec=200}) "(-10L)";
+  assertEq ((-10L).toString {prec=200, fmt=Int64Fmt{parenths=False}}) "-10L";
+  let (num : Int64) = ((15L * 36L + 27L) * 36L + 10L) * 36L + 22L
+  let fmt = Int64Fmt {prefix="36x", base=36, suffix=""} in
+  assertEq (num.toString {fmt}) "36xFRAM")
+
 let _ = testCase "Char" (fn _ =>
   assertEq 'a'.toString "'a'";
   assertEq '\xFF'.toString "'\\xFF'";
@@ -47,7 +56,6 @@ let _ = testCase "List" (fn _ =>
     , inner = BoolFmt {true="1", false="0"}} in
   assertEq ([True, False].toString {fmt}) "[| 1 0 |]")
 
-# Option
 let _ = testCase "Option" (fn _ =>
   assertEq (Some ()).toString "Some ()";
   assertEq (None : Option Unit).toString "None";
@@ -56,7 +64,6 @@ let _ = testCase "Option" (fn _ =>
     , inner = UnitFmt {unit = "U"}} in
   assertEq ((Some ()).toString {fmt}) "SU")
 
-# Either
 let _ = testCase "Either" (fn _ =>
   type T = _ in
   assertEq (Left 10   : T).toString "Left 10";
@@ -68,7 +75,17 @@ let _ = testCase "Either" (fn _ =>
   assertEq ((Left 10   : T).toString {fmt}) "L (dec)10";
   assertEq ((Right "a" : T).toString {fmt}) "R a")
 
-# Pair
+let _ = testCase "Result" (fn _ =>
+  type T = _ in
+  assertEq (Ok 10   : T).toString "Ok 10";
+  assertEq (Err "a" : T).toString "Err \"a\"";
+  let fmt = ResultFmt
+    { ok="O ", err="E "
+    , innerO=IntFmt {prefix="(dec)"}
+    , innerE=StringFmt {escape=False} } in
+  assertEq ((Ok 10   : T).toString {fmt}) "O (dec)10";
+  assertEq ((Err "a" : T).toString {fmt}) "E a")
+
 let _ = testCase "Pair" (fn _ =>
   assertEq ((), 'a').toString "((), 'a')";
   let fmt = PairFmt

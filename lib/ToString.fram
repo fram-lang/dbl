@@ -145,6 +145,62 @@ pub method toString {?prec : Int, ?fmt : IntFmt} (self : Int) =
   let num = addParenths num 150 prec parenths in
   padding num size fill alignLeft
 
+## # Int64
+
+{## Int toString options ##}
+pub data Int64Fmt =
+  {##
+    Int toString options.
+
+    @param ?base Number base. Function accepts bases from 2 to 36.
+    @param ?prefix Prefix, by default empty.
+    @param ?suffux Suffix, by default "L".
+    @param ?size Total size.
+    @param ?fill Padding fill charcter.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Inserts parenthesis when minus sign is added.
+   ##}
+  Int64Fmt of { ?base : Int
+              , ?prefix : String 
+              , ?suffix
+              , ?size : Int
+              , ?fill : Char
+              , ?alignLeft : Bool
+              , ?parenths : Bool }
+
+pub method toString {?prec : Int, ?fmt : Int64Fmt} (self : Int64) =
+  let Int64Fmt {base, prefix, parenths, suffix} = fmt.unwrapOr Int64Fmt
+  let Int64Fmt {size, fill, alignLeft}          = fmt.unwrapOr Int64Fmt
+  let base = base.unwrapOr 10
+  let prefix = prefix.unwrapOr ""
+  let suffix = suffix.unwrapOr "L"
+  let _ = assert {msg="Int base out of bounds"} (2 <= base && base <= 36)
+  # handles negative number in base 10
+  let (self, prefix, neg) = 
+    if base == 10 && self < 0L then
+      (-self, prefix + "-", True)
+    else
+      (self, prefix, False)
+  # constructs representation
+  let rec iter (n : Int64) acc = 
+    if n == 0L then
+      if List.isEmpty acc then ['0'] else acc 
+    else
+     (let (digit : Int64) = n % base.toInt64
+      let shift = n / base.toInt64
+      let ~onError = fn _ => ' '
+      let c = 
+        if digit <= 9L then
+          chr ('0'.code + digit.toInt.unwrap)
+        else 
+          chr ('A'.code + digit.toInt.unwrap - 10)
+      in iter shift (c :: acc))
+  # final result
+  let num = prefix + charListToStr (iter self []) + suffix
+  let parenths = Some (neg && (parenths.unwrapOr True))
+  let num = addParenths num 150 prec parenths in
+  padding num size fill alignLeft
+
 ## ## Char
 
 {## Char toString options. ##}
@@ -484,3 +540,59 @@ pub method toString
     end
   let res = addParenths res 200 prec parenths in
   padding res size fill alignLeft
+
+{# Result #}
+
+{## Restult toString options. ##}
+pub data ResultFmt A B =
+  {##
+    Result toString options.
+
+    @param ?ok Overrides Ok constructor.
+    @param ?err Overrides Err constructor.
+    @param ?innerO Format for value stored in Ok.
+    @param ?innerE Format for value stored in Err.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Additional parenthesis.
+   ##}
+  ResultFmt of { ?ok : String 
+               , ?err : String
+               , ?innerO : A
+               , ?innerE : B
+               , ?size : Int
+               , ?fill : Char
+               , ?alignLeft : Bool
+               , ?parenths : Bool }
+
+{##
+  Result toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString
+    {?fmt : ResultFmt XFmt YFmt, ?prec : Int }
+    (self : Result X Y) =
+  let ResultFmt {size, fill, alignLeft, parenths} = fmt.unwrapOr ResultFmt
+  let res = 
+    match self with
+    | Ok x =>
+      let ResultFmt {ok, innerO} = fmt.unwrapOr ResultFmt
+      let ok = ok.unwrapOr "Ok " in
+      match innerO with
+      | Some fmt => ok + x.toString {prec=200, fmt}
+      | None     => ok + x.toString {prec=200}
+      end
+    | Err y =>
+      let ResultFmt {err, innerE} = fmt.unwrapOr ResultFmt
+      let err = err.unwrapOr "Err " in
+      match innerE with
+      | Some fmt => err + y.toString {prec=200, fmt}
+      | None     => err + y.toString {prec=200}
+      end
+    end
+  let res = addParenths res 200 prec parenths in
+  padding res size fill alignLeft
+
