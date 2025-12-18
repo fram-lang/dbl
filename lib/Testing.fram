@@ -126,7 +126,7 @@ let testLoggerH =
   Wraps test execution with required handlers.
 #}
 let mkTestCase
-    {~__file__, ~__line__, ~suitePath : Path}
+    {~__file__, ~__line__, ~__modulePath__, ~suitePath : Path}
     (name : String)
     (f : { E_TL : effect
          , E_TT : effect
@@ -310,7 +310,7 @@ pub let testSuite
 
 ## Creates a test case.
 pub let testCase
-    {~__file__, ~__line__, ~suitePath : Path}
+    {~__file__, ~__line__, ~__modulePath__, ~suitePath : Path}
     name
     (f : { E_TL
         , E_TT

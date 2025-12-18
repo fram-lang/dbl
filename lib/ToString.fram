@@ -197,7 +197,7 @@ pub let charRepr (x : Char) =
   @param ?prec Parent precedence.
   @param ?fmt Format arguments.
  ##}
-pub method toStringg {?prec : Int, ?fmt : CharFmt} (self : Char) =
+pub method toString {?prec : Int, ?fmt : CharFmt} (self : Char) =
   let CharFmt {escape, asInt}         = fmt.unwrapOr CharFmt
   let CharFmt {size, fill, alignLeft} = fmt.unwrapOr CharFmt in
   match asInt with
