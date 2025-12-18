@@ -2,7 +2,7 @@ data rec List A = [] | (::) of A, List A
 
 data UnitFmt = UnitFmt of { ?unit : String }
 
-method format {?prec : Int, ?fmt : UnitFmt} () =
+method toString {?prec : Int, ?fmt : UnitFmt} () =
   match fmt with
   | Some (UnitFmt {unit=Some name}) => name
   | _ => "()"

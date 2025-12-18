@@ -4,8 +4,20 @@
 
 (** Kinds *)
 
-type kuvar = t option BRef.t
+type kuvar = kuvar_state BRef.t
+
+and kuvar_state =
+  | UVar
+    (** Unconstrained kind variable *)
+
+  | UNonEffectVar
+    (** Kind variable constrained to non-effect kinds *)
+
+  | UKind of t
+    (** Kind variable unified with a kind *)
+
 and t = kind_view
+
 and kind_view =
   | KType
   | KEffect
@@ -16,32 +28,80 @@ let k_type = KType
 
 let k_effect = KEffect
 
-let k_arrow k1 k2 = KArrow(k1, k2)
-
-let k_arrows ks k = List.fold_right k_arrow ks k
-
 let rec view k =
   match k with
   | KType | KEffect | KArrow _ -> k
   | KUVar u ->
     begin match BRef.get u with
-    | None -> k
-    | Some k ->
+    | UVar | UNonEffectVar -> k
+    | UKind k ->
       let k = view k in
-      BRef.set u (Some k);
+      BRef.set u (UKind k);
       k
     end
 
+(** Constrain [k] to be a non-effect kind.
+  Return [true] on success, [false] if the constraint cannot be satisfied. *)
+let set_non_effect k =
+  match view k with
+  | KType | KArrow _ -> true
+  | KEffect -> false
+  | KUVar u ->
+    begin match BRef.get u with
+    | UVar          -> BRef.set u UNonEffectVar; true
+    | UNonEffectVar -> true
+    | UKind _       -> assert false
+    end
+
+(** Check whether [k] is a non-effect kind. When it returns [true], [k] is
+  guaranteed to be a non-effect kind. Otherwise, [k] may still be a non-effect
+  kind after further unifications. *)
+let non_effect k =
+  match view k with
+  | KType | KArrow _ -> true
+  | KEffect -> false
+  | KUVar u ->
+    begin match BRef.get u with
+    | UVar          -> false
+    | UNonEffectVar -> true
+    | UKind _       -> assert false
+    end
+
 module KUVar = struct
-  let fresh () = BRef.create None
+  let fresh () = BRef.create UVar
 
   let equal x y = x == y
 
   let set x k =
     match BRef.get x with
-    | None   -> BRef.set x (Some k)
-    | Some _ -> assert false
+    | UVar          -> BRef.set x (UKind k); true
+    | UNonEffectVar ->
+      if set_non_effect k then
+        (BRef.set x (UKind k); true)
+      else
+        false
+    | UKind _       -> assert false
 end
+
+let k_noneff_arrow k1 k2 =
+  assert (non_effect k2);
+  KArrow(k1, k2)
+
+let k_arrow k1 k2 =
+  if set_non_effect k2 then
+    Some (KArrow(k1, k2))
+  else
+    None
+
+let k_noneff_arrows ks k =
+  List.fold_right k_noneff_arrow ks k
+
+let k_arrows ks k =
+  if List.is_empty ks then Some k
+  else if set_non_effect k then
+    Some (List.fold_right k_noneff_arrow ks k)
+  else
+    None
 
 let fresh_uvar () = KUVar (KUVar.fresh ())
 

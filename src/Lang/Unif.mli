@@ -454,9 +454,20 @@ and expr_data =
       an expression to evaluate, usually containing another REPL expression.
       *)
 
-  | EReplExpr of expr * expr
-    (** Print the type of the first expression, evaluate and print the first
-      expression, then continue to the second expression. *)
+  | EReplExpr of (** Single expression typed in REPL *)
+    { body   : expr;
+      (** The REPL prints the type of this expression, evaluates it,
+        passes to the [to_str] function, prints the result, and continues to
+        the [rest] expression. *)
+
+      to_str : expr;
+      (** The expression that should evaluate to a function that converts the
+        result of [body] to string. The returned string is printed by the
+        REPL. *)
+
+      rest   : expr
+      (** The expression to continue the REPL. *)
+    }
 
 (** Definition of recursive value *)
 and rec_def =
@@ -496,8 +507,11 @@ module KUVar : sig
   (** Check for equality *)
   val equal : kuvar -> kuvar -> bool
 
-  (** Set a unification variable. *) 
-  val set : kuvar -> kind -> unit
+  (** Set the value of a kind unification variable. Returns [true] if
+    successful, [false] if it would break non-effect constraints, i.e. if it
+    would result in an effect kind on the right-hand-side of some arrow kind.
+    *)
+  val set : kuvar -> kind -> bool
 end
 
 (* ========================================================================= *)
@@ -523,11 +537,18 @@ module Kind : sig
   (** Kind of all effects. *)
   val k_effect : kind
 
-  (** Arrow kind. *)
-  val k_arrow : kind -> kind -> kind
+  (** Arrow kind. Returns [None] if the right-hand-side kind is an effect
+    kind. *)
+  val k_arrow : kind -> kind -> kind option
 
-  (** Create an arrow kind with multiple parameters. *)
-  val k_arrows : kind list -> kind -> kind
+  (** Create an arrow kind with multiple parameters. Returns [None] if the
+    right-hand-side kind is an effect kind (unless the list of parameter kinds
+    is empty). *)
+  val k_arrows : kind list -> kind -> kind option
+
+  (** Create an arrow kind with multiple parameters, assuming that the
+    right-hand-side kind is not an effect kind. *)
+  val k_noneff_arrows : kind list -> kind -> kind
 
   (** Create a fresh unification kind variable. *)
   val fresh_uvar : unit -> kind
@@ -797,6 +818,11 @@ module Type : sig
     of unification variables accordingly. On error, it returns escaping type
     variable. *)
   val shrink_scope : scope:Scope.t -> typ -> (typ, tvar) result
+
+  (** Compute size of a type. Unification variables have size one, so
+    this function is not stable under instantiation of unification variables.
+  *)
+  val size : typ -> int
 end
 
 (* ========================================================================= *)

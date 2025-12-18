@@ -16,3 +16,8 @@ pub method le    = (extern dbl_leInt  : Char -> Char -> Bool)
 pub method toString = (extern dbl_chrToString : Char -> String)
 
 pub method unescaped = (extern dbl_unescapedChrToString : Char -> String)
+
+{## Escapes a character for inclusion in a string literal.
+
+  Additional quotes are not added around the result. ##}
+pub method escape = (extern dbl_chrEscape : Char -> String)

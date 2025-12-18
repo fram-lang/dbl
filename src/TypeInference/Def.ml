@@ -8,6 +8,7 @@ open Common
 open BiDirectional
 open TypeCheckFix
 
+(* ------------------------------------------------------------------------- *)
 let switch_to_check_mode (type dir) ~pos env (req : (T.typ, dir) request) :
     T.typ * (T.typ, dir) response =
   match req with
@@ -127,7 +128,7 @@ let check_def : type st dir. tcfix:tcfix ->
     }
 
   | DHandlePat(pat, heff, hexp) ->
-    let env0 = env in
+    let outer_env = env in
     let (hexp_env, params) = Env.begin_generalize env in
     let hexp = infer_expr_type hexp_env hexp in
     let hexp_tp = expr_result_type hexp in
@@ -152,9 +153,9 @@ let check_def : type st dir. tcfix:tcfix ->
         match req with
         | Infer    -> Infered tp_out
         | Check tp ->
-          let pp = Env.pp_tree env0 in
+          let pp = Env.pp_tree outer_env in
           Error.check_unify_result ~pos
-            (Unification.subtype env0 tp_out tp)
+            (Unification.subtype outer_env tp_out tp)
             ~on_error:(Error.expr_type_mismatch ~pp tp_out tp);
           Checked
       in
@@ -217,7 +218,7 @@ let check_def : type st dir. tcfix:tcfix ->
       er_constr = rest.er_constr
     }
 
-  | DBlock defs ->
+  | DSection defs ->
     let env = Env.enter_section env in
     check_defs env defs req
       { run = fun env req ->
@@ -260,14 +261,21 @@ let check_def : type st dir. tcfix:tcfix ->
 
   | DReplExpr e ->
     let (body_env, params) = Env.begin_generalize env in
-    let expr = infer_expr_type body_env e in
-    let tp = expr_result_type expr in
+    let expr   = infer_expr_type body_env e in
+    let cs     = ConstrSolve.solve_partial expr.er_constr in
+    let tp     = expr_result_type expr in
+    let to_str = ReplUtils.show_expr ~tcfix ~pos:e.pos env tp in
     ParamGen.end_generalize_impure params (T.Type.uvars tp);
     let rest = cont.run env req in
-    { er_expr   = make rest (T.EReplExpr(expr.er_expr, rest.er_expr));
+    { er_expr   = make rest (T.EReplExpr
+        { body   = expr.er_expr;
+          to_str = to_str.er_expr;
+          rest   = rest.er_expr
+        });
       er_type   = rest.er_type;
-      er_effect = T.Effect.join expr.er_effect rest.er_effect;
-      er_constr = expr.er_constr @ rest.er_constr
+      er_effect = T.Effect.joins
+        [ expr.er_effect; to_str.er_effect; rest.er_effect ];
+      er_constr = cs @ to_str.er_constr @ rest.er_constr
     }
 
 (* ------------------------------------------------------------------------- *)

@@ -14,6 +14,9 @@ type t
 
 (** Operations on generalizable variables *)
 module GVar : sig
+  (** Comparator for generalizable variables *)
+  val compare : gvar -> gvar -> int
+
   (** Get the scope of a generalizable variable *)
   val scope : gvar -> Scope.t
 
@@ -89,9 +92,17 @@ val lookup_tvar : t -> TVar.t -> formula
   indicates if a generalizable variable is included in the effect. *)
 val lookup_gvar : t -> gvar -> formula
 
+(** Remove all occurrences of the given type variable from the effect.
+  Equivalent to substituting it with the pure effect. *)
+val remove_tvar : TVar.t -> t -> t
+
+(** Remove all occurrences of the given generalizable variable from the
+  effect. *)
+val remove_gvar : gvar -> t -> t
+
 (** Collect all generalizable variables that do not belong to the given
-  scope and add them to the given set. *)
-val collect_gvars : scope:Scope.t -> t -> GVar.Set.t -> GVar.Set.t
+  (outer) scope and add them to the given set. *)
+val collect_gvars : outer_scope:Scope.t -> t -> GVar.Set.t -> GVar.Set.t
 
 (** Pretty-print the effect as an S-expression. *)
 val to_sexpr : t -> SExpr.t

@@ -1,0 +1,9 @@
+parameter ~x : Int
+
+section
+  parameter ~x : Bool
+
+  let y = ~x : Bool
+end
+
+let z = ~x : Int

@@ -204,8 +204,9 @@ type expr =
       *)
 
   | EReplExpr of expr * string * expr
-    (** Print type (second parameter), evaluate and print the first expression,
-      then continue to the second expression. *)
+    (** Print type (the second parameter), evaluate and print the string
+      produced by the first expression, and continue with the last
+      expression. *)
 
 (** Recursive definition *)
 and rec_def =
@@ -257,6 +258,9 @@ module TVar : sig
   (** Fresh type variable that uses the metadata from the given type variable *)
   val clone : scope:Scope.t -> tvar -> tvar
 
+  (** Comparator for type variables *)
+  val compare : tvar -> tvar -> int
+
   (** Check equality of type variables *)
   val equal : tvar -> tvar -> bool
 
@@ -279,6 +283,9 @@ end
 (* ========================================================================= *)
 (** Operations on generalizable variables *)
 module GVar : sig
+  (** Comparator for generalizable variables *)
+  val compare : gvar -> gvar -> int
+
   (** Get the scope of a generalizable variable *)
   val scope : gvar -> Scope.t
 
@@ -354,9 +361,17 @@ module Effct : sig
     indicates if a generalizable variable is included in the effect. *)
   val lookup_gvar : effct -> gvar -> formula
 
+  (** Remove all occurrences of the given type variable from the effect.
+    Equivalent to substituting it with the pure effect. *)
+  val remove_tvar : tvar -> effct -> effct
+
+  (** Remove all occurrences of the given generalizable variable from the
+    effect. *)
+  val remove_gvar : gvar -> effct -> effct
+
   (** Collect all generalizable variables that do not belong to the given
-    scope and add them to the given set. *)
-  val collect_gvars : scope:Scope.t -> effct -> GVar.Set.t -> GVar.Set.t
+    (outer) scope and add them to the given set. *)
+  val collect_gvars : outer_scope:Scope.t -> effct -> GVar.Set.t -> GVar.Set.t
 
   (** Apply the substitution to the effect. *)
   val subst : subst -> effct -> effct
@@ -375,8 +390,9 @@ module CEffect : sig
   val join : ceffect -> ceffect -> ceffect
 
   (** Collect all generalizable variables that do not belong to the given
-    scope and add them to the given set. *)
-  val collect_gvars : scope:Scope.t -> ceffect -> GVar.Set.t -> GVar.Set.t
+    (outer) scope and add them to the given set. *)
+  val collect_gvars :
+    outer_scope:Scope.t -> ceffect -> GVar.Set.t -> GVar.Set.t
 end
 
 (* ========================================================================= *)
@@ -461,8 +477,8 @@ module Type : sig
   val to_effect : typ -> effct
 
   (** Collect all generalizable variables that do not belong to the given
-    scope and add them to the given set. *)
-  val collect_gvars : scope:Scope.t -> typ -> GVar.Set.t -> GVar.Set.t
+    (outer) scope and add them to the given set. *)
+  val collect_gvars : outer_scope:Scope.t -> typ -> GVar.Set.t -> GVar.Set.t
 
   (** Apply the substitution to the type. *)
   val subst : subst -> typ -> typ
@@ -485,14 +501,15 @@ module Scheme : sig
   val to_type : scheme -> typ option
 
   (** Collect all generalizable variables that do not belong to the given
-    scope and add them to the given set. *)
-  val collect_gvars : scope:Scope.t -> scheme -> GVar.Set.t -> GVar.Set.t
+    (outer) scope and add them to the given set. *)
+  val collect_gvars :
+    outer_scope:Scope.t -> scheme -> GVar.Set.t -> GVar.Set.t
 
   (** Collect all generalizable variables that do not belong to the given
-    scope and add the to the given sets, depending on their polarity. The
-    former set stores non-negative variables, while the latter stores
+    (outer) scope and add the to the given sets, depending on their polarity.
+    The former set stores non-negative variables, while the latter stores
     non-positive variables. Invariant variables are added to both sets. *)
-  val collect_gvars_p : scope:Scope.t -> scheme ->
+  val collect_gvars_p : outer_scope:Scope.t -> scheme ->
     GVar.Set.t * GVar.Set.t -> GVar.Set.t * GVar.Set.t
 
   (** Apply the substitution to the scheme. *)
@@ -506,8 +523,9 @@ end
 (** Operations on constructor declarations *)
 module CtorDecl : sig
   (** Collect all generalizable variables that do not belong to the given
-    scope and add them to the given set. *)
-  val collect_gvars : scope:Scope.t -> ctor_decl -> GVar.Set.t -> GVar.Set.t
+    (outer) scope and add them to the given set. *)
+  val collect_gvars :
+    outer_scope:Scope.t -> ctor_decl -> GVar.Set.t -> GVar.Set.t
 
   (** Apply the substitution to the constructor declaration. *)
   val subst : subst -> ctor_decl -> ctor_decl

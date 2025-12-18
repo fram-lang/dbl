@@ -38,6 +38,7 @@ module TVarMap : sig
   val empty     : t
   val singleton : TVar.t -> formula -> t
   val filter    : (TVar.t -> formula -> bool) -> t -> t
+  val remove    : TVar.t -> t -> t
   val add       : TVar.t -> formula -> t -> t
   val union     : t -> t -> t
   val guard     : t -> formula -> t
@@ -49,6 +50,7 @@ end = struct
   let empty = TVar.Map.empty
   let singleton = TVar.Map.singleton
   let filter = TVar.Map.filter
+  let remove = TVar.Map.remove
 
   let add x p m =
     match TVar.Map.find_opt x m with
@@ -77,6 +79,7 @@ module GVarMap : sig
   val empty     : t
   val singleton : gvar -> formula -> t
   val filter    : (gvar -> formula -> bool) -> t -> t
+  val remove    : gvar -> t -> t
   val add       : gvar -> formula -> t -> t
   val fold      : (gvar -> formula -> 'a -> 'a) -> t -> 'a -> 'a
   val union     : t -> t -> t
@@ -89,6 +92,7 @@ end = struct
   let empty = UID.Map.empty
   let singleton gv p = UID.Map.singleton gv.uid (gv, p)
   let filter f m = UID.Map.filter (fun _ (gv, p) -> f gv p) m
+  let remove gv m = UID.Map.remove gv.uid m
 
   let add gv p m =
     match UID.Map.find_opt gv.uid m with
@@ -161,6 +165,7 @@ module GVar = struct
     type t = gvar
     let compare gv1 gv2 = UID.compare gv1.uid gv2.uid
   end
+  include Ordered
 
   let scope gv =
     match BRef.get gv.state with
@@ -266,6 +271,20 @@ let lookup_gvar eff gv =
 
 (* ========================================================================= *)
 
+let remove_tvar x eff =
+  let (tm, gm) = view_map eff in
+  { tvars = BRef.create (TVarMap.remove x tm);
+    gvars = BRef.create gm
+  }
+
+let remove_gvar gv eff =
+  let (tm, gm) = view_map eff in
+  { tvars = BRef.create tm;
+    gvars = BRef.create (GVarMap.remove gv gm)
+  }
+
+(* ========================================================================= *)
+
 let filter_to_scope ~scope eff =
   let (tm, gm) = view_map eff in
   { tvars =
@@ -278,11 +297,11 @@ let filter_to_scope ~scope eff =
 
 (* ========================================================================= *)
 
-let collect_gvars ~scope eff gvs =
+let collect_gvars ~outer_scope eff gvs =
   let (_, gm) = view_map eff in
   GVarMap.fold
     (fun gv _ gvs ->
-      if GVar.in_scope gv scope then gvs
+      if GVar.in_scope gv outer_scope then gvs
       else GVar.Set.add gv gvs)
     gm
     gvs

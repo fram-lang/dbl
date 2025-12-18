@@ -13,8 +13,10 @@ and pattern-matching.
 Requirements
 ------------
 
-DBL is written in pure OCaml and tested with OCaml system version 5.2.0. DBL
-uses dune as a build system (tested with version 3.17.2).
+DBL is written in OCaml and tested with OCaml system version 5.2.0. DBL uses
+dune as a build system (tested with version 3.17.2). This project requires
+`dune-glob` package, which is a separate package from the Dune project that
+must be installed explicitly (e.g., via opam). 
 
 Installation
 ------------

@@ -116,15 +116,15 @@ let rec tr_poly_expr env named (e : S.poly_expr) =
     ExprUtils.generalize [] named e sch
 
   | ECtor(targs, prf, idx) ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, targs) = Env.add_named_tvars env targs in
     let (env, named) = tr_named_params env named in
     let (prf, tp, ctors, _) = ProofExpr.tr_proof_expr env prf in
     let (e, sch) = ExprUtils.mk_ctor ~prf ~idx tp ctors in
     let (e, sch) = ExprUtils.generalize targs named e sch in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:(List.map snd targs)
-      (Env.constraints env) sch;
+    ConstrSolver.leave_scope_with_scheme ~outer_env
+      ~tvars:(List.map snd targs) (Env.constraints env) sch;
     (e, sch)
 
   | EPolyFun([], named2, body) ->
@@ -133,29 +133,29 @@ let rec tr_poly_expr env named (e : S.poly_expr) =
     ExprUtils.generalize [] named body (T.Scheme.of_type tp)
 
   | EPolyFun(targs, named2, body) ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, targs) = Env.add_named_tvars env targs in
     let (env, named) = tr_named_params env (named @ named2) in
     let (body, tp, Checked) = infer_type env body (Check Pure) in
     let (e, sch) =
       ExprUtils.generalize targs named body (T.Scheme.of_type tp) in
-    ConstrSolver.leave_scope_with_scheme ~env0 ~tvars:(List.map snd targs)
-      (Env.constraints env) sch;
+    ConstrSolver.leave_scope_with_scheme ~outer_env
+      ~tvars:(List.map snd targs) (Env.constraints env) sch;
     (e, sch)
 
   | EGen([], named2, body) ->
     tr_poly_expr env (named @ named2) body
 
   | EGen(targs, named2, body) ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, targs) = Env.add_named_tvars env targs in
     let (body, sch) = tr_poly_expr env (named @ named2) body in
     let body = ExprUtils.mk_named_tfuns targs body in
     let sch = { sch with sch_targs = targs @ sch.sch_targs } in
-    ConstrSolver.leave_scope_with_scheme
-      ~env0 ~tvars:(List.map snd targs) (Env.constraints env) sch;
+    ConstrSolver.leave_scope_with_scheme ~outer_env
+      ~tvars:(List.map snd targs) (Env.constraints env) sch;
     (body, sch)
 
 (** Infer a scheme of a polymorphic expression. *)
@@ -165,13 +165,13 @@ and infer_scheme env e =
 (* ========================================================================= *)
 
 (** Translate and generalize a let-polymorphic expression. *)
-and tr_let_poly env x body =
-  let env0 = env in
-  let env = Env.enter_scope env in
-  let (e, sch) = infer_scheme env body in
+and tr_let_poly outer_env x body =
+  let inner_env = Env.enter_scope outer_env in
+  let (e, sch) = infer_scheme inner_env body in
   let (evs, cs) =
-    ConstrSolver.generalize_with_scheme ~env0 (Env.constraints env) sch in
-  let env = env0 in
+    ConstrSolver.generalize_with_scheme ~outer_env
+      (Env.constraints inner_env) sch in
+  let env = outer_env in
   match evs, cs with
   | [], [] ->
     let env = Env.add_poly_var env x sch in
@@ -183,14 +183,14 @@ and tr_let_poly env x body =
 
 (* ========================================================================= *)
 
-and tr_let_rec env targs named defs =
-  let env0 = env in
-  let env = Env.enter_scope env in
-  let (targs, named, defs) = tr_let_rec_defs env targs named defs in
+and tr_let_rec outer_env targs named defs =
+  let inner_env = Env.enter_scope outer_env in
+  let (targs, named, defs) = tr_let_rec_defs inner_env targs named defs in
   let (evs, cs) =
-    ConstrSolver.generalize_with_schemes ~env0 (Env.constraints env)
+    ConstrSolver.generalize_with_schemes ~outer_env
+      (Env.constraints inner_env)
       (List.map (fun (_, _, sch, _) -> sch) defs) in
-  let env = env0 in
+  let env = outer_env in
   let rec_ctx =
     ExprUtils.mk_rec_ctx ~evs ~cs ~targs ~named
       (List.map
@@ -211,14 +211,15 @@ and tr_let_rec_defs env targs named defs =
     ([], named, defs)
   
   | _ ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, targs) = Env.add_named_tvars env targs in
     let (env, named) = tr_named_params env named in
     let env = Env.enter_rec_context env in
     let (env, defs) = List.fold_left_map prepare_rec_def env defs in
     let defs = List.map (check_rec_def env targs named) defs in
-    ConstrSolver.leave_scope_with_schemes ~env0 ~tvars:(List.map snd targs)
+    ConstrSolver.leave_scope_with_schemes ~outer_env
+      ~tvars:(List.map snd targs)
       (Env.constraints env)
       (List.map (fun (_, _, sch, _) -> sch) defs);
     (targs, named, defs)
@@ -262,7 +263,7 @@ and check_scheme env (e : S.poly_fun) (sch : T.scheme) =
     ExprUtils.mk_fns xs body
 
   | PF_Fun(tvars, xs, body) ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     assert (List.length tvars = List.length sch.sch_targs);
     let ((env, sub), tvars) =
@@ -282,7 +283,7 @@ and check_scheme env (e : S.poly_fun) (sch : T.scheme) =
         (List.combine xs sch.sch_named) in
     let (body, Checked) =
       check_type env body (T.Type.subst sub sch.sch_body) (Check Pure) in
-    ConstrSolver.leave_scope ~env0 ~tvars (Env.constraints env);
+    ConstrSolver.leave_scope ~outer_env ~tvars (Env.constraints env);
     ExprUtils.mk_tfuns tvars (ExprUtils.mk_fns xs body)
 
   | PF_Hole hole ->
@@ -382,16 +383,16 @@ and infer_type : type ed.
     (T.ERecCtx e2, tp, eff_resp)
 
   | EData(dds, e2) ->
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, dds, tvars) = DataType.tr_data_defs env dds in
     let (e2, tp, eff_resp) = infer_type env e2 eff_req in
-    let res_tp = Subtyping.type_shape env0 tp in
+    let res_tp = Subtyping.type_shape ~outer_env tp in
     let eff = bidir_result eff_req eff_resp in
     let origin = ODataScope(e.pos, e.pp, tp, eff) in
     Subtyping.subtype ~origin env tp res_tp;
-    Subtyping.subceffect ~origin env eff (Impure (Env.fresh_gvar env0));
-    ConstrSolver.leave_scope_with_type_eff ~env0 ~tvars
+    Subtyping.subceffect ~origin env eff (Impure (Env.fresh_gvar outer_env));
+    ConstrSolver.leave_scope_with_type_eff ~outer_env ~tvars
       (Env.constraints env) res_tp eff;
     (T.EData(dds, e2), res_tp, eff_resp)
 
@@ -435,7 +436,7 @@ and infer_type : type ed.
     let (a, cap_tp, in_tp, in_eff, out_tp, out_eff) =
       Subtyping.as_handler tp1 in
     let eff_resp2 = return_effect env ~node:e eff_req (Impure out_eff) in
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, eff_var) = Env.add_tvar env eff_var in
     let sub = T.Subst.rename T.Subst.empty a eff_var in
@@ -444,22 +445,22 @@ and infer_type : type ed.
     let in_eff = T.Effct.subst sub in_eff in
     let env = Env.add_mono_var env x cap_tp in
     let (e2, Checked) = check_type env e2 in_tp (Check (Impure in_eff)) in
-    ConstrSolver.leave_scope ~env0 ~tvars:[eff_var] (Env.constraints env);
+    ConstrSolver.leave_scope ~outer_env ~tvars:[eff_var] (Env.constraints env);
     let res = ExprUtils.mk_handle eff_var x cap_tp e1 e2 in
     let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
     (res, out_tp, eff_resp)
 
   | EHandler h ->
     (* create effect variable *)
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, eff_var) = Env.add_tvar env h.eff_var in
     (* Compute types and effects *)
     let delim_tp  = Type.tr_type env h.delim_tp in
-    let delim_eff = Env.fresh_gvar env0 in
+    let delim_eff = Env.fresh_gvar outer_env in
     let cap_tp    = Type.tr_type env h.cap_type in
     let in_tp     = Type.tr_type env h.body_tp in
-    let out_eff   = T.Effct.join (Env.fresh_gvar env0) delim_eff in
+    let out_eff   = T.Effct.join (Env.fresh_gvar outer_env) delim_eff in
     (* Add label *)
     let h_eff = T.Effct.var eff_var in
     let env = Env.add_mono_var env h.label
@@ -475,7 +476,7 @@ and infer_type : type ed.
     let (fin_body, fin_tp, Checked) =
       infer_type fin_env h.fin_body (Check (Impure out_eff)) in
     (* Compute output type *)
-    let out_tp  = Subtyping.type_shape env0 fin_tp in
+    let out_tp  = Subtyping.type_shape ~outer_env fin_tp in
     let origin =
       OHandlerScope(h.fin_body.pos, h.fin_body.pp, eff_var, fin_tp)
     in
@@ -484,7 +485,7 @@ and infer_type : type ed.
     let in_eff = T.Effct.join h_eff delim_eff in
     let tp = T.Type.t_handler eff_var cap_tp in_tp in_eff out_tp out_eff in
     (* Leave the scope, and return the result *)
-    ConstrSolver.leave_scope_with_type_eff ~env0 ~tvars:[eff_var]
+    ConstrSolver.leave_scope_with_type_eff ~outer_env ~tvars:[eff_var]
       (Env.constraints env) tp Pure;
     let res =
       ExprUtils.mk_handler
@@ -527,15 +528,31 @@ and infer_type : type ed.
     in
     (T.ERepl(func, tp, eff), tp, eff_resp)
 
-  | EReplExpr(e1, e2) ->
-    let pp = e1.pp in
-    let (e1, tp1, eff_resp1) = infer_type env e1 eff_req in
-    let (e2, tp2, eff_resp2) = infer_type env e2 eff_req in
-    let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
+  | EReplExpr { body; to_str; rest } ->
+    (* Infer type of the body, and check that to_str can convert it to
+      string *)
+    let (e1, tp1, eff_resp1) = infer_type env body eff_req in
+    let (to_str_expr, to_str_tp, eff_resp2) = infer_type env to_str eff_req in
+    let (sch, str_tp, to_str_eff) = Subtyping.as_arrow to_str_tp in
+    assert (T.Scheme.is_monomorphic sch);
+    begin match T.Type.view str_tp with
+    | TVar tv when T.TVar.equal tv (T.BuiltinType.tv_string) -> ()
+    | _ -> assert false
+    end;
+    Subtyping.subtype
+      ~origin:(OExprType(to_str.pos, to_str.pp, tp1, sch.sch_body))
+      env tp1 sch.sch_body;
+    let eff_resp3 = return_effect env ~node:e eff_req to_str_eff in
+    (* Infer type of the rest expression *)
+    let (rest, rest_tp, eff_resp4) = infer_type env rest eff_req in
+    (* Pretty-print the type of the body *)
     let ctx = T.Pretty.empty_context () in
-    let tp1 = T.Pretty.pp_type ctx pp tp1 in
-    let res = T.EReplExpr(e1, tp1, e2) in
-    (res, tp2, eff_resp)
+    let tp1 = T.Pretty.pp_type ctx body.pp tp1 in
+    (* Build the result *)
+    let res = T.EReplExpr(T.EApp(to_str_expr, e1), tp1, rest) in
+    let eff_resp =
+      eff_resp_join eff_resp1 [ eff_resp2; eff_resp3; eff_resp4 ] in
+    (res, rest_tp, eff_resp)
 
 and check_type : type ed.
   Env.t -> S.expr -> T.typ -> (T.ceffect, ed) request ->
@@ -556,11 +573,11 @@ and tr_match_clause env pat_tp res_tp res_eff ((pat, body) : S.match_clause) =
 (** Translate a body of a match clause. *)
 and tr_match_clause_body ~pos env pat penv body tp eff =
   if Pattern.PEnv.has_existential penv then begin
-    let env0 = env in
+    let outer_env = env in
     let env = Env.enter_scope env in
     let (env, tvars, vars) = Pattern.PEnv.open_penv env penv in
     let (body, Checked) = check_type env body tp (Check eff) in
-    ConstrSolver.leave_scope ~env0 ~tvars (Env.constraints env);
+    ConstrSolver.leave_scope ~outer_env ~tvars (Env.constraints env);
     { PatternMatch.cl_pos   = pos;
       PatternMatch.cl_pat   = pat;
       PatternMatch.cl_body  = ExprUtils.mk_clause_body tvars vars body;

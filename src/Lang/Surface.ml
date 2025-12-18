@@ -351,7 +351,7 @@ and def_data =
         (** Body of the type alias *)
     }
 
-  | DBlock of def list
+  | DSection of def list
     (** Block of definitions that share parameter declarations *)
 
   | DRec of def list

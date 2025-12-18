@@ -101,6 +101,9 @@ let named_type_kind_mismatch ~pos name k1 k2 =
     (T.Pretty.pp_kind pp_ctx k2)
   in (pos, msg, [])
 
+let effect_arrow_kind ~pos =
+  (pos, "Effect kind cannot be used as a codomain of an arrow kind", [])
+
 let kind_annot_mismatch ~pos k k_annot = 
   let pp_ctx = T.Pretty.empty_context () in 
   let msg = Printf.sprintf
@@ -182,6 +185,15 @@ let finally_type_mismatch ~pos ~pp tp1 tp2 =
     "Finally clause has type %s, but was expected to have type %s"
     (T.Pretty.pp_type pp_ctx pp tp1)
     (T.Pretty.pp_type pp_ctx pp tp2)
+  in (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
+
+let repl_show_type_mismatch ~pos ~pp ~self_tp tp =
+  let pp_ctx = T.Pretty.empty_context () in
+  let msg = Printf.sprintf
+    ("This expression has type %s. For this type the show method "
+    ^^ "returns type %s, but the String type was expected.")
+    (T.Pretty.pp_type pp_ctx pp self_tp)
+    (T.Pretty.pp_type pp_ctx pp tp)
   in (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
 
 let func_not_pure ~pos =
