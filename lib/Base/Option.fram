@@ -38,3 +38,15 @@ pub method map self f =
   | None   => None
   | Some x => Some (f x)
   end
+
+{##
+  Checks whether two optional values are equal.
+  Returns true if both are empty or if both contains equal values;
+  returns false otherwise.
+ ##}
+pub method equal {X, method equal : X -> X ->[] Bool} (o1 : Option X) o2 =
+  match (o1, o2) with
+  | (Some x1, Some x2) => x1 == x2
+  | (None,    None   ) => True
+  | (_,       _      ) => False
+  end

@@ -26,6 +26,8 @@ val kind_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 val named_type_kind_mismatch :
   pos:Position.t -> S.tvar -> T.kind -> T.kind -> t
 
+val effect_arrow_kind : pos:Position.t -> t
+
 val kind_annot_mismatch : pos:Position.t -> T.kind -> T.kind -> t
 
 val type_not_function : pos:Position.t -> T.kind -> t

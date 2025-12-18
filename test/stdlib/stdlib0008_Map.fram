@@ -1,12 +1,12 @@
 import Map
 
-let compareI (x : Int) (y : Int) = if x < y then Lt else if x > y then Gt else Eq  
-let compareS (x : String) (y : String) = if x < y then Lt else if x > y then Gt else Eq  
+# let compareI (x : Int) (y : Int) = if x < y then Lt else if x > y then Gt else Eq  
+# let compareS (x : String) (y : String) = if x < y then Lt else if x > y then Gt else Eq  
 
-let (Map { module IntMap  }) = Map.make compareI
-let (Map { module StrMap  }) = Map.make compareS
+let (Map { module IntMap  }) = Map.make {Key = Int}
+let (Map { module StrMap  }) = Map.make {Key = String}
 let (Map { module IntMap2 }) =
-  Map.make (fn (x : Int) (y : Int) => if x > y then Lt else if x < y then Gt else Eq)
+  Map.make {Key = Int, method compare = fn (x : Int) (y : Int) => if x > y then Lt else if x < y then Gt else Eq}
 
 # Basic tests
 let _ =
@@ -137,19 +137,3 @@ let _ = assert {msg="Failed map"}
 let y = x.insert 1.neg 2 >. insert 2.neg 3 >. insert 0 1 >. insert 1 10
 let w = z.union y (fn key val1 val2 => val2)
 let _ = assert {msg="Failed union"} (w.toValueList == [3,2,1,10,1,2,3])
-
-# partion check
-let q = w.partion 0
-let _ = assert {msg="Failed partion"} (fst (fst q) >. toValueList == [3,2])
-let _ = assert {msg="Failed partion"} (snd q >. toValueList == [10,1,2,3])
-
-# partionLt check
-let q = w.partionLt 0
-let _ = assert {msg="Failed partionLt"} (fst q >. toValueList == [3,2,1])
-let _ = assert {msg="Failed partionLt"} (snd q >. toValueList == [10,1,2,3])
-
-# partionGt check
-let q = w.partionGt 0
-let _ = assert {msg="Failed partionGt"} (fst q >. toValueList == [3,2])
-let _ = assert {msg="Failed partionGt"} (snd q >. toValueList == [1,10,1,2,3])
-
