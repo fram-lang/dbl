@@ -1,0 +1,31 @@
+data Binary = Zero | One
+
+let test_exhaustive x =
+  match x with
+  | Zero | One => "complete"
+  end
+
+data Tertiary = T0 | T1 | T2
+
+let test_tertiary x =
+  match x with
+  | T0 | T1 => "first two"
+  | T2 => "last"
+  end
+
+data Quaternary = Q0 | Q1 | Q2 | Q3
+
+let test_quaternary x =
+  match x with
+  | Q0 | Q1 => "low"
+  | Q2 | Q3 => "high"
+  end
+
+data Option A = None | Some of A
+data Result E A = Error of E | Ok of A
+
+let test_result_exhaustive r =
+  match r with
+  | Error None | Ok None => "none"
+  | Error (Some _) | Ok (Some _) => "some"
+  end
