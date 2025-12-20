@@ -556,8 +556,6 @@ and infer_type : type ed.
    | EReplDir { cont ; rest }-> 
       let (rest, rest_tp, eff_resp4) = infer_type env rest eff_req in
       let res = T.EReplDir (cont , rest) in
-      let tp = T.Type.t_var (T.BuiltinType.tv_unit ) in
-
       (res , rest_tp , eff_resp4)
    
 

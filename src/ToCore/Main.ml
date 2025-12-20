@@ -15,7 +15,7 @@ let return x cont = cont x
 let rec tr_expr env (e : S.expr) =
   match e with
   | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | EVar _ | EExtern _ | ERepl _ | EReplExpr _ ->
+  | EVar _ | EExtern _ | ERepl _ | EReplExpr _ | EReplDir _ ->
     let^ v = tr_expr_v env e in
     T.EValue v
 
@@ -96,7 +96,7 @@ and tr_let_expr ~pure x env (e : S.expr) cont =
 
   | EApp _ | ETApp _ | ECApp _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
   | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _
-  | ERepl _ | EReplExpr _ ->
+  | ERepl _ | EReplExpr _ | EReplDir _ ->
     T.ELet(x, tr_expr env e, cont ())
 
 and tr_expr_as_var env e =
@@ -148,7 +148,7 @@ and tr_expr_p env (e : S.expr) =
     let* args = tr_expr_vs env args in
     return (T.ECtor(prf, idx, tps, args))
 
-  | EApp _ | EMatch _ | EShift _ | EReset _ | ERepl _ | EReplExpr _ ->
+  | EApp _ | EMatch _ | EShift _ | EReset _ | ERepl _ | EReplExpr _ | EReplDir _ ->
     let* v = tr_expr_v env e in
     return (T.EValue v)
 
@@ -177,7 +177,7 @@ and tr_expr_v env (e : S.expr) =
 
   | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ELetRec _
   | ERecCtx _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | ERepl _
-  | EReplExpr _ ->
+  | EReplExpr _ | EReplDir _ ->
     let* x = tr_expr_as_var env e in
     return (T.VVar x)
 

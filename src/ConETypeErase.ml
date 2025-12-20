@@ -94,7 +94,7 @@ and tr_expr_v (e : S.expr) =
     tr_expr_v body
 
   | EFn _ | EApp _ | ELet _ | ELetPure _ | ELetRec _ | EData _ | ECtor _
-  | EMatch _ | EShift _ | EReset _ | ERepl _ | EReplExpr _ ->
+  | EMatch _ | EShift _ | EReset _ | ERepl _ | EReplExpr _ | EReplDir _ ->
     let* x = mk_let (tr_expr e) in
     return (T.VVar x)
 
