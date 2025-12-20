@@ -62,6 +62,7 @@ type expr =
   | EReplExpr of expr * string * expr
     (** Print type (second parameter), evaluate and print the string produced
       by the first expression and then continue with the last expression. *)
+  | EReplDir of (unit -> unit) * expr
 
 (** Trivial values, with minimal cost of copying. *)
 and value =

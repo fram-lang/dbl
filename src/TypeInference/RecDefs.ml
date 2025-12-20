@@ -606,7 +606,8 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
       Error.report (Error.non_productive_rec_def ~pos);
       e
 
-    | ERepl _ | EReplExpr _ | EReplDir -> assert false
+    | ERepl _ | EReplExpr _ -> assert false
+    | EReplDir _ -> assert false
 
   and update_poly_expr (e : T.poly_expr) =
     let make data = { body with data = data } in

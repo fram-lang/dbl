@@ -208,6 +208,9 @@ type expr =
       produced by the first expression, and continue with the last
       expression. *)
 
+  | EReplDir of (unit -> unit) * expr
+    (** ???  *)
+
 (** Recursive definition *)
 and rec_def =
   { rd_var    : var;

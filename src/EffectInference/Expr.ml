@@ -552,10 +552,15 @@ and infer_type : type ed.
     let eff_resp =
       eff_resp_join eff_resp1 [ eff_resp2; eff_resp3; eff_resp4 ] in
     (res, rest_tp, eff_resp)
-   | EReplDir -> 
-    let tp = T.Type.t_var (T.BuiltinType.tv_int) in
-    (T.ENum 0, tp, return_pure eff_req)
-    (** I probably need to fix this before PR*)
+
+   | EReplDir { cont ; rest }-> 
+      let (rest, rest_tp, eff_resp4) = infer_type env rest eff_req in
+      let res = T.EReplDir (cont , rest) in
+      let tp = T.Type.t_var (T.BuiltinType.tv_unit ) in
+
+      (res , rest_tp , eff_resp4)
+   
+
 
 
 and check_type : type ed.

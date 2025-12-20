@@ -280,27 +280,19 @@ let check_def : type st dir. tcfix:tcfix ->
     | DReplDir dir -> 
       begin match dir with 
       | Type_Directive e -> 
-        
-        let (body_env, params) = Env.begin_generalize env in
-                 let expr   = infer_expr_type body_env e in
-                  let _     = ConstrSolve.solve_partial expr.er_constr in
-                  let tp     = expr_result_type expr in
-            let ctx = Lang.Unif.Pretty.empty_context () in
-            let tp1 = Lang.Unif.Pretty.pp_type ctx expr.er_expr.pp tp in 
-            print_endline tp1;
-
-
-let e =  {Lang.Surface.data =Lang.Surface.EUnit; pos= Position.nowhere}    in
-       let (body_env, params) = Env.begin_generalize env in
+ let (body_env, params) = Env.begin_generalize env in
     let expr   = infer_expr_type body_env e in
     let cs     = ConstrSolve.solve_partial expr.er_constr in
-    let tp     = expr_result_type expr in             
+    let tp     = expr_result_type expr in
     let to_str = ReplUtils.show_expr ~tcfix ~pos:e.pos env tp in
     ParamGen.end_generalize_impure params (T.Type.uvars tp);
+    let ctx = Lang.Unif.Pretty.empty_context () in
+    let tp1 = Lang.Unif.Pretty.pp_type ctx expr.er_expr.pp tp in 
     let rest = cont.run env req in
-    { er_expr   = make rest (T.EReplExpr
-        { body   = expr.er_expr;
-          to_str = to_str.er_expr;
+    { er_expr   = make rest (T.EReplDir
+        { (*body   = expr.er_expr;
+          to_str = to_str.er_expr;*)
+          cont  =  (fun () -> print_endline tp1);
           rest   = rest.er_expr
         });
       er_type   = rest.er_type;
@@ -308,6 +300,42 @@ let e =  {Lang.Surface.data =Lang.Surface.EUnit; pos= Position.nowhere}    in
         [ expr.er_effect; to_str.er_effect; rest.er_effect ];
       er_constr = cs @ to_str.er_constr @ rest.er_constr
     }
+(* hmmm?? *)
+
+
+        
+       (*  let (body_env, params) = Env.begin_generalize env in
+                 let expr   = infer_expr_type body_env e in
+                  let _     = ConstrSolve.solve_partial expr.er_constr in
+                  let tp     = expr_result_type expr in
+            let ctx = Lang.Unif.Pretty.empty_context () in
+            let tp1 = Lang.Unif.Pretty.pp_type ctx expr.er_expr.pp tp in 
+let e =  {Lang.Surface.data =Lang.Surface.EUnit; pos= Position.nowhere}    in
+       let (body_env, params) = Env.begin_generalize env in
+    let expr   = infer_expr_type body_env e in
+    let tp     = expr_result_type expr in             
+    ParamGen.end_generalize_impure params (T.Type.uvars tp);
+    let rest = cont.run env req  *)
+(*   in
+    { er_expr   = make rest (T.EReplDir
+        { cont = fun () -> print_endline tp1; rest = rest.er_expr });
+      er_type   = rest.er_type;
+      er_effect = T.Effect.joins [];
+      er_constr = []
+      } *)
+
+(* in
+    { er_expr   = make rest (T.EReplDir
+        { 
+          cont = fun () -> print_endline tp1;
+          rest   = rest.er_expr
+        });
+      er_type   = rest.er_type;
+      er_effect = T.Effect.joins
+        [ expr.er_effect; to_str.er_effect; rest.er_effect ];
+      er_constr = rest.er_constr
+    }
+ *)
       end
           
 

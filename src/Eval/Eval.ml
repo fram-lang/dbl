@@ -106,6 +106,10 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
     eval_expr env e1 (fun v1 ->
       Printf.printf "= %s\n" (as_string v1);
       eval_expr env e2 cont)
+  | EReplDir (c, e2) ->
+    c (); eval_expr env (EValue (VLit (LNum 0))) (fun v1 ->
+      eval_expr env e2 cont)
+   
 
 and eval_rec_defs env rds cont =
   match rds with

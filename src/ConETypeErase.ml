@@ -73,6 +73,9 @@ let rec tr_expr (e : S.expr) =
   | EReplExpr(e1, tp, e2) ->
     T.EReplExpr(tr_expr e1, tp, tr_expr e2)
 
+  | EReplDir (cont, e2) ->
+    T.EReplDir (cont, tr_expr e2)
+
 (** Translate expression as a value *)
 and tr_expr_v (e : S.expr) =
   match e with

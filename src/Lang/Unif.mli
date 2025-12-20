@@ -469,7 +469,8 @@ and expr_data =
       (** The expression to continue the REPL. *)
     }
 
-  | EReplDir 
+  | EReplDir of { cont : (unit -> unit) ; rest : expr }
+  
     
 
 (** Definition of recursive value *)
