@@ -94,3 +94,47 @@ let focus_with ctx ex =
   match try_focus ctx ex with
   | Some ctx -> ctx
   | None     -> refocus_with ctx ex
+
+(** Convert a context to a complete example pattern by filling all remaining
+    holes with wildcards *)
+let rec to_pattern ctx =
+  match ctx with
+  | CtxDone ex -> ex
+  | _ -> to_pattern (refocus_with ctx ExWildcard)
+
+(** Pretty-print a name *)
+let pp_name (name : T.name) =
+  match name with
+  | NVar s | NImplicit s -> x
+  | NOptionalVar s -> "?" ^ s
+  | NMethod s -> "method " ^ s
+
+(** Pretty-print an example pattern, wrapping in parens if needed *)
+let rec pp_ex_pattern_wrap need_parens ex =
+  let pp = pp_ex_pattern ex in
+  if need_parens && (match ex with ExCtor _ -> true | _ -> false)
+  then "(" ^ pp ^ ")"
+  else pp
+
+(** Pretty-print an example pattern *)
+and pp_ex_pattern ex =
+  match ex with
+  | ExHole -> "_"
+  | ExWildcard -> "_"
+  | ExCtor(name, ims, args) ->
+    let pp_nontrivial_named (n, ex) =
+      match ex with
+      | ExHole | ExWildcard -> None
+      | ExCtor _ -> Some (pp_name n ^ " = " ^ pp_ex_pattern ex)
+    in
+    let ims_strs = List.filter_map pp_nontrivial_named ims in
+    let named_str = String.concat ", " ims_strs in
+    match ims_strs, args with
+    | [], [] -> name
+    | [], _ ->
+      let args_str = String.concat " " (List.map (pp_ex_pattern_wrap true) args) in
+      name ^ " " ^ args_str
+    | _, [] -> name ^ " {" ^ named_str ^ "}"
+    | _, _ ->
+      let args_str = String.concat " " (List.map (pp_ex_pattern_wrap true) args) in
+      name ^ " {" ^ named_str ^ "} " ^ args_str

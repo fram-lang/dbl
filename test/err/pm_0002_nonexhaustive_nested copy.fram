@@ -1,0 +1,12 @@
+data Option A = None | Some of A
+
+data Result A = Ok of A | Err of Int
+
+let unwrap = fn res =>
+  match res with
+  | Ok (Some x) => x
+  | Ok None => 0
+  end
+
+# @stderr:not exhaustive
+# @stderr:Err _
