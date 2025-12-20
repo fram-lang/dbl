@@ -556,7 +556,7 @@ and infer_type : type ed.
    | EReplDir { cont ; rest }-> 
     let (rest, rest_tp, eff_resp) = infer_type env rest eff_req in
     let res = T.EReplDir (cont , rest) in
-    (res , rest_tp , eff_resp)
+    (res, rest_tp, eff_resp)
    
 and check_type : type ed.
   Env.t -> S.expr -> T.typ -> (T.ceffect, ed) request ->
