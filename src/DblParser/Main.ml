@@ -59,7 +59,6 @@ and repl_seq_main imported () =
         Seq.Cons([def], repl_seq imported)
     end
 
-
   | exception Parsing.Parse_error ->
     Error.fatal (Error.unexpected_token
       (Position.of_pp

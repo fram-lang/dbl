@@ -366,8 +366,9 @@ and def_data =
   | DReplExpr of expr
     (** Print type, evaluate, and print the expression, provided by a user in
       REPL. *)
+
   | DReplDir of directive 
-   (** Some kind of directive *)
+   (** Execute a REPL directive *)
 
 (** Directives *)
 and directive = 

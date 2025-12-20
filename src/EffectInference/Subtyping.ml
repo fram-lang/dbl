@@ -58,7 +58,7 @@ let rec type_equiv ~origin env tp1 tp2 =
   | TAlias(_, tp1), _ -> type_equiv ~origin env tp1 tp2
   | _, TAlias(_, tp2) -> type_equiv ~origin env tp1 tp2
 
-  | TVar x, TVar y ->  assert (T.TVar.equal x y)
+  | TVar x, TVar y -> assert (T.TVar.equal x y)
   | TVar _, _ ->
     failwith "Internal type error"
 

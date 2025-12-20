@@ -109,8 +109,7 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
   | EReplDir (c, e2) ->
     c (); eval_expr env (EValue (VLit (LNum 0))) (fun v1 ->
       eval_expr env e2 cont)
-   
-
+    
 and eval_rec_defs env rds cont =
   match rds with
   | [] -> cont env

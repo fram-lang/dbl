@@ -209,7 +209,8 @@ type expr =
       expression. *)
 
   | EReplDir of (unit -> unit) * expr
-    (** ???  *)
+    (** Execute following function (for example: printing type of expression),
+      and continue with the last expression. *)
 
 (** Recursive definition *)
 and rec_def =

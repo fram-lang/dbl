@@ -143,8 +143,7 @@ and expr_data =
       rest   : expr
     }
   | EReplDir of
-    {
-      cont : unit -> unit;
+    { cont : unit -> unit;
       rest : expr
     }
 

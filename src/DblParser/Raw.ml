@@ -331,4 +331,4 @@ type repl_cmd =
     (** Import a module *)
 
   | REPL_Dir of directive
-    (** Do some directive *)
+    (** Execute some directive *)

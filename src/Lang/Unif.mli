@@ -469,9 +469,13 @@ and expr_data =
       (** The expression to continue the REPL. *)
     }
 
-  | EReplDir of { cont : (unit -> unit) ; rest : expr }
-  
-    
+  | EReplDir of (** Single directive typed in REPL *)
+    { cont : (unit -> unit);
+      (** Function to execute in REPL. *)
+
+      rest : expr 
+      (** The expression to continue the REPL. *)
+    }
 
 (** Definition of recursive value *)
 and rec_def =
