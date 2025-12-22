@@ -1,6 +1,7 @@
 import /List
 import open /String
 import open Testing
+import Base/Option
 
 let _ = testSuite "substring" (fn _ =>
   
