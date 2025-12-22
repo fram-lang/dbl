@@ -105,7 +105,7 @@ let rec prepare_rec_data env (def : S.def) =
     let env = Env.open_module ~public env m in
     (env, make (D1_Blank))
 
-  | DReplExpr _ ->
+  | DReplExpr _ | DReplDir _ ->
     assert false
 
 (* ========================================================================= *)
@@ -607,6 +607,7 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
       e
 
     | ERepl _ | EReplExpr _ -> assert false
+    | EReplDir _ -> assert false
 
   and update_poly_expr (e : T.poly_expr) =
     let make data = { body with data = data } in

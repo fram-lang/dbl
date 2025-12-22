@@ -308,7 +308,7 @@ and poly_expr_data =
     (** Polymorphic lambda abstraction. Always pure *)
 
   | EGen of named_tvar list * (name * var * scheme_expr) list * poly_expr
-    (** Polymorphic lambda abstraction that generalizez extra parameters.
+    (** Polymorphic lambda abstraction that generalizes extra parameters.
       Always pure. In the scheme of this expression, the type parameters
       and named parameters are prepended to the type parameters and named
       parameters of the body, respectively. *)
@@ -466,6 +466,14 @@ and expr_data =
         REPL. *)
 
       rest   : expr
+      (** The expression to continue the REPL. *)
+    }
+
+  | EReplDir of (** Single directive typed in REPL *)
+    { cont : (unit -> unit);
+      (** Function to execute in REPL. *)
+
+      rest : expr 
       (** The expression to continue the REPL. *)
     }
 

@@ -142,6 +142,10 @@ and expr_data =
       to_str : expr;
       rest   : expr
     }
+  | EReplDir of
+    { cont : unit -> unit;
+      rest : expr
+    }
 
 and rec_def =
   { rd_pos      : Position.t;
