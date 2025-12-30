@@ -1,0 +1,7 @@
+data PairRec A B = PairRec of { fst : A, snd : B }
+
+let choose_component p =
+  match p with
+  | PairRec { fst = x, snd = _ }
+  | PairRec { fst = _, snd = x } => x
+  end
