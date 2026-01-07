@@ -482,6 +482,43 @@ let duplicate_module_in_pattern ~pos ~ppos name =
       name,
     [ ppos, "Here is the previous binding" ])
 
+let or_pattern_vars_mismatch ~pos ~pp name =
+  let pp_ctx = T.Pretty.empty_context () in
+  let msg =
+    Printf.sprintf
+      "Or-pattern branches must bind the same variables, but %s is not bound in all branches"
+      (string_of_val_name ~pp ~pp_ctx ~cap:false name)
+  in
+  (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
+
+let or_pattern_scheme_mismatch ~pos ~pp sch1 sch2 =
+  let pp_ctx = T.Pretty.empty_context () in
+  let msg = Printf.sprintf
+    ("Or-pattern branches must bind the same variables with the same types."
+    ^^ " A variable has scheme %s in one branch, but %s in another.")
+    (T.Pretty.pp_scheme pp_ctx pp sch1)
+    (T.Pretty.pp_scheme pp_ctx pp sch2)
+  in (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
+
+let or_pattern_type_vars_mismatch ~pos name =
+  (pos,
+    Printf.sprintf
+      "Or-pattern branches must bind the same type variables, but %s is not bound in all branches"
+      name,
+    [])
+
+let or_pattern_modules_mismatch ~pos name =
+  (pos,
+    Printf.sprintf
+      "Or-pattern branches must bind the same modules, but %s is not bound in all branches"
+      name,
+    [])
+
+let or_pattern_existential_type ~pos =
+  (pos,
+    "Or-patterns cannot bind existential type variables.",
+    [])
+
 let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
   (pos,
     Printf.sprintf "Named type %s is bound more than once in single definition"
