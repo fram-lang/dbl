@@ -1,0 +1,33 @@
+import open Mutable
+import open /Vector
+
+let vec = makeVector {T=Int} 4
+let _ =
+  assert (vec.size == 4);
+  assert (vec.capacity == 4);
+  vec.set 0 1;
+  vec.set 1 2;
+  vec.set 2 3;
+  vec.set 3 4;
+  vec.pushBack 5;
+  assert (vec.size == 5);
+  assert (vec.capacity == 8);
+  assert (vec.front == Some 1);
+  assert (vec.back == Some 5);
+  vec.pushBack 6;
+  vec.pushBack 7;
+  vec.pushBack 8;
+  vec.pushBack 9;
+  assert (vec.get 8 == Some 9);
+  assert (vec.get 4 == Some 5);
+  assert (vec.size == 9);
+  assert (vec.capacity == 16);
+  vec.clear;
+  assert (vec.size == 0);
+  assert (vec.capacity == 0);
+  vec.pushBack 100;
+  assert (vec.size == 1);
+  assert (vec.get 0 == Some 100);
+  vec.resize 4;
+  assert (vec.get 1 == None);
+  assert (maxVectorSize == maxArrayLength)
