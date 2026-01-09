@@ -145,7 +145,8 @@ let mkTestCase
 # TestCase tree
 
 # Organizes all registered tests into a tree structure
-let Map {module SMap} = Map.make {Key=String}
+
+let Map {module SMap} = Map.make {String}
 
 type NestedCase = Pair String TestCase
 
@@ -159,7 +160,7 @@ method addTest (tree : TestTree) (test : TestCase) =
     | [] => TestTree {tests = (name, test) :: tests, suites}
     | ns :: path =>
       let sub = suites.find ns >.unwrapOr emptyTestTree in
-      TestTree {tests, suites = suites.add ns (visit sub path)}
+      TestTree {tests, suites = suites.insert ns (visit sub path)}
     end
   in
   visit tree path
@@ -175,7 +176,7 @@ method iter
   let rec iter (tree : TestTree) (nesting : Int) =
     let nesting = nesting + 1 in
     tree.tests.iter (fn tc => f {nesting} (Right tc));
-    tree.suites.iter (fn {key} suite => f {nesting} (Left key);
+    tree.suites.iter (fn key suite => f {nesting} (Left key);
                                         iter suite nesting)
   in
   iter tree (-1)
