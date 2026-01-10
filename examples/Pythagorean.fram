@@ -1,80 +1,145 @@
-{# This example demonstrates the use of effect handlers 
-  to implement a backtracking search for Pythagorean triples. #}
 
+{#  The following example demonstrates the use of effect handlers 
+    to implement a backtracking search for Pythagorean triples. #}
+
+{# Fram's stdlib provides List module with useful utilities for List type. #}
 import List
 
-data Triples = Triple of Int, Int, Int
+{# Triple is an ADT with a single constructor of three ints. #}
+data Triple = Triple of Int, Int, Int
 
-{# The standard backtracking effect. #}
-data BT E =
-  { flip : Unit ->[E] Bool
-  , fail : {type X} -> Unit ->[E] X
-  }
+{#  Now we register method toString on Triple type.
+    For any triple t, we can call t.toString to convert it.
 
-{# The method `choose` on `BT` non-deterministically selects a number
-  from a given range. #}
-method choose {E} (self : BT E) =
-  let rec choose (a: Int) (b: Int) =
-    if a >= b  then self.fail ()
-    else if self.flip () then a
-    else choose (a + 1) b
-  in choose
-
-{# The method `triples` generates a Pythagorean triple. #}
-method triples {E} (self : BT E) (n : Int) =
-  let a = self.choose 1 n in
-  let b = self.choose a n in
-  let c = self.choose b n in
-  if a * a + b * b == c * c then Triple a b c
-  else self.fail ()
-
-parameter E_bt
-parameter ~bt : BT E_bt
-
-{# The function `takeFirst` returns the first triple found. #}
-let takeFirst (f : {E} -> BT E -> Int ->[E,_] _) (n: Int) =
-  handle bt = BT { flip = effect () / r =>
-    match r True with
-    | None   => r False
-    | Some x => Some x
+    With methods, we need to specify type of implicit parameter self.
+#}
+method toString (self : Triple) =
+    match self with Triple a b c =>
+        "(" + a.toString + ", " + b.toString + ", " + c.toString + ")"
+        {# Int type also has a registered toString method, so we can use it. #}
     end
-  , fail = effect () => None
-  }
-  return x => Some x
-  in f bt n
 
-{# The function `takeAll` returns list of all triples found. #}
-let takeAll (f : {E} -> BT E -> Int ->[E,_] _) (n: Int) =
-  handle bt = BT
-    { flip = effect () / r => List.append (r True) (r False)
-    , fail = effect () => []
+{#  BT describes the capability of a backtracking effect E.
+    This effect will be created by a handler, where user
+    implements flip and fail methods. As there can be more than
+    one handler defined, BT is polimorphic on E.
+
+    Flip is a function that chooses non-deterministically
+    one of two possible outcomes.
+
+    Fail, on the other hand, returns some value of a type T.
+    T is a local existential type, which means that each instance of BT
+    will implement this with a specific type.
+
+    This capability construct is called an effector (pol. efektodziej).
+#}
+data BT E = {
+    flip : Unit ->[E] Bool,
+    fail : {T} -> Unit ->[E] T 
+}
+
+{#  Now we define a handler, that will perform the
+    BT effect with following implementation:
+
+    Flip is an effect that takes unit and captures continuation c.
+    Now we resume the continuation with two possible outcomes: True or False.
+    After both of these return, we append the results into a single list.
+
+    Fail returns an empty list -> the computation didn't
+    give any meaningful result.
+
+    Similar to BT monad, we define a return function. When a computation
+    succeedes, we wrap the result into a singleton list.
+#}
+let takeAll =
+    handler BT {
+        flip = effect () / c => List.append (c True) (c False),
+        fail = effect () => []
     }
-  return x => [x]
-  in f bt n
+    return x => [x]
+    end
 
-{# Printing utilities #}
-let printTriple t = 
-  match t with
-  | Triple a b c => printStrLn ( 
-    "(" + a.toString + " " + b.toString + " " + c.toString + ")")
-  end
+{#  Here we define a handler, that will return first successful
+    computation, or None if there is no satisfactory answer. #}
+let takeAny =
+    handler BT {
+        flip = effect () / c =>
+            match c True with
+            | None => c False
+            | Some x => Some x
+            end,
+        fail = effect () => None
+    }
+    return x => Some x
+    end
 
-let rec printList xs =
-  match xs with
-  | [] => printStrLn ""
-  | t :: xs => let _ = printTriple t in
-                       printList xs
-  end
+{#  With handlers defined, we can write some computations using it.
+    Function choose a b will non-deterministically choose an integer
+    in range [a, b).
 
-{# Main program #}
-let maxValue = 25
+    Here we pass as implicit parameters effect type E and an effector
+    instance ~bt. A handler of our choice will specify the effect E.
+#}
+let rec choose {~bt : BT _} (a: Int) (b: Int) =
+    if a >= b then ~bt.fail ()
+    else
+        if ~bt.flip () then a
+        else choose (a + 1) b
 
-let _ = printStrLn "First triple only:"
-let _ =  match takeFirst (fn ~bt => ~bt.triples) maxValue with
-  | None => printStrLn "None"
-  | Some t => printTriple t
-  end
+{# A function that finds all Pithagorean triples in range [1, n) #}
+let triples {~bt : BT _} (n : Int) =
+    let a = choose 1 n in
+    let b = choose a n in
+    let c = choose b n in
+    {# Predicate matches, so we return a result. #}
+    if a * a + b * b == c * c then Triple a b c
+    {#  And if it doesn't, we signal failure that
+        will be dealt with by a handler. #}
+    else ~bt.fail ()
 
-let _ = printStrLn "All triples:"
-let _ =  let res = takeAll (fn ~bt => ~bt.triples) maxValue
-  in printList res
+
+{# ==== Main program ======================================================== #}
+
+{#  We can write an extension method to a type defined elsewhere.
+    Method print defined on list, will print all of it's elements one
+    after another, only if the type of list's element has a method toString.
+#}
+method rec print {T, method toString: T ->[] String} (self : List T) =
+    match self with
+    | [] => ()
+    | x :: xs =>
+        printStrLn x.toString;
+        xs.print
+    end
+
+{# No problem to create a method with the same name, but on a different type. #}
+method rec print {T, method toString: T ->[] String} (self : Option T) =
+    match self with
+    | Some x => printStrLn x.toString
+    | None => printStrLn "None"
+    end
+
+let maxValue = 42
+
+{#  There is no main function in Fram.
+    As in OCaml, all values are strictly evaluated
+    and can perform side effects like IO.
+#}
+let _ =
+    printStrLn "Any triple:";
+    let res =
+        {#  Create an implicit ~bt effector instance
+            that is handled with takeAny #}
+        handle ~bt with takeAny
+        {#  Now triples is implicitly passed this handle. #}
+        in triples maxValue  
+
+    in res.print
+
+let _ =
+    printStrLn "All triples:";
+    let res =
+        {# The same as above, but with a different handler. #}
+        handle ~bt with takeAll
+        in triples maxValue
+    in res.print
