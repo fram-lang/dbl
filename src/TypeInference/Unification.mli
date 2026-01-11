@@ -66,6 +66,10 @@ val subtype : 'st Env.t -> T.typ -> T.typ -> result
   It performs some unifications when necessary. *)
 val subscheme : 'st Env.t -> T.scheme -> T.scheme -> result
 
+(** Check if two schemes are equal.
+  It performs some unifications when necessary. *)
+val equal_scheme : 'st Env.t -> T.scheme -> T.scheme -> result
+
 (** Coerce given type to an arrow.
   It performs some unifications when necessary. Never returns [Arr_UVar]. *)
 val to_arrow : pos:Position.t -> 'st Env.t -> T.typ -> arrow
