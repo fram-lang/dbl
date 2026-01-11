@@ -371,7 +371,8 @@ handle _ = ()
 
 section
   parameter ~testCaseTracker : TestCaseTracker _
-  parameter ~testLogger : TestLogger _
+  parameter ~testLogger : TestLogger _ 
+  parameter ~onError
 
   let log' {~__line__, ~__file__} lt msg = ~testLogger.log (mkLogMsg lt msg)
 
@@ -438,10 +439,11 @@ section
         "Assertion Failed: Expected \{expected.show} and \{actual.show} to be equal"}
       (expected.equal actual)
 
-  let callsOnError (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+  let callsOnError {~onError} (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
     handle
-      ~onError = effect _ => True
-      return _ => False
+      ~onError = effect arg / r => fn _ => r (~onError arg) True
+      return _ => fn s => s
+      finally c => c False
     in f ()
 
   {##
