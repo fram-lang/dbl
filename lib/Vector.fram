@@ -5,6 +5,7 @@ See LICENSE for details.
 
 import open Mutable
 import open /Base/Bool
+import open /List
 
 data Vector E T = Vector of
   { content   : Ref E (Array E (Option T))
@@ -16,17 +17,18 @@ data Vector E T = Vector of
 parameter E
 parameter T
 
-# Helper methods for vector implementation.
-method getContentAt (Vector{ content } : Vector E T) (n : Int) =
+{## Helper methods for vector implementation ##}
+
+method getContentAt (Vector {content} : Vector E T) (n : Int) =
   content.get.get n
 
-method setContent (Vector{ content } : Vector E T) new_content =
-  content := new_content
-
-method setContentAt (Vector{ content } : Vector E T) (n : Int) (x : T) =
+method setContentAt (Vector {content} : Vector E T) (n : Int) (x : T) =
   content.get.at n := (Some x)
+  
+method setContent (Vector {content} : Vector E T) newContent =
+  content := newContent
 
-method mut (Vector{ mut } : Vector E T) = mut
+method mut (Vector {mut} : Vector E T) = mut
 
 let getSmallestUpperPow2 (n : Int) =
   let n = n-1 in
@@ -39,6 +41,7 @@ let getSmallestUpperPow2 (n : Int) =
   let n = n ||| (n>>64) in
   n+1
 
+{## Creates vector of given size (filled with Nones). ##}
 pub let makeVector {T} (size : Int) =
   let capacity = (getSmallestUpperPow2 size) in
   Vector
@@ -48,66 +51,91 @@ pub let makeVector {T} (size : Int) =
   , mut        = ioMut
   }
 
-pub method capacity (Vector{ capacity } : Vector E T) = capacity.get
+{## Returns vector of given size. ##}
+pub method capacity (Vector {capacity} : Vector E T) = capacity.get
 
-method setCapacity (Vector{ capacity } : Vector E T) (n : Int) =
+method setCapacity (Vector {capacity} : Vector E T) (n : Int) =
   capacity := n
 
-pub method size (Vector{ size } : Vector E T) = size.get
+{## Returns the number of elements. ##}
+pub method size (Vector {size} : Vector E T) = size.get
 
-method setSize (Vector{ size } : Vector E T) (n : Int) =
+method setSize (Vector {size} : Vector E T) (n : Int) =
   size := n 
 
+{## Returns maximum size of vector. ##}
 pub let maxVectorSize = maxArrayLength
 
-# Returns true if the vector is empty
-pub method empty (Vector{ size } : Vector E T) = size.get == 0
+{## Returns true if the vector is empty. ##}
+pub method empty (Vector {size} : Vector E T) = size.get == 0
 
-{# 
+{##
 Resizes the vector to contain n elements.
 If n is smaller than the current size, the vector is truncated.
 If n is greater than size, the vector is expanded.
 If n exceeds the current capacity, the vector reallocates its storage.
-#}
+##}
 pub method resize (self : Vector E T) (n : Int) =
   self.setSize n;
-  let new_capacity = getSmallestUpperPow2 n in
-  if new_capacity <= self.capacity then ()
+  let newCapacity = getSmallestUpperPow2 n in
+  if newCapacity <= self.capacity then ()
   else (
-    let new_content = self.mut.initArray new_capacity (fn i =>
+    let newContent = self.mut.initArray newCapacity (fn i =>
       if i < self.capacity then self.getContentAt i else None) in
-    self.setContent new_content;
-    self.setCapacity new_capacity
+    self.setContent newContent;
+    self.setCapacity newCapacity
   )
 
-# Get the nth element of a vector.
+{## Get the nth element of a vector. ##}
 pub method get (self : Vector E T) (n : Int) =
-  assert {msg="Vector is empty"} (self.empty.neg);
   assert {msg="Index out of range"} (n >= 0 && n < self.size);
   self.getContentAt n
 
-# Set the nth element of a vector.
+{## Set the nth element of a vector. ##}
 pub method set (self : Vector E T) (n : Int) (x : T) =
-  assert {msg="Vector is empty"} (self.empty.neg);
   assert {msg="Index out of range"} (n >= 0 && n < self.size);
   self.setContentAt n x
 
+{## Access the first element. ##}
 pub method front (self : Vector E T) = self.get 0
 
+{## Access the last element. ##}
 pub method back (self : Vector E T) = self.get (self.size - 1)
 
+{## Add element at the end. ##}
 pub method pushBack (self : Vector E T) (x : T) =
-  let new_size = self.size + 1 in
-  if new_size >= self.capacity then
-    self.resize new_size
+  let newSize = self.size + 1 in
+  if newSize >= self.capacity then
+    self.resize newSize
   else
-    self.setSize new_size;
-  self.set (new_size - 1) x
+    self.setSize newSize;
+  self.set (newSize - 1) x
 
+{## Removes the last element. ##}
 pub method popBack (self : Vector E T) =
   assert {msg="Vector is empty"} (self.empty.neg);
   self.setSize (self.size - 1)
 
+{## Converts a list into a vector. ##}
+pub let fromList (l : List T) =
+  let vector = makeVector {T=T} l.length in
+  let rec aux (n : Int) acc =
+    match acc with
+    | []      => vector
+    | x :: xs =>
+      vector.set n x;
+      aux (n + 1) xs
+    end
+  in aux 0 l
+
+{## Converts a vector into a list. ##}
+pub method toList (self : Vector E T) =
+  let rec aux (n : Int) acc =
+    if n < 0 then acc
+    else aux (n - 1) (self.get n :: acc)
+  in aux (self.size - 1) []
+
+{## Clears the vector. ##}
 pub method clear (self : Vector E T) =
   self.setSize 0;
   self.setCapacity 0;

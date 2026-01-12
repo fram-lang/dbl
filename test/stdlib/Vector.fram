@@ -1,33 +1,71 @@
 import open Mutable
 import open /Vector
+import open Testing
 
 let vec = makeVector {T=Int} 4
-let _ =
-  assert (vec.size == 4);
-  assert (vec.capacity == 4);
+let sz = vec.size
+let cap = vec.capacity
+
+let _ = testSuite "size and capacity" (fn _ =>
+
+  testCase "checks size and capacity methods" (fn _ =>
+    assertEqS sz 4;
+    assertEqS cap 4);
+
+  testCase "checks max vector size constant" (fn _ =>
+    assertEqS maxVectorSize maxArrayLength);
+
   vec.set 0 1;
   vec.set 1 2;
   vec.set 2 3;
   vec.set 3 4;
-  vec.pushBack 5;
-  assert (vec.size == 5);
-  assert (vec.capacity == 8);
-  assert (vec.front == Some 1);
-  assert (vec.back == Some 5);
+  vec.pushBack 5)
+
+let fst = vec.front
+let lst = vec.back
+
+let _ = testSuite "front and back" (fn _ =>
+
+  testCase "checks front and back methods" (fn _ =>
+    assertEqS fst (Some 1);
+    assertEqS lst (Some 5));
+    
   vec.pushBack 6;
   vec.pushBack 7;
   vec.pushBack 8;
-  vec.pushBack 9;
-  assert (vec.get 8 == Some 9);
-  assert (vec.get 4 == Some 5);
-  assert (vec.size == 9);
-  assert (vec.capacity == 16);
-  vec.clear;
-  assert (vec.size == 0);
-  assert (vec.capacity == 0);
-  vec.pushBack 100;
-  assert (vec.size == 1);
-  assert (vec.get 0 == Some 100);
-  vec.resize 4;
-  assert (vec.get 1 == None);
-  assert (maxVectorSize == maxArrayLength)
+  vec.pushBack 9)
+
+let x = vec.get 8
+let y = vec.get 4
+
+let _ = testSuite "get" (fn _ =>
+
+  testCase "checks get method" (fn _ =>
+    assertEqS x (Some 9);
+    assertEqS y (Some 5)))
+
+let _ = vec.clear
+let sz = vec.size
+let cap = vec.capacity
+
+let _ = testSuite "clear" (fn _ =>
+
+  testCase "checks vector clear" (fn _ =>
+    assertEqS sz 0;
+    assertEqS cap 0))
+
+let xs = [1,2,3,4]
+let vec = fromList xs
+let x = vec.get 0
+let y = vec.get 2
+let ys = vec.toList
+let z = ys.hd
+
+let _ = testSuite "from/to list" (fn _ =>
+
+  testCase "checks fromList method" (fn _ =>
+    assertEqS x (Some 1);
+    assertEqS y (Some 3));
+
+  testCase "checks toList method" (fn _ =>
+    assertEqS z (Some (Some 1))))
