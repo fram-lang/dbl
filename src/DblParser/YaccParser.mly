@@ -19,6 +19,7 @@
 %token KW_REC
 %token KW_RETURN KW_SECTION KW_THEN KW_TYPE KW_WITH
 %token UNDERSCORE
+%token DIR_TYPE
 %token EOF
 
 %type<Raw.import list * Raw.program> file
@@ -624,9 +625,15 @@ file
 : import_list program EOF { ($1, $2) }
 ;
 
+directive
+:
+| DIR_TYPE expr { Directive_Type $2 }
+;
+
 repl
 : EOF                  { REPL_Exit      }
 | expr SEMICOLON2      { REPL_Expr   $1 }
 | def_list1 SEMICOLON2 { REPL_Defs   $1 }
 | import SEMICOLON2    { REPL_Import $1 }
+| directive SEMICOLON2 { REPL_Dir    $1 }
 ;

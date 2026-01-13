@@ -554,6 +554,11 @@ and infer_type : type ed.
       eff_resp_join eff_resp1 [ eff_resp2; eff_resp3; eff_resp4 ] in
     (res, rest_tp, eff_resp)
 
+   | EReplDir { cont ; rest }-> 
+    let (rest, rest_tp, eff_resp) = infer_type env rest eff_req in
+    let res = T.EReplDir (cont , rest) in
+    (res, rest_tp, eff_resp)
+   
 and check_type : type ed.
   Env.t -> S.expr -> T.typ -> (T.ceffect, ed) request ->
     T.expr * (T.ceffect, ed) response =
