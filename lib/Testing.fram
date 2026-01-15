@@ -130,14 +130,17 @@ let mkTestCase
     (name : String)
     (f : { E_TL : effect
          , E_TT : effect
+         , E_M  : effect
+         , ~mut : M.Mut E_M
          , ~testLogger : TestLogger E_TL
          , ~testCaseTracker : TestCaseTracker E_TT
-         } -> Unit ->[E_TL, E_TT] Unit) =
+         } -> Unit ->[E_TL, E_TT, E_M] Unit) =
   let loc     = mkLoc
-  let body () = 
-    handle ~testLogger / E_TL with testLoggerH in
-    handle ~testCaseTracker / E_TT with testCaseTrackerH in
-      f {E_TL, E_TT} ()
+  let body () =
+    M.hMut (fn ~mut =>
+      handle ~testLogger / E_TL with testLoggerH in
+      handle ~testCaseTracker / E_TT with testCaseTrackerH in
+        f {E_TL, E_TT} ())
   in
   TestCase {name, path=getPath (), loc, body}
 
@@ -313,10 +316,12 @@ pub let testCase
     {~__file__, ~__line__, ~__modulePath__, ~suitePath : Path}
     name
     (f : { E_TL
-        , E_TT
-        , ~testLogger : TestLogger E_TL
-        , ~testCaseTracker : TestCaseTracker E_TT
-        } -> Unit ->[E_TL, E_TT] Unit) =
+         , E_TT
+         , E_M
+         , ~mut : M.Mut E_M
+         , ~testLogger : TestLogger E_TL
+         , ~testCaseTracker : TestCaseTracker E_TT
+         } -> Unit ->[E_TL, E_TT, E_M] Unit) =
   tests := (mkTestCase name f :: tests.get)
 
 let runTest

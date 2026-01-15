@@ -1,0 +1,173 @@
+import open /Mutable
+import open Testing
+
+# Backtracking for testing
+data BT E = { flip : Unit ->[E] Bool }
+
+let hBT =
+  handler BT { flip = effect () / (r : _ ->[_] List _) => r True + r False }
+    return x => [x]
+    finally l => l.toConstArray
+  end
+
+let _ = testSuite "refs" (fn _ =>
+
+  testCase "usage" (fn _ =>
+    let x = ~mut.ref 0
+    let y = ~mut.ref 1 in
+    assertEqS x.get 0;
+    assertEqS y.get 1;
+    x := 2;
+    assertEqS x.get 2;
+    assertEqS y.get 1;
+    y := 5;
+    assertEqS x.get 2;
+    assertEqS y.get 5);
+
+  testCase "purity" (fn _ =>
+    let ensurePure (f : _ ->[] _) = f ()
+    let (v1, v2) = ensurePure (fn () =>
+      hMut (fn mut =>
+        let x = mut.ref 13 in
+        let v1 = x.get in
+        x.set 42;
+        let v2 = x.get in
+        (v1, v2)))
+    in
+    assertEqS v1 13;
+    assertEqS v2 42);
+    
+  ())
+
+let _ = testSuite "mutable arrays" (fn _ =>
+
+  testCase "usage" (fn _ =>
+    let arr1 = ~mut.pureInitArray 4 id in
+    assertEq arr1.length 4;
+    assertEq (arr1.get 0) 0;
+    assertEq (arr1.get 1) 1;
+    assertEq (arr1.get 2) 2;
+    assertEq (arr1.get 3) 3;
+    arr1.at 2 := 13;
+    assertEq (arr1.get 0) 0;
+    assertEq (arr1.get 2) 13;
+    let arr2 = arr1.clone in
+    assertEq arr2.length 4;
+    arr2.at 1 := 42;
+    assertEq (arr2.get 1) 42;
+    assertEq (arr1.get 1) 1);
+
+  testCase "array with backtrack" (fn _ =>
+    let tab =
+      handle bt with hBT in
+      ~mut.initArray 2 (fn _ => bt.flip ())
+    in
+    assertEq tab.length 4;
+    assertTrue (tab.get 0 >.get 0);
+    assertTrue (tab.get 0 >.get 1);
+    assertTrue (tab.get 1 >.get 0);
+    assertFalse (tab.get 1 >.get 1);
+    assertFalse (tab.get 2 >.get 0));
+
+  # Example program
+  let primes n =
+    {# In order to use mutability, we need a `Mut` capability. There is a
+      predefined `ioMut` capability, but using it performs the `IO` effect.
+      Mutability can be handled locally, by introducing a local capability,
+      but the computation that uses it must be pure, as in this example. #}
+    hMutArray (fn mut =>
+      {# New mutable entities are created by calling methods on the `Mut`
+        capability. #}
+      let arr = mut.makeArray n 2
+      let lastPrime = mut.ref 1
+      let isPrime k =
+        {# The whole computation must be pure, but it can use other effects
+          locally. #}
+        handle ret = effect b => b
+          return () => False
+        let checkPrime (p : Int) =
+          if p * p > k then ret True
+          else if k % p == 0 then ret False
+        in
+        arr.iter checkPrime
+      let rec nextPrime () =
+        {# Mutable entities can be accessed by the `get` method, #}
+        let p = lastPrime.get + 1 in
+        {# or modified using the `:=` operator. #}
+        lastPrime := p;
+        if isPrime p then p
+        else nextPrime ()
+      in
+      arr.iteri (fn i _ =>
+        {# To modify an array, we also use the `:=` operator, but on a special
+          write-only element that can be obtained with the `at` method. To read
+          an array, we use the `get` method. #}
+        arr.at i := nextPrime ());
+      arr)
+  in
+
+  testCase "primes" (fn _ =>
+    let ptab = primes 10 in
+    assertEq (ptab.get 0) 2;
+    assertEq (ptab.get 1) 3;
+    assertEq (ptab.get 2) 5;
+    assertEq (ptab.get 3) 7;
+    assertEq (ptab.get 4) 11;
+    assertEq (ptab.get 5) 13;
+    assertEq (ptab.get 6) 17;
+    assertEq (ptab.get 7) 19;
+    assertEq (ptab.get 8) 23;
+    assertEq (ptab.get 9) 29);
+
+  testCase "methods" (fn _ =>
+    let ca = [1,2,3,4].toConstArray in
+    let testarr = [1,2].toArray in
+    let testarr2 = [3,4].toArray in
+    let lst = ca.toList in
+    let lst2 = testarr.toList in
+    testarr.mapInPlace (fn x => x+1);
+    let testarr3 = testarr.concat testarr2 in
+    let testarr4 = testarr2.reverse in
+
+    assertEq (lst.hdErr {~onError=(fn ()=> 2)}) 1;
+    assertEq (lst2.hdErr {~onError=(fn ()=> 2)}) 1;
+    assertEq (testarr.get 0) 2;
+    assertEq (testarr3.get 2) 3;
+    assertEq (testarr2.foldLeft (fn a x => a-x) 0) (-7);
+    assertEq (testarr2.foldRight(fn x a => a-x) 0) (-7);
+    assertTrue (testarr.exists (fn x => x==2));
+    assertFalse (testarr.forall (fn x => x==2));
+    assertTrue (testarr.forall (fn x => x>0));
+    assertTrue (ca.exists (fn x => x>3 ));
+    assertTrue (ca.forall (fn x => x<5));
+    assertFalse (ca.exists (fn x => x<0));
+    assertFalse (ca.forall (fn x => x>1));
+    assertEq (testarr4.get 0) 4;
+    assertEq (testarr4.get 1) 3;
+    assertEq (testarr3.foldLeft (fn a x => a+x) 0) 12);
+  
+  ())
+
+let _ = testSuite "constArray" (fn _ =>
+  testCase "usage" (fn _ =>
+    let arr1 = [0, 1, 2].toArray
+    let v = arr1.get 1
+    let carr = arr1.freeze in
+    assertEq (carr.get 1) v;
+    arr1.at 1 := v + 1;
+    assertEq (carr.get 1) v);
+
+
+  testCase "methods" (fn _ =>
+    let arr0 = [4, 5, 6].toArray in
+    let ca2 = arr0.freeze in
+    let arr1 = arr0.map (fn x=> x+1) in
+    let ca3 = ca2.map (fn x=> x+1) in
+    
+    assertEq (ca2.foldLeft (fn a x => a-x) 0) (-15);
+    assertEq (ca2.foldRight (fn x a => a-x) 0) (-15);
+    assertEq (arr1.foldLeft (fn a x => a-x) 0) (-18);
+    assertEq (ca3.foldLeft (fn a x => a-x) 0) (-18));
+  
+  ())
+
