@@ -1,3 +1,4 @@
+## ## Vector library
 {# 
 This file is part of DBL, released under MIT license.
 See LICENSE for details.
@@ -7,7 +8,7 @@ import open Mutable
 import open /Base/Bool
 import open /List
 
-data Vector E T = Vector of
+abstr data Vector E T = Vector of
   { content   : Ref E (Array E (Option T))
   , size      : Ref E Int
   , capacity  : Ref E Int
@@ -17,8 +18,7 @@ data Vector E T = Vector of
 parameter E
 parameter T
 
-{## Helper methods for vector implementation ##}
-
+# Helper methods for vector implementation
 method getContentAt (Vector {content} : Vector E T) (n : Int) =
   content.get.get n
 
@@ -42,13 +42,13 @@ let getSmallestUpperPow2 (n : Int) =
   n+1
 
 {## Creates vector of given size (filled with Nones). ##}
-pub let makeVector {T} (size : Int) =
+pub let makeVector {T, ~mut : Mut E} (size : Int) =
   let capacity = (getSmallestUpperPow2 size) in
   Vector
-  { content    = ioMut.ref (ioMut.makeArray capacity (None : Option T))
-  , size       = ioMut.ref size
-  , capacity   = ioMut.ref capacity
-  , mut        = ioMut
+  { content    = ~mut.ref (~mut.makeArray capacity (None : Option T))
+  , size       = ~mut.ref size
+  , capacity   = ~mut.ref capacity
+  , mut        = ~mut 
   }
 
 {## Returns vector of given size. ##}
@@ -63,17 +63,14 @@ pub method size (Vector {size} : Vector E T) = size.get
 method setSize (Vector {size} : Vector E T) (n : Int) =
   size := n 
 
-{## Returns maximum size of vector. ##}
-pub let maxVectorSize = maxArrayLength
-
 {## Returns true if the vector is empty. ##}
 pub method empty (Vector {size} : Vector E T) = size.get == 0
 
 {##
-Resizes the vector to contain n elements.
-If n is smaller than the current size, the vector is truncated.
-If n is greater than size, the vector is expanded.
-If n exceeds the current capacity, the vector reallocates its storage.
+  Resizes the vector to contain n elements.
+  If n is smaller than the current size, the vector is truncated.
+  If n is greater than size, the vector is expanded.
+  If n exceeds the current capacity, the vector reallocates its storage.
 ##}
 pub method resize (self : Vector E T) (n : Int) =
   self.setSize n;
@@ -117,7 +114,7 @@ pub method popBack (self : Vector E T) =
   self.setSize (self.size - 1)
 
 {## Converts a list into a vector. ##}
-pub let fromList (l : List T) =
+pub let fromList {~mut : Mut E} (l : List T) =
   let vector = makeVector {T=T} l.length in
   let rec aux (n : Int) acc =
     match acc with

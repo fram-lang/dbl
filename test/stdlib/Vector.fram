@@ -2,70 +2,53 @@ import open Mutable
 import open /Vector
 import open Testing
 
-let vec = makeVector {T=Int} 4
-let sz = vec.size
-let cap = vec.capacity
-
-let _ = testSuite "size and capacity" (fn _ =>
+let _ = testSuite "vector" (fn _ =>
 
   testCase "checks size and capacity methods" (fn _ =>
+    let vec = makeVector {T=Int} 4 in
+    let sz = vec.size in
+    let cap = vec.capacity in
     assertEqS sz 4;
     assertEqS cap 4);
 
-  testCase "checks max vector size constant" (fn _ =>
-    assertEqS maxVectorSize maxArrayLength);
-
-  vec.set 0 1;
-  vec.set 1 2;
-  vec.set 2 3;
-  vec.set 3 4;
-  vec.pushBack 5)
-
-let fst = vec.front
-let lst = vec.back
-
-let _ = testSuite "front and back" (fn _ =>
-
-  testCase "checks front and back methods" (fn _ =>
+  testCase "front and back methods" (fn _ =>
+    let vec = makeVector {T=Int} 4 in
+    vec.set 0 1;
+    vec.set 1 2;
+    vec.set 2 3;
+    vec.set 3 4;
+    vec.pushBack 5;
+    let fst = vec.front in
+    let lst = vec.back in
     assertEqS fst (Some 1);
     assertEqS lst (Some 5));
+  
+  testCase "get method" (fn _ =>
+    let vec = makeVector {T=Int} 0 in
+    vec.pushBack 6;
+    vec.pushBack 7;
+    vec.pushBack 8;
+    vec.pushBack 9;
+    let x = vec.get 1 in
+    let y = vec.get 3 in
+    assertEqS x (Some 7);
+    assertEqS y (Some 9));
     
-  vec.pushBack 6;
-  vec.pushBack 7;
-  vec.pushBack 8;
-  vec.pushBack 9)
-
-let x = vec.get 8
-let y = vec.get 4
-
-let _ = testSuite "get" (fn _ =>
-
-  testCase "checks get method" (fn _ =>
-    assertEqS x (Some 9);
-    assertEqS y (Some 5)))
-
-let _ = vec.clear
-let sz = vec.size
-let cap = vec.capacity
-
-let _ = testSuite "clear" (fn _ =>
-
-  testCase "checks vector clear" (fn _ =>
+  testCase "clear method" (fn _ =>
+    let vec = makeVector {T=Int} 4 in
+    vec.clear;
+    let sz = vec.size in
+    let cap = vec.capacity in
     assertEqS sz 0;
-    assertEqS cap 0))
+    assertEqS cap 0);
 
-let xs = [1,2,3,4]
-let vec = fromList xs
-let x = vec.get 0
-let y = vec.get 2
-let ys = vec.toList
-let z = ys.hd
-
-let _ = testSuite "from/to list" (fn _ =>
-
-  testCase "checks fromList method" (fn _ =>
+  testCase "from/to list methods" (fn _ =>
+    let xs = [1,2,3,4] in
+    let vec = fromList xs in
+    let x = vec.get 0 in
+    let y = vec.get 2 in
+    let ys = vec.toList in
+    let z = ys.hd in
     assertEqS x (Some 1);
-    assertEqS y (Some 3));
-
-  testCase "checks toList method" (fn _ =>
+    assertEqS y (Some 3);
     assertEqS z (Some (Some 1))))
