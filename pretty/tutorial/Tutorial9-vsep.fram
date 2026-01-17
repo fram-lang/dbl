@@ -1,0 +1,6 @@
+import open Pretty
+
+let doc = text "aaaaa" $$ text "aaa"
+let doc = vsep >+> doc >+> vsep
+
+let _ = printStrLn (generate doc)
