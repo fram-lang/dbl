@@ -167,8 +167,8 @@ pub method flush (ODoc xs) = ODoc (fn w =>
 pub method reset (ODoc xs) = ODoc (fn w =>
   xs w >.map (fn ((x, y) : Layout) => (x.reset, y.reset x.width)))
 
-pub method shift (ODoc xs) = ODoc (fn w =>
-  xs w >.map (fn ((x, y) : Layout) => (x.shift, y.shift)))
+pub method shift {?fill : Char} (ODoc xs) = ODoc (fn w =>
+  xs w >.map (fn ((x, y) : Layout) => (x.shift, y.shift {?fill})))
 
 pub method seq {~__line__, ~__file__} (ODoc xs) (ODoc ys) = ODoc (fn w =>
   bestOn

@@ -20,7 +20,7 @@ data rec L =
   | LEmpty
   ## Singular shift, exact amount of spaces
   ## will be decided during generation
-  | LShift of L
+  | LShift of Char, L
   ## Reset node, contains Shift List to allocate
   ## shifts during rendering
   | LReset of SList, L
@@ -38,7 +38,7 @@ method toString {?fmt : Unit} (self : L) =
     | LFill n l => "f\{n}" :: xs
     | LStr s => s.toString :: xs
     | LEmpty => "e" :: xs
-    | LShift l => "&(" :: (iter l (")" :: xs))
+    | LShift _ l => "&(" :: (iter l (")" :: xs))
     | LReset slist l => "*(" :: (iter l (")" :: xs))
     | LJump {n, static} l1 l2 => "{" :: iter l1 (" >\{n}+\{static}> " :: iter l2 ("}" :: xs))
     | LStyled _ l => iter l xs
@@ -56,9 +56,10 @@ type Lines = List Line
 
 method flush (lines : Lines) = lines + [emptyLine]
 
-method shift (lines : Lines) =
+method shift {?fill : Char} (lines : Lines) =
+  let f = fill.unwrapOr ' ' in
   List.map (fn (Line {fill, str}) =>
-    Line {fill = LShift fill, str = LShift str}) lines
+    Line {fill = LShift ' ' fill, str = LShift f str}) lines
 
 method reset (lines : Lines) slist = 
   List.map (fn (Line {fill, str}) =>
@@ -178,9 +179,9 @@ method getAlignment {E} (st : State E) (nth : Int) (column : Int) =
 let rec genL {~h : State _, ~s : Stylist _} (self : L) = match self with
   | LEmpty => ""
   | LStr str => ~h.move str.length; str
-  | LShift tl =>
+  | LShift fill tl =>
     let s = ~h.getShift in
-    replicate " " s + genL tl
+    replicate fill.toString s + genL tl
   | LReset sl tl =>
     let (_, sh, n) = ~h.get () in
     ~h.putShifts sl;
@@ -234,8 +235,8 @@ pub method flush (lines : DocLines) =
 pub method reset (lines : DocLines) slist =
   lazy (fn _ => lines.force.reset slist)
 
-pub method shift (lines : DocLines) =
-  lazy (fn _ => lines.force.shift)
+pub method shift {?fill : Char} (lines : DocLines) =
+  lazy (fn _ => lines.force.shift {?fill})
 
 pub method combine (lines1 : DocLines) (lines2 : DocLines) =
   lazy (fn _ => lines1.force.combine lines2.force)

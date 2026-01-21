@@ -5,8 +5,12 @@ let cell1 = text "aaaaaa" </> text "aaa"
 let cell2 = text "bb" </> text "bbb"
 let cell3 = text "ccc" </> text "cccc" </> text "c"
 let cell4 = text "d" </> text "dddd"
+let empty = text ""
 
-let table = (vsep >+> cell1 >+> vsep.shift >+> cell2 >+> vsep.shift)
+let hsep = empty >+> shift {fill='-'} vsep
+
+let table = (vsep >+> hsep >+> hsep)
+         $$ (vsep >+> cell1 >+> vsep.shift >+> cell2 >+> vsep.shift)
          $$ (vsep >+> cell3 >+> vsep.shift >+> cell4 >+> vsep.shift)
 
 let _ = [25, 21, 20].iter (fn width =>

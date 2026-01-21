@@ -87,7 +87,7 @@ pub let (char : Char -> Doc) = fn (c : Char) => text (charListToStr [c])
 {##
   Annotates documents as moving, willing to align with other docuemtns.
  ##}
-pub let (shift : Doc -> Doc) = fn (d : Doc) => d.shift
+pub let shift {?fill : Char} (d : Doc) = d.shift {?fill}
 
 {##
   Annotates documents as moving, willing to align with other docuemtns.
