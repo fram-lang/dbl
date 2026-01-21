@@ -33,7 +33,9 @@ exception Escapes_scope of PPTree.t * T.tvar
 let unify_with_kuvar x k =
   if T.Kind.contains_uvar x k then
     raise Error
-  else T.KUVar.set x k
+  else if T.KUVar.set x k then ()
+  else
+    raise Error
 
 let rec check_kind_equal k1 k2 =
   match T.Kind.view k1, T.Kind.view k2 with
@@ -63,8 +65,15 @@ let kind_to_arrow k =
   | KUVar x ->
     let k1 = T.Kind.fresh_uvar () in
     let k2 = T.Kind.fresh_uvar () in
-    T.KUVar.set x (T.Kind.k_arrow k1 k2);
-    Some (k1, k2)
+    begin match T.Kind.k_arrow k1 k2 with
+    | None ->
+      (* Impossible: RHS is not an effect kind. *)
+      assert false
+    | Some k_arrow ->
+      let ok = T.KUVar.set x k_arrow in
+      assert ok;
+      Some (k1, k2)
+    end
   | KArrow(k1, k2) -> Some(k1, k2)
 
   | KType | KEffect -> None

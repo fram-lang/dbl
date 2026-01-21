@@ -507,8 +507,11 @@ module KUVar : sig
   (** Check for equality *)
   val equal : kuvar -> kuvar -> bool
 
-  (** Set a unification variable. *) 
-  val set : kuvar -> kind -> unit
+  (** Set the value of a kind unification variable. Returns [true] if
+    successful, [false] if it would break non-effect constraints, i.e. if it
+    would result in an effect kind on the right-hand-side of some arrow kind.
+    *)
+  val set : kuvar -> kind -> bool
 end
 
 (* ========================================================================= *)
@@ -534,11 +537,18 @@ module Kind : sig
   (** Kind of all effects. *)
   val k_effect : kind
 
-  (** Arrow kind. *)
-  val k_arrow : kind -> kind -> kind
+  (** Arrow kind. Returns [None] if the right-hand-side kind is an effect
+    kind. *)
+  val k_arrow : kind -> kind -> kind option
 
-  (** Create an arrow kind with multiple parameters. *)
-  val k_arrows : kind list -> kind -> kind
+  (** Create an arrow kind with multiple parameters. Returns [None] if the
+    right-hand-side kind is an effect kind (unless the list of parameter kinds
+    is empty). *)
+  val k_arrows : kind list -> kind -> kind option
+
+  (** Create an arrow kind with multiple parameters, assuming that the
+    right-hand-side kind is not an effect kind. *)
+  val k_noneff_arrows : kind list -> kind -> kind
 
   (** Create a fresh unification kind variable. *)
   val fresh_uvar : unit -> kind

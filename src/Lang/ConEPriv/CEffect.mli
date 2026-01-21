@@ -15,8 +15,9 @@ val prog_effect : t
 val join : t -> t -> t
 
 (** Collect all generalizable variables that do not belong to the given
-  scope and add them to the given set. *)
-val collect_gvars : scope:Scope.t -> t -> Effct.GVar.Set.t -> Effct.GVar.Set.t
+  (outer) scope and add them to the given set. *)
+val collect_gvars :
+  outer_scope:Scope.t -> t -> Effct.GVar.Set.t -> Effct.GVar.Set.t
 
 (** Pretty-print effect as S-expression *)
 val to_sexpr : t -> SExpr.t

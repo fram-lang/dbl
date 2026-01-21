@@ -7,13 +7,15 @@
 module S = Lang.ConE
 module T = Lang.Core
 
-(** Translate kind *)
+(** Translate kind. It also instantiates all kind unification variables to
+  [KType], since they are not representable in the Core language. *)
 let rec tr_kind k =
   match Lang.Unif.Kind.view k with
   | KType   -> T.Kind.Ex KType
   | KEffect -> T.Kind.Ex KEffect
   | KUVar u ->
-    Lang.Unif.KUVar.set u Lang.Unif.Kind.k_type;
+    let ok = Lang.Unif.KUVar.set u Lang.Unif.Kind.k_type in
+    assert ok;
     T.Kind.Ex KType
   | KArrow(k1, k2) ->
     let (Ex k1) = tr_kind k1 in

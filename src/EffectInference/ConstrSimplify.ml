@@ -8,7 +8,7 @@ open Common
 
 (** Internal state of the simplification procedure. *)
 type state =
-  {         scope    : Scope.t;
+  {         outer_scope : Scope.t;
       (** The current outer scope. Generalizable variables that do not belong
         to this scope can be altered by the simplification process. *)
 
@@ -19,8 +19,8 @@ type state =
       (** Positive generalizable variables, or more precisely, generalizable
         variables that appear on non-negative positions of the generalized
         type. Simplification procedure cares about variables that do not
-        belong to [scope], so other variables may not be in this set, even
-        if they are positive. *)
+        belong to [outer_scope], so other variables may not be in this set,
+        even if they are positive. *)
 
     mutable ngvs     : T.GVar.Set.t;
       (** Negative generalizable variables, or more precisely, generalizable
@@ -40,8 +40,8 @@ type state =
 
     mutable irr      : Constr.t list
       (** Irrelevant constraints, i.e., that do not contain any generalizable
-        variable outside of [scope]. Such constraints are stored here to be
-        re-added at the end of the simplification process. *)
+        variable outside of [outer_scope]. Such constraints are stored here to
+        be re-added at the end of the simplification process. *)
   }
 
 (** Effect variable (regular or generalizable). Generalizable variables are
@@ -76,11 +76,25 @@ type constr =
         during the simplification process. *)
   }
 
+let eff_var_to_sexpr =
+  function
+  | TVar x   -> SExpr.List [ Sym "tvar"; T.TVar.to_sexpr x ]
+  | GVar eff -> SExpr.List [ Sym "gvar"; T.Effct.to_sexpr eff ]
+
+let constr_to_sexpr c =
+  SExpr.List [
+    eff_var_to_sexpr c.eff_var;
+    List [ Sym "if";     IncrSAT.Formula.to_sexpr c.pformula ];
+    List [ Sym "unless"; IncrSAT.Formula.to_sexpr c.nformula ];
+    Sym "<:";
+    T.Effct.to_sexpr c.rhs_effect
+  ]
+
 (* ========================================================================= *)
 (* Basic operations *)
 
-let initial_state ~scope ~pgvs ~ngvs =
-  { scope;
+let initial_state ~outer_scope ~pgvs ~ngvs =
+  { outer_scope;
     progress = false;
     pgvs;
     ngvs;
@@ -133,13 +147,13 @@ module EffVarMap = Map.Make(EffVar)
 let is_eff_irrelevant st eff =
   let (_, gvars) = T.Effct.view eff in
   List.for_all
-    (fun (gv, _) -> T.GVar.in_scope gv st.scope)
+    (fun (gv, _) -> T.GVar.in_scope gv st.outer_scope)
     gvars
 
 (** Check if generalizable variable [gv] is irrelevant, i.e., it belongs
   to the current outer scope. *)
 let is_gvar_irrelevant st gv =
-  T.GVar.in_scope gv st.scope
+  T.GVar.in_scope gv st.outer_scope
 
 (** Normalize a constraint of the form [x ? p <: eff2], where [x] is a type
   variable. *)
@@ -211,16 +225,16 @@ let to_constr (c : constr) =
 
 (** [set_gvar st gv eff] sets the variable [gv] to the effect [eff], and
   updates the positive/negative sets accordingly. It is assumed that [gv] is
-  not in the outer scope ([st.scope]) and that [eff] does not contain [gv]
-  itself. *)
+  not in the outer scope ([st.outer_scope]) and that [eff] does not contain
+  [gv] itself. *)
 let set_gvar st gv eff =
   assert (IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv));
-  assert (not (T.GVar.in_scope gv st.scope));
+  assert (not (T.GVar.in_scope gv st.outer_scope));
   let (_, eff_gvs) = T.Effct.view eff in
   let eff_gvs =
     eff_gvs
     |> List.filter_map (fun (gv, _) ->
-        if T.GVar.in_scope gv st.scope then None else Some gv)
+        if T.GVar.in_scope gv st.outer_scope then None else Some gv)
     |> T.GVar.Set.of_list
   in
   if T.GVar.Set.mem gv st.pgvs then begin
@@ -234,22 +248,22 @@ let set_gvar st gv eff =
 
 (** Variables that appear on the left-hand-side of any constraint. *)
 let lhs_gvars st cs =
-  let scope = st.scope in
+  let outer_scope = st.outer_scope in
   List.fold_left
     (fun gvs (c : constr) ->
       match c.eff_var with
       | GVar eff_var ->
-        T.Effct.collect_gvars ~scope eff_var gvs
+        T.Effct.collect_gvars ~outer_scope eff_var gvs
       | TVar _ -> gvs)
     T.GVar.Set.empty
     cs
 
 (** Variables that appear on the right-hand-side of any constraint. *)
 let rhs_gvars st cs =
-  let scope = st.scope in
+  let outer_scope = st.outer_scope in
   List.fold_left
     (fun gvs (c : constr) ->
-      T.Effct.collect_gvars ~scope c.rhs_effect gvs)
+      T.Effct.collect_gvars ~outer_scope c.rhs_effect gvs)
     T.GVar.Set.empty
     cs
 
@@ -286,7 +300,7 @@ let build_single_upper_bounds st bnd (c : constr) =
   | TVar _   -> bnd (* Not a generalizable variable. *)
   | GVar eff ->
     let gv = get_gvar eff in
-    if T.GVar.in_scope gv st.scope then
+    if T.GVar.in_scope gv st.outer_scope then
       (* Variable is irrelevant (it is in the outer scope), ignore it. *)
       bnd
     else if T.GVar.Set.mem gv st.pgvs then
@@ -318,7 +332,15 @@ let rule_move_up_negative st cs =
       (fun (gv, bnd) -> Option.map (fun eff -> (gv, eff)) bnd)
       (T.GVar.Map.bindings bounds)
   in
-  List.iter (fun (gv, eff) -> set_gvar st gv eff) bounds;
+  List.iter
+    (fun (gv, eff) ->
+      (* Skip constraints, where [eff] contains [gv]. For normalized
+        constraints it is impossible, but such constraints may appear after
+        setting some generalizable variables in this loop. For instance, when
+        we have [a <: b] and [b <: a]. *)
+      if IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv) then
+        set_gvar st gv eff)
+    bounds;
   cs
 
 (* ========================================================================= *)
@@ -364,6 +386,128 @@ let rule_move_down_variant st cs =
     |> Fun.flip T.GVar.Set.diff st.lhs_gvars
   in
   T.GVar.Set.iter (set_to_join_of_lower_bounds st cs) variant_nb;
+  cs
+
+(* ========================================================================= *)
+(** Rule: fast cycle elimination *)
+
+(** Eliminates simple cycles in the set of constraints. A cycle is simple if it
+  is a strongly connected component in a graph where nodes are effect
+  variables and edges are constraints of the form [ev1 <: ev2 ? p].
+  Constraints that have guards on the left-hand-side are ignored. This rule
+  is subsumed by [rule_subst_equality], but it is much faster to apply, so we
+  use it as a separate rule. *)
+
+(** Subeffect graphs *)
+module Graph = struct
+  type t = eff_var list EffVarMap.t
+
+  let empty = EffVarMap.empty
+
+  let neighbors graph ev =
+    match EffVarMap.find_opt ev graph with
+    | None      -> []
+    | Some neig -> neig
+
+  let add_edge graph ev1 ev2 =
+    EffVarMap.add ev1 (ev2 :: neighbors graph ev1) graph
+end
+
+(** Build the subeffect graph from the constraints. *)
+let build_subeffect_graph cs =
+  let add_to_graph graph (c : constr) =
+    (* Ignore guarded constraints. *)
+    if not (IncrSAT.Formula.is_true c.pformula) then graph
+    else if not (IncrSAT.Formula.is_false c.nformula) then graph
+    else
+      match T.Effct.view c.rhs_effect with
+      | ([(x, _)], [])    ->
+        Graph.add_edge graph c.eff_var (TVar x)
+      | ([], [(gv, _)]) ->
+        Graph.add_edge graph c.eff_var (GVar (T.Effct.gvar gv))
+      | _               -> graph
+  in
+  List.fold_left add_to_graph Graph.empty cs
+
+type node_state =
+  | Visited
+  | OnStack of int
+
+(** Find cycles in the subeffect graph using Tarjan's algorithm. Returns
+  a list of strongly connected components. *)
+let find_cycles graph =
+  let result = ref [] in
+  let node_states = ref EffVarMap.empty in
+  let stack = ref [] in
+  let index = ref 0 in
+  let rec build_scc ev st acc =
+    match st with
+    | [] -> assert false (* The stack should contain at least [ev]. *)
+    | top :: st ->
+      node_states := EffVarMap.add top Visited !node_states;
+      if EffVar.compare top ev = 0 then begin
+        (* Finished building the strongly connected component. *)
+        result := (top :: acc) :: !result;
+        st
+      end else
+        build_scc ev st (top :: acc)
+  in
+  let rec visit ev =
+    match EffVarMap.find_opt ev !node_states with
+    | Some Visited           -> !index
+    | Some (OnStack lowlink) -> lowlink
+    | None ->
+      let curr_index = !index in
+      index := curr_index + 1;
+      node_states :=
+        EffVarMap.add ev (OnStack(curr_index)) !node_states;
+      stack := ev :: !stack;
+      let lowlink =
+        List.fold_left
+          (fun lowlink ev2 -> min lowlink (visit ev2))
+          curr_index
+          (Graph.neighbors graph ev)
+      in
+      if lowlink = curr_index then
+        (* Found a strongly connected component *)
+        stack := build_scc ev !stack [];
+      lowlink
+  in
+  EffVarMap.iter (fun ev _ -> ignore (visit ev)) graph;
+  !result
+
+(** Pick a root effect variable from a cycle. The root is chosen to be
+  type variable (non-generalizable) if any, otherwise an arbitrary
+  generalizable variable. *)
+let pick_root cycle =
+  assert (not (List.is_empty cycle));
+  match
+    List.find_opt
+      (function TVar _ -> true | GVar _ -> false)
+      cycle
+  with
+  | Some ev -> ev
+  | None    -> List.hd cycle
+
+(** Collapse a cycle by setting all generalizable variables in the cycle
+  to the root effect variable. *)
+let collapse_cycle st root cycle =
+  let root_eff = effect_of_eff_var root in
+  cycle |> List.iter
+    (fun ev ->
+      if EffVar.compare ev root <> 0 then
+        match ev with
+        | TVar _   -> ()
+        | GVar eff -> set_gvar st (get_gvar eff) root_eff)
+
+let rule_fast_cycle_elim st cs =
+  let graph = build_subeffect_graph cs in
+  let cycles = find_cycles graph in
+  List.iter
+    (fun cycle ->
+      let root = pick_root cycle in
+      collapse_cycle st root cycle)
+    cycles;
   cs
 
 (* ========================================================================= *)
@@ -426,6 +570,65 @@ let rule_remove_redundant st cs =
     cs
 
 (* ========================================================================= *)
+(* Rule: substitute equalities *)
+
+(** Substitute generalizable variables that are equal to some effect
+  throughout the constraints. For each constraint of the form [gv <: eff],
+  where [gv] is a generalizable variable that does not occur in [eff], we
+  can set [gv] to [eff] if we are able to prove (by transitivity) that
+  [eff <: gv] holds. *)
+
+(** Build the largest lower-bound for given effect that can be inferred from
+  the constraints. *)
+let rec lower_bound_closure cs eff =
+  let progress = ref false in
+  let eff =
+    List.fold_left
+      (fun eff (Constr.CSubeffect(_, eff1, eff2)) ->
+        if trivial_subeffect eff2 eff && not (trivial_subeffect eff1 eff)
+        then begin
+          progress := true;
+          T.Effct.join eff eff1
+        end else
+          eff)
+      eff
+      cs
+  in
+  if !progress then
+    lower_bound_closure cs eff
+  else
+    eff
+
+let constr_as_gvar_equality st cs (c : constr) =
+  match c.eff_var with
+  | TVar _   -> None (* Not a generalizable variable. *)
+  | GVar eff ->
+    let gv = get_gvar eff in
+    if T.GVar.in_scope gv st.outer_scope then
+      (* Variable is in scope, ignore it. *)
+      None
+    else if not (IncrSAT.Formula.is_true c.pformula) then
+      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      None
+    else if not (IncrSAT.Formula.is_false c.nformula) then
+      (* Upper-bound is not clear -- might be trivially satisfied. *)
+      None
+    else if
+      trivial_subeffect c.rhs_effect (lower_bound_closure cs eff)
+    then
+      Some (gv, c.rhs_effect)
+    else
+      None
+
+let rule_subst_equality st cs =
+  let cs_list = List.map to_constr cs in
+  match List.find_map (constr_as_gvar_equality st cs_list) cs with
+  | None -> cs
+  | Some (gv, eff) ->
+    set_gvar st gv eff;
+    cs
+
+(* ========================================================================= *)
 (* Rule combinators *)
 
 let rec try_rules rules st cs =
@@ -444,7 +647,9 @@ let rules =
     rule_close_positive;
     rule_move_up_negative;
     rule_move_down_variant;
+    rule_fast_cycle_elim;
     rule_remove_redundant;
+    rule_subst_equality;
   ]
 
 let rec simplify_loop st cs =
@@ -462,7 +667,7 @@ let rec simplify_loop st cs =
   else
     cs
 
-let simplify ~scope ~pgvs ~ngvs cs =
-  let st = initial_state ~scope ~pgvs ~ngvs in
+let simplify ~outer_scope ~pgvs ~ngvs cs =
+  let st = initial_state ~outer_scope ~pgvs ~ngvs in
   let cs = simplify_loop st cs in
   cs @ st.irr
