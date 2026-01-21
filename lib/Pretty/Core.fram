@@ -19,7 +19,10 @@ method reset ((x, y) : Layout) =
   (x.reset, y.reset x.width)
 
 method seq (l1 : Layout) (l2 : Layout) =
-  let mkSeq {~onError : Unit ->> Unit} ((x1, y1) : Layout) ((x2, y2) : Layout) =
+  let mkSeq
+      {~onError : Unit ->> Unit}
+      ((x1, y1) : Layout)
+      ((x2, y2) : Layout) =
     (x1.seq x2, y1.seq y2 x1.getAlign)
   let gentle =
     handle
@@ -37,14 +40,19 @@ method style ((x, y) : Layout) (sty : Style.Style) = (x, y.style sty)
 
 pub data ODoc = ODoc of (Int ->[] Stream.Stream Layout)
 
-pub let text str = ODoc (fn _ => Stream.singleton (textSize str, textLines str))
+pub let text str = ODoc (fn _ =>
+  Stream.singleton (textSize str, textLines str))
 pub let emptyDoc = text ""
 
 let textLayout str = (textSize str, textLines str)
 let spaces n = textLayout (replicate " " n)
 
 pub let (<>) {X, method combine : X -> X ->[] X} (x : X) = x.combine
-pub let ($$) {X, method combine : X -> X ->[] X, method flush : X ->[] X} (x : X) =
+pub let ($$)
+    { X
+    , method combine : X -> X ->[] X
+    , method flush : X ->[] X
+    } (x : X) =
   x.flush.combine
 
 pub let paretoSelector
@@ -95,7 +103,10 @@ let maxWidth (w : Size) =
   end
 
 # assumes non-empty input and returns non empty output
-pub let quasifilter {X} (pred : X ->[] Bool) (ord : X -> X ->[] Bool) (ws : Stream.Stream X) =
+pub let quasifilter
+    {X}
+    (pred : X ->[] Bool)
+    (ord : X -> X ->[] Bool) (ws : Stream.Stream X) =
   Stream.lazyStream (fn _ =>
     match ws.uncons with
     | None => Stream.empty
@@ -106,7 +117,8 @@ pub let quasifilter {X} (pred : X ->[] Bool) (ord : X -> X ->[] Bool) (ws : Stre
        (let fted = Stream.filter pred ws in
         match fted >.uncons with
         | None =>
-          let el = Stream.foldRight1Err (fn x y => if ord x y then x else y) ws in
+          let el = Stream.foldRight1Err
+            (fn x y => if ord x y then x else y) ws in
           Stream.singleton el
         | Some _ => fted
         end)
@@ -121,7 +133,9 @@ let (>>=) (xs : Stream.Stream _) f = Stream.concatMap f xs
 
 pub method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
   let ds = xs w >>= (fn x =>
-    Stream.singleton (discardInvalid w (ys w >>= (fn y => Stream.singleton (x <> y))))) in
+    Stream.singleton (discardInvalid w (ys w >>= (fn y =>
+      Stream.singleton (x <> y)))))
+  in
   bestOn
     (fn x y => ord (fst x) (fst y))
     (fn x y => poset (fst x) (fst y))

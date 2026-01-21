@@ -24,7 +24,8 @@ pub data rec SList =
 method rec toString {?prec : Int, ?fmt : Unit} (self : SList) =
    match self with
   | SFix {width} => "SF {width=\{width}}"
-  | SShift {width, dangle} tl => "SS {width=\{width}, dangle=\{dangle}} (\{tl})"
+  | SShift {width, dangle} tl =>
+    "SS {width=\{width}, dangle=\{dangle}} (\{tl})"
   | SLast {width} tl => "SL {width=\{width}} (\{tl})"
   end
 
@@ -54,7 +55,8 @@ pub method equal (w1 : Size) (w2 : Size) =
   w1.width == w2.width && w1.height == w2.height
 
 {## Constructs Size object for a singular string ##}
-pub let textSize (s : String) = Size {width=SLast {width=s.length} (SFix {width=s.length}), height=0}
+pub let textSize (s : String) =
+  Size {width=SLast {width=s.length} (SFix {width=s.length}), height=0}
 
 {## Empty width ##}
 pub let emptySize = textSize ""
@@ -102,8 +104,10 @@ pub method combine (w1 : Size) (w2 : Size) =
       SShift {width=max w1 w2, dangle=max d1 d2} (combineWs s1 s2)
     
     # add SFix as a dangling width
-    | SFix {width=w1}, SShift {width=w2, dangle=d} s => SShift {width=w2, dangle=max d w1} s    
-    | SShift {width=w1, dangle=d} s, SFix {width=w2} => SShift {width=w1, dangle=max d w2} s    
+    | SFix {width=w1}, SShift {width=w2, dangle=d} s =>
+      SShift {width=w2, dangle=max d w1} s    
+    | SShift {width=w1, dangle=d} s, SFix {width=w2} =>
+      SShift {width=w1, dangle=max d w2} s    
     
     ## right last - copy last and continue as usual
     # | SShift {width=w1, dangle} s, SLast {width=l} (SFix {width=w2}) =>
@@ -172,8 +176,10 @@ pub method seq {~onError} (w1 : Size) (w2 : Size) =
     | SLast tl => join tl
     | SShift {width, dangle} tl => SShift {width, dangle} (join tl)
     | SFix {width=w1} => match w2.width with
-      | SLast {width=l} (SFix {width=w2}) => SLast {width=l + w1} (SFix {width=w1 + w2})
-      | SLast {width=l} (SShift {width=w2} tl) => SLast {width=l + w1} (SShift {width=w1 + w2, dangle=0} tl)
+      | SLast {width=l} (SFix {width=w2}) =>
+        SLast {width=l + w1} (SFix {width=w1 + w2})
+      | SLast {width=l} (SShift {width=w2} tl) =>
+        SLast {width=l + w1} (SShift {width=w1 + w2, dangle=0} tl)
       | SShift {width=w2} tl => SShift {width=w1 + w2, dangle=0} tl
       | _ => impossible ()
       end

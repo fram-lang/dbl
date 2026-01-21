@@ -65,7 +65,7 @@ pub let styleH =
       { pushStyle = effect s / r => fn st => r s.getCode (s :: st)
       , popStyle  = effect s / r => fn st => match st with
           | _ :: y :: xs => r y.getCode (y :: xs)
-          | _ => impossible()
+          | _ => impossible ()
           end
       }
     return x => fn _ => x

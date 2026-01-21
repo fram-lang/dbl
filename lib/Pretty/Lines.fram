@@ -40,7 +40,8 @@ method toString {?fmt : Unit} (self : L) =
     | LEmpty => "e" :: xs
     | LShift _ l => "&(" :: (iter l (")" :: xs))
     | LReset slist l => "*(" :: (iter l (")" :: xs))
-    | LJump {n, static} l1 l2 => "{" :: iter l1 (" >\{n}+\{static}> " :: iter l2 ("}" :: xs))
+    | LJump {n, static} l1 l2 =>
+      "{" :: iter l1 (" >\{n}+\{static}> " :: iter l2 ("}" :: xs))
     | LStyled _ l => iter l xs
     end
   in strListCat (iter self [])     
@@ -222,12 +223,14 @@ pub let unlines w (xs : Lines) =
     end in
   fold strs
 
-pub let onlySingleLine = Stream.takeWhile (fn (Size.Size {height}, _) => height == 0)
+pub let onlySingleLine = Stream.takeWhile
+  (fn (Size.Size {height}, _) => height == 0)
 
 pub type DocLines = Lazy Lines
 
 pub let textLines (str : String) =
-  (lazy (fn _ => [Line {fill = LFill str.length LEmpty, str = LStr str}]) : DocLines)
+  (lazy (fn _ =>
+    [Line {fill = LFill str.length LEmpty, str = LStr str}]) : DocLines)
 
 pub method flush (lines : DocLines) =
   lazy (fn _ => lines.force.flush)
