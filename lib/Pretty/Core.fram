@@ -47,7 +47,7 @@ pub let (<>) {X, method combine : X -> X ->[] X} (x : X) = x.combine
 pub let ($$) {X, method combine : X -> X ->[] X, method flush : X ->[] X} (x : X) =
   x.flush.combine
 
-let paretoSelector
+pub let paretoSelector
   {X : type}
   (poset : X -> X ->[] Bool)
   (seq : Stream.Stream X) = 
@@ -62,7 +62,7 @@ let paretoSelector
       end in
     Stream.lazyStream (iter [] seq)
 
-let rec mergeOn
+pub let rec mergeOn
   sel
   (xs : Stream.Stream _)
   (ys : Stream.Stream _) = Stream.lazyStream (fn _ =>
@@ -78,14 +78,14 @@ let rec mergeOn
       end
     end)
 
-let rec mergeAllOn sel (xss : Stream.Stream (Stream.Stream _)) =
+pub let rec mergeAllOn sel (xss : Stream.Stream (Stream.Stream _)) =
   Stream.lazyStream (fn _ =>
     match xss.uncons with
     | None => Stream.empty
     | Some (x, ys) => mergeOn sel x (mergeAllOn sel ys)
     end)
 
-let bestOn ord poset xss =
+pub let bestOn ord poset xss =
   paretoSelector poset (mergeAllOn ord xss)
 
 let maxWidth (w : Size) =
@@ -95,7 +95,7 @@ let maxWidth (w : Size) =
   end
 
 # assumes non-empty input and returns non empty output
-let quasifilter {X} (pred : X ->[] Bool) (ord : X -> X ->[] Bool) (ws : Stream.Stream X) =
+pub let quasifilter {X} (pred : X ->[] Bool) (ord : X -> X ->[] Bool) (ws : Stream.Stream X) =
   Stream.lazyStream (fn _ =>
     match ws.uncons with
     | None => Stream.empty
@@ -133,19 +133,19 @@ pub let groupingBy (sep : String) (ms : List (Pair Int ODoc)) =
   | ms => ODoc (fn w =>
     let (mws : List (Pair Int (Stream.Stream Layout)))
       = List.map (fn (x, ODoc d) => (x, d w)) ms in
-    let (init, (_, last)) = List.initLast mws in
+    let (init, (_, last)) = List.dropTakeLast mws >.unwrapErr in
     let (hcat : List (Stream.Stream Layout))
       = List.map (fn x => onlySingleLine (snd x)) init + [last] in
     let (vcat : List (Stream.Stream Layout))
       = List.map (fn (i, x) => Stream.map (fn x => spaces i <> x) x) mws in
     let hor = discardInvalid w
-      (List.foldr1
+      (List.foldRight1
         (fn xs ys => xs >>= (fn x =>
                      ys >>= (fn y =>
                      Stream.singleton (x <> textLayout sep <> y))))
-        hcat) in
+        hcat).unwrapErr in
     let ver =
-      List.foldr1
+      List.foldRight1
         (fn xs ys =>
           bestOn 
             (fn x y => ord (fst x) (fst y))
@@ -153,7 +153,7 @@ pub let groupingBy (sep : String) (ms : List (Pair Int ODoc)) =
             (xs >>= (fn x =>
             Stream.singleton (ys >>= (fn y =>
                Stream.singleton (x $$ y))))))
-        vcat in
+        vcat >.unwrapErr
     let ls = bestOn
       (fn x y => ord (fst x) (fst y))
       (fn x y => poset (fst x) (fst y))
@@ -208,104 +208,3 @@ pub let generateDebug width (ODoc xs) =
       iter tail
     end in
   iter (xs width)
-
-{#
-pub let runTests () = testSuite "/Pretty/Core" (fn _ =>
-  testCase "`paretoSelector` empty" (fn _ =>
-    let (iStr : Stream.Stream Int) = Stream.empty in
-    assertEq iStr (paretoSelector (fn x y => False) iStr));
-  
-  testCase "`paretoSelector` singleton" (fn _ =>
-    [0, 10, 50, 2137].iter (fn x =>
-    assertEq (Stream.singleton x) (paretoSelector (fn x y => False) (Stream.singleton x))));
-  
-  let cmpInts (x : Int) (y : Int) = x <= y in
-
-  let mkS = Stream.fromList in
-
-  testCase "`paretoSelector` pairs" (fn _ =>
-    assertEq (mkS [10])     (paretoSelector cmpInts (mkS [10, 20]));
-    assertEq (mkS [20, 10]) (paretoSelector cmpInts (mkS [20, 10]));
-    assertEq (mkS [10])     (paretoSelector cmpInts (mkS [10, 10])));
-
-  testCase "`paretoSelector` many" (fn _ =>
-    assertEq (mkS [10])         (paretoSelector cmpInts (mkS [10, 20, 30, 40, 50, 60]));
-    assertEq (mkS [30, 20, 10]) (paretoSelector cmpInts (mkS [30, 20, 10]));
-    assertEq (mkS [30, 10, 5])  (paretoSelector cmpInts (mkS [30, 10, 10, 20, 5])));
-
-  testCase "`mergeOn` empty" (fn _ =>
-    assertEq (mkS []) (mergeOn cmpInts (mkS []) (mkS [])));
-  
-  testCase "`mergeOn` singletons" (fn _ =>
-    assertEq (mkS [1, 2]) (mergeOn cmpInts (mkS [2]) (mkS [1]));
-    assertEq (mkS [1, 2]) (mergeOn cmpInts (mkS [1]) (mkS [2])));
-  
-  testCase "`mergeOn` many" (fn _ =>
-    assertEq
-      (mkS [1, 2, 3, 4, 5, 6, 7, 8])
-      (mergeOn cmpInts (mkS [1, 3, 5, 7]) (mkS [2, 4, 6, 8]));
-    assertEq
-      (mkS [1, 2, 3, 4, 5, 6])
-        (mergeOn cmpInts (mkS [1, 2, 5]) (mkS [3, 4, 6])));
-  
-  testCase "`mergeAllOn` empty" (fn _ =>
-    assertEq (mkS []) (mergeAllOn cmpInts (mkS [])));
-  
-  testCase "`mergeAllOn` empties" (fn _ =>
-    assertEq (mkS []) (mergeAllOn cmpInts (mkS [mkS [], mkS [], mkS []])));
-  
-  testCase "`mergeAllOn` singletons" (fn _ =>
-    assertEq (mkS [1, 2, 3]) (mergeAllOn cmpInts (mkS [mkS [2], mkS [1], mkS [3]]));
-    assertEq (mkS [1, 2, 3]) (mergeAllOn cmpInts (mkS [mkS [3], mkS [2], mkS [1]])));
-  
-  testCase "`mergeAllOn` manies" (fn _ =>
-    assertEq
-      (mkS [1, 2, 3, 4, 5, 6, 7, 8])
-      (mergeAllOn cmpInts (mkS [mkS [1, 3], mkS [], mkS [2, 4, 6, 8], mkS [5, 7]])));
-  
-  let ordPairs (x1, y1) (x2, y2) =
-    (x1 : Int) < x2 || (x1 == x2 && (y1 : Int) < y2) in
-
-  let posetPairs (x1, y1) (x2, y2) =
-    (((x1 : Int) <= x2) && ((y1 : Int) <= y2)) in
-
-  let pairEq (x1, y1) (x2, y2) =
-    ((x1 : Int) == x2 && (y1 : Int) == y2) in
-
-  method equal = pairEq in
-
-  testCase "`bestOn` empty" (fn _ =>
-    assertEq (mkS []) (bestOn ordPairs posetPairs (mkS [])));
-  
-  testCase "`bestOn` empties" (fn _ =>
-    assertEq (mkS []) (bestOn ordPairs posetPairs (mkS [mkS [], mkS [], mkS []])));
-  
-  testCase "`bestOn` singletons" (fn _ =>
-    assertEq
-      (mkS [(1, 1), (3, 0)])
-      (bestOn ordPairs posetPairs (mkS [mkS [(2, 1)], mkS [(1, 1)], mkS [(3, 0)]]));
-    assertEq
-      (mkS [(5, 6)])
-      (bestOn ordPairs posetPairs (mkS [mkS [(5, 6)], mkS [(6, 7)], mkS [(5, 7)]])));
-  
-  testCase "`bestOn` manies" (fn _ =>
-    assertEq
-      (mkS [(1, 3), (6, 0)])
-      (bestOn ordPairs posetPairs (mkS [mkS [(1, 3)], mkS [], mkS [(2, 4), (6, 0)], mkS [(5, 7)]])));
-  
-  testCase "`quasifilter` singleton" (fn _ =>
-    assertEq (mkS [1]) (quasifilter (fn _ => False) cmpInts (mkS [1]));
-    assertEq (mkS [1]) (quasifilter (fn _ => True)  cmpInts (mkS [1])));
-  
-  testCase "`quasifilter` filters" (fn _ =>
-    assertEq (mkS [1, 2, 1]) (quasifilter (fn x => 5 > x) cmpInts (mkS [1, 10, 6, 2, 1]));
-    assertEq (mkS [6, 7]) (quasifilter (fn x => 4 % x == 4)  cmpInts (mkS [1, 6, 7, 2])));
-
-  testCase "`quasifilter` selects minimum" (fn _ =>
-    assertEq (mkS [0]) (quasifilter (fn x => False) cmpInts (mkS [2, 1, 3, 7, 0, 42]));
-    assertEq
-      (mkS [(0, 0)])
-      (quasifilter (fn x => False) ordPairs (mkS [(2, 1), (1, 2), (3, 3), (0, 0)])));
-  
-  ())
-#}

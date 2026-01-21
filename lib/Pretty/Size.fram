@@ -15,6 +15,7 @@ import /List
   The `SLast' node is a label that indicates a line where <> will attach
   foramatted text. In every Size object there is exactly one SLast node.
  ##}
+
 pub data rec SList =
   | SFix   of {width : Int} 
   | SShift of {width : Int, dangle : Int}, SList
@@ -27,7 +28,7 @@ method rec toString {?prec : Int, ?fmt : Unit} (self : SList) =
   | SLast {width} tl => "SL {width=\{width}} (\{tl})"
   end
 
-method rec equal (s1 : SList) (s2 : SList) =
+pub method rec equal (s1 : SList) (s2 : SList) =
   match (s1, s2) with
   | SFix {width=w1}, SFix {width=w2} => w1 == w2
   | SShift {width=w1, dangle=d1} s1, SShift {width=w2, dangle=d2} s2 =>
@@ -49,7 +50,7 @@ pub data Size =
 pub method toString (self : Size) =
   "Size {width = \{self.width}, height = \{self.height}}"
 
-method equal (w1 : Size) (w2 : Size) =
+pub method equal (w1 : Size) (w2 : Size) =
   w1.width == w2.width && w1.height == w2.height
 
 {## Constructs Size object for a singular string ##}
@@ -203,108 +204,3 @@ pub let ord (w1 : Size) (w2 : Size) =
     => h1 < h2 || (h1 == h2 && (m1 < m2 || (m1 == m2 && l1 < l2)))
   | _ => impossible ()
   end
-
-{#
-pub let runTests () = testSuite "/Pretty/Size" (fn () =>
-  let (<>)  (s : Size) = s.combine
-  let ($$)  (s : Size) = s.flush.combine
-  let (>+>) {~onError} (s : Size) = s.seq in
-  
-  testCase "`emptySize` has 0 width" (fn () =>
-    assertEq emptySize.width (SLast {width=0} (SFix {width=0})));
-    
-  testCase "`emptySize` has 0 height" (fn () =>
-    assertEq emptySize.height 0);
-  
-  testCase "`textSize` fix width" (fn () =>
-    ["", "abc", "jak-to-jest-byc-skyba?"].iter (fn str =>
-      assertEq (textSize str).width
-        (SLast {width=str.length} (SFix {width=str.length}))));
-    
-  testCase "`textSize` 0 height" (fn () =>
-    ["", "abc", "jak-to-jest-byc-skyba?"].iter (fn str =>
-      assertEq (textSize str).height 0));
-  
-  testCase "`<>` identity" (fn () => 
-    let t = textSize "abc" in
-    assertEq t (t <> emptySize);
-    assertEq t (emptySize <> t));
-  
-  testCase "`<>` simple text" (fn () => 
-    let t = textSize "abc" <> textSize "def" in
-    assertEq t.width (SLast {width=6} (SFix {width=6}));
-    assertEq t.height 0);
-  
-  testCase "`<>` semigroup" (fn () =>
-    let t1 = textSize "defghijk"
-    let t2 = textSize "abc"
-    let t3 = textSize "asdasd" in
-    assertEq ((t1 <> t2) <> t3) (t1 <> (t2 <> t3)));
-
-  testCase "`flush`" (fn () =>
-    let t = textSize "abc" >. flush in
-    assertEq t.height 1;
-    assertEq t.width (SLast {width=0} (SFix {width=3})));
-
-  testCase "`$$` 1" (fn () =>
-    let t = textSize "abc" $$ textSize "defghijk" in
-    assertEq t.height 1;
-    assertEq t.width (SLast {width=8} (SFix {width=8})));
-  
-  testCase "`$$` 2" (fn () =>
-    let t = textSize "defghijk" $$ textSize "abc" in
-    assertEq t.height 1;
-    assertEq t.width (SLast {width=3} (SFix {width=8})));
-  
-  testCase "`$$` semigroup" (fn () =>
-    let t1 = textSize "defghijk"
-    let t2 = textSize "abc"
-    let t3 = textSize "asdasd" in
-    assertEq ((t1 $$ t2) $$ t3) (t1 $$ (t2 $$ t3)));
-  
-  testCase "`<>` `$$` semigroup" (fn () =>
-    let t1 = textSize "aaaaaaaaaa" $$ textSize "aa"
-    let t2 = textSize "bbb" $$ textSize "bbbbbb"
-    let t3 = textSize "ccccccc" $$ textSize "cc" in
-    assertEq ((t1 <> t2) <> t3) (t1 <> (t2 <> t3)));
-  
-  testCase "`shift` simple" (fn () =>
-    let t1 = textSize "abc" >.shift in
-    assertEq t1.height 0;
-    assertEq t1.width
-      (SShift {width=0, dangle=0} (SLast {width=3} (SFix {width=3}))));
-
-  testCase "`shift` adds width" (fn () =>
-    let t = textSize "abc" in
-    assertEqF (t <> t.shift).width
-      (SShift {width=3, dangle=3} (SLast {width=3} (SFix {width=3}))));
-  
-  testCase "`shift` aligns paraller structures" (fn () =>
-    let t1 = textSize "aaaaa" <> (textSize "bb" >.shift)    <> (textSize "ccccc" >.shift)
-    let t2 = textSize "aa"    <> (textSize "bbbbb" >.shift) <> (textSize "cc" >. shift) in
-    assertEqF (t1 $$ t2).width
-      (SShift {width=5, dangle=5} (SShift {width=5, dangle=5} (SLast {width=2} (SFix {width=5})))));
-  
-  testCase "`reset` identity over text" (fn () =>
-    let t1 = textSize "abc" in
-    assertEq t1 t1.reset);
-
-  testCase "`reset` `shift` fixes width" (fn () =>
-    let t = textSize "abc" in
-    assertEqF (t <> t.shift).reset.width (SLast {width=6} (SFix {width=6})));
-  
-  testCase "`seq` simple docs" (fn {X, ~onError : Unit ->> X, ~testArbiter} () =>
-    let t = textSize "abc" $$ textSize "d" in
-    assertEqF (t >+> t).width (SLast {width=4} (SFix {width=6})));
-  
-  testCase "`seq` shifted docs" (fn {X, ~onError : Unit ->> X, ~testArbiter} () =>
-    let t = textSize "abc" $$ textSize "d" in
-    let lt = t <> t.shift in
-    assertEqF
-      lt.width
-      (SShift {dangle=3, width=1} (SLast {width = 1} (SFix {width = 3})));
-    assertEqF
-      (lt >+> t).width
-      (SShift {dangle=3,width=1} (SLast {width=4} (SFix {width=6}))));
-  ())
-#}
