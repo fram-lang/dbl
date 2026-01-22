@@ -42,6 +42,10 @@ pub let rec toList (Stream xs : Stream X) =
   | Cons x xs => x :: toList xs
   end : List X
 
+{## Lifts a stream computation to stream structure directly. ##}
+pub let lazyStream (f : Unit ->[] Stream X) =
+  Stream (lazy (fn _ => f () >.unstream >.force))
+
 {##
   Initializes lazy stream by iteratively applying function `f` on previous results.
 
