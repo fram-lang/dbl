@@ -43,11 +43,15 @@ let cmd_args_options = Arg.align
 
     "-L",
     Arg.String (fun p -> cli_lib_search_dirs := p :: !cli_lib_search_dirs),
-    " Add a path to library search directories";
+    "PATH Add PATH to library search directories";
 
     "-I",
     Arg.String (fun p -> cli_local_search_dirs := p :: !cli_local_search_dirs),
-    " Add a path to local search directories";
+    "PATH Add PATH to local search directories";
+
+    "-load",
+    Arg.String DblConfig.load_file_at_startup,
+    "FILE Load definitions from FILE at startup (only in REPL mode)";
 
     "-no-error-context",
     Arg.Clear DblConfig.display_error_context,
@@ -69,7 +73,7 @@ let cmd_args_options = Arg.align
       |> List.map String.trim 
       |> List.map DblConfig.compile_glob 
       |> fun s -> DblConfig.test_globs := !DblConfig.test_globs @ s),
-    " Run tagged tests matching globs";
+    "GLOBS Run tagged tests matching GLOBS (comma-separated list of globs)";
   
     "-no-show-printing",
     Arg.Clear DblConfig.repl_show_printing,

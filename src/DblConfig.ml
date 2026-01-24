@@ -23,6 +23,13 @@ let local_mod_prefix = "Main"
 let lib_search_dirs   : string list ref = ref [ ]
 let local_search_dirs : string list ref = ref [ ]
 
+(** List of files to load at startup. *)
+let startup_files : string list ref = ref [ ]
+
+(** Add file to the list of files to load at startup. *)
+let load_file_at_startup fname =
+  startup_files := !startup_files @ [ fname ]
+
 let display_error_context = ref true
 
 let print_colors_auto () =

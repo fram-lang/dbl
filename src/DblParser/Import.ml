@@ -176,6 +176,18 @@ let import_prelude () =
     } in
   import_one import_set_empty import
 
+let load_startup_files imported =
+  let imported, defss =
+    List.fold_left_map
+      (fun imported fname ->
+        let imports, defs1 = File.parse_defs fname in
+        let imported, defs2 = import_many imported imports in
+        (imported, defs2 @ defs1.data))
+      imported
+      !DblConfig.startup_files
+  in
+  (imported, List.flatten defss)
+
 let prepend_imports ~use_prelude imports p =
   let open Lang.Surface in
   let make data = { p with data } in
