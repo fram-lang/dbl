@@ -60,9 +60,13 @@ and repl_seq_main imported () =
       (Lexing.lexeme lexbuf))
 
 let repl ~use_prelude =
-  if use_prelude then
-    let imported, prelude_defs = Import.import_prelude () in
-    let repl_expr = make_nowhere (Lang.Surface.ERepl (repl_seq imported)) in
-    make_nowhere (Lang.Surface.EDefs(prelude_defs, repl_expr))
-  else
-    make_nowhere (Lang.Surface.ERepl (repl_seq Import.import_set_empty))
+  let imported, defs =
+    if use_prelude then
+      let imported, prelude_defs = Import.import_prelude () in
+      let imported, at_start_defs = Import.load_startup_files imported in
+      (imported, prelude_defs @ at_start_defs)
+    else
+      Import.load_startup_files Import.import_set_empty
+  in
+  let repl_expr = make_nowhere (Lang.Surface.ERepl (repl_seq imported)) in
+  make_nowhere (Lang.Surface.EDefs(defs, repl_expr))
