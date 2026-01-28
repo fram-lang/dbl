@@ -2,3 +2,5 @@ _build
 
 dbl.opam
 .ocamlformat
+
+runner/__pycache__/

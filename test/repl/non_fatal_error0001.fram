@@ -1,0 +1,7 @@
+let f (x : Unit -> Unit) = x () ;;
+
+f () ;;
+# @stderr: error
+
+42;;
+# @stdout: 42
