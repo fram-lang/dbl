@@ -1,0 +1,7 @@
+data T = C of {type X} | D of {type X}
+
+let foo x =
+  match x with
+  | C | D => ()
+  end
+# @stderr:Or-patterns cannot bind existential type variables.

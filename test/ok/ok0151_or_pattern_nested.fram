@@ -1,0 +1,44 @@
+data Option A = None | Some of A
+data Result E A = Error of E | Ok of A
+data Either A B = Left of A | Right of B
+
+let test_nested_option x =
+  match x with
+  | None | Some None => "none or some none"
+  | Some (Some _) => "some some"
+  end
+
+let test_result_option x =
+  match x with
+  | Ok None | Error None => "none value"
+  | Ok (Some _) | Error (Some _) => "some value"
+  end
+
+data Triple = A | B | C | D | E | F
+
+let test_triple x =
+  match x with
+  | A | B | C => "first"
+  | D | E | F => "second"
+  end
+
+let test_either x =
+  match x with
+  | Left None | Right None => "none"
+  | Left (Some _) | Right (Some _) => "some"
+  end
+
+data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
+
+let is_small_digit x =
+  match x with
+  | D0 | D1 | D2 | D3 | D4 => True
+  | D5 | D6 | D7 | D8 | D9 => False
+  end
+
+let classify_digit x =
+  match x with
+  | D0 => "zero"
+  | D1 | D3 | D5 | D7 | D9 => "odd"
+  | D2 | D4 | D6 | D8 => "even"
+  end

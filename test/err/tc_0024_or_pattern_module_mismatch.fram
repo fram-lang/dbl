@@ -1,0 +1,7 @@
+data T = A of { x : Int } | B
+
+let f x =
+  match x with
+  | A { module M } | B => ()
+  end
+# @stderr:error: Or-pattern branches must bind the same modules, but M is not bound in all branches
