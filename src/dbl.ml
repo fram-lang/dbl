@@ -98,6 +98,12 @@ let _ =
   try
     match !fname with
     | None       -> Pipeline.run_repl ()
+    | Some _ when !DblConfig.force_repl ->
+      Printf.eprintf
+        "A file was provided, but other options force REPL mode.\n\
+        See %s -help for details.\n"
+        Sys.argv.(0);
+      exit 2
     | Some fname -> Pipeline.run_file fname
   with
   | InterpLib.Error.Fatal_error -> exit 1
