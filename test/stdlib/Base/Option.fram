@@ -3,7 +3,7 @@ import open Testing
 let _ = testSuite "unwrapOr" (fn _ =>
   
   testCase "empty" (fn _ =>
-    expectEq (None >. unwrapOr 0) 0);
+    expectEq (None >.unwrapOr 0) 0);
   
   testCase "non empty" (fn _ =>
     expectEq (Some 42 >.unwrapOr 0) 42))
