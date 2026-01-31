@@ -101,12 +101,6 @@ pub let rec mergeAllOn sel (xss : Stream.Stream (Stream.Stream _)) =
 pub let bestOn ord poset xss =
   paretoSelector poset (mergeAllOn ord xss)
 
-let maxWidth (w : Size) =
-  match w.reset with
-  | Size {width=SLast (SFix {width})} => width
-  | _ => impossible ()
-  end
-
 # assumes non-empty input and returns non empty output
 pub let quasifilter
     {X}

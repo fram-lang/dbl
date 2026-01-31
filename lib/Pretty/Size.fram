@@ -1,4 +1,5 @@
 import /List
+import open Lazy
 
 {##
   Shift list aka `SList' 
@@ -38,14 +39,31 @@ pub method rec equal (s1 : SList) (s2 : SList) =
   | _ => False
   end
 
+{## Fast reset calculation ##}
+pub method reset (xs : SList) =
+  let rec iter xs =
+    match xs with
+    | SFix {width} => (width, 0)
+    | SLast {width} tl =>
+      let (fix, _) = iter tl in
+      (fix, width)
+    | SShift {width, dangle} tl =>
+      let (fix, last) = iter tl
+      let tot = max dangle (width + fix) in
+      (tot, width + last)
+    end
+  in
+  iter xs
+
 {##
   Structure stores a size of a given thunk of formatted text.
 
   Height is given explicitly, width is stored as a `shift list'.
  ##}
 pub data Size =
-  { width  : SList
-  , height : Int
+  { width       : SList
+  , height      : Int
+  , fastCompare : Lazy (Pair Int Int)
   }
 
 pub method toString (self : Size) =
@@ -56,19 +74,26 @@ pub method equal (w1 : Size) (w2 : Size) =
 
 {## Constructs Size object for a singular string ##}
 pub let textSize (s : String) =
-  Size {width=SLast {width=s.length} (SFix {width=s.length}), height=0}
+  let width = s.length in
+  Size { width=SLast {width} (SFix {width})
+       , height=0
+       , fastCompare = pureLazy (width, width)
+       }
 
 {## Empty width ##}
 pub let emptySize = textSize ""
 
 {## Inserts newline ##}
-pub method flush (Size {width, height}) =
+pub method flush (Size {width, height, fastCompare}) =
   let rec dropL w = match w with
     | SShift {width, dangle} tl => SShift {width, dangle} (dropL tl)
     | SLast tl => tl
     | SFix => impossible ()
     end in
-  Size {width = SLast {width=0} (dropL width), height = height + 1}
+  Size { width = SLast {width=0} (dropL width)
+       , height = height + 1
+       , fastCompare
+       }
 
 {##
   Calculates size after <> operation as such:
@@ -130,27 +155,22 @@ pub method combine (w1 : Size) (w2 : Size) =
     | SLast {width} tl => combineWs tl (moveBy width w2)
     end in
   
-  Size {width = copyTillL w1.width w2.width, height}
+  let width = copyTillL w1.width w2.width in
+  Size {width, height, fastCompare = lazy (fn _ => width.reset)}
 
 {## Fixes shifts in place and propagates fixed width information ##}
 pub method reset (w : Size) =
-  let rec iter (xs : SList) = match xs with
-    | SFix {width} => (width, None)
-    | SLast {width} tl => (fst (iter tl), Some width)
-    | SShift {width, dangle} tl =>
-      let tl = iter tl in
-      let tot = max dangle (width + tl.fst) in
-      (tot, tl.snd.map (fn x => (width + x)))
-    end in
-  match iter w.width with
-  | (fix, Some last) =>
-    Size { width = SLast {width=last} (SFix {width=fix}), height = w.height }
-  | _ => impossible ()
-  end
+  let (fix, last) = w.fastCompare.force in
+  Size { width = SLast {width=last} (SFix {width=fix})
+       , height = w.height
+       , fastCompare = w.fastCompare }
 
 {## Adds an empty shift. ##}
-pub method shift (Size {width, height}) =
-  Size {width = SShift {width=0, dangle=0} width, height}
+pub method shift (Size {width, height, fastCompare}) =
+  Size { width = SShift {width=0, dangle=0} width
+       , height
+       , fastCompare
+       }
 
 {##
   Calculates true vertiacal catenation.
@@ -184,7 +204,11 @@ pub method seq {~onError} (w1 : Size) (w2 : Size) =
       | _ => impossible ()
       end
     end in
-  Size {height = max w1.height w2.height, width = join w1.width}
+  let width = join w1.width in
+  Size { height = max w1.height w2.height
+       , width
+       , fastCompare = lazy (fn _ => width.reset)
+       }
 
 pub method getAlign (w : Size) =
   let rec iter (w : SList) = 
@@ -196,17 +220,19 @@ pub method getAlign (w : Size) =
   in iter w.width
 
 pub let poset (w1 : Size) (w2 : Size) =
-  match w1.reset, w2.reset with
-  | Size {height=h1, width=SLast {width=l1} (SFix {width=m1})}
-  , Size {height=h2, width=SLast {width=l2} (SFix {width=m2})}
-    => m1 <= m2 && h1 <= h2 && l1 <= l2
-  | _ => impossible ()
-  end 
+  let (m1, l1) = w1.fastCompare.force
+  let (m2, l2) = w2.fastCompare.force in
+  m1 <= m2 && w1.height <= w2.height && l1 <= l2
 
 pub let ord (w1 : Size) (w2 : Size) =
-  match w1.reset, w2.reset with
-  | Size {height=h1, width=SLast {width=l1} (SFix {width=m1})}
-  , Size {height=h2, width=SLast {width=l2} (SFix {width=m2})}
-    => h1 < h2 || (h1 == h2 && (m1 < m2 || (m1 == m2 && l1 < l2)))
-  | _ => impossible ()
-  end
+  if w1.height < w2.height then
+    True
+  else if w1.height > w2.height then
+    False
+  else (
+    let (m1, l1) = w1.fastCompare.force
+    let (m2, l2) = w2.fastCompare.force in
+    m1 < m2 || (m1 == m2 && l1 < l2))
+
+pub let maxWidth (w : Size) =
+  w.fastCompare.force.fst
