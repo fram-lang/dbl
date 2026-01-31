@@ -21,12 +21,12 @@ let table =
       <> text "Quantity" <> vsep.shift
       <> text "Prize" <> vsep.shift
   let rows = List.map
-    (fn (prod, quantity, prize) =>
+    (fn (prod, (quantity : Int), (prize : Int)) =>
       vsep
-        <> textFmt prod <> vsep.shift
-        <> textFmt quantity <> vsep.shift
-        <> textFmt prize <> vsep.shift)
+        <> text prod <> vsep.shift
+        <> text quantity.toString <> vsep.shift
+        <> text prize.toString <> vsep.shift)
     groceryList in
-  header $$ (List.foldr1 ($$) rows)
+  header $$ (List.foldRight1 ($$) rows).unwrap
 
 let _ = printStrLn (generate table)

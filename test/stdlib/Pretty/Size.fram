@@ -1,6 +1,8 @@
 import open /Pretty/Size
 import open Testing
 
+let ~onError () = runtimeError "Unhandled runtime error"
+
 let (<>)  (s : Size) = s.combine
 let ($$)  (s : Size) = s.flush.combine
 let (>+>) {~onError} (s : Size) = s.seq
