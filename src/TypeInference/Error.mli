@@ -57,8 +57,9 @@ val finally_type_mismatch :
 val repl_show_type_mismatch :
   pos:Position.t -> pp:PPTree.t -> self_tp:T.typ -> T.typ -> t
 
-val func_not_pure : pos:Position.t -> t
-val impure_handler : pos:Position.t -> t
+val func_not_total : pos:Position.t -> t
+val handler_not_total : pos:Position.t -> t
+val expr_not_total : pos:Position.t -> t
 
 val invalid_rec_def : pos:Position.t -> t
 val non_productive_rec_def : pos:Position.t -> t

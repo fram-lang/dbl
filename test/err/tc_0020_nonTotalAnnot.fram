@@ -1,0 +1,3 @@
+let rec f () : total Unit = f ()
+
+# @stderr:1:29-32: error: Cannot ensure that this expression is total
