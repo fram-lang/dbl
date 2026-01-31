@@ -8,7 +8,7 @@ let ys = [5, 6, 7, 8]
 
 let add (x : Int) y = x + y
 
-{# Simple accumualtion effect for tests of iter* functions. #}
+{# Simple accumulation effect for tests of iter* functions. #}
 let accumH =
   handler
     effect x / r => fn s => r () (s + x)
@@ -120,6 +120,25 @@ testSuite "dropLastErr" (fn _ =>
       let ~onError () = 0 in
       assertCallsOnError (fn _ =>
         assertEq (List.nthErr [] 2) 0)));
+  
+  testSuite "last" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertEq (List.last xs) (Some 4));
+    
+    testCase "empty" (fn _ =>
+      assertEq (List.last ([] : List Int)) None));
+  
+  testSuite "lastErr" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertDoesNotCallOnError (fn _ =>
+        assertEq (List.lastErr xs) 4));
+      
+    testCase "empty" (fn _ =>
+      let ~onError () = 0 in
+      assertCallsOnError (fn _ =>
+        assertEq (List.lastErr []) 0)));
 
   testSuite "dropTakeLast" (fn _ =>
     

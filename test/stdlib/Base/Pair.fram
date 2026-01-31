@@ -4,7 +4,7 @@ let _ =
 
 testSuite "equal" (fn _ =>
 
-  testCase "is eqaul" (fn _ =>
+  testCase "is equal" (fn _ =>
     assertTrue ((10, True) == (10, True));
     assertTrue (("abc", [1]) == ("abc", [1])));
   
