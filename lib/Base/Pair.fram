@@ -1,0 +1,17 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+import open Types
+
+{##
+  Checks equality of pairs.
+  Returns true if first and second elements are pairwise equal.
+  Returns false otherwise.
+ ##}
+pub method equal
+    { X, method equal : X -> X ->> Bool
+    , Y, method equal : Y -> Y ->> Bool }
+    ((x1, y1) : Pair X Y)
+    ((x2, y2) : Pair X Y) =
+  x1.equal x2 && y1.equal y2
