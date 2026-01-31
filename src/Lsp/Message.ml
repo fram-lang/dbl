@@ -136,7 +136,7 @@ type hover_params = {
 let to_hover_params json =
   let text_document =
     json |> member "textDocument"  |> to_text_document_identifier in
-  let position = 
+  let position =
     json |> member "position"      |> to_position                 in
   let work_done_token =
     json |> member "workDoneToken" |> to_progress_token_option    in
@@ -553,11 +553,13 @@ let json_of_response response =
      id and either result or error fields are required even if null *)
   | Ok result ->
     `Assoc [
+      ("jsonrpc", from_string response.jsonrpc);
       ("id",     from_option from_id response.id);
       ("result", from_server_result result);
     ]
   | Error error ->
     `Assoc [
+      ("jsonrpc", from_string response.jsonrpc);
       ("id",    from_option from_id response.id);
       ("error", from_response_error error);
     ]
