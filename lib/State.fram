@@ -9,22 +9,22 @@ This module provides a standard effect of a single mutable cell.
 ##}
 
 {## Effect capability representing a single mutable cell of type `X`. ##}
-pub data State X E = State of
+pub data State E X = State of
   { get : Unit ->[E] X
   , set : X ->[E] Unit
   }
 
-parameter X
 parameter E
+parameter X
 
 {## Get the current value of the cell. ##}
-pub method get (State { get } : State X E) = get ()
+pub method get (State { get } : State E X) = get ()
 
 {## Set the current value of the cell. ##}
-pub method set (State { set } : State X E) = set
+pub method set (State { set } : State E X) = set
 
 {## Update the current value of the cell by applying function `f`. ##}
-pub method update (cell : State X E) f =
+pub method update (cell : State E X) f =
   cell.set (f cell.get)
 
 {## Handler for the `State` effect, initializing the cell with `initial`. ##}
