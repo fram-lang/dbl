@@ -191,7 +191,7 @@ pub let (semibraced : List Doc ->[] Doc) =
 pub let (<+>) d1 d2 = d1 <> text " " <> d2
 
 {## Puts d2 right after d1 or in next line ##}
-pub let (</>) d1 d2 = hang 0 d1 d2
+pub let (</>) d1 d2 = hangWith 0 d1 d2
 
 {## Enclosing of a document. ##}
 pub let enclose l r d = l <> r <> d
@@ -245,6 +245,3 @@ pub method style
 
 {## Generates single document as string. ##}
 pub let generate {?width : Int} = Core.generate {?width}
-
-{## Generates single document and prints debug info. ##}
-pub let generateDebug = Core.generateDebug

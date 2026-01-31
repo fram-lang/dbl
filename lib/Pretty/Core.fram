@@ -9,6 +9,13 @@ let ~onError () = runtimeError "PrettyPrinter - internal error"
 
 type Layout = Pair Size DocLines
 
+# Enables to perform cross product much faster than regular bind
+let hSeqYield =
+  handler
+    effect x => Stream.cons x (Stream.lazyStream resume)
+    return () => Stream.empty
+  end
+
 method combine ((x1, y1) : Layout) ((x2, y2) : Layout) =
   (x1.combine x2, y1.combine y2)
 
@@ -24,17 +31,14 @@ method seq (l1 : Layout) (l2 : Layout) =
       ((x1, y1) : Layout)
       ((x2, y2) : Layout) =
     (x1.seq x2, y1.seq y2 x1.getAlign)
-  let gentle =
-    handle
-      ~onError = effect _ => None
-      return c => Some c
-    in mkSeq l1 l2 in
-  match gentle with
-  | Some c => c
-  | None =>
-    let ~onError _ = impossible () in
-    mkSeq (l1.reset) (l2.reset)
-  end
+  in
+  handle
+    ~onError = effect () =>
+      let ~onError () = impossible () in
+      mkSeq l1.reset l2.reset
+    return c => c
+  in
+  mkSeq l1 l2
 
 method style ((x, y) : Layout) (sty : Style.Style) = (x, y.style sty)
 
@@ -56,24 +60,25 @@ pub let ($$)
   x.flush.combine
 
 pub let paretoSelector
-  {X : type}
-  (poset : X -> X ->[] Bool)
-  (seq : Stream.Stream X) = 
-    let rec iter (mins : List X) (seq : Stream.Stream X) () =
-      match seq.uncons with
-      | None => Stream.empty
-      | Some (x, seq) =>
-        match List.findIndex (fn y => poset y x) mins with
-        | Some _ => iter mins seq ()
-        | None => Stream.cons x (Stream.lazyStream ((iter (x :: mins) seq)))
-        end
-      end in
-    Stream.lazyStream (iter [] seq)
+    {X : type}
+    (poset : X -> X ->[] Bool)
+    (seq : Stream.Stream X) = 
+  let rec iter (mins : List X) (seq : Stream.Stream X) () =
+    match seq.uncons with
+    | None => Stream.empty
+    | Some (x, seq) =>
+      match List.findIndex (fn y => poset y x) mins with
+      | Some _ => iter mins seq ()
+      | None => Stream.cons x (Stream.lazyStream ((iter (x :: mins) seq)))
+      end
+    end in
+  Stream.lazyStream (iter [] seq)
 
 pub let rec mergeOn
-  sel
-  (xs : Stream.Stream _)
-  (ys : Stream.Stream _) = Stream.lazyStream (fn _ =>
+    sel
+    (xs : Stream.Stream _)
+    (ys : Stream.Stream _) =
+  Stream.lazyStream (fn _ =>
     match xs.uncons with
     | None => ys
     | Some(x, xs') => match ys.uncons with
@@ -129,12 +134,9 @@ let discardInvalid (w : Int) =
     (fn s => maxWidth (fst s) <= w)
     (fn x y => maxWidth (fst x) <= maxWidth (fst y))
 
-let (>>=) (xs : Stream.Stream _) f = Stream.concatMap f xs
-
 pub method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
-  let ds = xs w >>= (fn x =>
-    Stream.singleton (discardInvalid w (ys w >>= (fn y =>
-      Stream.singleton (x <> y)))))
+  let ds = xs w >.map
+    (fn x => (discardInvalid w (ys w >.map (fn y => x <> y))))
   in
   bestOn
     (fn x y => ord (fst x) (fst y))
@@ -145,33 +147,31 @@ pub let groupingBy (sep : String) (ms : List (Pair Int ODoc)) =
   match ms with
   | [] => emptyDoc
   | ms => ODoc (fn w =>
-    let (mws : List (Pair Int (Stream.Stream Layout)))
-      = List.map (fn (x, ODoc d) => (x, d w)) ms in
-    let (init, (_, last)) = List.dropTakeLast mws >.unwrapErr in
-    let (hcat : List (Stream.Stream Layout))
-      = List.map (fn x => onlySingleLine (snd x)) init + [last] in
-    let (vcat : List (Stream.Stream Layout))
-      = List.map (fn (i, x) => Stream.map (fn x => spaces i <> x) x) mws in
+    let mws = List.map (fn (x, ODoc d) => (x, d w)) ms
+    let (init, (_, last)) = List.dropTakeLast mws >.unwrapErr
+    let hcat = List.map (fn x => onlySingleLine (snd x)) init + [last]
+    let vcat = List.map (fn (i, x) => Stream.map (fn x => spaces i <> x) x) mws
     let hor = discardInvalid w
       (List.foldRight1
-        (fn xs ys => xs >>= (fn x =>
-                     ys >>= (fn y =>
-                     Stream.singleton (x <> textLayout sep <> y))))
-        hcat).unwrapErr in
+        (fn (xs : Stream.Stream _) (ys : Stream.Stream _) =>
+          handle yield with hSeqYield in
+            xs.iter (fn x =>
+              ys.iter (fn y =>
+                yield (x <> textLayout sep <> y))))
+        hcat).unwrapErr
     let ver =
       List.foldRight1
-        (fn xs ys =>
+        (fn (xs : Stream.Stream _) ys =>
           bestOn 
             (fn x y => ord (fst x) (fst y))
             (fn x y => poset (fst x) (fst y))
-            (xs >>= (fn x =>
-            Stream.singleton (ys >>= (fn y =>
-               Stream.singleton (x $$ y))))))
+            (xs.map (fn x => (ys.map (fn y => x $$ y)))))
         vcat >.unwrapErr
     let ls = bestOn
       (fn x y => ord (fst x) (fst y))
       (fn x y => poset (fst x) (fst y))
-      (Stream.fromList [hor, ver]) in
+      (Stream.fromList [hor, ver])
+    in
     discardInvalid w ls)
   end
 
@@ -207,18 +207,3 @@ pub let generate {?width : Int} (ODoc xs) =
     let lines = lines.force in
     (unlines width lines : String)
   end
-
-pub let generateDebug width (ODoc xs) =
-  let rec iter (xs : Stream.Stream Layout) =
-    match xs.uncons with
-    | None => ()
-    | Some (layout, tail) =>
-      let layout = layout.reset in
-      let (size, lines) = layout in
-      printStrLn size.toString;
-      printStrLn "";
-      printStrLn (debugLines lines.force);
-      printStrLn (unlines width lines.force);
-      iter tail
-    end in
-  iter (xs width)

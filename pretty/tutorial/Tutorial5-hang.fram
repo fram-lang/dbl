@@ -1,6 +1,6 @@
 import open Pretty
 
-let myDoc = hang 2 (text "Hello") (text "World!")
+let myDoc = hangWith 2 (text "Hello") (text "World!")
 
 let _ = printStrLn (generate {width=20} myDoc)
 let _ = printStrLn (generate {width=8}  myDoc)

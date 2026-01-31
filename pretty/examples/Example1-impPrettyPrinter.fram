@@ -52,7 +52,7 @@ method rec pretty (self : BExp) = match self with
 method rec pretty (self : Imp) = match self with
   | Skip => text "skip;"
   | Ass v e =>
-    hang 2
+    hangWith 2
       (text ("let " + v + " ="))
       (e.pretty <> text ";")
   | Seq p1 p2 => p1.pretty $$ p2.pretty
