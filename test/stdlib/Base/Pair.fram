@@ -1,0 +1,13 @@
+import open Testing
+
+let _ =
+
+testSuite "equal" (fn _ =>
+
+  testCase "is eqaul" (fn _ =>
+    assertTrue ((10, True) == (10, True));
+    assertTrue (("abc", [1]) == ("abc", [1])));
+  
+  testCase "is not equal" (fn _ =>
+    assertFalse ((20, True) == (42, True));
+    assertFalse (("abc", [1]) == ("abc", [2]))))
