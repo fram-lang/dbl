@@ -1,0 +1,6 @@
+import open Pretty
+
+let doc = style {fg=Colors.red} (text "aaaa") $$ text "bb"
+let doc = style {underline=True} doc
+
+let _ = printStrLn (generate doc)

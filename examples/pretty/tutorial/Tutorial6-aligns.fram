@@ -1,0 +1,6 @@
+import open Pretty
+
+let fstDoc = text "let xyz" <> shift (text " = 10")
+let sndDoc = text "let abcdef" <> shift (text " = True")
+
+let _ = printStrLn (generate (fstDoc $$ sndDoc))
