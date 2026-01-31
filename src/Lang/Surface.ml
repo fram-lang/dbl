@@ -277,6 +277,13 @@ and expr_data =
   | EAnnot of expr * type_expr
     (** Type annotation *)
 
+  | EAnnotEff of expr * type_expr * type_expr
+    (** Expression explicitly annotated with a type (second parameter) and an
+      effect (third parameter) *)
+
+  | EAnnotTotal of expr * type_expr
+    (** Type annotation with totality guarantee *)
+
   | ERepl of def list Seq.t
     (** REPL. It is a lazy sequence of groups of definitions provided by a
       user. Each group is treated as a monolith: if one of them fails, the
