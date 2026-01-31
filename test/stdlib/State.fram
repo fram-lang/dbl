@@ -1,39 +1,37 @@
 import open Testing
 import open /State
 
-let _ = testSuite "State" (fn _ =>
-  
-  testCase "get and set" (fn _ =>
-    handle st with hState 0 in
-    assertEq st.get 0;
-    st := 42;
-    assertEq st.get 42;
-    st.set 13;
-    assertEq st.get 13);
+let _ = testCase "get and set" (fn _ =>
+  handle st with hState 0 in
+  assertEq st.get 0;
+  st := 42;
+  assertEq st.get 42;
+  st.set 13;
+  assertEq st.get 13)
 
-  testCase "update" (fn _ =>
-    handle st with hState 10 in
-    st.update (fn x => x * 2);
-    assertEq st.get 20;
-    st.update (fn x => x + 5);
-    assertEq st.get 25);
+let _ = testCase "update" (fn _ =>
+  handle st with hState 10 in
+  st.update (fn x => x * 2);
+  assertEq st.get 20;
+  st.update (fn x => x + 5);
+  assertEq st.get 25)
 
-  testCase "multiple state handlers" (fn _ =>
-    handle st1 with hState 1
-    handle st2 with hState 100
-    in
-    assertEq st1.get 1;
-    assertEq st2.get 100;
-    st1 := 10;
-    st2 := 200;
-    assertEq st1.get 10;
-    assertEq st2.get 200);
+let _ = testCase "multiple state handlers" (fn _ =>
+  handle st1 with hState 1
+  handle st2 with hState 100
+  in
+  assertEq st1.get 1;
+  assertEq st2.get 100;
+  st1 := 10;
+  st2 := 200;
+  assertEq st1.get 10;
+  assertEq st2.get 200)
 
-  testCase "effectful update" (fn _ =>
-    handle st1 with hState 1
-    handle st2 with hState 2
-    in
-    st1.update (fn x => x + st2.get);
-    assertEq st1.get 3;
-    st2.update (fn x => x * st1.get);
-    assertEq st2.get 6))
+let _ = testCase "effectful update" (fn _ =>
+  handle st1 with hState 1
+  handle st2 with hState 2
+  in
+  st1.update (fn x => x + st2.get);
+  assertEq st1.get 3;
+  st2.update (fn x => x * st1.get);
+  assertEq st2.get 6)
