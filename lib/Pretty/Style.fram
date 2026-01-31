@@ -10,6 +10,19 @@ pub data Color =
   | Cyan
   | White
 
+method equal (c1 : Color) (c2 : Color) =
+  match (c1, c2) with
+  | Black,   Black   => True
+  | Red,     Red     => True
+  | Green,   Green   => True
+  | Yellow,  Yellow  => True
+  | Blue,    Blue    => True
+  | Magenta, Magenta => True
+  | Cyan,    Cyan    => True
+  | White,   White   => True
+  | _,       _       => False
+  end
+
 method toAnsi (color : Color) =
   match color with
   | Black   => Term.Font.Black
@@ -30,28 +43,66 @@ pub data Style =
              , ?strike : Bool
              }
 
-method getCode (self : Style) = match self with
-  | Clear => Term.Font.resetAll
-  | Style {fg, bg, underline, strike} =>
+pub data CurrStyle = { fg        : Option Color
+                     , bg        : Option Color
+                     , underline : Bool
+                     , strike    : Bool
+                     }
+
+let emptyCurrStyle = CurrStyle
+  { fg = None
+  , bg = None
+  , underline = False
+  , strike    = False
+  }
+
+method addStyle (c : CurrStyle) (s : Style) =
+  match (c, s) with
+  | _, Clear => emptyCurrStyle
+  | c, Style {fg, bg, underline, strike} =>
+    let fg =
       match fg with
-      | Some c => Term.Font.setFgColor c.toAnsi
-      | None => ""
+      | None => c.fg
+      | Some c => Some c
       end
-    + match bg with
-      | Some c => Term.Font.setBgColor c.toAnsi
-      | None => ""
+    let bg =
+      match bg with
+      | None => c.fg
+      | Some c => Some c
       end
-    + match underline with
-      | Some True => Term.Font.setUnderline
-      | Some False => Term.Font.resetUnderline
-      | None => ""
-      end
-    + match strike with
-      | Some True => Term.Font.setStrikeout
-      | Some False => Term.Font.resetStrikeout
-      | None => ""
-      end
+    let strike = strike.unwrapOr c.strike
+    let underline = underline.unwrapOr c.underline
+    in
+    CurrStyle {fg, bg, strike, underline}
   end
+
+method getDeltaCode (old : CurrStyle) (new : CurrStyle) =
+  let fg =
+    if not (old.fg == new.fg) then 
+      match new.fg with
+      | Some c => Term.Font.setFgColor c.toAnsi
+      | None => Term.Font.setDflFgColor
+      end
+    else ""
+  let bg =
+    if not (old.bg == new.bg) then
+      match new.bg with
+      | Some c => Term.Font.setBgColor c.toAnsi
+      | None => Term.Font.setDflBgColor
+      end
+    else ""
+  let underline =
+    if old.underline != new.underline then
+      if new.underline then Term.Font.setUnderline
+      else Term.Font.resetUnderline
+    else ""
+  let strike =
+    if old.strike != new.strike then
+      if new.strike then Term.Font.setStrikeout
+      else Term.Font.resetStrikeout
+    else ""
+  in
+  strListCat [fg, bg, underline, strike]
 
 # produces next ansi string to continue style
 pub data Stylist E =
@@ -62,12 +113,19 @@ pub data Stylist E =
 pub let styleH =
   handler
     Stylist
-      { pushStyle = effect s / r => fn st => r s.getCode (s :: st)
-      , popStyle  = effect s / r => fn st => match st with
-          | _ :: y :: xs => r y.getCode (y :: xs)
-          | _ => impossible ()
-          end
+      { pushStyle = effect s / r => fn st =>
+        match (st : List CurrStyle) with
+        | [] => impossible ()
+        | old :: styles =>
+          let new = old.addStyle s in
+          r (old.getDeltaCode new) (new :: st)
+        end
+      , popStyle  = effect s / r => fn st =>
+        match st with
+        | old :: new :: styles => r (old.getDeltaCode new) (new :: styles)
+        | _ => impossible ()
+        end
       }
     return x => fn _ => x
-    finally c => c [Clear]
+    finally c => c [emptyCurrStyle]
   end
