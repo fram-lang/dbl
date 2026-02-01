@@ -1,3 +1,4 @@
+
 import open Mutable
 import open /Vector
 import open Testing
@@ -20,8 +21,8 @@ let _ = testSuite "vector" (fn _ =>
     vec.pushBack 5;
     let fst = vec.front in
     let lst = vec.back in
-    assertEqS fst (Some 1);
-    assertEqS lst (Some 5));
+    assertEqS fst 1;
+    assertEqS lst 5);
   
   testCase "get method" (fn _ =>
     let vec = makeVector {T=Int} 0 in
@@ -31,8 +32,8 @@ let _ = testSuite "vector" (fn _ =>
     vec.pushBack 9;
     let x = vec.get 1 in
     let y = vec.get 3 in
-    assertEqS x (Some 7);
-    assertEqS y (Some 9));
+    assertEqS x 7;
+    assertEqS y 9);
     
   testCase "clear method" (fn _ =>
     let vec = makeVector {T=Int} 4 in
@@ -49,6 +50,7 @@ let _ = testSuite "vector" (fn _ =>
     let y = vec.get 2 in
     let ys = vec.toList in
     let z = ys.hd in
-    assertEqS x (Some 1);
-    assertEqS y (Some 3);
-    assertEqS z (Some (Some 1))))
+    assertEqS x 1;
+    assertEqS y 3;
+    assertEqS z (Some 1)))
+    
