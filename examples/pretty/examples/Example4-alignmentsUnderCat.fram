@@ -1,0 +1,16 @@
+import open Pretty
+
+
+let doc1 = text "data List " <> cat [ text "= Cons of Int, List " >.shift
+                                    , text "| Nil" >.shift ]
+
+let doc2 = text "data MyData " <> cat [ text "= ABC of Int " >.shift
+                                      , text "| XYZ " >.shift
+                                      , text "| DEF" >.shift ]
+
+let doc = doc1 $$ doc2
+
+let _ = [50, 40, 30].iter (fn width =>
+  printStrLn (generate {width} doc))
+
+
