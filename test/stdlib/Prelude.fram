@@ -1,0 +1,28 @@
+import open Testing
+
+let _ =
+
+  testCase "min" (fn _ =>
+    expectEq (min 10 20) 10;
+    expectEq (min 20 10) 10;
+    expectEq (min 10 10) 10;
+    expectEq (min "abc" "def") "abc");
+
+  testCase "max" (fn _ =>
+    expectEq (max 10 20) 20;
+    expectEq (max 20 10) 20;
+    expectEq (max 20 20) 20;
+    expectEq (max "abc" "def") "def");
+
+  testCase "strListCat" (fn _ =>
+    expectEq (strListCat ["a", "b", "c"]) "abc";
+    expectEq (strListCat ["do", "re", "mi"]) "doremi";
+    expectEq (strListCat []) "");
+
+  testCase "replicate" (fn _ =>
+    expectEq (replicate "ab" 0) "";
+    expectEq (replicate "ab" 1) "ab";
+    expectEq (replicate "ab" 2) "abab";
+    expectEq (replicate "ab" 3) "ababab";
+    expectEq (replicate "ab" 5) "ababababab";
+    expectEq (replicate "" 20) "")
