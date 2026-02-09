@@ -4,7 +4,6 @@ function simple_run_tests {
     simple_test $file
   done
 }
-https://github.com/fram-lang/dbl/pull/321/conflict?name=test%252Fstdlib%252FTestAll.fram&ancestor_oid=6e9ee1ad9fe4353a419bdfb308bf487a30105823&base_oid=8a6c285ebcf87a5942e3f4a40ce697a54dd946e2&head_oid=4d987099220af2bf18bf097a8abba1c7f14eef6b
 run_with_flags simple_run_tests "-no-prelude -no-stdlib"
 
 function simple_examples {
