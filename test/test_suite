@@ -4,7 +4,6 @@ function simple_run_tests {
     simple_test $file
   done
 }
-
 run_with_flags simple_run_tests "-no-prelude -no-stdlib"
 
 function simple_examples {
@@ -19,7 +18,6 @@ run_with_flags simple_examples ""
 
 function simple_stdlib_tests {
   simple_test test/stdlib/TestAll.fram
-  simple_test test/stdlib/stdlib0007_Stream.fram
 }
 
 run_with_flags simple_stdlib_tests ""
