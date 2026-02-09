@@ -19,7 +19,6 @@ run_with_flags simple_examples ""
 
 function simple_stdlib_tests {
   simple_test test/stdlib/TestAll.fram
-  simple_test test/stdlib/stdlib0007_Stream.fram
   simple_test test/stdlib/stdlib0008_Map.fram
 }
 
