@@ -18,10 +18,9 @@ function simple_examples {
 run_with_flags simple_examples ""
 
 function simple_stdlib_tests {
-	for file in test/stdlib/*.fram
-	do
-		simple_test $file
-	done
+  simple_test test/stdlib/TestAll.fram
+  simple_test test/stdlib/stdlib0007_Stream.fram
+  simple_test test/stdlib/stdlib0008_Map.fram
 }
 
 run_with_flags simple_stdlib_tests ""

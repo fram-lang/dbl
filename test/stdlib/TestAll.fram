@@ -1,5 +1,11 @@
+import Base/Int64
 import Base/Option
 import Base/Pair
+import Base/Show
+import Base/ToString
 import List
 import Stream
+import Mutable
+import Prelude
 import State
+import String

@@ -85,13 +85,13 @@ testSuite "foldRight1Err" (fn _ =>
 
   testCase "non empty" (fn _ =>
     assertEq
-      (Stream.foldRight1Err {~onError = fn _ => 42}
+      (Stream.foldRight1Err
         (fn (x : Int) y => x + y) (Stream.fromList [1, 2, 3, 4]))
       10);
   
   testCase "empty" (fn _ =>
     assertEq
-      (Stream.foldRight1Err {~onError = fn _ => 42}
+      (Stream.foldRight1Err
         (fn (x : Int) y => x + y) (Stream.empty {X=Int}))
       42));
 
