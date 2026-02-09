@@ -25,4 +25,11 @@ let _ =
     expectEq (replicate "ab" 2) "abab";
     expectEq (replicate "ab" 3) "ababab";
     expectEq (replicate "ab" 5) "ababababab";
-    expectEq (replicate "" 20) "")
+    expectEq (replicate "" 20) "");
+  
+  testCase "function composition" (fn _ =>
+    let foo x = 2 * x
+    let bar x = 2 + x
+    in
+    assertEq ((foo * bar) 10) 24;
+    assertEq ((bar * foo) 10) 22)
