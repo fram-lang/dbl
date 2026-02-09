@@ -4,6 +4,7 @@ import Base/Pair
 import Base/Show
 import Base/ToString
 import List
+import Map
 import Mutable
 import Prelude
 import State
