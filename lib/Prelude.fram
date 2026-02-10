@@ -73,3 +73,6 @@ pub let rec replicate (s : String) (n : Int) =
   else
    (let s' = replicate s (n / 2) in
     s' + (s' + s))
+
+## Function composition method.
+pub method mul {X, Y, Z} (f : Y ->> Z) (g : X ->> Y) (x : X) = f (g x)
