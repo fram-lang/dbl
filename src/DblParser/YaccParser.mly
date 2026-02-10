@@ -17,7 +17,7 @@
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
 %token KW_PARAMETER KW_PUB
 %token KW_REC
-%token KW_RETURN KW_SECTION KW_THEN KW_TYPE KW_WITH
+%token KW_RETURN KW_SECTION KW_THEN KW_TOTAL KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -168,6 +168,18 @@ ty_expr_simple
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effct SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
+;
+
+/* ------------------------------------------------------------------------- */
+
+type_annot
+: ty_expr          { AnnotType  $1 }
+| KW_TOTAL ty_expr { AnnotTotal $2 }
+;
+
+type_annot_opt
+: /* empty */      { None    }
+| COLON type_annot { Some $2 }
 ;
 
 /* ------------------------------------------------------------------------- */
@@ -335,13 +347,13 @@ expr_20_no_comma
 
 // exp1 , exp2
 expr_30
-: expr_30 COLON ty_expr { make (EAnnot($1, $3)) }
+: expr_30 COLON type_annot { make (EAnnot($1, $3)) }
 | expr_30 op_30 expr_40 { make (EBOp($1, $2, $3)) }
 | expr_40 { $1 }
 ;
 
 expr_30_no_comma
-: expr_30_no_comma COLON ty_expr { make (EAnnot($1, $3)) }
+: expr_30_no_comma COLON type_annot { make (EAnnot($1, $3)) }
 | expr_30_no_comma op_30_no_comma expr_40 { make (EBOp($1, $2, $3)) }
 | expr_40 { $1 }
 ;
@@ -542,8 +554,8 @@ def
 ;
 
 def_base
-: pub KW_LET rec_opt expr_70 EQ expr 
-    { ($1, make_def $3 (DLet($4, $6))) }
+: pub KW_LET rec_opt expr_70 type_annot_opt EQ expr
+    { ($1, make_def $3 (DLet($4, $5, $7))) }
 | KW_PARAMETER field 
     { ([], DParam $2) }
 | data_vis KW_DATA rec_opt ty_expr EQ bar_opt ctor_decl_list
@@ -558,8 +570,8 @@ def_base
     { ($1, make_def $3 (DHandle($4, $5, $7, $8))) }
 | pub KW_HANDLE rec_opt expr_100 effect_var_opt KW_WITH expr
     { ($1, make_def $3 (DHandleWith($4, $5, $7))) }
-| pub KW_METHOD rec_opt expr_70 EQ expr 
-    { ($1, make_def $3 (DMethod($4, $6))) }
+| pub KW_METHOD rec_opt expr_70 type_annot_opt EQ expr
+    { ($1, make_def $3 (DMethod($4, $5, $7))) }
 | pub KW_MODULE rec_opt UID def_list KW_END
     { ($1, make_def $3 (DModule($4, $5))) }
 | pub KW_SECTION def_list KW_END

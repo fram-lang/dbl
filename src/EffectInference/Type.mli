@@ -12,6 +12,9 @@ val tr_type : Env.t -> S.typ -> T.typ
 (** Translate a type expression *)
 val tr_type_expr : Env.t -> S.type_expr -> T.typ
 
+(** Translate a type expression of an effect kind *)
+val tr_effect_expr : Env.t -> S.type_expr -> T.effct
+
 (** Translate a scheme expression *)
 val tr_scheme_expr : Env.t -> S.scheme_expr -> T.scheme
 
