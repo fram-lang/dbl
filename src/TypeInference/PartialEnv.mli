@@ -59,6 +59,13 @@ val add_method :
   be bound in both environments. *)
 val join : pp:PPTree.t -> t -> t -> t
 
+(** Intersect two partial environments. Both environments must bind exactly
+  the same variables. Used for or-patterns. Returns the merged environment
+  and a renaming from penv2's variables to penv1's variables. *)
+val intersect :
+  ?check_schemes:(T.scheme -> T.scheme -> unit) ->
+  pp:PPTree.t -> pos:Position.t -> scope:Scope.t -> t -> t -> t * T.Ren.t
+
 (** Enter a new scope (twice) and add all members of the partial environment
   to the environment. The second parameter is a list of type parameters bound
   when the partial environment was created. Type aliases to these parameters

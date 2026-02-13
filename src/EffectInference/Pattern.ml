@@ -23,7 +23,20 @@ module PEnv = struct
 
   let join penv1 penv2 =
     { tvars = penv1.tvars @ penv2.tvars;
-      vars  = penv1.vars @ penv2.vars;
+      vars  = penv1.vars  @ penv2.vars;
+      eff   = T.CEffect.join penv1.eff penv2.eff
+    }
+
+  (** Intersect two pattern environments from or-pattern branches.
+      We keep only the bindings from penv1 since at this point (after type
+      checking), both branches bind the same variables with compatible types.
+      The variables in penv2 are equivalent to those in penv1, so we can
+      safely discard them. *)
+  let intersect penv1 penv2 =
+    assert (List.length penv1.tvars = List.length penv2.tvars);
+    assert (List.length penv1.vars = List.length penv2.vars);
+    { tvars = penv1.tvars;
+      vars  = penv1.vars;
       eff   = T.CEffect.join penv1.eff penv2.eff
     }
 
@@ -72,6 +85,7 @@ type t =
         named : (T.name * t) list;
         args  : t list
       }
+  | POr       of t * t
 
 (* ========================================================================= *)
 
@@ -91,7 +105,7 @@ let open_tvars env targs tvars =
 
 let rec check_type env (pat : S.pattern) tp =
   match pat.data with
-  | PWildcard | PAnnot _ ->
+  | PWildcard | PAnnot _ | POr _ ->
     check_scheme env pat (T.Scheme.of_type tp)
 
   | PAs(pat, x) ->
@@ -187,3 +201,9 @@ and check_scheme env (pat : S.pattern) sch =
     let origin = OPatternScheme(pat.pos, pat.pp, sch, sch') in
     Subtyping.subscheme ~origin env sch sch';
     check_scheme env pat' sch'
+
+  | POr(pat1, pat2) ->
+    let (pat1, penv1) = check_scheme env pat1 sch in
+    let (pat2, penv2) = check_scheme env pat2 sch in
+    let penv = PEnv.intersect penv1 penv2 in
+    (POr(pat1, pat2), penv)

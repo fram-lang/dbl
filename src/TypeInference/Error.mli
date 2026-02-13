@@ -142,6 +142,17 @@ val duplicate_val_in_pattern :
 val duplicate_module_in_pattern :
   pos:Position.t -> ppos:Position.t -> S.module_name -> t
 
+val or_pattern_vars_mismatch :
+  pos:Position.t -> pp:PPTree.t -> Name.t -> t
+val or_pattern_scheme_mismatch :
+  pos:Position.t -> pp:PPTree.t -> T.scheme -> T.scheme -> t
+val or_pattern_type_vars_mismatch :
+  pos:Position.t -> S.tvar -> t
+val or_pattern_modules_mismatch :
+  pos:Position.t -> S.module_name -> t
+val or_pattern_existential_type :
+  pos:Position.t -> t
+
 val multiple_named_type_args :
   pos:Position.t -> ppos:Position.t -> S.tvar -> t
 

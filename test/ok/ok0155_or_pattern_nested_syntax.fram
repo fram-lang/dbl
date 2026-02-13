@@ -1,0 +1,33 @@
+data Option A = None | Some of A
+
+data Triple = A | B | C
+
+let test1 x =
+  match x with
+  | Some (A | B) => "A or B"
+  | Some C => "C"
+  | None => "None"
+  end
+
+let test2 x =
+  match x with
+  | Some (Some (A | B | C)) => "nested triple"
+  | Some (Some _) => "other nested"
+  | Some None => "some none"
+  | None => "none"
+  end
+
+let test3 x =
+  match x with
+  | (A | B) => "A or B"
+  | C => "C"
+  end
+
+let test4 x =
+  match x with
+  | Some (A | B) | None => "A, B, or None"
+  | Some C => "C"
+  end
+
+let main () =
+  ()

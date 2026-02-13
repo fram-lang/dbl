@@ -78,4 +78,6 @@ let rec rename_pattern ren (pat : pattern) =
              List.map (rename_pattern ren) pats2)
     | PAnnot(pat, sch) ->
       PAnnot(rename_pattern ren pat, rename_scheme_expr ren sch)
+    | POr(pat1, pat2) ->
+      POr(rename_pattern ren pat1, rename_pattern ren pat2)
   }
