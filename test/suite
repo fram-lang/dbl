@@ -1,0 +1,29 @@
+simple_run_tests("test/ok/*.fram",flags = '-no-prelude -no-stdlib')
+
+
+def simple_examples():
+    simple("examples/Tick.fram")
+    simple("examples/LWT_lexical.fram")
+    simple("examples/Prolog.fram")
+    simple("examples/Pythagorean.fram")
+    simple("examples/Modules/Main.fram")
+
+
+with_flags("", simple_examples)
+
+simple_run_tests("test/stdlib/*.fram",flags ='')
+
+def simple_error_tests():
+    for file in glob("test/err/*.fram"):
+        exit_code(1, file)
+
+
+with_flags("-no-prelude -no-stdlib -no-error-context", simple_error_tests)
+
+
+# --- NOWE TESTY REPL ---
+print("\n--- REPL TESTS ---\n")
+repl_tests("test/repl/*.fram", flags='')
+print("\n--- REPL TESTS DONE ---\n")
+repl_tests("test/ok/*.fram", flags='')
+repl_tests("test/stdlib/*.fram", flags='')
