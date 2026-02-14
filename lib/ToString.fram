@@ -1,0 +1,598 @@
+import /List
+
+## # ToString methods
+
+{##
+  This module provides more advanced toString methods.
+  
+  Each type has an associated data type that carries additional formatting
+  options. Those structures may contain a nested format for subtypes.
+
+  Default formatting should produce syntactically correct Fram expression.
+  This constraint requires toString methods to respect the operator and
+  function application precedence and insert parenthesis if needed. It is
+  handled by passing a precedence index of parent node. Application precedence
+  strength defaults to 200. Parentheses might be disabled.
+ ##}
+
+# Handles parenthesis insertion
+let addParenths
+    (str : String)
+    (precedence : Int)
+    (parent : Option Int)
+    (addParents : Option Bool) =
+  if addParents.unwrapOr True then
+    (let parent = parent.unwrapOr 0 in
+    if precedence <= parent then
+      "(" + str + ")"
+    else
+      str)
+  else
+    str
+
+# Handles padding options
+let padding 
+    (str : String) 
+    (size : Option Int) 
+    (fill : Option Char) 
+    (alignLeft : Option Bool) =
+
+  let size = size.unwrapOr 0
+  let fill = fill.unwrapOr ' '
+  let alignLeft = alignLeft.unwrapOr False
+
+  let _  = assert {msg="Negative padding"} (size >= 0)
+
+  let df = size - str.length
+  let df = if df < 0 then 0 else df
+  let rec padding df = 
+    if 0 == df then
+      []
+    else
+      fill :: padding (df - 1)
+  let padding = charListToStr (padding df) in
+  if alignLeft then
+    str + padding
+  else
+    padding + str
+
+parameter X
+parameter XFmt
+parameter method toString : {?fmt : XFmt, ?prec : Int} -> X ->> String
+
+parameter Y
+parameter YFmt
+parameter method toString : {?fmt : YFmt, ?prec : Int} -> Y ->> String
+
+## ## Unit
+
+{## Unit format options ##}
+pub data UnitFmt =
+  {##
+    Unit toString options
+
+    @param ?unit Overrides constructor name.
+    @param ?size Total size to occupy.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+   ##}
+  UnitFmt of { ?unit : String
+             , ?size : Int
+             , ?fill : Char
+             , ?alignLeft : Bool }
+
+{##
+  Unit toString method.
+
+  @param ?prec Parent precedence.
+  @param ?fmt Format options.
+ ##}
+pub method toString {?prec : Int, ?fmt : UnitFmt} () =
+  let UnitFmt {unit, size, fill, alignLeft} = fmt.unwrapOr UnitFmt in
+  let ctor = unit.unwrapOr "()" in
+  padding ctor size fill alignLeft
+
+## # Int
+
+{## Int toString options ##}
+pub data IntFmt =
+  {##
+    Int toString options.
+
+    @param ?base Number base. Function accepts bases from 2 to 36.
+    @param ?prefix Prefix, by default empty.
+    @param ?size Total size.
+    @param ?fill Padding fill charcter.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Inserts parenthesis when minus sign is added.
+   ##}
+  IntFmt of { ?base : Int
+            , ?prefix : String 
+            , ?size : Int
+            , ?fill : Char
+            , ?alignLeft : Bool
+            , ?parenths : Bool }
+
+pub method toString {?prec : Int, ?fmt : IntFmt} (self : Int) =
+  let IntFmt {base, prefix, parenths} = fmt.unwrapOr IntFmt
+  let IntFmt {size, fill, alignLeft}  = fmt.unwrapOr IntFmt
+  let base = base.unwrapOr 10
+  let prefix = prefix.unwrapOr ""
+  let _ = assert {msg="Int base out of bounds"} (2 <= base && base <= 36)
+  # handles negative number in base 10
+  let (self, prefix, neg) = 
+    if base == 10 && self < 0 then
+      (-self, prefix + "-", True)
+    else
+      (self, prefix, False)
+  # constructs representation
+  let rec iter (n : Int) acc = 
+    if n == 0 then
+      if List.isEmpty acc then ['0'] else acc 
+    else
+     (let digit = n % base
+      let shift = n / base
+      let ~onError = fn _ => ' '
+      let c = 
+        if digit <= 9 then
+          chr ('0'.code + digit)
+        else 
+          chr ('A'.code + digit - 10)
+      in iter shift (c :: acc))
+  # final result
+  let num = prefix + charListToStr (iter self [])
+  let parenths = Some (neg && (parenths.unwrapOr True))
+  let num = addParenths num 150 prec parenths in
+  padding num size fill alignLeft
+
+## # Int64
+
+{## Int toString options ##}
+pub data Int64Fmt =
+  {##
+    Int toString options.
+
+    @param ?base Number base. Function accepts bases from 2 to 36.
+    @param ?prefix Prefix, by default empty.
+    @param ?suffux Suffix, by default "L".
+    @param ?size Total size.
+    @param ?fill Padding fill charcter.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Inserts parenthesis when minus sign is added.
+   ##}
+  Int64Fmt of { ?base : Int
+              , ?prefix : String 
+              , ?suffix
+              , ?size : Int
+              , ?fill : Char
+              , ?alignLeft : Bool
+              , ?parenths : Bool }
+
+pub method toString {?prec : Int, ?fmt : Int64Fmt} (self : Int64) =
+  let Int64Fmt {base, prefix, parenths, suffix} = fmt.unwrapOr Int64Fmt
+  let Int64Fmt {size, fill, alignLeft}          = fmt.unwrapOr Int64Fmt
+  let base = base.unwrapOr 10
+  let prefix = prefix.unwrapOr ""
+  let suffix = suffix.unwrapOr "L"
+  let _ = assert {msg="Int base out of bounds"} (2 <= base && base <= 36)
+  # handles negative number in base 10
+  let (self, prefix, neg) = 
+    if base == 10 && self < 0L then
+      (-self, prefix + "-", True)
+    else
+      (self, prefix, False)
+  # constructs representation
+  let rec iter (n : Int64) acc = 
+    if n == 0L then
+      if List.isEmpty acc then ['0'] else acc 
+    else
+     (let (digit : Int64) = n % base.toInt64
+      let shift = n / base.toInt64
+      let ~onError = fn _ => ' '
+      let c = 
+        if digit <= 9L then
+          chr ('0'.code + digit.toInt.unwrap)
+        else 
+          chr ('A'.code + digit.toInt.unwrap - 10)
+      in iter shift (c :: acc))
+  # final result
+  let num = prefix + charListToStr (iter self []) + suffix
+  let parenths = Some (neg && (parenths.unwrapOr True))
+  let num = addParenths num 150 prec parenths in
+  padding num size fill alignLeft
+
+## ## Char
+
+{## Char toString options. ##}
+pub data CharFmt = 
+  {##
+    Char toString options.
+
+    @param ?escape Escapes Chars. Defaults to True.
+    @param ?asInt Converts char to int and formats as such.
+    @param ?size Total size.
+    @param ?fill Padding fill size.
+    @param ?alignLeft Padding direction.
+   ##}
+  CharFmt of { ?escape : Bool
+             , ?asInt : IntFmt
+             , ?size : Int
+             , ?fill : Char
+             , ?alignLeft : Bool }
+
+let specialReprs =
+  [ ('\"', "\\\"")
+  , ('\'', "'"  )
+  , ('\0', "\\0")
+  , ('\n', "\\n")
+  , ('\b', "\\b")
+  , ('\t', "\\t")
+  , ('\r', "\\r")
+  , ('\v', "\\v")
+  , ('\a', "\\a")
+  , ('\f', "\\f")
+  ]
+
+## Converts a character to it's representation withous enquoting.
+pub let charRepr (x : Char) = 
+  let matchEsc (chr, repr) = 
+    if x == chr then Some repr else None in
+  match List.findMap matchEsc specialReprs with
+  | Some c => c
+  | None =>
+    let code = x.code in
+    if 32 <= code && code <= 127 then
+      x.toString
+    else
+      code.toString {fmt=IntFmt {base=16, prefix="\\x"}}
+  end
+
+{##
+  Char toString method.
+
+  @param ?prec Parent precedence.
+  @param ?fmt Format arguments.
+ ##}
+pub method toString {?prec : Int, ?fmt : CharFmt} (self : Char) =
+  let CharFmt {escape, asInt}         = fmt.unwrapOr CharFmt
+  let CharFmt {size, fill, alignLeft} = fmt.unwrapOr CharFmt in
+  match asInt with
+    | Some fmt => self.code.toString {prec=prec.unwrapOr 0, fmt}
+    | None =>
+      let res = 
+        if escape.unwrapOr True == False then
+          self.unescaped
+        else
+         (let escape = charRepr self in
+          "'" + escape + "'")
+      in padding res size fill alignLeft
+  end
+
+## ## String
+
+{## String toString options ##}
+pub data StringFmt =
+  {##
+    String toString options.
+
+    @param ?escape Enables string escaping. On by default.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+   ##}
+  StringFmt of { ?escape : Bool 
+               , ?size : Int 
+               , ?fill : Char
+               , ?alignLeft : Bool }
+
+{##
+  String toString method.
+
+  @param ?prec Parent precedence.
+  @param ?fmt Format options.
+ ##}
+pub method toString {?prec : Int, ?fmt : StringFmt} (self : String) =
+  let StringFmt {escape, size, fill, alignLeft} = fmt.unwrapOr StringFmt in
+  if escape.unwrapOr True == False then
+    padding self size fill alignLeft
+  else
+   (let xs = self.toList.map charRepr
+    let res = "\"" + strListCat xs + "\"" in
+    padding res size fill alignLeft)
+
+## ## Bool
+
+{## Bool toString options. ##}
+pub data BoolFmt = 
+  {##
+    Bool toString options
+
+    @param ?true Overrides True constructor.
+    @param ?false Overrides False constructor.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+   ##}
+  BoolFmt of { ?true : String
+             , ?false : String
+             , ?size : Int
+             , ?fill : Char
+             , ?alignLeft : Bool }
+
+{##
+  Bool toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString {?prec : Int, ?fmt : BoolFmt} (self : Bool) =
+  let BoolFmt {true, false}           = fmt.unwrapOr BoolFmt 
+  let BoolFmt {size, fill, alignLeft} = fmt.unwrapOr BoolFmt
+  let ctor = 
+    if self then 
+      true.unwrapOr "True"
+    else
+      false.unwrapOr "False" in
+  padding ctor size fill alignLeft
+
+## ## List
+
+pub data ListFmt A =
+  {##
+    Bool toString options
+
+    @param ?opn Overrides opening bracket.
+    @param ?sep Overrides separator.
+    @param ?cls Overrides closing bracket.
+    @param ?inner Inner values' toString.
+    @param ?false Overrides False constructor.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+   ##}
+  ListFmt of { ?opn : String
+             , ?sep : String
+             , ?cls : String
+             , ?inner : A
+             , ?size : Int 
+             , ?fill : Char 
+             , ?alignLeft : Bool }
+
+{##
+  List toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString
+    {?prec : Int, ?fmt : ListFmt XFmt } (self : List X) =
+  let ListFmt {opn, sep, cls, inner}  = fmt.unwrapOr ListFmt
+  let ListFmt {size, fill, alignLeft} = fmt.unwrapOr ListFmt
+  let opn = opn.unwrapOr "["
+  let sep = sep.unwrapOr ", "
+  let cls = cls.unwrapOr "]"
+  # handles application of optional toString param
+  let appInner (x : X) =
+    match inner with
+    | Some fmt => x.toString {fmt}
+    | None     => x.toString
+    end
+  let rec iter (xs : List X) =
+    match xs with
+    | [] => cls
+    | [x] => appInner x + cls
+    | x :: xs => appInner x + sep + iter xs
+    end in
+  let xs = opn + iter self in
+  padding xs size fill alignLeft
+
+## ## Option
+
+{## Option toString options. ##}
+pub data OptionFmt A = 
+  {##
+    Option toString options.
+
+    @param ?some Overrides Some constructor.
+    @param ?none Overrides None constructor.
+    @param ?inner Inner value's toString.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Additional parenthesis.
+   ##}
+  OptionFmt of { ?some : String 
+               , ?none : String
+               , ?inner : A
+               , ?size : Int
+               , ?fill : Char
+               , ?alignLeft : Bool
+               , ?parenths : Bool }
+
+{##
+  Option toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString
+    {?prec : Int, ?fmt : OptionFmt XFmt } (self : Option X) =
+  let OptionFmt {some, none, inner, parenths} = fmt.unwrapOr OptionFmt
+  let OptionFmt {size, fill, alignLeft}       = fmt.unwrapOr OptionFmt
+  let appInner (x : X) =
+    match inner with
+    | Some fmt => x.toString {prec=200, fmt}
+    | None     => x.toString {prec=200}
+    end
+  let str =
+    match self with
+    | None => none.unwrapOr "None"
+    | Some x => 
+      let str = some.unwrapOr "Some " + appInner x in
+      addParenths str 200 prec parenths
+    end in
+  padding str size fill alignLeft
+
+## ## Pair
+
+{## Pair toString options. ##}
+pub data PairFmt A B =
+  {##
+    Pair toString options.
+
+    @param ?opn Overrides opening parenth.
+    @param ?sep Overrides separator.
+    @param ?cls Overrides closing bracket.
+    @param ?size Total size.
+    @param ?fst Format for first value.
+    @param ?snd Format for second value.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+   ##}
+  PairFmt of { ?opn : String 
+             , ?sep : String
+             , ?cls : String
+             , ?fst : A
+             , ?snd : B
+             , ?size : Int
+             , ?fill : Char
+             , ?alignLeft : Bool }
+
+{##
+  Pair toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString
+    {?fmt : PairFmt XFmt YFmt, ?prec : Int }
+    ((v1, v2) : Pair X Y) =
+  let PairFmt {opn, sep, cls}         = fmt.unwrapOr PairFmt
+  let PairFmt {fst, snd}              = fmt.unwrapOr PairFmt
+  let PairFmt {size, fill, alignLeft} = fmt.unwrapOr PairFmt
+  
+  let fst = match fst with 
+            | Some fmt => v1.toString {fmt} 
+            | None     => v1.toString 
+            end
+  let snd = match snd with
+            | Some fmt => v2.toString {fmt}
+            | None     => v2.toString
+            end
+  
+  let opn = opn.unwrapOr "("
+  let sep = sep.unwrapOr ", "
+  let cls = cls.unwrapOr ")"
+  let res = opn + fst + sep + snd + cls in
+  padding res size fill alignLeft
+
+{# Either #}
+
+{## Either toString options. ##}
+pub data EitherFmt A B =
+  {##
+    Either toString options.
+
+    @param ?left Overrides Left constructor.
+    @param ?right Overrides Right constructor.
+    @param ?innerL Format for left value.
+    @param ?innerR Format for right value.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Additional parenthesis.
+   ##}
+  EitherFmt of { ?left : String 
+               , ?right : String
+               , ?innerL : A
+               , ?innerR : B
+               , ?size : Int
+               , ?fill : Char
+               , ?alignLeft : Bool
+               , ?parenths : Bool }
+
+{##
+  Either toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString
+    {?fmt : EitherFmt XFmt YFmt, ?prec : Int }
+    (self : Either X Y) =
+  let EitherFmt {size, fill, alignLeft, parenths} = fmt.unwrapOr EitherFmt
+  let res = 
+    match self with
+    | Left x =>
+      let EitherFmt {left, innerL} = fmt.unwrapOr EitherFmt
+      let left = left.unwrapOr "Left " in
+      match innerL with
+      | Some fmt => left + x.toString {prec=200, fmt}
+      | None     => left + x.toString {prec=200}
+      end
+    | Right y =>
+      let EitherFmt {right, innerR} = fmt.unwrapOr EitherFmt
+      let right = right.unwrapOr "Right " in
+      match innerR with
+      | Some fmt => right + y.toString {prec=200, fmt}
+      | None     => right + y.toString {prec=200}
+      end
+    end
+  let res = addParenths res 200 prec parenths in
+  padding res size fill alignLeft
+
+{# Result #}
+
+{## Restult toString options. ##}
+pub data ResultFmt A B =
+  {##
+    Result toString options.
+
+    @param ?ok Overrides Ok constructor.
+    @param ?err Overrides Err constructor.
+    @param ?innerO Format for value stored in Ok.
+    @param ?innerE Format for value stored in Err.
+    @param ?size Total size.
+    @param ?fill Padding fill character.
+    @param ?alignLeft Padding direction.
+    @param ?parenths Additional parenthesis.
+   ##}
+  ResultFmt of { ?ok : String 
+               , ?err : String
+               , ?innerO : A
+               , ?innerE : B
+               , ?size : Int
+               , ?fill : Char
+               , ?alignLeft : Bool
+               , ?parenths : Bool }
+
+{##
+  Result toString method.
+
+  @param ?prec Parend precedence.
+  @param ?fmt Bool toString options.
+ ##}
+pub method toString
+    {?fmt : ResultFmt XFmt YFmt, ?prec : Int }
+    (self : Result X Y) =
+  let ResultFmt {size, fill, alignLeft, parenths} = fmt.unwrapOr ResultFmt
+  let res = 
+    match self with
+    | Ok x =>
+      let ResultFmt {ok, innerO} = fmt.unwrapOr ResultFmt
+      let ok = ok.unwrapOr "Ok " in
+      match innerO with
+      | Some fmt => ok + x.toString {prec=200, fmt}
+      | None     => ok + x.toString {prec=200}
+      end
+    | Err y =>
+      let ResultFmt {err, innerE} = fmt.unwrapOr ResultFmt
+      let err = err.unwrapOr "Err " in
+      match innerE with
+      | Some fmt => err + y.toString {prec=200, fmt}
+      | None     => err + y.toString {prec=200}
+      end
+    end
+  let res = addParenths res 200 prec parenths in
+  padding res size fill alignLeft
+

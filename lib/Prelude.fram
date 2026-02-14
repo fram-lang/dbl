@@ -38,6 +38,8 @@ pub let chr {~onError : Unit ->[_] Char} (n : Int) =
   else
     ~onError ()
 
+pub let strListCat = (extern dbl_strListCat : List String -> String)
+
 pub let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
 pub let printStr   = extern dbl_printStr   : String ->[IO] Unit
 pub let printInt   = extern dbl_printInt   : Int ->[IO] Unit
