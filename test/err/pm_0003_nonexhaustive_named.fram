@@ -6,8 +6,8 @@ data Box T = Box of { value: T }
 
 let grayscale_of_boxed_color = fn boxed_color =>
   match boxed_color with
-  | Box { value = RGB { red, blue, green }} => (red + blue + green) / 3
+  | Box { value = RGB { red, blue, green }} => red
   end
 
 # @stderr:not exhaustive
-# @stderr:Err _
+# @stderr:CMYK

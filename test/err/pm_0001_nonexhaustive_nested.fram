@@ -1,6 +1,6 @@
 data Shape = Circle | Square | Triangle
 
-data rec MyList T = Nil | MyCons of T, (MyList T)
+data rec MyList T = Nil | MyCons of T, MyList T
 
 data Fig = Single of Shape | Many of MyList Shape
 

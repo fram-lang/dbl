@@ -119,8 +119,7 @@ let rec pp_ex_pattern_wrap need_parens ex =
 (** Pretty-print an example pattern *)
 and pp_ex_pattern ex =
   match ex with
-  | ExHole -> "_"
-  | ExWildcard -> "_"
+  | ExHole | ExWildcard -> "_"
   | ExCtor(name, ims, args) ->
     let pp_nontrivial_named (n, ex) =
       match ex with
@@ -129,12 +128,9 @@ and pp_ex_pattern ex =
     in
     let ims_strs = List.filter_map pp_nontrivial_named ims in
     let named_str = String.concat ", " ims_strs in
-    match ims_strs, args with
-    | [], [] -> name
-    | [], _ ->
-      let args_str = String.concat " " (List.map (pp_ex_pattern_wrap true) args) in
-      name ^ " " ^ args_str
-    | _, [] -> name ^ " {" ^ named_str ^ "}"
-    | _, _ ->
-      let args_str = String.concat " " (List.map (pp_ex_pattern_wrap true) args) in
-      name ^ " {" ^ named_str ^ "} " ^ args_str
+    let args_str =
+      String.concat "" (List.map (fun a -> " " ^ pp_ex_pattern_wrap true a) args)
+    in
+    match ims_strs with
+    | [] -> name ^ args_str
+    | _ -> name ^ " {" ^ named_str ^ "}" ^ args_str
