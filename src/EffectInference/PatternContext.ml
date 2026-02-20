@@ -105,7 +105,7 @@ let rec to_pattern ctx =
 (** Pretty-print a name *)
 let pp_name (name : T.name) =
   match name with
-  | NVar s | NImplicit s -> x
+  | NVar s | NImplicit s -> s
   | NOptionalVar s -> "?" ^ s
   | NMethod s -> "method " ^ s
 
