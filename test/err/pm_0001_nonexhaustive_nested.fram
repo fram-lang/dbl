@@ -14,4 +14,4 @@ let area = fn fig =>
   end
 
 # @stderr:not exhaustive
-# @stderr:Many (MyCons (Square) _)
+# @stderr:Many (MyCons Square _)

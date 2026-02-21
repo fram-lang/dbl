@@ -112,7 +112,12 @@ let pp_name (name : T.name) =
 (** Pretty-print an example pattern, wrapping in parens if needed *)
 let rec pp_ex_pattern_wrap need_parens ex =
   let pp = pp_ex_pattern ex in
-  if need_parens && (match ex with ExCtor _ -> true | _ -> false)
+  let needs_wrap = match ex with
+    | ExCtor(_, _ :: _, _) -> true  (* has named params *)
+    | ExCtor(_, _, _ :: _) -> true  (* has positional args *)
+    | _ -> false
+  in
+  if need_parens && needs_wrap
   then "(" ^ pp ^ ")"
   else pp
 
