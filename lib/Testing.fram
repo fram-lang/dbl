@@ -136,10 +136,11 @@ let mkTestCase
          , ~testCaseTracker : TestCaseTracker E_TT
          } -> Unit ->[E_TL, E_TT, E_M] Unit) =
   let loc     = mkLoc
-  let body () = 
-    handle ~testLogger / E_TL with testLoggerH in
-    handle ~testCaseTracker / E_TT with testCaseTrackerH in
-      f {E_TL, E_TT} ()
+  let body () =
+    M.hMut (fn {E=E_M} ~mut =>
+      handle ~testLogger / E_TL with testLoggerH in
+      handle ~testCaseTracker / E_TT with testCaseTrackerH in
+        f {E_TL, E_TT, E_M} ())
   in
   TestCase {name, path=getPath (), loc, body}
 
