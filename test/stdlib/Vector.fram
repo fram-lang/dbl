@@ -2,6 +2,7 @@ import open Mutable
 import open /Vector
 import open /String
 import open Testing
+
 let _ = testSuite "vector" (fn _ =>
 
   testCase "size and capacity methods" (fn _ =>
