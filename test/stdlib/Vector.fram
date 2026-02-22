@@ -1,11 +1,10 @@
-
 import open Mutable
 import open /Vector
+import open /String
 import open Testing
-
 let _ = testSuite "vector" (fn _ =>
 
-  testCase "checks size and capacity methods" (fn _ =>
+  testCase "size and capacity methods" (fn _ =>
     let vec = makeVector {T=Int} 4 in
     let sz = vec.size in
     let cap = vec.capacity in
@@ -52,5 +51,15 @@ let _ = testSuite "vector" (fn _ =>
     let z = ys.hd in
     assertEqS x 1;
     assertEqS y 3;
-    assertEqS z (Some 1)))
+    assertEqS z (Some 1));
+
+    testCase "vector of strings" (fn _ =>
+    let vec = makeVector {T=String} 2 in
+    vec.set 0 "abc";
+    vec.set 1 "ab";
+    vec.pushBack "a";
+    let fst = vec.front in
+    let lst = vec.back in
+    assertEqS fst "abc";
+    assertEqS lst "a"))
     
