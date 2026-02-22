@@ -45,7 +45,7 @@ let getSmallestUpperPow2 (n : Int) =
 pub let makeVector {T, ~mut : Mut E} (size : Int) =
   let capacity = (getSmallestUpperPow2 size) in
   Vector
-  { content    = ~mut.ref (~mut.makeArray capacity (extern dbl_magic : T))
+  { content    = ~mut.ref (~mut.makeArray capacity ((extern dbl_magic : Int -> T) 0))
   , size       = ~mut.ref size
   , capacity   = ~mut.ref capacity
   , mut        = ~mut
@@ -76,7 +76,8 @@ pub method resize {T} (self : Vector E T) (n : Int) =
   if newCapacity <= self.capacity then ()
   else (
     let newContent = self.mut.initArray newCapacity (fn i =>
-      if i < self.capacity then self.getContentAt i else extern dbl_magic : T) in
+      if i < self.capacity then self.getContentAt i
+      else ((extern dbl_magic : Int -> T) 0)) in
     self.setContent newContent;
     self.setCapacity newCapacity
   )
@@ -134,4 +135,5 @@ pub method toList (self : Vector E T) =
 pub method clear (self : Vector E T) =
   self.setSize 0;
   self.setCapacity 0;
-  self.setContent (self.mut.makeArray 0 (extern dbl_magic : T))
+  self.setContent (self.mut.makeArray 0 ((extern dbl_magic : Int -> T) 0))
+  
