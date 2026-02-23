@@ -1,5 +1,9 @@
 import open Pretty
 
+{##
+  Pretty printer example 4:
+    Alignments of custom data definitions.
+ ##}
 
 let doc1 = text "data List " <> cat [ text "= Cons of Int, List " >.shift
                                     , text "| Nil" >.shift ]

@@ -7,18 +7,21 @@ import Pretty/Style as Style
     IMP lang formatter
  ##}
 
+# Arithmetic expressions
 data rec AExp =
   | AVal of Int
   | AOp  of String, AExp, AExp
   | ANeg of AExp
   | AVar of String
 
+# Boolean expressions
 data rec BExp =
   | BVal of Bool
   | BOp  of String, BExp, BExp
   | BCmp of String, AExp, AExp
   | BNeg of BExp
 
+# Language statements
 data rec Imp =
   | Skip
   | Ass   of String, AExp
@@ -93,5 +96,7 @@ let program =
         Skip
         (Ass "xyz" (AVal 10))))
 
+# Render the same program with different widths.
+# Smaller widths force more line breaks.
 let _ = [160, 80, 40, 20].iter (fn width =>
   printStrLn (generate {width} program.pretty))

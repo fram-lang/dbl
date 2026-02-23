@@ -1,5 +1,7 @@
 import open Pretty
 
+# Documents can be combined using `<>`.
+# This appends the second document to the last line of the first one.
 let myDoc = text "Hello"
          <> text " "
          <> text "World!"

@@ -1,5 +1,8 @@
 import open Pretty
 
+# `vsep` behaves like a vertical separator.
+# When combined with `>+>`, it stretches to match
+# the height of the surrounding documents.
 let doc = text "aaaaa" $$ text "aaa"
 let doc = vsep >+> doc >+> vsep
 

@@ -1,6 +1,8 @@
 import open Pretty
 
+# `shift` marks document as moveable.
 let fstDoc = text "let xyz" <> shift (text " = 10")
 let sndDoc = text "let abcdef" <> shift (text " = True")
 
+# By default all shifts will be aligned.
 let _ = printStrLn (generate (fstDoc $$ sndDoc))

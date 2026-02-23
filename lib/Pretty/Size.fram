@@ -8,13 +8,13 @@ import open Lazy
   Floating aka floating elements will align globally with other floating
   elements.
 
-  `SFix' represents singular unmoveable object.
+  `SFix' represents singular un-moveable object.
 
   Each `SShift' stores an information about floating elements that
   are willing to globally align with others. 
 
   The `SLast' node is a label that indicates a line where <> will attach
-  foramatted text. In every Size object there is exactly one SLast node.
+  formatted text. In every Size object there is exactly one SLast node.
  ##}
 
 pub data rec SList =
@@ -117,8 +117,8 @@ pub method combine (w1 : Size) (w2 : Size) =
         SShift {width=width + w, dangle=dangle + w} tl 
     end in
 
-  # Handles paraller join of two given shift list
-  # By assumpion w1 does NOT contain SLast label
+  # Handles parallel join of two given shift list
+  # By assumption w1 does NOT contain SLast label
   let rec combineWs (w1 : SList) (w2 : SList) = 
     match (w1, w2) with
     ## regular elements
@@ -146,7 +146,7 @@ pub method combine (w1 : Size) (w2 : Size) =
   # The starting point of algorithm
   # The <> catenation happens at `SLast' node of w1, thus
   # width is copied up until `SLast' and then combineWs
-  # operation is permormed. The SLast label will be
+  # operation is performed. The SLast label will be
   # propagated from w2
   let rec copyTillL (w1 : SList) (w2 : SList) =
     match w1 with
@@ -173,24 +173,24 @@ pub method shift (Size {width, height, fastCompare}) =
        }
 
 {##
-  Calculates true vertiacal catenation.
+  Calculates true vertical catenation.
 
-  To simplify calculation, vcat can performed only if dangling width
-  of every SShift node of w1 is 0. To preserve monoid like behaviour
+  To simplify calculation, `vcat` can performed only if dangling width
+  of every SShift node of w1 is 0. To preserve monoid-like behaviour
   of this operation, same restriction have been put on w2.
 ##}
 pub method seq {~onError} (w1 : Size) (w2 : Size) =
-  let rec checkAssumpions (sh : SList) = match sh with
-    | SLast tl => checkAssumpions tl
+  let rec checkAssumptions (sh : SList) = match sh with
+    | SLast tl => checkAssumptions tl
     | SFix {width} => width
     | SShift {width, dangle} tl =>
-      let pth = width + checkAssumpions tl in
+      let pth = width + checkAssumptions tl in
       if dangle > pth then
         (let _ = ~onError () in ());
       pth
       end in
-  let _ = checkAssumpions w1.width
-  let _ = checkAssumpions w2.width
+  let _ = checkAssumptions w1.width
+  let _ = checkAssumptions w2.width
 
   let rec join s = match s with
     | SLast tl => join tl

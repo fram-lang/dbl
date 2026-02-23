@@ -8,6 +8,7 @@ import open /AnsiTerminal
     Tables
  ##}
 
+# Sample grocery list to display.
 let groceryList =
   [ ("banana", 5, 2)
   , ("apple", 10, 1)
@@ -17,15 +18,16 @@ let groceryList =
 let table =
   let header =
     vsep
-      <> text "Product" <> vsep.shift
-      <> text "Quantity" <> vsep.shift
-      <> text "Prize" <> vsep.shift
+      # `<>&` is a shorthand for `<>` followed by `shift`
+      <> text "Product" <>& vsep
+      <> text "Quantity" <>& vsep
+      <> text "Prize" <>& vsep
   let rows = List.map
     (fn (prod, (quantity : Int), (prize : Int)) =>
       vsep
-        <> text prod <> vsep.shift
-        <> text quantity.toString <> vsep.shift
-        <> text prize.toString <> vsep.shift)
+        <> text prod <>& vsep
+        <> text quantity.toString <>& vsep
+        <> text prize.toString <>& vsep)
     groceryList in
   header $$ (List.foldRight1 ($$) rows).unwrap
 

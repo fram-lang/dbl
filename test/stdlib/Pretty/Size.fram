@@ -1,5 +1,5 @@
 import open /Pretty/Size
-import open Testing
+import open /Testing
 
 let ~onError () = runtimeError "Unhandled runtime error"
 

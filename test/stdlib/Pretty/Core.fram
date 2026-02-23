@@ -1,7 +1,7 @@
 import open /Pretty/Core
-import Stream
-import List
-import open Testing
+import /Stream
+import /List
+import open /Testing
 
 # TODO
 # Functions tested here should be a part of some separate "util"

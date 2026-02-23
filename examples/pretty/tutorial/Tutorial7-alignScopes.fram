@@ -1,9 +1,15 @@
 import open Pretty
 
+# `reset` collects all shifted fragments inside the document
+# and aligns them to the same column.
+
 let fstDoc = reset ((text "let xyz" <> shift (text " = 10"))
                  $$ (text "let abcdef" <> shift (text " = True")))
 
 let sndDoc = reset ((text "data X" <> shift (text " = X of Int"))
                  $$ (text "data Identity a" <> shift (text " = Id of a")))
+
+# Each block is aligned independently because each one
+# is wrapped in its own `reset`.
 
 let _ = printStrLn (generate (fstDoc $$ sndDoc))

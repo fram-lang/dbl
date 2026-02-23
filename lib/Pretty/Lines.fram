@@ -27,7 +27,7 @@ data rec L =
 
   ## Multi-level relative shift. Jumps by n shifts and 
   ## inserts `static` amount of spaces. Exact shift will be resolved
-  ## striong generation
+  ## string generation
   | LJump of {n : Int, static : Int}, L, L
 
   | LStyled of Style, L
@@ -167,7 +167,7 @@ method calculateAlignment {E} (st : State E) (n : Int) (static : Int) =
     (x, p + static)
   else
     match List.drop (n - 1) sh with
-    | [] => runtimeError "Alignment - not enought shifts"
+    | [] => runtimeError "Alignment - not enough shifts"
     | d :: _ =>
       (n, d + static)
     end

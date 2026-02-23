@@ -1,6 +1,11 @@
 import open Pretty
 
+# Apply foreground color.
 let doc = style {fg=Colors.red} (text "aaaa") $$ text "bb"
+
+# Styles can be composed.
+# Here we additionally apply underline.
 let doc = style {underline=True} doc
 
+# Styling affects only rendering, not layout.
 let _ = printStrLn (generate doc)

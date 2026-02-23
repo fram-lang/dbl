@@ -1,5 +1,7 @@
 import open Pretty
 
+# `flush` forces the document to end with a newline.
+# The next document appended with `<>` will start on a new line.
 let myDoc = flush (text "Hello")
          <> text "World!"
 
