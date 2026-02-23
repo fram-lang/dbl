@@ -1,0 +1,12 @@
+data D = D1 | D2
+data C = C of D
+data B = B of C
+data A = A of B
+
+let f x =
+  match x with
+  | A (B (C D1)) => 0
+  end
+
+# @stderr:not exhaustive
+# @stderr:A (B (C D2))
