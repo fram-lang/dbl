@@ -518,6 +518,13 @@ and infer_type : type ed.
     let (e1, eff_resp) = check_type env e1 tp eff_req in
     (e1, tp, eff_resp)
 
+  | EAnnotEff(e1, tp, eff) ->
+    let tp = Type.tr_type_expr env tp in
+    let eff = T.Impure (Type.tr_effect_expr env eff) in
+    let eff_resp = return_effect env ~node:e eff_req eff in
+    let (e1, Checked) = check_type env e1 tp (Check eff) in
+    (e1, tp, eff_resp)
+
   | ERepl(func, tp) ->
     let tp = Type.tr_type env tp in
     let (eff, eff_resp) = effect_annot env Impure eff_req in
