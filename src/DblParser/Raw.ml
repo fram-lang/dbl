@@ -233,6 +233,9 @@ and expr_data =
   | EPub of expr
     (** Public modifier in patterns *)
 
+  | EPOr of expr * expr
+    (** Or-pattern *)
+
 (** Pattern-matching clauses *)
 and match_clause = match_clause_data node
 and match_clause_data =

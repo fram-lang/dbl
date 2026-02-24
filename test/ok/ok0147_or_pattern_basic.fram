@@ -1,0 +1,26 @@
+data Color = Red | Green | Blue | Yellow
+
+let is_primary c =
+  match c with
+  | Red | Green | Blue => True
+  | Yellow => False
+  end
+
+data Result E A = Error of E | Ok of A
+
+let get_status r =
+  match r with
+  | Error _ | Ok _ => "has value"
+  end
+
+let color_category c =
+  match c with
+  | Red | Blue => "cool"
+  | Green | Yellow => "warm"
+  end
+
+let is_not_red c =
+  match c with
+  | Green | Blue | Yellow => True
+  | Red => False
+  end

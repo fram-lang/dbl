@@ -1,0 +1,32 @@
+data Color = Red | Green | Blue | Yellow | Orange | Purple
+
+let is_warm c =
+  match c with
+  | Red | Orange | Yellow => True
+  | Green | Blue | Purple => False
+  end
+
+let color_temp c =
+  match c with
+  | Red | Orange => "hot"
+  | Yellow | Green => "medium"
+  | Blue | Purple => "cool"
+  end
+
+data Result E A = Error of E | Ok of A
+
+let has_value r =
+  match r with
+  | Ok _ | Error _ => True
+  end
+
+let primary_or_secondary c =
+  match c with
+  | Red | Green | Blue | Orange | Yellow | Purple => True
+  end
+
+let not_red c =
+  match c with
+  | Green | Blue | Yellow | Orange | Purple => True
+  | Red => False
+  end

@@ -292,6 +292,9 @@ and pattern_data =
   | PAnnot of pattern * scheme_expr
     (** Scheme annotated pattern *)
 
+  | POr of pattern * pattern
+    (** Or-pattern: matches if either sub-pattern matches *)
+
 (** Polymorphic expression *)
 type poly_expr = poly_expr_data node
 and poly_expr_data =
