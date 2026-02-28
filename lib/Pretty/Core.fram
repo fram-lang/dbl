@@ -128,14 +128,15 @@ let discardInvalid (w : Int) =
     (fn s => maxWidth (fst s) <= w)
     (fn x y => maxWidth (fst x) <= maxWidth (fst y))
 
-pub method combine (ODoc xs) (ODoc ys) = ODoc (fn w =>
-  let ds = xs w >.map
-    (fn x => (discardInvalid w (ys w >.map (fn y => x <> y))))
-  in
-  bestOn
-    (fn x y => ord (fst x) (fst y))
-    (fn x y => poset (fst x) (fst y))
-      ds)
+pub method combine (ODoc xs) (ODoc ys) =
+  ODoc (fn w =>
+    let ds = xs w >.map
+      (fn x => (discardInvalid w (ys w >.map (fn y => x <> y))))
+    in
+    bestOn
+      (fn x y => ord (fst x) (fst y))
+      (fn x y => poset (fst x) (fst y))
+        ds)
 
 pub let groupingBy (sep : String) (ms : List (Pair Int ODoc)) =
   match ms with
@@ -178,16 +179,18 @@ pub method reset (ODoc xs) = ODoc (fn w =>
 pub method shift {?fill : Char} (ODoc xs) = ODoc (fn w =>
   xs w >.map (fn ((x, y) : Layout) => (x.shift, y.shift {?fill})))
 
-pub method seq {~__line__, ~__file__} (ODoc xs) (ODoc ys) = ODoc (fn w =>
-  bestOn
-    (fn x y => ord (fst x) (fst y))
-    (fn x y => poset (fst x) (fst y))
-      (xs w >.map
-        (fn (x : Layout) =>
-          discardInvalid w (ys w >.map (fn y => x.seq y)))))
+pub method seq {~__line__, ~__file__} (ODoc xs) (ODoc ys) =
+  ODoc (fn w =>
+    bestOn
+      (fn x y => ord (fst x) (fst y))
+      (fn x y => poset (fst x) (fst y))
+        (xs w >.map
+          (fn (x : Layout) =>
+            discardInvalid w (ys w >.map (fn y => x.seq y)))))
 
-pub method style (ODoc xs) (sty : Style.Style) = ODoc (fn w =>
-  xs w >. map (fn (l : Layout) => l.style sty))
+pub method style (ODoc xs) (sty : Style.Style) =
+  ODoc (fn w =>
+    xs w >. map (fn (l : Layout) => l.style sty))
 
 pub let (vsep : ODoc) = ODoc (fn _ =>
   Stream.singleton (textSize " | ", vsep))

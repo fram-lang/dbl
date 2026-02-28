@@ -62,28 +62,33 @@ pub type Doc = Core.ODoc
   Text atom, unit of printable text.
   It may not contain white control characters like '\n' or '\t'.
  ##}
-pub let (text : String -> Doc) = Core.text
+pub let text (str : String) : total Doc = Core.text str
 
 {##
   Empty document.
   The unity of `<>` operation.
  ##}
-pub let (empty : Doc) = Core.emptyDoc
+pub let empty : Doc = Core.emptyDoc
 
 {## Creates document out of automatic formatting. ##}
 pub let textFmt
-  {X, XFmt, method format : {?fmt : XFmt} -> X ->> String }
-  (x : X) = text x.format
+    {X, XFmt, method format : {?fmt : XFmt} -> X ->> String }
+    (x : X)
+      : Doc =
+  text x.format
 
 {## Creates document out of formatting. ##}
 pub let textFmtF
-  {X, XFmt, method format : {?fmt : XFmt} -> X ->> String }
-  (x : X) (f : XFmt) = text (x.format {fmt=f})
+    {X, XFmt, method format : {?fmt : XFmt} -> X ->> String }
+    (x : X)
+    (f : XFmt)
+      : Doc =
+  text (x.format {fmt=f})
 
 {##
   Appends empty line to document.
  ##}
-pub let (flush : Doc -> Doc) = fn (d : Doc) => d.flush
+pub let flush (d : Doc) : total Doc = d.flush
 
 {##
   Appends empty line to document.
@@ -91,12 +96,12 @@ pub let (flush : Doc -> Doc) = fn (d : Doc) => d.flush
 pub method flush = flush
 
 {## Creates document out of single character. ##}
-pub let (char : Char -> Doc) = fn (c : Char) => text (charListToStr [c])
+pub let char (c : Char) : total Doc = text (charListToStr [c])
 
 {##
   Annotates a document as movable, allowing it to align with other documents.
  ##}
-pub let shift {?fill : Char} (d : Doc) = d.shift {?fill}
+pub let shift {?fill : Char} (d : Doc) : total Doc = d.shift {?fill}
 
 {##
   Annotates a document as movable, allowing it to align with other documents.
@@ -107,7 +112,7 @@ pub method shift {?fill : Char} = shift {?fill}
   Catches all moving documents and aligns them. The produced document
   contains no floating parts.
  ##}
-pub let (reset : Doc -> Doc) = fn (d : Doc) => d.reset
+pub let reset (d : Doc) = d.reset
 
 {##
   Catches all moving documents and aligns them. The produced document
@@ -118,13 +123,13 @@ pub method reset = reset
 {##
   Puts d2 at the end of last line of d1.
  ##}
-pub let (<>) (d1 : Doc) (d2 : Doc) = d1.combine d2
+pub let (<>) (d1 : Doc) (d2 : Doc) : total Doc = d1.combine d2
 
 {##
   Puts d2 in the next line, Right after d1.
   Equivalent to `d1.flush <> d2`.
  ##}
-pub let ($$) (d1 : Doc) (d2 : Doc) = d1.flush.combine d2
+pub let ($$) (d1 : Doc) (d2 : Doc) : total Doc = d1.flush.combine d2
 
 {##
   Places 2 documents in parallel. The last line will always be aligned with
@@ -133,16 +138,16 @@ pub let ($$) (d1 : Doc) (d2 : Doc) = d1.flush.combine d2
   to make such concatenation. In such cases, documents will be reset
   before settling.
  ##}
-pub let (>+>) (d1 : Doc) (d2 : Doc) = d1.seq d2
+pub let (>+>) (d1 : Doc) (d2 : Doc) : total Doc = d1.seq d2
 
 {## Standard catenation with shift on second document. ##}
-pub let (<>&) (d1 : Doc) (d2 : Doc) = d1 <> d2.shift
+pub let (<>&) (d1 : Doc) (d2 : Doc) : total Doc = d1 <> d2.shift
 
 {## Vertical catenation with shift on second document. ##}
-pub let ($$&) (d1 : Doc) (d2 : Doc) = d1 $$ d2.shift
+pub let ($$&) (d1 : Doc) (d2 : Doc) : total Doc = d1 $$ d2.shift
 
 {## Horizontal catenation with shift on second document. ##}
-pub let (>+>&) (d1 : Doc) (d2 : Doc) = d1 >+> d2.shift
+pub let (>+>&) (d1 : Doc) (d2 : Doc) : total Doc = d1 >+> d2.shift
 
 {##
   Concatenates `x` and `y` separated by `sep` in single line if possible.
@@ -150,16 +155,16 @@ pub let (>+>&) (d1 : Doc) (d2 : Doc) = d1 >+> d2.shift
  
   @param ?sep Separator. Defaults to single space.
  ##}
-pub let hangWith {?sep : String} (n : Int) (x : Doc) (y : Doc) =
+pub let hangWith {?sep : String} (n : Int) (x : Doc) (y : Doc) : total Doc =
   let sep = sep.unwrapOr " " in
-  Core.groupingBy sep [(0, x), (n, y)] : Doc
+  Core.groupingBy sep [(0, x), (n, y)]
 
 {##
   Concatenates all documents in single line if possible.
   Otherwise puts each one of them in single line and indents
   with specified value.
  ##}
-pub let anyHang {?sep : String} (ds : List (Pair Int Doc)) =
+pub let anyHang {?sep : String} (ds : List (Pair Int Doc)) : total Doc =
   match ds with
   | [] => text ""
   | [(_, x)] => x
@@ -169,14 +174,19 @@ pub let anyHang {?sep : String} (ds : List (Pair Int Doc)) =
 {##
   Puts all documents in one line or in separate lines with indentation of 0.
  ##}
-pub let (cat : List Doc ->[] Doc) =
-  fn xs => Core.groupingBy "" (List.map (fn d => (0, d)) xs)
+pub let cat (xs : List Doc) : [] Doc =
+  Core.groupingBy "" (List.map (fn d => (0, d)) xs)
 
 {##
   Extended `cat` operation that handles enclosing documents and allows
   to specify separator.
  ##}
-pub let encloseSep (left : Doc) (right : Doc) (sep : Doc) (ds : List Doc) =
+pub let encloseSep
+    (left : Doc)
+    (right : Doc)
+    (sep : Doc)
+    (ds : List Doc)
+      : [] Doc =
   match ds with
   | [] => left
   | [x] => left <> x
@@ -185,37 +195,42 @@ pub let encloseSep (left : Doc) (right : Doc) (sep : Doc) (ds : List Doc) =
   end <> right
 
 {## Prints list with break before comma. ##}
-pub let (list : List Doc ->[] Doc) =
-  encloseSep (text "[") (text "]") (text ",")
+pub let list (xs : List Doc) : [] Doc =
+  encloseSep (text "[") (text "]") (text ",") xs
 
 {## Prints tuple with break before comma. ##}
-pub let (tupled : List Doc ->[] Doc) =
-  encloseSep (text "(") (text ")") (text ",")
+pub let tupled  (xs : List Doc) : [] Doc =
+  encloseSep (text "(") (text ")") (text ",") xs
 
 {## Prints json-like structure with break before semicolon. ##}
-pub let (semibraced : List Doc ->[] Doc) =
-  encloseSep (text "{") (text "}") (text ";")
+pub let semibraced (xs : List Doc) : [] Doc =
+  encloseSep (text "{") (text "}") (text ";") xs
 
 {## Performs `<>` with single space separator ##}
-pub let (<+>) d1 d2 = d1 <> text " " <> d2
+pub let (<+>) (d1 : Doc) (d2 : Doc) : total Doc =
+  d1 <> text " " <> d2
 
 {## Puts d2 right after d1 or in next line ##}
-pub let (</>) d1 d2 = hangWith 0 d1 d2
+pub let (</>) (d1 : Doc) (d2 : Doc) : total Doc =
+  hangWith 0 d1 d2
 
 {## Enclosing of a document. ##}
-pub let enclose l r d = l <> r <> d
+pub let enclose (l : Doc) (r : Doc) (d : Doc) : total Doc =
+  l <> d <> r
 
 {## Quotes given document. ##}
-pub let quote = enclose (text "\"") (text "\"")
+pub let quote (d : Doc) : total Doc =
+  enclose (text "\"") (text "\"") d
 
 {## Same as `cat` but add a single space separator ##}
-pub let sep xs = Core.groupingBy " " (List.map (fn d => (0, d)) xs)
+pub let sep (xs : List Doc) : [] Doc =
+  Core.groupingBy " " (List.map (fn d => (0, d)) xs)
 
 {## ` | ` that will extend itself on `<>` and `>+>` catenation ##}
-pub let vsep = Core.vsep
+pub let vsep : Doc = Core.vsep
 
 {## Clears style for the following document. ##}
-pub let clearStyle (doc : Doc) = doc.style Style.Clear
+pub let clearStyle (doc : Doc) : total Doc = doc.style Style.Clear
 
 {## Clears style for the following document. ##}
 pub method clearStyle = clearStyle
@@ -236,21 +251,24 @@ end
 
 {## Enables styling of given document. ##}
 pub let style
-    { ?fg : Color
-    , ?bg : Color
+    { ?fg        : Color
+    , ?bg        : Color
     , ?underline : Bool
-    , ?strike : Bool }
-    (doc : Doc) =
+    , ?strike    : Bool }
+    (doc : Doc)
+      : total Doc =
   doc.style (Style.Style {?fg, ?bg, ?underline, ?strike})
 
 {## Enables styling of given document. ##}
 pub method style
-    { ?fg : Color
-    , ?bg : Color
+    { ?fg        : Color
+    , ?bg        : Color
     , ?underline : Bool
-    , ?strike : Bool }
-    (doc : Doc) =
+    , ?strike    : Bool }
+    (doc : Doc)
+      : total Doc =
   doc.style (Style.Style {?fg, ?bg, ?underline, ?strike})
 
 {## Generates single document as string. ##}
-pub let generate {?width : Int} = Core.generate {?width}
+pub let generate {?width : Int} (d : Doc) : [] String =
+  Core.generate {?width} d

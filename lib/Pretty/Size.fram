@@ -8,9 +8,9 @@ import open Lazy
   Floating aka floating elements will align globally with other floating
   elements.
 
-  `SFix' represents singular un-moveable object.
+  `SFix` represents singular un-moveable object.
 
-  Each `SShift' stores an information about floating elements that
+  Each `SShift` stores an information about floating elements that
   are willing to globally align with others. 
 
   The `SLast' node is a label that indicates a line where <> will attach
@@ -85,7 +85,8 @@ pub let emptySize = textSize ""
 
 {## Inserts newline ##}
 pub method flush (Size {width, height, fastCompare}) =
-  let rec dropL w = match w with
+  let rec dropL w =
+    match w with
     | SShift {width, dangle} tl => SShift {width, dangle} (dropL tl)
     | SLast tl => tl
     | SFix => impossible ()
@@ -110,7 +111,8 @@ pub method combine (w1 : Size) (w2 : Size) =
   let height = w1.height + w2.height in
 
   # Moves a shift list by a fixed amount
-  let rec moveBy w xs = match xs with
+  let rec moveBy w xs =
+    match xs with
     | SLast {width} tl => SLast {width=width + w} (moveBy w tl)
     | SFix {width} => SFix {width=width + w}
     | SShift {width, dangle} tl =>

@@ -67,7 +67,7 @@ method addStyle (c : CurrStyle) (s : Style) =
       end
     let bg =
       match bg with
-      | None => c.fg
+      | None => c.bg
       | Some c => Some c
       end
     let strike = strike.unwrapOr c.strike
