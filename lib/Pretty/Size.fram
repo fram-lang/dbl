@@ -2,7 +2,7 @@ import /List
 import open Lazy
 
 {##
-  Shift list aka `SList' 
+  Shift list aka `SList`
   
   Structure stores width as a list of floating elements.
   Floating aka floating elements will align globally with other floating
@@ -13,7 +13,7 @@ import open Lazy
   Each `SShift` stores an information about floating elements that
   are willing to globally align with others. 
 
-  The `SLast' node is a label that indicates a line where <> will attach
+  The `SLast` node is a label that indicates a line where <> will attach
   formatted text. In every Size object there is exactly one SLast node.
  ##}
 
@@ -58,7 +58,7 @@ pub method reset (xs : SList) =
 {##
   Structure stores a size of a given thunk of formatted text.
 
-  Height is given explicitly, width is stored as a `shift list'.
+  Height is given explicitly, width is stored as a "shift list".
  ##}
 pub data Size =
   { width       : SList
@@ -146,8 +146,8 @@ pub method combine (w1 : Size) (w2 : Size) =
     end in
 
   # The starting point of algorithm
-  # The <> catenation happens at `SLast' node of w1, thus
-  # width is copied up until `SLast' and then combineWs
+  # The <> catenation happens at `SLast` node of w1, thus
+  # width is copied up until `SLast` and then combineWs
   # operation is performed. The SLast label will be
   # propagated from w2
   let rec copyTillL (w1 : SList) (w2 : SList) =

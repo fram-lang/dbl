@@ -92,7 +92,7 @@ let _ = testSuite "shift" (fn _ =>
     assertEq (t <> t.shift).width
       (SShift {width=3, dangle=3} (SLast {width=3} (SFix {width=3}))));
   
-  testCase "aligns paraller structures" (fn () =>
+  testCase "aligns parallel structures" (fn () =>
     let t1 = textSize "aaaaa" <>
               (textSize "bb" >.shift)    <> (textSize "ccccc" >.shift)
     let t2 = textSize "aa"    <>

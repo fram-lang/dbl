@@ -7,7 +7,7 @@ import /Stream
 type SList = Size.SList
 
 {##
-  Data structure representing unformed lines to display
+  Data structure representing raw lines.
  ##}
 data rec L =
   ## Line catenation
@@ -33,7 +33,8 @@ data rec L =
   | LStyled of Style, L
 
 method toString {?fmt : Unit} (self : L) =
-  let rec iter l xs = match l with
+  let rec iter l xs =
+    match l with
     | LCat l1 l2 => iter l1 (" " :: iter l2 xs)
     | LFill n l => "f\{n}" :: xs
     | LStr s => s.toString :: xs
@@ -67,7 +68,8 @@ method reset (lines : Lines) slist =
     Line {fill = LReset slist fill, str = LReset slist str}) lines
 
 method combine (xs : Lines) (ys : Lines) =
-  let rec iter xs = match xs with
+  let rec iter xs =
+    match xs with
     | [] => ys
     | [Line {fill, str}] =>
       match ys with
@@ -82,7 +84,8 @@ method combine (xs : Lines) (ys : Lines) =
   iter xs
 
 method seq (xs : Lines) (ys : Lines) ((n, static) : Pair Int Int) =
-  let rec iter (xs : Lines) (ys : Lines) = match (xs, ys) with
+  let rec iter (xs : Lines) (ys : Lines) =
+    match (xs, ys) with
     | [x], y :: ys =>
       Line
         { fill = LJump {n, static} x.fill y.fill
@@ -154,7 +157,8 @@ method getCurrentPosition {E} (st : State E) =
 
 method putShifts {E} (st : State E) (sl : SList) =
   let (p, sh, _) = st.get () in
-  let rec iter (p : Int) sl = match sl with
+  let rec iter (p : Int) sl =
+    match sl with
     | Size.SLast tl => iter p tl
     | Size.SFix {width} => [width + p]
     | Size.SShift {width} tl => width + p :: iter (width + p) tl
@@ -177,7 +181,8 @@ method getAlignment {E} (st : State E) (nth : Int) (column : Int) =
   st.put (column, List.drop (nth - x) sh, nth);
   column - p
 
-let rec genL {~h : State _, ~s : Stylist _} (self : L) = match self with
+let rec genL {~h : State _, ~s : Stylist _} (self : L) =
+  match self with
   | LEmpty => ""
   | LStr str => ~h.move str.length; str
   | LShift fill tl =>
@@ -187,7 +192,7 @@ let rec genL {~h : State _, ~s : Stylist _} (self : L) = match self with
     let (_, sh, n) = ~h.get () in
     ~h.putShifts sl;
     let res = genL tl in
-    let (p, _, _) = ~h. get () in
+    let (p, _, _) = ~h.get () in
     ~h.put (p, sh, n);
     res
   | LFill i tl =>
@@ -217,7 +222,8 @@ pub let unlines w (xs : Lines) =
   let strs = List.map (fn (x : Line) =>
     handle ~s with styleH in
     handle ~h with stateH w in genL x.str) xs in
-  let rec fold (xs : List String) = match xs with
+  let rec fold (xs : List String) =
+    match xs with
     | [] => ""
     | x :: xs => x + "\n" + fold xs
     end in
