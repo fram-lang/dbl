@@ -196,13 +196,18 @@ let repl_show_type_mismatch ~pos ~pp ~self_tp tp =
     (T.Pretty.pp_type pp_ctx pp tp)
   in (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
 
-let func_not_pure ~pos =
-  (pos, "Cannot ensure that this function is pure and always terminates", [])
+let func_not_total ~pos =
+  (pos, "Cannot ensure that this function is total "
+    ^ "(pure and terminating)", [])
 
-let impure_handler ~pos =
+let handler_not_total ~pos =
   (pos,
-    "Cannot ensure that this handler expression is pure and always terminates",
-    [])
+    "Cannot ensure that this handler expression is total "
+    ^ "(pure and terminating)", [])
+
+let expr_not_total ~pos =
+  (pos, "Cannot ensure that this expression is total "
+    ^ "(pure and terminating)", [])
 
 let invalid_rec_def ~pos =
   (pos, "This kind of definition cannot be recursive", [])

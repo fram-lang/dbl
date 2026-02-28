@@ -136,6 +136,7 @@ and expr_data =
   | EEffect     of expr * var * expr * typ
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
+  | EAnnotEff   of expr * type_expr * type_expr
   | ERepl       of (unit -> expr) * typ
   | EReplExpr   of
     { body   : expr;
