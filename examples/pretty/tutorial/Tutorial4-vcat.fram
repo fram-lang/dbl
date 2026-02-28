@@ -1,0 +1,7 @@
+import open Pretty
+
+# Operator `$$` is a shorthand for `flush` followed by `<>` operator.
+let myDoc = text "Hello"
+         $$ text "World!"
+
+let _ = printStrLn (generate myDoc)

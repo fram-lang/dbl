@@ -42,6 +42,10 @@ pub let rec toList (Stream xs : Stream X) =
   | Cons x xs => x :: toList xs
   end : List X
 
+{## Lifts a stream computation to stream structure directly. ##}
+pub let lazyStream (f : Unit ->[] Stream X) =
+  Stream (lazy (fn _ => f () >.unstream >.force))
+
 {##
   Initializes lazy stream by iteratively applying function `f` on previous results.
 
@@ -187,6 +191,12 @@ pub let equal
     in
     equalAux xs ys
 
+pub let rec iter (xs : Stream X) f =
+  match xs.unstream.force with
+  | Cons x xs => f x; iter xs f
+  | Nil       => ()
+  end
+
 {## Enables stream showing in REPL. ##}
 pub let show (_ : Stream X) = "#Stream"
 
@@ -201,4 +211,5 @@ pub method filter = flip filter
 pub method foldRight xs f acc = foldRight f xs acc
 pub method foldRight1Err = flip foldRight1Err
 pub method equal = equal
+pub method iter = iter
 pub method show = show
