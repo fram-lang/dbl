@@ -3,6 +3,8 @@ import Base/Option
 import Base/Pair
 import Base/Show
 import Base/ToString
+import Pretty/Core
+import Pretty/Size
 import List
 import Stream
 import Map

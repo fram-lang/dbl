@@ -1,0 +1,6 @@
+let rec plus1 (x : Int) : Int = plus1 (1 + x)
+
+method plus1 (x : Int) : Int = plus1 x
+
+let foo (x : Int) : total Int = x.plus1
+
