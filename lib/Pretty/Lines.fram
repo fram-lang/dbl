@@ -10,24 +10,24 @@ type SList = Size.SList
   Data structure representing raw lines.
  ##}
 data rec L =
-  ## Line catenation
+  ## Line catenation.
   | LCat of L, L
-  ## Line prefixed with `n` spaces
+  ## Line prefixed with `n` spaces.
   | LFill of Int, L
-  ## Any string
+  ## Any string.
   | LStr of String
-  ## Empty line
+  ## Empty line.
   | LEmpty
   ## Singular shift, exact amount of spaces
-  ## will be decided during generation
+  ## will be decided during generation.
   | LShift of Char, L
   ## Reset node, contains Shift List to allocate
-  ## shifts during rendering
+  ## shifts during rendering.
   | LReset of SList, L
 
   ## Multi-level relative shift. Jumps by n shifts and 
   ## inserts `static` amount of spaces. Exact shift will be resolved
-  ## string generation
+  ## during string generation.
   | LJump of {n : Int, static : Int}, L, L
 
   | LStyled of Style, L
@@ -256,5 +256,5 @@ pub method seq (lines1 : DocLines) (lines2 : DocLines) (align : Pair Int Int) =
 pub method style (lines : DocLines) (sty : Style) =
   lazy (fn _ => lines.force.style sty)
 
-pub let (vsep : DocLines) =
+pub let vsep : DocLines =
   lazy (fn _ => [Line {fill = LStr " | ", str = LStr " | "}])
