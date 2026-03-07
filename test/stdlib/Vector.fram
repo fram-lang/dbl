@@ -5,15 +5,15 @@ import open Testing
 
 let _ = testSuite "vector" (fn _ =>
 
-  testCase "size and capacity methods" (fn _ =>
-    let vec = makeVector {T=Int} 4 in
+  testCase "size and capacity" (fn _ =>
+    let vec = makeEmptyVector {T=Int} 4 in
     let sz = vec.size in
     let cap = vec.capacity in
     assertEqS sz 4;
     assertEqS cap 4);
 
-  testCase "front and back methods" (fn _ =>
-    let vec = makeVector {T=Int} 4 in
+  testCase "front and back" (fn _ =>
+    let vec = makeEmptyVector {T=Int} 4 in
     vec.set 0 1;
     vec.set 1 2;
     vec.set 2 3;
@@ -24,8 +24,8 @@ let _ = testSuite "vector" (fn _ =>
     assertEqS fst 1;
     assertEqS lst 5);
   
-  testCase "get method" (fn _ =>
-    let vec = makeVector {T=Int} 0 in
+  testCase "get" (fn _ =>
+    let vec = makeEmptyVector {T=Int} 0 in
     vec.pushBack 6;
     vec.pushBack 7;
     vec.pushBack 8;
@@ -35,15 +35,15 @@ let _ = testSuite "vector" (fn _ =>
     assertEqS x 7;
     assertEqS y 9);
     
-  testCase "clear method" (fn _ =>
-    let vec = makeVector {T=Int} 4 in
+  testCase "clear" (fn _ =>
+    let vec = makeEmptyVector {T=Int} 4 in
     vec.clear;
     let sz = vec.size in
     let cap = vec.capacity in
     assertEqS sz 0;
     assertEqS cap 0);
 
-  testCase "from/to list methods" (fn _ =>
+  testCase "from/to list" (fn _ =>
     let xs = [1,2,3,4] in
     let vec = fromList xs in
     let x = vec.get 0 in
@@ -54,13 +54,16 @@ let _ = testSuite "vector" (fn _ =>
     assertEqS y 3;
     assertEqS z (Some 1));
 
-    testCase "vector of strings" (fn _ =>
-    let vec = makeVector {T=String} 2 in
+  testCase "vector of strings" (fn _ =>
+    let vec = makeEmptyVector {T=String} 2 in
     vec.set 0 "abc";
     vec.set 1 "ab";
     vec.pushBack "a";
     let fst = vec.front in
     let lst = vec.back in
     assertEqS fst "abc";
-    assertEqS lst "a"))
+    assertEqS lst "a");
     
+  testCase "filled vector" (fn _ =>
+    let vec = makeVector {T=String} 42 "" in
+    assertEqS (vec.get 0 + "A") "A")) 

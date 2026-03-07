@@ -31,6 +31,7 @@ method setContent (Vector {content} : Vector E T) newContent =
 method mut (Vector {mut} : Vector E T) = mut
 
 let getSmallestUpperPow2 (n : Int) =
+  let n = if n == 0 then 1 else n in
   let n = n-1 in
   let n = n ||| (n>>1) in
   let n = n ||| (n>>2) in
@@ -38,14 +39,23 @@ let getSmallestUpperPow2 (n : Int) =
   let n = n ||| (n>>8) in
   let n = n ||| (n>>16) in
   let n = n ||| (n>>32) in
-  let n = n ||| (n>>64) in
   n+1
 
 {## Creates vector of given size. ##}
-pub let makeVector {T, ~mut : Mut E} (size : Int) =
+pub let makeEmptyVector {T, ~mut : Mut E} (size : Int) =
   let capacity = (getSmallestUpperPow2 size) in
   Vector
   { content    = ~mut.ref (~mut.makeArray capacity ((extern dbl_magic : Int -> T) 0))
+  , size       = ~mut.ref size
+  , capacity   = ~mut.ref capacity
+  , mut        = ~mut
+  }
+
+{## Creates a vector of a given size filled with a given value v. ##}
+pub let makeVector {T, ~mut : Mut E} (size : Int) (v : T) =
+  let capacity = (getSmallestUpperPow2 size) in
+  Vector
+  { content    = ~mut.ref (~mut.makeArray capacity v)
   , size       = ~mut.ref size
   , capacity   = ~mut.ref capacity
   , mut        = ~mut
@@ -68,19 +78,24 @@ pub method empty (Vector {size} : Vector E T) = size.get == 0
   Resizes the vector to contain n elements.
   If n is smaller than the current size, the vector is truncated.
   If n is greater than size, the vector is expanded.
-  If n exceeds the current capacity, the vector reallocates its storage.
 ##}
 pub method resize {T} (self : Vector E T) (n : Int) =
+  assert {msg="Capacity overflow"} (n >= 0 && n <= maxArrayLength);
   self.setSize n;
-  let newCapacity = getSmallestUpperPow2 n in
-  if newCapacity <= self.capacity then ()
-  else (
+  if n > self.capacity then (
+    let newCapacity = min (self.capacity * 2) maxArrayLength
     let newContent = self.mut.initArray newCapacity (fn i =>
       if i < self.capacity then self.getContentAt i
       else ((extern dbl_magic : Int -> T) 0)) in
     self.setContent newContent;
     self.setCapacity newCapacity
-  )
+  ) else if n * 2 < self.capacity then (
+    let newCapacity = self.capacity / 2
+    let newContent = self.mut.initArray newCapacity (fn i =>
+      self.getContentAt i) in
+    self.setContent newContent;
+    self.setCapacity newCapacity
+  ) else ()
 
 {## Get the nth element of a vector. ##}
 pub method get (self : Vector E T) (n : Int) =
@@ -100,21 +115,17 @@ pub method back (self : Vector E T) = self.get (self.size - 1)
 
 {## Add element at the end. ##}
 pub method pushBack (self : Vector E T) (x : T) =
-  let newSize = self.size + 1 in
-  if newSize >= self.capacity then
-    self.resize newSize
-  else
-    self.setSize newSize;
-  self.set (newSize - 1) x
+  self.resize (self.size + 1);
+  self.set (self.size - 1) x
 
 {## Removes the last element. ##}
 pub method popBack (self : Vector E T) =
   assert {msg="Vector is empty"} (self.empty.neg);
-  self.setSize (self.size - 1)
+  self.resize (self.size - 1)
 
 {## Converts a list into a vector. ##}
 pub let fromList {~mut : Mut E} (l : List T) =
-  let vec = makeVector {T=T} l.length in
+  let vec = makeEmptyVector {T} l.length in
   let rec aux (n : Int) acc =
     match acc with
     | []      => vec
@@ -135,5 +146,4 @@ pub method toList (self : Vector E T) =
 pub method clear (self : Vector E T) =
   self.setSize 0;
   self.setCapacity 0;
-  self.setContent (self.mut.makeArray 0 ((extern dbl_magic : Int -> T) 0))
-  
+  self.setContent (self.mut.makeArray 0 ((extern dbl_magic : Int -> T) 0)) 
