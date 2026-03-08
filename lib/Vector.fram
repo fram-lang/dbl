@@ -92,7 +92,8 @@ pub method resize {T} (self : Vector E T) (n : Int) =
   ) else if n * 2 < self.capacity then (
     let newCapacity = self.capacity / 2
     let newContent = self.mut.initArray newCapacity (fn i =>
-      self.getContentAt i) in
+      if i <= self.size then self.getContentAt i
+      else ((extern dbl_magic : Int -> T) 0)) in
     self.setContent newContent;
     self.setCapacity newCapacity
   ) else ()
