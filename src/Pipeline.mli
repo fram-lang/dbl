@@ -16,6 +16,9 @@ val use_prelude : bool ref
 (** Include the standard library only if this flag is set. *)
 val use_stdlib : bool ref
 
+(** Print time profiling messages if this flag is set *)
+val timings : bool ref
+
 (** Run in REPL mode *)
 val run_repl : unit -> unit
 
