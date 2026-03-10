@@ -19,11 +19,12 @@ let dump_sexpr flag to_sexpr p =
   p
 
 let print_timing label f arg =
-    if not !timings then f arg else
-        let start = Unix.gettimeofday () in
-        let r = f arg in
-        Printf.eprintf "[timing] %s:  %.3fs\n" label (Unix.gettimeofday () -. start);
-        r
+  if not !timings then f arg
+  else
+    let start = Unix.gettimeofday () in
+    let r = f arg in
+    Printf.eprintf "[timing] %s:  %.3fs\n" label (Unix.gettimeofday () -. start);
+    r
 
 let check_invariant check inv p =
   if check
@@ -44,18 +45,21 @@ let set_module_dirs ?fname () =
 let core_pipeline prog =
   prog
   |> print_timing "type inference" TypeInference.Main.tr_program
-  |> print_timing "effect inference" (EffectInference.Main.tr_program ~solve_all:true)
+  |> print_timing "effect inference"
+       (EffectInference.Main.tr_program ~solve_all:true)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
   |> print_timing "to core" ToCore.Main.tr_program
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
-  |> print_timing "second type check" (check_invariant true Lang.Core.check_well_typed)
+  |> print_timing "second type check"
+       (check_invariant true Lang.Core.check_well_typed)
   |> CoreTypeErase.tr_program
   |> print_timing "evaluation" Eval.eval_program
 
 let nocore_pipeline prog =
   prog
   |> print_timing "type inference" TypeInference.Main.tr_program
-  |> print_timing "effect inference" (EffectInference.Main.tr_program ~solve_all:false)
+  |> print_timing "effect inference"
+       (EffectInference.Main.tr_program ~solve_all:false)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
   |> ConETypeErase.tr_program
   |> print_timing "evaluation" Eval.eval_program
