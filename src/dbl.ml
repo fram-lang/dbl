@@ -39,7 +39,7 @@ let cmd_args_options = Arg.align
 
     "-timings",
     Arg.Set Pipeline.timings,
-    " Print timings of pipeline stages";
+    " Print timings of pipeline stages to stderr";
 
     "-verbose-internal-errors",
     Arg.Set InterpLib.InternalError.verbose,

@@ -22,9 +22,13 @@ let print_timing label f arg =
   if not !timings then f arg
   else
     let start = Unix.gettimeofday () in
-    let r = f arg in
-    Printf.eprintf "[timing] %s:  %.3fs\n" label (Unix.gettimeofday () -. start);
-    r
+    let at_end () =
+      Printf.eprintf "[timing] %s:  %.3fs\n%!" label
+        (Unix.gettimeofday () -. start)
+    in
+    match f arg with
+    | r -> at_end (); r
+    | exception ex -> at_end (); raise ex
 
 let check_invariant check inv p =
   if check
@@ -50,8 +54,8 @@ let core_pipeline prog =
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
   |> print_timing "to core" ToCore.Main.tr_program
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
-  |> print_timing "second type check"
-       (check_invariant true Lang.Core.check_well_typed)
+  |> check_invariant true
+       (print_timing "second type check" Lang.Core.check_well_typed)
   |> CoreTypeErase.tr_program
   |> print_timing "evaluation" Eval.eval_program
 
