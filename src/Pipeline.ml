@@ -56,7 +56,7 @@ let core_pipeline prog =
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
   |> check_invariant true
        (print_timing "second type check" Lang.Core.check_well_typed)
-  |> CoreTypeErase.tr_program
+  |> print_timing "type erasure" CoreTypeErase.tr_program
   |> print_timing "evaluation" Eval.eval_program
 
 let nocore_pipeline prog =
@@ -65,7 +65,7 @@ let nocore_pipeline prog =
   |> print_timing "effect inference"
        (EffectInference.Main.tr_program ~solve_all:false)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
-  |> ConETypeErase.tr_program
+  |> print_timing "type erasure" ConETypeErase.tr_program
   |> print_timing "evaluation" Eval.eval_program
 
 let run_repl () =
