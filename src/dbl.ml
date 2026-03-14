@@ -37,6 +37,10 @@ let cmd_args_options = Arg.align
     Arg.Clear Pipeline.use_stdlib,
     " Do not use the standard library";
 
+    "-timings",
+    Arg.Set Pipeline.timings,
+    " Print timings of pipeline stages to stderr";
+
     "-verbose-internal-errors",
     Arg.Set InterpLib.InternalError.verbose,
     " Make internal errors more verbose (for debugging only)";
