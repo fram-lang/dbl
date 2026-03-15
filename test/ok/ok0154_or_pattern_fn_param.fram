@@ -1,0 +1,11 @@
+data Binary = Zero | One
+
+let f = fn (Zero | One) => ()
+
+data Two A = First of A | Second of A
+
+let extract = fn (First a | Second a) => a
+
+let g x =
+  let (Zero | One) = x in
+  ()

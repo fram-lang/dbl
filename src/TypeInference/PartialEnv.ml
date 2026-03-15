@@ -280,6 +280,24 @@ let intersect ?check_schemes ~pp ~pos ~scope penv1 penv2 =
       | None -> ren
     ) penv2.val_map (T.Ren.empty ~scope)
   in
+  let ren =
+    StrMap.fold (fun mname minfo2 ren ->
+      match StrMap.find_opt mname penv1.module_map with
+      | Some minfo1 ->
+        let vars1 =
+          List.fold_left
+            (fun m (name, var, _) -> Name.Map.add name var m)
+            Name.Map.empty minfo1.mi_vals
+        in
+        List.fold_left
+          (fun ren (name, var2, _) ->
+            match Name.Map.find_opt name vars1 with
+            | Some var1 -> T.Ren.add_var ren var2 var1
+            | None -> ren)
+          ren minfo2.mi_vals
+      | None -> ren
+    ) penv2.module_map ren
+  in
   let penv =
     { tvar_map   =
         StrMap.merge (intersect_tvar_info ~pos) penv1.tvar_map penv2.tvar_map;
