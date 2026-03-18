@@ -51,8 +51,13 @@ let node_is_data_def (def : def) =
 
 let annot_tp e tp =
   { pos = e.pos;
-    data = Raw.EAnnot(e, with_nowhere tp)
+    data = Raw.EAnnot(e, AnnotType (with_nowhere tp))
   }
+
+let add_annot_opt e annot_opt =
+  match annot_opt with
+  | None -> e
+  | Some annot -> { e with data = Raw.EAnnot(e, annot) }
 
 let scheme_wildcard pos =
   { sch_pos  = pos;
@@ -315,7 +320,8 @@ let rec tr_pattern (p : Raw.expr) =
     let named = List.map tr_named_pattern flds in
     let ps = List.map (tr_pattern) ps in
     make (PCtor(cpath, named, ps))
-  | EAnnot(p, sch) -> make (PAnnot(tr_pattern p, tr_scheme_expr sch))
+  | EAnnot(p, AnnotType sch) ->
+    make (PAnnot(tr_pattern p, tr_scheme_expr sch))
   | EBOp(p1, op, p2) ->
     let c_name = {op with data = NPName (tr_bop_id op)} in
     let ps = [tr_pattern p1; tr_pattern p2] in
@@ -336,7 +342,7 @@ let rec tr_pattern (p : Raw.expr) =
   | EPub p -> make (Attributes.make_vis_pattern (tr_pattern p)).data
 
   | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
+  | EMethod _ | EExtern _ | EIf _ | EMethodCall _ | EAnnot(_, AnnotTotal _) ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern, separating out its annotation [Some sch] if present,
@@ -349,7 +355,9 @@ and tr_annot_pattern (p : Raw.expr) =
     | pat, None -> { pat with pos }, None
     | (_, Some _) as res -> res
     end
-  | EAnnot(p, sch) -> tr_pattern p, Some (tr_scheme_expr sch)
+  | EAnnot(p, AnnotType sch) -> tr_pattern p, Some (tr_scheme_expr sch)
+  | EAnnot(_, AnnotTotal _) ->
+    Error.fatal (Error.desugar_error pos)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
   | ENum _ | ENum64 _ | EStr _ |  EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
   | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
@@ -574,7 +582,13 @@ and tr_expr (e : Raw.expr) =
     let e = EEffect(Option.map tr_expr label, res, tr_expr body) in
     make (tr_function args { pos; data = e }).data
   | EExtern name -> make (EExtern name)
-  | EAnnot(e, tp) -> make (EAnnot(tr_expr e, tr_type_expr tp))
+  | EAnnot(e, AnnotTotal tp) ->
+    make (EAnnotTotal(tr_expr e, tr_type_expr tp))
+  | EAnnot(e, AnnotType tp) ->
+    begin match tr_eff_type tp with
+    | None,     tp -> make (EAnnot(tr_expr e, tp))
+    | Some eff, tp -> make (EAnnotEff(tr_expr e, tp, eff))
+    end
   | EIf(e, e1, e2) ->
     let (e1, e2) =
       match e2 with
@@ -599,7 +613,7 @@ and tr_expr (e : Raw.expr) =
     | ";" ->
       let lhs = annot_tp exp1 RawTypes.unit in
       tr_expr (make (Raw.EDefs(
-        [make ([], Raw.DLet(make Raw.EWildcard, lhs))],
+        [make ([], Raw.DLet(make Raw.EWildcard, None, lhs))],
         exp2
       )))
     | _ ->
@@ -678,7 +692,8 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
   let make data = { data = data; pos = pos } in
   let make_attr data = (([] : Raw.attribute list), data) in 
   match def with
-  | DLet(p, e) ->
+  | DLet(p, annot, e) ->
+    let e = add_annot_opt e annot in
     make_attr 
       [ match tr_let_pattern p with
         | LP_Id id ->
@@ -688,7 +703,8 @@ and tr_def (pos : Position.t) (def : Raw.def_data) =
         | LP_Pat p ->
           make (DLetPat(p, tr_expr e))
       ]
-  | DMethod(p, e) ->
+  | DMethod(p, annot, e) ->
+    let e = add_annot_opt e annot in
     make_attr 
       [ match tr_let_pattern p with
         | LP_Id (IdVar x) ->

@@ -1,0 +1,509 @@
+import /List
+import open Testing
+
+let ~onError _ = runtimeError "Unhandled ~onError in List test module!"
+
+let xs = [1, 2, 3, 4]
+let ys = [5, 6, 7, 8]
+
+let add (x : Int) y = x + y
+
+{# Simple accumulation effect for tests of iter* functions. #}
+let accumH =
+  handler
+    effect x / r => fn s => r () (s + x)
+    return  _ => id
+    finally c => c 0
+  end
+
+# Tests
+let _ =
+
+testSuite "isEmpty" (fn _ =>
+
+  testCase "non empty" (fn _ =>
+    assertFalse (List.isEmpty xs));
+  {# Without specifying List type:
+    fatal error: Unsolved unification variables left.
+  #}
+  testCase "empty" (fn _ =>
+    assertTrue (List.isEmpty ([] : List Int))));
+
+testSuite "length" (fn _ =>
+
+  testCase "non empty" (fn _ =>
+    assertEq (List.length xs) 4);
+  
+  testCase "empty" (fn _ =>
+    assertEq (List.length ([] : List Int)) 0));
+
+testSuite "hd" (fn _ =>
+  
+  testCase "non empty" (fn _ =>
+    expectEq (List.hd xs) (Some 1));
+  
+  testCase "empty" (fn _ =>
+    expectEq (List.hd ([] : List Int)) None));
+
+testSuite "hdErr" (fn _ =>
+  
+  testCase "non empty" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq (List.hdErr xs) 1));
+
+  testCase "empty" (fn _ =>
+    let ~onError () = -1 in
+    assertCallsOnError (fn _ =>
+      assertEq (List.hdErr []) (-1))));
+
+testSuite "tl" (fn _ =>
+
+  testCase "non empty" (fn _ =>
+    assertEq (List.tl xs) (Some [2, 3, 4]));
+  
+  testCase "empty" (fn _ =>
+    assertEq (List.tl ([] : List Int)) None));
+
+testSuite "tlErr" (fn _ =>
+
+  testCase "non empty" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq
+        (List.tlErr xs)
+        [2, 3, 4]));
+  
+  testCase "empty" (fn _ =>
+    let ~onError () = [] in
+    assertCallsOnError (fn _ =>
+      assertEq
+        (List.tlErr ([] : List Int))
+        [])));
+
+testSuite "dropLast" (fn _ =>
+
+  testCase "non empty" (fn _ =>
+    assertEq
+      (List.dropLast xs)
+      (Some [1, 2, 3]));
+  
+  testCase "empty" (fn _ =>
+    assertEq
+      (List.dropLast ([] : List Int))
+      None));
+
+testSuite "dropLastErr" (fn _ =>
+
+  testCase "non empty" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq (List.dropLastErr xs) [1, 2, 3]));
+
+  testCase "empty returns" (fn _ =>
+    let ~onError () = [] in
+    assertCallsOnError (fn _ =>
+      assertEq (List.dropLastErr ([] : List Int)) [])));
+
+  testSuite "nth" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertEq (List.nth xs 2) (Some 3));
+    
+    testCase "out of bounds" (fn _ =>
+      assertEq (List.nth xs 10) None));
+  
+  testSuite "nthErr" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertDoesNotCallOnError (fn _ =>
+        assertEq (List.nthErr xs 2) 3));
+      
+    testCase "empty" (fn _ =>
+      let ~onError () = 0 in
+      assertCallsOnError (fn _ =>
+        assertEq (List.nthErr [] 2) 0)));
+  
+  testSuite "last" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertEq (List.last xs) (Some 4));
+    
+    testCase "empty" (fn _ =>
+      assertEq (List.last ([] : List Int)) None));
+  
+  testSuite "lastErr" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertDoesNotCallOnError (fn _ =>
+        assertEq (List.lastErr xs) 4));
+      
+    testCase "empty" (fn _ =>
+      let ~onError () = 0 in
+      assertCallsOnError (fn _ =>
+        assertEq (List.lastErr []) 0)));
+
+  testSuite "dropTakeLast" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertEq
+        (List.dropTakeLast xs)
+        (Some ([1, 2, 3], 4)));
+    
+    testCase "empty" (fn _ =>
+      assertEq
+        (List.dropTakeLast ([] : List Int))
+        None));
+  
+  testSuite "dropTakeLastErr" (fn _ =>
+    
+    testCase "non empty" (fn _ =>
+      assertDoesNotCallOnError (fn _ =>
+        assertEq
+          (List.dropTakeLastErr xs)
+          ([1, 2, 3], 4)));
+    
+    testCase "empty" (fn _ =>
+      let ~onError () = ([], 0) in
+      assertCallsOnError (fn _ =>
+        assertEq
+          (List.dropTakeLastErr [])
+          ([], 0))));
+
+testCase "append" (fn _ =>
+  assertEq (xs + ys) [1, 2, 3, 4, 5, 6, 7, 8]);
+
+testCase "rev" (fn _ =>
+  assertEq (List.rev xs) [4, 3, 2, 1]);
+
+testCase "concat" (fn _ =>
+  assertEq
+    (List.concat [[], xs, ys, []])
+    [1, 2, 3, 4, 5, 6, 7, 8]);
+
+testCase "map" (fn _ =>
+  assertEq
+    (List.map (fn x => 2 * x) xs)
+    [2, 4, 6, 8]);
+
+testSuite "mapi" (fn _ =>
+  
+  testCase "normal" (fn _ =>
+    assertEq
+      (List.mapi (fn x i => x + i) xs)
+      [1, 3, 5, 7]);
+  
+  testCase "override index" (fn _ =>
+    assertEq
+      (List.mapi {i=5} (fn x i => x + i) xs)
+      [6, 8, 10, 12]));
+
+testSuite "map2" (fn _ =>
+
+  testCase "regular" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq
+        (List.map2 add xs ys)
+        [6, 8, 10, 12]));
+  
+  testCase "onError" (fn _ =>
+    let ~onError () = [] in
+    assertCallsOnError (fn _ =>
+      assertEq
+        (List.map2 add xs [5, 6])
+        [6, 8])));
+  
+testCase "revMap" (fn _ =>
+  assertEq
+    (List.revMap (fn x => 2 * x) xs)
+    [8, 6, 4, 2]);
+
+testSuite "revMap2" (fn _ =>
+  testCase "regular" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq
+        (List.revMap2 add xs ys)
+        [12, 10, 8, 6]));
+  
+  testCase "onError" (fn _ =>
+    let ~onError () = [] in
+    assertCallsOnError (fn _ =>
+      assertEq
+        (List.revMap2 add xs [5, 6])
+        [])));
+
+testCase "filter" (fn _ =>
+  assertEq
+    (List.filter (fn (x : Int) => (x % 2) == 0) xs)
+    [2, 4]);
+
+
+testCase "filteri" (fn _ =>
+  assertEq
+    (List.filteri (fn (i : Int) _ => i % 2 == 0) xs)
+    [1, 3]);
+
+testCase "filterMap" (fn _ =>
+  assertEq
+    (List.filterMap (fn (x : Int) => if x % 2 == 0 then Some x else None) xs)
+    [2, 4]);
+
+testCase "filterMapi" (fn _ =>
+  assertEq
+    (List.filterMapi
+      (fn x (i : Int) => if i % 2 == 0 then Some x else None) xs)
+    [1, 3]);
+
+testCase "concatMap" (fn _ =>
+  assertEq
+    (List.concatMap (fn x => [x, x]) xs)
+    [1, 1, 2, 2, 3, 3, 4, 4]);
+
+testCase "take" (fn _ =>
+  assertEq
+    (List.take 4 (xs + ys))
+    xs);
+
+testCase "drop" (fn _ =>
+  assertEq
+    (List.drop 4 (xs + ys))
+    ys);
+
+testCase "takeWhile" (fn _ =>
+  assertEq
+    (List.takeWhile (fn (x : Int) => x <= 2) xs)
+    [1, 2]);
+
+testCase "dropWhile" (fn _ =>
+  assertEq
+    (List.dropWhile (fn (x : Int) => x <= 2) xs)
+    [3, 4]);
+
+testCase "iter" (fn _ =>
+  let st =
+    handle add with accumH in
+      List.iter add xs
+  in
+  assertEq st 10);
+
+testSuite "iteri" (fn _ =>
+  
+  testCase "regular" (fn _ =>
+    let st =
+      handle add with accumH in
+        List.iteri (fn (x : Int) (i : Int) => add (x * i)) xs
+    in
+    assertEq st 20);
+
+  testCase "index override" (fn _ =>
+    let st =
+      handle add with accumH in
+        List.iteri {i = 1} (fn (x : Int) (i : Int) => add (x * i)) xs
+    in
+    assertEq st 30));
+
+testSuite "iter2" (fn _ =>
+  
+  testCase "regular" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      let st =
+        handle add with accumH in
+          List.iter2 (fn x y => add (x * y)) xs xs
+      in
+      assertEq st 30));
+  
+  testCase "onError" (fn _ =>
+    let ~onError () = () in
+    assertCallsOnError (fn _ =>
+      let st =
+        handle add with accumH in
+          List.iter2 (fn x y => add (x * y)) xs [1, 2]
+      in
+      assertEq st 5)));
+
+testCase "init" (fn _ =>
+  assertEq (List.init 5 id) [0, 1, 2, 3, 4]);
+
+testCase "foldLeft" (fn _ =>
+  assertEq
+    (List.foldLeft (fn (a : Int) b => a + b) 0 xs)
+    10);
+
+testSuite "foldleft1" (fn _ =>
+
+  testCase "non-empty" (fn _ =>
+    assertEq
+      (List.foldLeft1 (fn (a : Int) b => a + b) xs >.unwrapOr 0)
+      10);
+
+  testCase "empty" (fn _ =>
+    assertEq
+      (List.foldLeft1 (fn (a : Int) b => a + b) ([] : List Int) >.unwrapOr 0)
+      0));
+
+testSuite "foldleft1Err" (fn _ =>
+
+  testCase "non-empty" (fn _ =>
+
+    assertDoesNotCallOnError (fn _ =>
+      assertEq
+        (List.foldLeft1Err (fn (a : Int) b => a + b) xs)
+        10));
+
+  testCase "empty" (fn _ =>
+    let ~onError () = 0 in
+    assertCallsOnError (fn _ =>
+      assertEq
+        (List.foldLeft1Err (fn (a : Int) b => a + b) ([] : List Int))
+        0)));
+
+testCase "foldRight" (fn _ =>
+  assertEq
+    (List.foldRight (fn (a : Int) b => a + b) xs 0)
+    10);
+
+testSuite "foldRight1" (fn _ =>
+
+  testCase "non-empty" (fn _ =>
+    assertEq
+      (List.foldRight1 (fn (a : Int) b => a + b) xs >.unwrapOr 0)
+      10);
+
+  testCase "empty" (fn _ =>
+    assertEq
+      (List.foldRight1 (fn (a : Int) b => a + b)
+        ([] : List Int) >.unwrapOr 0)
+      0));
+
+testSuite "foldRight1Err" (fn _ =>
+
+  testCase "non-empty" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq
+        (List.foldRight1Err 
+          (fn (a : Int) b => a + b) xs)
+        10));
+
+  testCase "empty" (fn _ =>
+    let ~onError () = 0 in
+    assertCallsOnError (fn _ =>
+      assertEq
+        (List.foldRight1Err
+          (fn (a : Int) b => a + b) ([] : List Int))
+        0)));
+
+testCase "foldLeft2" (fn _ =>
+  assertEq
+    (List.foldLeft2 (fn (a : Int) b c => a + b + c) 0 xs ys)
+    36);
+
+testCase "foldRight2" (fn _ =>
+  assertEq
+    (List.foldRight2 (fn (a : Int) b c => a + b + c) xs ys 0)
+    36);
+
+testSuite "forAll" (fn _ =>
+
+  testCase "true" (fn _ =>
+    assertTrue (List.forAll (fn (x : Int) => x % 2 == 1) [1, 3, 5, 7, 9]));
+
+  testCase "false" (fn _ =>
+    assertFalse
+      (List.forAll (fn (x : Int) => x % 2 == 1) [2, 4, 6, 8, 10])));
+
+testSuite "exists" (fn _ =>
+
+  testCase "true" (fn _ =>
+    assertTrue
+      (List.exists (fn (x : Int) => x == 42) [1, 2, 3, 42, 5, 6, 7]));
+
+  testCase "false" (fn _ =>
+    assertFalse (List.exists (fn (x : Int) => x == 42) [1, 2, 3, 5, 6, 7])));
+
+testSuite "find" (fn _ =>
+
+  testCase "found" (fn _ =>
+    assertEq
+      (List.find (fn (x : String) => x == "b") ["a", "b", "c"])
+      (Some "b"));
+
+  testCase "not found" (fn _ =>
+    assertEq
+      (List.find (fn (x : String) => x == "d") ["a", "b", "c"])
+      None));
+
+testSuite "findIndex" (fn _ =>
+
+  testCase "found" (fn _ =>
+    assertEq
+      (List.findIndex (fn (x : String) => x == "b") ["a", "b", "c"])
+      (Some 1));
+
+  testCase "not found" (fn _ =>
+    assertEq
+      (List.findIndex (fn (x : String) => x == "d") ["a", "b", "c"])
+      None));
+
+testSuite "findMap" (fn _ =>
+
+  testCase "found" (fn _ =>
+    assertEq
+      (List.findMap
+        (fn (x : String) => if x == "b" then Some x else None)
+        ["a", "b", "c"])
+      (Some "b"));
+
+  testCase "not found" (fn _ =>
+    assertEq
+      (List.findMap
+        (fn (x : String) => if x == "d" then Some x else None)
+        ["a", "b", "c"])
+      None));
+
+testSuite "findMapi" (fn _ =>
+
+  testCase "default index" (fn _ =>
+    assertEq
+      (List.findMapi
+        (fn (x : Int) (i : Int) =>
+          if x == i then Some x else None)
+        [1, 2, 3, 4, 4])
+      (Some 4));
+
+  testCase "custom start index" (fn _ =>
+    assertEq
+      (List.findMapi { i = 1 }
+        (fn (x : Int) (i : Int) =>
+          if x == i then Some x else None)
+        [2, 3, 4, 5, 5])
+      (Some 5)));
+
+testCase "foldLeftMap" (fn _ =>
+  assertEq
+    (List.foldLeftMap
+      (fn (acc : Int) (x : Int) => (acc + x, x * x))
+      0 xs)
+    (10, [1, 4, 9, 16]));
+
+testCase "foldLeftFilterMap" (fn _ =>
+  assertEq
+    (List.foldLeftFilterMap
+      (fn (acc : Int) (x : Int) =>
+        if x % 2 == 0 then Some (acc + x, x * x) else None)
+      0 xs)
+    (6, [4, 16]));
+
+testCase "foldLeftConcatMap" (fn _ =>
+  assertEq
+    (List.foldLeftConcatMap
+      (fn (acc : Int) (x : Int) =>
+        (acc + x, List.init x (fn _ => x)))
+      0 xs)
+    (10, [1, 2, 2, 3, 3, 3, 4, 4, 4, 4]));
+
+testSuite "mem" (fn _ =>
+
+  testCase "is true" (fn _ =>
+    assertTrue (List.mem { E = String } "b" ["a", "b", "c"]));
+
+  testCase "is false" (fn _ =>
+    assertFalse (List.mem { E = String } "d" ["a", "b", "c"])));
+
+()

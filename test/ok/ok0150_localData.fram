@@ -1,0 +1,2 @@
+let foo _ _ = 42
+let (_ : Int) = (data T = C in foo C) 0

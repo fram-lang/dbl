@@ -1,0 +1,94 @@
+import open Testing
+
+let _ =
+  testCase "Unit" (fn _ =>
+    expectEq  ().show             "()";
+    expectEq (().show {prec=300}) "()");
+
+  testCase "Int" (fn _ =>
+    expectEq 42.show                 "42";
+    expectEq (13.show {prec=200})    "13";
+    expectEq (-42).show              "-42";
+    expectEq ((-7).show {prec=150})  "-7";
+    expectEq ((-44).show {prec=151}) "(-44)");
+
+  testCase "Int64" (fn _ =>
+    expectEq 42L.show                 "42L";
+    expectEq (13L.show {prec=200})    "13L";
+    expectEq (-42L).show              "-42L";
+    expectEq ((-7L).show {prec=150})  "-7L";
+    expectEq ((-44L).show {prec=151}) "(-44L)");
+
+  testCase "Bool" (fn _ =>
+    expectEq (True).show               "True";
+    expectEq (False).show              "False";
+    expectEq ((True).show {prec=300})  "True";
+    expectEq ((False).show {prec=300}) "False");
+
+  testCase "Char" (fn _ =>
+    expectEq 'a'.show              "'a'";
+    expectEq '\n'.show             "'\\n'";
+    expectEq '\''.show             "'\\''";
+    expectEq '\\'.show             "'\\\\'";
+    expectEq ('Z'.show {prec=300}) "'Z'");
+
+  testCase "String" (fn _ =>
+    expectEq "hello".show              "\"hello\"";
+    expectEq "line\nbreak".show        "\"line\\nbreak\"";
+    expectEq "quote\"".show            "\"quote\\\"\"";
+    expectEq "back\\slash".show        "\"back\\\\slash\"";
+    expectEq ("world".show {prec=300}) "\"world\"");
+
+  testCase "List" (fn _ =>
+    expectEq ([] : List Int).show          "[]";
+    expectEq [True].show                   "[True]";
+    expectEq [1, 2, 3].show                "[1, 2, 3]";
+    expectEq ([-1, -2, 3].show {prec=300}) "[-1, -2, 3]";
+    expectEq [(1, 2), (3, 4)].show         "[(1, 2), (3, 4)]");
+
+  testCase "Option" (fn _ =>
+    type OI = Option Int in
+    expectEq (None : OI).show              "None";
+    expectEq ((None : OI).show {prec=300}) "None";
+    expectEq (Some 42).show                "Some 42";
+    expectEq (Some (-7)).show              "Some (-7)";
+    expectEq ((Some (-8)).show {prec=200}) "Some (-8)";
+    expectEq ((Some ()).show {prec=201})   "(Some ())";
+    expectEq (Some (Some 42)).show         "Some (Some 42)");
+
+  testCase "Pair" (fn _ =>
+    expectEq (1, 2).show                "(1, 2)";
+    expectEq (-1, -2).show              "(-1, -2)";
+    expectEq (True, "").show            "(True, \"\")";
+    expectEq ((1, 2), 3).show           "(1, 2, 3)";
+    expectEq ((-1, -2).show {prec=300}) "(-1, -2)";
+    expectEq (1, (2, 3)).show           "(1, (2, 3))";
+    expectEq ((1, 2).show {prec=30})    "1, 2";
+    expectEq ((1, 2).show {prec=31})    "(1, 2)");
+
+  testCase "Either" (fn _ =>
+    type EIS = Either Int String in
+    expectEq (Left 42     : EIS).show                 "Left 42";
+    expectEq (Right "ok"  : EIS).show                 "Right \"ok\"";
+    expectEq (Left (-7)   : EIS).show                 "Left (-7)";
+    expectEq (Right ""    : EIS).show                 "Right \"\"";
+    expectEq ((Left 42    : EIS).show {prec=200})     "Left 42";
+    expectEq ((Left 42    : EIS).show {prec=201})     "(Left 42)";
+    expectEq ((Right "ok" : EIS).show {prec=200})     "Right \"ok\"";
+    expectEq ((Right "ok" : EIS).show {prec=201})     "(Right \"ok\")";
+    expectEq (Left (Some 1) : Either _ String).show   "Left (Some 1)";
+    expectEq (Right (Some "yes") : Either Int _).show "Right (Some \"yes\")");
+  
+  testCase "Result" (fn _ =>
+    type RIS = Result Int String in
+    expectEq (Ok 42      : RIS).show                "Ok 42";
+    expectEq (Err "err"  : RIS).show                "Err \"err\"";
+    expectEq (Ok (-7)    : RIS).show                "Ok (-7)";
+    expectEq ((Ok 42      : RIS).show {prec=200})   "Ok 42";
+    expectEq ((Ok 42      : RIS).show {prec=201})   "(Ok 42)";
+    expectEq ((Err "err"  : RIS).show {prec=200})   "Err \"err\"";
+    expectEq ((Err "err"  : RIS).show {prec=201})   "(Err \"err\")";
+    expectEq (Ok (Some 1) : Result _ String).show   "Ok (Some 1)";
+    expectEq (Err (Some "no") : Result Int _).show "Err (Some \"no\")");
+
+  ()

@@ -449,6 +449,10 @@ and expr_data =
   | EAnnot of expr * type_expr
     (** Expression explicitly annotated with a type *)
 
+  | EAnnotEff of expr * type_expr * type_expr
+    (** Expression explicitly annotated with a type (second parameter) and an
+      effect (third parameter) *)
+
   | ERepl of (unit -> expr) * typ
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.

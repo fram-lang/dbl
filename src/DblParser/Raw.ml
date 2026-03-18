@@ -129,6 +129,14 @@ and ctor_decl_data =
   | CtorDecl of ctor_name * type_expr list
     (** Declaration of a constructor *)
 
+(** Type annotation *)
+type type_annot =
+  | AnnotTotal of type_expr
+    (** Type annotation, requiring totality *)
+
+  | AnnotType of type_expr
+    (** Type annotation that may include effects *)
+
 (** Attributes *)
 type attribute = attribute_data node
 and attribute_data = Attribute of string * string list 
@@ -212,7 +220,7 @@ and expr_data =
   | EExtern of string
     (** Externally defined value *)
 
-  | EAnnot of expr * type_expr
+  | EAnnot of expr * type_annot
     (** Type annotation *)
 
   | EIf of expr * expr * expr option
@@ -244,7 +252,7 @@ and field = (type_expr, expr) field_data node
 (** Definitions *)
 and def = (attribute list * def_data) node
 and def_data =
-  | DLet of expr * expr
+  | DLet of expr * type_annot option * expr
     (** Let-definition *)
 
   | DParam of field
@@ -268,7 +276,7 @@ and def_data =
   | DHandleWith of expr * type_expr option * expr
     (** Effect handler, with first-class handler *)
 
-  | DMethod of expr * expr
+  | DMethod of expr * type_annot option * expr
     (** Method definition *)
 
   | DModule of module_name * def list

@@ -1,0 +1,38 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+## # Single mutable cell state
+
+{##
+This module provides a standard effect of a single mutable cell.
+##}
+
+{## Effect capability representing a single mutable cell of type `X`. ##}
+pub data State E X = State of
+  { get : Unit ->[E] X
+  , set : X ->[E] Unit
+  }
+
+parameter E
+parameter X
+
+{## Get the current value of the cell. ##}
+pub method get (State { get } : State E X) = get ()
+
+{## Set the current value of the cell. ##}
+pub method set (State { set } : State E X) = set
+
+{## Update the current value of the cell by applying function `f`. ##}
+pub method update (cell : State E X) f =
+  cell.set (f cell.get)
+
+{## Handler for the `State` effect, initializing the cell with `initial`. ##}
+pub let hState (initial : X) =
+  handler State
+    { effect get () = fn st => resume st st
+    , effect set st = fn _  => resume () st
+    }
+  return  x => fn _ => x
+  finally c => c initial
+  end

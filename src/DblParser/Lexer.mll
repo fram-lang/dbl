@@ -41,6 +41,7 @@ let kw_map =
   ; "return",    KW_RETURN
   ; "section",   KW_SECTION
   ; "then",      KW_THEN
+  ; "total",     KW_TOTAL
   ; "type",      KW_TYPE
   ; "with",      KW_WITH
   ; "_",         UNDERSCORE
