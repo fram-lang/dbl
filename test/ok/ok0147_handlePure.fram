@@ -1,0 +1,6 @@
+data T (E : effect) = X
+
+let h = handler X end
+
+let foo (bar : {E, ~n : T E} -> Unit ->[] Unit) =
+  handle ~n with h in bar ()

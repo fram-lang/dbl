@@ -38,9 +38,9 @@ let rec tr_expr (e : S.expr) =
   | EFn(x, _, body) -> T.EFn(x, tr_expr body)
 
   | EApp(e1, e2) ->
-    let e1 = tr_expr e1 in
+    let^ v1 = tr_expr_v e1 in
     let^ v2 = tr_expr_v e2 in
-    T.EApp(e1, v2)
+    T.EApp(T.EValue v1, v2)
 
   | ELet(x, e1, e2) | ELetPure(x, e1, e2) ->
     T.ELet(x, tr_expr e1, tr_expr e2)

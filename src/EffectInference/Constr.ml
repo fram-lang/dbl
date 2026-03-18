@@ -12,12 +12,12 @@ type t =
 let to_sexpr (CSubeffect(_, eff1, eff2)) =
   SExpr.List [T.Effct.to_sexpr eff1; Sym "<:"; T.Effct.to_sexpr eff2]
 
-let collect_constr_gvars ~scope c gvs =
+let collect_constr_gvars ~outer_scope c gvs =
   match c with
   | CSubeffect(_, eff1, eff2) ->
     gvs
-    |> T.Effct.collect_gvars ~scope eff1
-    |> T.Effct.collect_gvars ~scope eff2
+    |> T.Effct.collect_gvars ~outer_scope eff1
+    |> T.Effct.collect_gvars ~outer_scope eff2
 
-let collect_gvars ~scope cs gvs =
-  List.fold_left (fun gvs c -> collect_constr_gvars ~scope c gvs) gvs cs
+let collect_gvars ~outer_scope cs gvs =
+  List.fold_left (fun gvs c -> collect_constr_gvars ~outer_scope c gvs) gvs cs

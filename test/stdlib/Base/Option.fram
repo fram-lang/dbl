@@ -1,0 +1,32 @@
+import open Testing
+
+let _ = testSuite "unwrapOr" (fn _ =>
+  
+  testCase "empty" (fn _ =>
+    expectEq (None >.unwrapOr 0) 0);
+  
+  testCase "non empty" (fn _ =>
+    expectEq (Some 42 >.unwrapOr 0) 42))
+
+let _ = testCase "unwrap - non empty" (fn _ =>
+  assertEq (Some 42).unwrap 42)
+
+let _ = testSuite "unwrapErr" (fn _ =>
+  let ~onError () = 0 in
+
+  testCase "empty" (fn _ =>
+    assertCallsOnError (fn _ =>
+      assertEq (None).unwrapErr 0));
+    
+  testCase "non empty" (fn _ =>
+    assertDoesNotCallOnError (fn _ =>
+      assertEq (Some 42).unwrapErr 42)))
+
+let _ = testSuite "map" (fn _ =>
+  let plus1 x = 1 + x in
+
+  testCase "empty" (fn _ =>
+    assertEq (None >.map plus1) None);
+  
+  testCase "non empty" (fn _ => 
+    assertEq (Some 42 >.map plus1) (Some 43)))

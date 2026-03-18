@@ -1,0 +1,7 @@
+import open Testing
+
+let _ =
+  testCase "zero" (fn _ =>
+    let zero = Int64.one + Int64.one.neg in
+    assertEq zero 0L)
+

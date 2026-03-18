@@ -1,0 +1,17 @@
+data Shape = Circle | Square | Triangle
+
+data rec MyList T = Nil | MyCons of T, MyList T
+
+data Fig = Single of Shape | Many of MyList Shape
+
+let area = fn fig =>
+  match fig with
+  | Single Circle => 0
+  | Single Square => 0
+  | Single Triangle => 0
+  | Many Nil => 0
+  | Many (MyCons Circle other) => 0
+  end
+
+# @stderr:not exhaustive
+# @stderr:Many (MyCons Square _)

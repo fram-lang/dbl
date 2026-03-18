@@ -12,6 +12,7 @@ import /Base/Int64
 import /Base/Char
 import /Base/String
 import /Base/Show
+import /Base/Pair
 
 pub open Types
 pub open Operators

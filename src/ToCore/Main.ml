@@ -53,15 +53,15 @@ let rec tr_expr env (e : S.expr) =
     tr_expr env e2
 
   | ELetRec(defs, body) ->
-    let defs = tr_rec_defs env defs in
-    T.ELetRec(defs, tr_expr env body)
+    let^ () = tr_let_rec env defs in
+    tr_expr env body
 
   | ERecCtx e ->
     T.ERecCtx(tr_expr env e)
 
   | EData(dds, e) ->
-    let (env, dds) = DataType.tr_data_defs env dds in
-    T.EData(dds, tr_expr env e)
+    let^ env = tr_data_defs env dds in
+    tr_expr env e
 
   | ECtor(prf, idx, tps, args)  ->
     let prf = tr_expr env prf in
@@ -99,6 +99,15 @@ and tr_let_expr ~pure x env (e : S.expr) cont =
   | ERepl _ | EReplExpr _ ->
     T.ELet(x, tr_expr env e, cont ())
 
+(** Translate let-rec definitions *)
+and tr_let_rec env defs cont =
+  T.ELetRec(tr_rec_defs env defs, cont ())
+
+(** Translate local data definitions *)
+and tr_data_defs env dds cont =
+  let (env, dds) = DataType.tr_data_defs env dds in
+  T.EData(dds, cont env)
+
 and tr_expr_as_var env e =
   let x = Var.fresh () in
   let* () = tr_let_expr ~pure:false x env e in
@@ -129,18 +138,16 @@ and tr_expr_p env (e : S.expr) =
     tr_expr_p env e2
 
   | ELetRec(defs, body) ->
-    let defs = tr_rec_defs env defs in
-    let* body = tr_expr_p env body in
-    return (T.ELetRec(defs, body))
+    let* () = tr_let_rec env defs in
+    tr_expr_p env body
 
   | ERecCtx e ->
     let* e = tr_expr_p env e in
     return (T.ERecCtx e)
 
   | EData(dds, e) ->
-    let (env, dds) = DataType.tr_data_defs env dds in
-    let* e = tr_expr_p env e in
-    return (T.EData(dds, e))
+    let* env = tr_data_defs env dds in
+    tr_expr_p env e
 
   | ECtor(prf, idx, tps, args)  ->
     let prf = tr_expr env prf in

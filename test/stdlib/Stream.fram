@@ -1,0 +1,113 @@
+import /List
+import /Stream
+import open Testing
+
+let _ =
+testSuite "conversions" (fn _ =>
+  testCase "fromList > toList" (fn _ =>
+    let xs = [1, 2, 3, 4] in
+    assertEq xs (Stream.toList (Stream.fromList xs)));
+
+  testCase "toList > fromList" (fn _ =>
+    let xs = Stream.cons 10 (Stream.cons 20 Stream.empty) in
+    assertEq xs (Stream.fromList (Stream.toList xs))));
+
+testCase "unfold" (fn _ =>
+  let f x = if 2 == x then None else Some (x, 1 + x) in
+  assertEq (Stream.fromList [0, 1]) (Stream.unfold 0 f));
+
+testSuite "isEmpty" (fn _ =>
+  testCase "true" (fn _ =>
+    assertTrue (Stream.isEmpty (Stream.empty {X=Int})));
+  
+  testCase "false" (fn _ =>
+    assertFalse (Stream.isEmpty (Stream.fromList [1]))));
+
+testCase "singleton" (fn _ =>
+  assertEq (Stream.fromList [1]) (Stream.singleton 1));
+
+testCase "cons" (fn _ =>
+  assertEq
+    (Stream.cons 3 (Stream.fromList [2, 1]))
+    (Stream.fromList [3, 2, 1]));
+
+testSuite "uncons" (fn _ =>
+  testCase "non empty" (fn _ => 
+    assertTrue
+      match Stream.uncons (Stream.fromList [1, 2, 3]) with
+      | Some (x, _) => 1 == x
+      | None        => False
+      end);
+
+  testCase "empty" (fn _ =>
+    assertTrue
+      match Stream.uncons (Stream.empty {X=Int}) with
+      | None => True
+      | _    => False
+      end));
+
+testCase "map" (fn _ =>
+  assertEq
+    (Stream.fromList ["1", "2"])
+    (Stream.map (fn x => (x : Int).toString) (Stream.fromList [1, 2])));
+
+testCase "append" (fn _ =>
+  assertEq
+    (Stream.append (Stream.fromList [1, 2, 3]) (Stream.fromList [4, 5, 6]))
+    (Stream.fromList [1, 2, 3, 4, 5, 6]));
+
+testCase "concatMap" (fn _ =>
+  assertEq
+    (Stream.fromList [1, 2, 3]
+      >.concatMap (fn (x : Int) => Stream.fromList [x + 1, x - 1]))
+    (Stream.fromList [2, 0, 3, 1, 4, 2]));
+
+testCase "takeWhile" (fn _ =>
+  assertEq 
+    (Stream.takeWhile
+      (fn (x : Int) => x <= 2)
+      (Stream.fromList [1, 2, 3, 4, 1]))
+    (Stream.fromList [1, 2]));
+
+testCase "filter" (fn _ =>
+  assertEq
+    (Stream.filter (fn (x : Int) => x <= 2) (Stream.fromList [1, 2, 3, 4, 1]))
+    (Stream.fromList [1, 2, 1]));
+
+testCase "foldRight" (fn _ =>
+  assertEq
+    (Stream.foldRight
+      (fn (x : Int) y => x + y) (Stream.fromList [1, 2, 3, 4]) 0)
+    10);
+
+testSuite "foldRight1Err" (fn _ =>
+  let ~onError () = 42 in
+
+  testCase "non empty" (fn _ =>
+    assertEq
+      (Stream.foldRight1Err
+        (fn (x : Int) y => x + y) (Stream.fromList [1, 2, 3, 4]))
+      10);
+  
+  testCase "empty" (fn _ =>
+    assertEq
+      (Stream.foldRight1Err
+        (fn (x : Int) y => x + y) (Stream.empty {X=Int}))
+      42));
+
+
+testSuite "equal" (fn _ =>
+
+  testCase "true" (fn _ =>
+    assertTrue 
+      (Stream.equal
+        (Stream.fromList [1, 2, 3])
+        (Stream.fromList [1, 2, 3])));
+  
+  testCase "false" (fn _ =>
+    assertFalse
+      (Stream.equal
+        (Stream.fromList [1, 2, 3])
+        (Stream.fromList [4, 5, 6]))));
+
+()

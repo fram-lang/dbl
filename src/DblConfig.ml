@@ -23,6 +23,17 @@ let local_mod_prefix = "Main"
 let lib_search_dirs   : string list ref = ref [ ]
 let local_search_dirs : string list ref = ref [ ]
 
+(** Set to true, when other options force the REPL mode. *)
+let force_repl = ref false
+
+(** List of files to load at startup. *)
+let startup_files : string list ref = ref [ ]
+
+(** Add file to the list of files to load at startup. *)
+let load_file_at_startup fname =
+  force_repl := true;
+  startup_files := !startup_files @ [ fname ]
+
 let display_error_context = ref true
 
 let print_colors_auto () =

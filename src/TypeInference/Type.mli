@@ -30,6 +30,9 @@ val tr_scheme_args : ?data_targs: T.named_tvar list ->
 (** Check kind and translate a type expression of kind Type *)
 val tr_ttype : 'st Env.t -> S.type_expr -> T.type_expr
 
+(** Check kind and translate a type expression of kind Effect *)
+val tr_effect : 'st Env.t -> S.type_expr -> T.type_expr
+
 (** Check if given type argument has given kind. Returns extended environment,
   the introduced external type name, and freshly bound type variable. *)
 val check_type_arg : 'st Env.t -> S.type_arg -> T.kind ->
