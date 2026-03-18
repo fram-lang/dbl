@@ -1,27 +1,43 @@
-import open Testing
 import /Map
+import open /String
+import open Testing
 
-let (Map { module IntMap  }) = Map.make { Key = Int }
-let (Map { module StrMap  }) = Map.make { Key = String }
+# let compareI (x : Int) (y : Int) = if x < y then Lt else if x > y then Gt else Eq  
+# let compareS (x : String) (y : String) = if x < y then Lt else if x > y then Gt else Eq  
+
+let (Map { module IntMap  }) = Map.make {Key = Int}
+let (Map { module StrMap  }) = Map.make {Key = String}
 let (Map { module IntMap2 }) =
-  Map.make { Key = Int, method lt = fn x y => x > y }
+  Map.make {Key = Int, method compare = fn (x : Int) (y : Int) => if x > y then Lt else if x < y then Gt else Eq}
 
 let _ =
-testSuite "isEmpty" (fn _ =>
-  testCase "true" (fn _ =>
-    assertTrue (IntMap.empty {Val=Bool} >.isEmpty));
-  
-  testCase "false" (fn _ =>
-    assertFalse (IntMap.singleton 13 "A" >.isEmpty)));
-
-testSuite "size" (fn _ =>
-  testCase "empty" (fn _ =>
-    assertEq (IntMap.empty {Val=Int}  >.size) 0);
-  
-  testCase "not empty" (fn _ =>
-    assertEq (IntMap.singleton 42 True >.size) 1));
-
-testCase "randomized test" (fn _ =>
+testSuite "Basic tests" (fn _ =>
+  testCase "isEmpty" (fn _ => assertTrue ((IntMap.empty {Val = Bool} ) >.isEmpty));
+  testCase "Size of empty equals 0" (fn _ => assertEq (IntMap.empty {Val = Int} >.size) 0);
+  testCase "None empty map is not empty" (fn _ => assertFalse (IntMap.empty >.insert 13 "A" >.isEmpty));
+  testCase "None empty maps has size greater than 0" (fn _ => assertEq (IntMap.empty >.insert 42 True >.size) 1);
+  let x = IntMap.empty in let y = x.insert 1 1 in let z = x.insert 1 "a" in 
+  let z = y.insert 2 1 >. insert 3 2 >. insert 4 3 in
+  testCase "isEmpty after removal" (fn _ => assertTrue (y.remove 1 >. isEmpty));
+  testCase "domain" (fn _ => assertEq z.domain [1,2,3,4]);
+  testCase "toValueList" (fn _ => assertEq z.toValueList [1,1,2,3]);
+  testCase "toList > foldLeft" (fn _ => assertEq 
+  (z.toList.foldLeft (fn acc (key,val) => val :: acc) []) ([1,1,2,3].rev));
+  testCase "foldl" (fn _ => assertEq (z.foldl (fn key val acc => key :: acc) []) [1,2,3,4].rev);
+  testCase "member" (fn _ => assertTrue (z.member 1));
+  testCase "find" (fn _ => assertTrue (match z.find 1 with | None => False | _ => True end));
+  testCase "update" (fn _ => assertEq  (let f a = match a with
+    | None => Some 2 | Some _ => Some 0 end in z.update 1 f >. toValueList) [0,1,2,3]);
+  testCase "update on nonexisting element" (fn _ => assertEq (let f a = match a with | None => Some 2 
+  | Some _ => Some 0 end in z.update 0 f >. toValueList) [2,1,1,2,3]);
+  testCase "mapVal" (fn _ => assertEq (z.mapVal (fn x => if x == x.shiftr 1 >. shiftl 1 then -x else x)
+  >. toValueList) [1,1,(0-2),3]);
+  testCase "union" (fn _ => 
+  let y = x.insert 1.neg 2 >. insert 2.neg 3 >. insert 0 1 >. insert 1 10 in
+  let w = z.union y (fn key val1 val2 => val2) in 
+  assertEq w.toValueList [3,2,1,10,1,2,3]));
+testSuite "Randomized test" (fn _ =>
+  testCase "randomized test" (fn _ =>
   handle
     rand = effect () => fn seed =>
       let seed = (seed * 39989 + 7) % 65536 in
@@ -30,9 +46,9 @@ testCase "randomized test" (fn _ =>
     finally c => c 0
   
   let doExtraTest (map : IntMap.T Int) (bitSet : Int) (bitMap : Int) =
-    assertEq (map.fold (fn _ acc => acc + 1) 0) map.size;
-    let rest = map.fold
-      (fn {key} v bitSet =>
+    assertEq (map.foldl (fn _ _ acc => acc + 1) 0) map.size;
+    let rest = map.foldl
+      (fn key v bitSet =>
         let bit = 1 << key in
         assertTrue ((bitSet &&& bit) != 0);
         assertEq v (key + (bitMap &&& bit));
@@ -52,21 +68,21 @@ testCase "randomized test" (fn _ =>
       let bit = 1 << key
       in
       if (bitSet &&& bit) == 0 then (
-        assertFalse (map.mem key);
+        assertFalse (map.member key);
         assertEq (map.find key >.unwrapOr (-1)) (-1);
         assertEq (map.findErr {~onError = fn () => -1} key) (-1))
       else (
-        assertTrue (map.mem key);
+        assertTrue (map.member key);
         assertEq (map.find key >.unwrapOr (-1)) (key + (bitMap &&& bit));
         assertEq (map.findErr {~onError = fn () => -1} key)
           (key + (bitMap &&& bit)));
       if op < 8 then (
         let v = if op < 4 then 0 else bit
-        let map = map.add key (key + v)
+        let map = map.insert key (key + v)
         let bitSet = bitSet ||| bit
         let bitMap = bitMap ^^^ (bitMap &&& bit) ^^^ v
         in
-        assertTrue (map.mem key);
+        assertTrue (map.member key);
         assertEq (map.find key >.unwrapOr (-1)) (key + v);
         assertEq (map.findErr {~onError = fn () => -1} key) (key + v);
         randTest map bitSet bitMap (n - 1))
@@ -74,10 +90,11 @@ testCase "randomized test" (fn _ =>
         let map = map.remove key
         let bitSet = bitSet ^^^ (bitSet &&& bit)
         in
-        assertFalse (map.mem key);
+        assertFalse (map.member key);
         assertEq (map.find key >.unwrapOr (-1)) (-1);
         assertEq (map.findErr {~onError = fn () => -1} key) (-1);
         randTest map bitSet bitMap (n - 1))
     )
     in
     randTest IntMap.empty 0 0 1000)
+)
