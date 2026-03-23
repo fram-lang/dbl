@@ -1,0 +1,5 @@
+data A = A
+
+method foo {x=A} A = A
+
+let _ = A >.foo {x=A}

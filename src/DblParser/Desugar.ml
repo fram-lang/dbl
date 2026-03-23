@@ -519,6 +519,18 @@ and tr_poly_expr_def (e : Raw.expr) =
   | EInterp (_, _) ->
     make (PE_Expr (tr_expr e))
 
+and tr_apply (e1 : Raw.expr) (es : Raw.expr list) =
+  match collect_fields ~ppos:e1.pos es with
+  | [], _, es -> tr_expr_app (tr_expr e1) es
+  | flds, fpos, es ->
+    let e1 = tr_poly_expr e1 in
+    let inst = List.map tr_explicit_inst flds in
+    let e1 =
+      { pos  = Position.join e1.pos fpos;
+        data = EPoly(e1, inst)
+      } in
+    tr_expr_app e1 es
+
 and tr_expr (e : Raw.expr) =
   let make data = { e with data = data } in
   match e.data with
@@ -551,22 +563,11 @@ and tr_expr (e : Raw.expr) =
     in let annot = annot_tp expr RawTypes.string in 
     tr_expr annot
   | EFn(es, e)     -> make (tr_function es (tr_expr e)).data
-  | EApp(e1, es)   ->
-    begin match collect_fields ~ppos:e1.pos es with
-    | [], _, es -> tr_expr_app (tr_expr e1) es
-    | flds, fpos, es ->
-      let e1 = tr_poly_expr e1 in
-      let inst = List.map tr_explicit_inst flds in
-      let e1 =
-        { pos  = Position.join e1.pos fpos;
-          data = EPoly(e1, inst)
-        } in
-      tr_expr_app e1 es
-    end
+  | EApp(e1, es)   -> tr_apply e1 es
   | EMethodCall(e1, name, es) ->
     let pos = Position.join e1.pos name.pos in
     let e1 = { pos; data = Raw.EMethod(e1, name.data) } in
-    tr_expr_app (tr_expr e1) es
+    tr_apply e1 es
   | EDefs(defs, e) -> make (EDefs(tr_defs defs, tr_expr e))
   | EMatch(e, cls) -> make (EMatch(tr_expr e, List.map tr_match_clause cls))
   | EHandler(h, hcs) ->
