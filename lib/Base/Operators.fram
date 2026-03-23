@@ -39,3 +39,6 @@ pub let (>>)  {method shiftr  : T -> U} (x : T) = x.shiftr
 pub let (>>>) {method ashiftr : T -> U} (x : T) = x.ashiftr
 
 pub let (:=) {method set : T -> U} (x : T) = x.set
+
+## Pipe operator.
+pub let (|>) x f = f x
