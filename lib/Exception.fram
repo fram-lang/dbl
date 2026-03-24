@@ -19,7 +19,7 @@ pub data Exception E X =
 
 It calls given function `f` when an exception is raised.
 ##}
-pub let hException f =
+pub let hException {X} f =
   handler
-    Exception { effect raise x = f x }
+    Exception { X, effect raise x = f x }
   end
