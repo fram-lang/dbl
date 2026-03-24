@@ -21,5 +21,5 @@ It calls given function `f` when an exception is raised.
 ##}
 pub let hException f =
   handler
-    Exception { effect raise x => f x }
+    Exception { effect raise x = f x }
   end
