@@ -1,0 +1,47 @@
+import open Testing
+import open /Exception
+import open /State
+
+let _ = testCase "normal return passes through" (fn _ =>
+  let result = handle _ with hException (fn _ => -1) in 42 in
+  assertEq result 42)
+
+let _ = testCase "raise triggers handler" (fn _ =>
+  let result = handle exc with hException (fn x => x + 10) in
+    exc.raise 5
+  in
+  assertEq result 15)
+
+let _ = testCase "raise does not resume" (fn _ =>
+  let executed = ~mut.ref False in
+  let _ = handle exc with hException (fn _ => ()) in
+    exc.raise ();
+    executed := True
+  in
+  assertFalse executed.get)
+
+let _ = testCase "inner exception caught by inner handler" (fn _ =>
+  let result =
+    handle _ with hException (fn _ => "outer") in
+    handle exc with hException (fn _ => "inner") in
+    exc.raise "error"
+  in
+  assertEqS result "inner")
+
+let _ = testCase "outer exception skips inner handler" (fn _ =>
+  let result =
+    handle exc with hException (fn _ => "outer") in
+    handle _ with hException (fn _ => "inner") in
+    exc.raise "error"
+  in
+  assertEqS result "outer")
+
+let _ = testCase "exception inside state handler" (fn _ =>
+  let result =
+    handle st with hState 0 in
+    handle exc with hException (fn _ => -1) in
+    st := 42;
+    exc.raise ();
+    st.get
+  in
+  assertEq result -1)
