@@ -152,6 +152,57 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
       er_constr = er_cap.er_constr @ er_ret.er_constr @ er_fin.er_constr
     }
 
+  | EHandlerFn(defs, cap, rcs, fcs) ->
+    (* variable that represents computation in the handler body. *)
+    let comp_f = Var.fresh ~name:"comp" () in
+    let (_, eff_var_scope) = Env.enter_scope env in
+    let eff_var = T.TVar.fresh ~scope:eff_var_scope T.Kind.k_effect in
+    (* inner type of the handler *)
+    let in_tp  = Env.fresh_uvar ~pos env T.Kind.k_type in
+    (* capability type *)
+    let cap_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
+    (* body of the handling function, without finally clauses *)
+    let er_handler_body =
+      let env = Env.enter_section env in
+      check_defs env defs Infer
+        { run = fun env req ->
+            let env = Env.leave_section env in
+            (* effect capability of the handler *)
+            let er_cap = check_expr_type env cap cap_tp in
+            (* the effect used to instantiate the handler *)
+            let h_eff  = make (T.TE_Type (T.Type.t_effect)) in
+            let (ret_x, er_ret) =
+              MatchClause.tr_return_clauses ~tcfix ~pos env in_tp rcs req in
+            { er_expr = make (T.ELetMono(ret_x,
+                make (T.EAppMono(
+                  make (T.EInst(make (T.EVar comp_f), [h_eff], [])),
+                  er_cap.er_expr)),
+                er_ret.er_expr));
+              er_type   = er_ret.er_type;
+              er_effect = Impure;
+              er_constr = er_cap.er_constr @ er_ret.er_constr
+            }}
+    in
+    let (fin_x, er_fin) =
+      MatchClause.tr_finally_clauses ~tcfix ~pos env
+        (expr_result_type er_handler_body)
+        fcs
+        Infer in
+    let out_tp = expr_result_type er_fin in
+    { er_expr = make (T.EHandlerFn
+        { eff_var  = eff_var;
+          cap_type = cap_tp;
+          in_type  = in_tp;
+          out_type = out_tp;
+          comp_var = comp_f;
+          body     =
+            make (T.ELetMono(fin_x, er_handler_body.er_expr, er_fin.er_expr))
+        });
+      er_type   = Infered (T.Type.t_handler eff_var cap_tp in_tp out_tp);
+      er_effect = Pure;
+      er_constr = er_handler_body.er_constr @ er_fin.er_constr
+    }
+
   | EAnnot(e, tp) ->
     let tp_expr = Type.tr_ttype env tp in
     let tp = T.TypeExpr.to_type tp_expr in
@@ -388,6 +439,58 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
         er_type   = Checked;
         er_effect = Pure;
         er_constr = er_cap.er_constr @ er_ret.er_constr @ er_fin.er_constr
+      }
+    | H_No ->
+      Error.fatal (Error.expr_not_handler_ctx ~pos ~pp tp)
+    end
+
+  | EHandlerFn(defs, cap, rcs, fcs) ->
+    begin match Unification.from_handler ~pos env tp with
+    | H_Handler(b, cap_tp, tp_in, tp_out) ->
+      (* variable that represents computation in the handler body. *)
+      let comp_f = Var.fresh ~name:"comp" () in
+      (* body of the handling function, without finally clauses *)
+      let er_handler_body =
+        let env = Env.enter_section env in
+        check_defs env defs Infer
+          { run = fun env req ->
+              let env = Env.leave_section env in
+              (* the effect used to instantiate the handler *)
+              let h_eff = T.Type.t_effect in
+              let h_eff_te = make (T.TE_Type h_eff) in
+              let sub = T.Subst.add_type
+                (T.Subst.empty ~scope:(Env.scope env)) b h_eff in
+              (* effect capability of the handler *)
+              let er_cap =
+                check_expr_type env cap (T.Type.subst sub cap_tp) in
+              let (ret_x, er_ret) =
+                MatchClause.tr_return_clauses ~tcfix ~pos env
+                  (T.Type.subst sub tp_in) rcs req in
+              { er_expr = make (T.ELetMono(ret_x,
+                  make (T.EAppMono(
+                    make (T.EInst(make (T.EVar comp_f), [h_eff_te], [])),
+                    er_cap.er_expr)),
+                  er_ret.er_expr));
+                er_type   = er_ret.er_type;
+                er_effect = Impure;
+                er_constr = er_cap.er_constr @ er_ret.er_constr
+              }}
+      in
+      let (fin_x, er_fin) =
+        MatchClause.tr_finally_clauses ~tcfix ~pos env
+          (expr_result_type er_handler_body) fcs (Check tp_out) in
+      { er_expr = make (T.EHandlerFn
+          { eff_var  = b;
+            cap_type = cap_tp;
+            in_type  = tp_in;
+            out_type = tp_out;
+            comp_var = comp_f;
+            body     =
+              make (T.ELetMono(fin_x, er_handler_body.er_expr, er_fin.er_expr))
+          });
+        er_type   = Checked;
+        er_effect = Pure;
+        er_constr = er_handler_body.er_constr @ er_fin.er_constr
       }
     | H_No ->
       Error.fatal (Error.expr_not_handler_ctx ~pos ~pp tp)

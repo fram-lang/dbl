@@ -438,6 +438,30 @@ and expr_data =
       (** Body of the finally clause *)
     }
 
+  | EHandlerFn of (** First class handler, defined as a function *)
+    { eff_var   : tvar;
+      (** Effect variable *)
+
+      cap_type  : typ;
+      (** Type of the capability *)
+
+      in_type   : typ;
+      (** Inner type of a handler: a type of expression that can be run
+        inside this handler *)
+
+      out_type  : typ;
+      (** Outer type of a handler: a type of the whole handler expression
+        *)
+
+      comp_var  : var;
+      (** An argument to the body of the handler function. It has type
+        [{eff_var} -> cap_type ->[eff_var, ...] in_type] *)
+
+      body      : expr
+      (** Body of the handler function. It can use [comp_var] and it should
+        have type [out_type]. *)
+    }
+
   | EEffect of expr * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
       continuation variable binder, body, and the type of the whole
