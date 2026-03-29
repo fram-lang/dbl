@@ -1,0 +1,25 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+## # Exceptions
+
+{##
+This module defines the effect capability for exceptions, and a first-class
+handler for it.
+##}
+
+{## The effect capability for exceptions. ##}
+pub data Exception E X =
+  {## Raise an exception. ##}
+  { raise : {Y} -> X ->[E] Y
+  }
+
+{## The first-class handler for exceptions.
+
+It calls given function `f` when an exception is raised.
+##}
+pub let hException {X} f =
+  handler
+    Exception { X, effect raise x = f x }
+  end

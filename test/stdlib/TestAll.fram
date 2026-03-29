@@ -10,4 +10,5 @@ import Map
 import Mutable
 import Prelude
 import State
+import Exception
 import String
