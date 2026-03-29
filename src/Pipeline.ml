@@ -52,10 +52,10 @@ let core_pipeline prog =
   |> print_timing "effect inference"
        (EffectInference.Main.tr_program ~solve_all:true)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
-  |> print_timing "to core" ToCore.Main.tr_program
+  |> print_timing "to Core" ToCore.Main.tr_program
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
   |> check_invariant true
-       (print_timing "second type check" Lang.Core.check_well_typed)
+       (print_timing "Core type-check" Lang.Core.check_well_typed)
   |> print_timing "type erasure" CoreTypeErase.tr_program
   |> print_timing "evaluation" Eval.eval_program
 
