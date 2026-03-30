@@ -1,0 +1,140 @@
+import open /Pretty/Size
+import open /Testing
+
+let ~onError () = runtimeError "Unhandled runtime error"
+
+let (<>)  (s : Size) = s.combine
+let ($$)  (s : Size) = s.flush.combine
+let (>+>) {~onError} (s : Size) = s.seq
+  
+let _ = testSuite "emptySize" (fn _ =>
+  testCase "0 width" (fn () =>
+    assertEq emptySize.width (SLast {width=0} (SFix {width=0})));
+    
+  testCase "0 height" (fn () =>
+    assertEq emptySize.height 0);
+  
+  ())
+  
+let _ = testSuite "textSize" (fn _ =>
+  testCase "fix width" (fn () =>
+    ["", "abc", "jak-to-jest-byc-skyba?"].iter (fn str =>
+      assertEq (textSize str).width
+        (SLast {width=str.length} (SFix {width=str.length}))));
+    
+  testCase "0 height" (fn () =>
+    ["", "abc", "jak-to-jest-byc-skyba?"].iter (fn str =>
+      assertEq (textSize str).height 0));
+  
+  ())
+
+let _ = testSuite "<>" (fn _ =>
+
+  testCase "identity" (fn () => 
+    let t = textSize "abc" in
+    assertEq t (t <> emptySize);
+    assertEq t (emptySize <> t));
+  
+  testCase "simple text" (fn () => 
+    let t = textSize "abc" <> textSize "def" in
+    assertEq t.width (SLast {width=6} (SFix {width=6}));
+    assertEq t.height 0);
+  
+  testCase "semigroup" (fn () =>
+    let t1 = textSize "defghijk"
+    let t2 = textSize "abc"
+    let t3 = textSize "asdasd" in
+    assertEq ((t1 <> t2) <> t3) (t1 <> (t2 <> t3)));
+
+  ())
+
+let _ = testCase "`flush`" (fn () =>
+    let t = textSize "abc" >. flush in
+    assertEq t.height 1;
+    assertEq t.width (SLast {width=0} (SFix {width=3})))
+
+let _ = testSuite "$$" (fn _ =>
+
+  testCase "1" (fn () =>
+    let t = textSize "abc" $$ textSize "defghijk" in
+    assertEq t.height 1;
+    assertEq t.width (SLast {width=8} (SFix {width=8})));
+  
+  testCase "2" (fn () =>
+    let t = textSize "defghijk" $$ textSize "abc" in
+    assertEq t.height 1;
+    assertEq t.width (SLast {width=3} (SFix {width=8})));
+  
+  testCase "semigroup" (fn () =>
+    let t1 = textSize "defghijk"
+    let t2 = textSize "abc"
+    let t3 = textSize "asdasd" in
+    assertEq ((t1 $$ t2) $$ t3) (t1 $$ (t2 $$ t3)));
+  
+  testCase "with `<>` semigroup" (fn () =>
+    let t1 = textSize "aaaaaaaaaa" $$ textSize "aa"
+    let t2 = textSize "bbb" $$ textSize "bbbbbb"
+    let t3 = textSize "ccccccc" $$ textSize "cc" in
+    assertEq ((t1 <> t2) <> t3) (t1 <> (t2 <> t3)));
+  
+  ())
+
+let _ = testSuite "shift" (fn _ =>
+
+  testCase "simple" (fn () =>
+    let t1 = textSize "abc" >.shift in
+    assertEq t1.height 0;
+    assertEq t1.width
+      (SShift {width=0, dangle=0} (SLast {width=3} (SFix {width=3}))));
+
+  testCase "adds width" (fn () =>
+    let t = textSize "abc" in
+    assertEq (t <> t.shift).width
+      (SShift {width=3, dangle=3} (SLast {width=3} (SFix {width=3}))));
+  
+  testCase "aligns parallel structures" (fn () =>
+    let t1 = textSize "aaaaa" <>
+              (textSize "bb" >.shift)    <> (textSize "ccccc" >.shift)
+    let t2 = textSize "aa"    <>
+              (textSize "bbbbb" >.shift) <> (textSize "cc" >. shift) in
+    assertEq (t1 $$ t2).width
+      (SShift {width=5, dangle=5}
+        (SShift {width=5, dangle=5}
+          (SLast {width=2}
+            (SFix {width=5})))));
+  
+  ())
+
+let _ = testSuite "reset" (fn _ =>
+
+  testCase "identity over text" (fn () =>
+    let t1 = textSize "abc" in
+    assertEq t1 t1.reset);
+
+  testCase "with `shift` fixes width" (fn () =>
+    let t = textSize "abc" in
+    assertEq (t <> t.shift).reset.width (SLast {width=6} (SFix {width=6})));
+  
+  ())
+
+let _ = testSuite "seq" (fn _ =>
+
+  testCase "simple docs" (fn () =>
+    assertDoesNotCallOnError (fn _ =>
+      let t = textSize "abc" $$ textSize "d" in
+      let _ = ~onError : Unit ->> Unit in
+      assertEq (t >+> t).width (SLast {width=4} (SFix {width=6}))));
+  
+  testCase "shifted docs" (fn () =>
+    assertDoesNotCallOnError (fn _ =>
+      let t = textSize "abc" $$ textSize "d" in
+      let lt = t <> t.shift in
+      let _ = ~onError : Unit ->> Unit in
+      assertEq
+        lt.width
+        (SShift {dangle=3, width=1} (SLast {width = 1} (SFix {width = 3})));
+      assertEq
+        (lt >+> t).width
+        (SShift {dangle=3,width=1} (SLast {width=4} (SFix {width=6})))));
+  
+  ())
