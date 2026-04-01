@@ -16,6 +16,7 @@ type effect_tree =
   | PP_EffVar         of TVar.t
   | PP_EffUVar        of UID.t
   | PP_EffSimpleGuard of effect_tree
+  | PP_EffProj        of EffectMode.t * effect_tree
 
 (** Internal printable representation of types *)
 type type_tree =

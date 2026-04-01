@@ -37,6 +37,10 @@ let rec infer_kind env (tp : S.type_expr) =
     let effs = List.map (tr_effect env) effs in
     (make (T.TE_Effect effs), T.Kind.k_effect)
 
+  | TEffProj(mode, eff) ->
+    let eff = tr_effect env eff in
+    (make (T.TE_EffProj(mode, eff)), T.Kind.k_effect)
+
   | TPureArrow(sch, tp) ->
     let sch = tr_scheme env sch in
     let tp  = tr_ttype  env tp  in

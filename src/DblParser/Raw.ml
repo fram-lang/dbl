@@ -81,8 +81,15 @@ type ('tp, 'e) field_data =
   | FldNameFn of name * 'e list * 'e 
     (** Explicit instantiation with a function *)
 
-  | FldNameEffectFn of name * 'e option * 'e list * 'e option * 'e
+  | FldNameEffectFn of
     (** Explicit instantiation with an effectful function *)
+    { name       : name;
+      label      : 'e option;
+      mode       : EffectMode.t;
+      args       : 'e list;
+      resumption : 'e option;
+      body       : 'e
+    }
 
   | FldNameAnnot of name * 'tp
     (** type-annotated implicit parameter *)
@@ -110,6 +117,9 @@ and type_expr_data =
 
   | TEffect of type_expr list
     (** Effect: list of simple effect *)
+
+  | TEffProj of EffectMode.t * type_expr
+    (** Projection of an effect to a given mode *)
 
   | TApp of type_expr * type_expr
     (** Type application *)
@@ -201,6 +211,7 @@ and expr_data =
 
   | EEffect of
     { label      : expr option;
+      mode       : EffectMode.t;
       args       : expr list;
       resumption : expr option;
       body       : expr

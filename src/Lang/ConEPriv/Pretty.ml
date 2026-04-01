@@ -8,9 +8,15 @@ open TypeBase
 
 include UnifCommon.Pretty
 
-let tr_guarded_var tr_var (x, p) =
-  if IncrSAT.Formula.is_true p then tr_var x
-  else PP_EffSimpleGuard (tr_var x)
+let tr_guarded_var ?(mode=Fun.const EffectMode.Unrestricted) tr_var (x, p) =
+  Formula.to_mode_list ~mode:(mode x) p
+  |> List.map (fun ((mode : EffectMode.t), certain) ->
+    match mode with
+    | Unrestricted when certain -> tr_var x
+    | Unrestricted              -> PP_EffSimpleGuard (tr_var x)
+    | mode         when certain -> PP_EffProj(mode, tr_var x)
+    | mode                      ->
+      PP_EffProj(mode, PP_EffSimpleGuard (tr_var x)))
 
 let tr_tvar_effect x = PP_EffVar x
 
@@ -18,8 +24,8 @@ let tr_gvar_effect gv = PP_EffUVar (Effct.GVar.uid gv)
 
 let tr_effect eff =
   let (tvars, gvars) = Effct.view eff in
-  List.map (tr_guarded_var tr_tvar_effect) tvars @
-  List.map (tr_guarded_var tr_gvar_effect) gvars
+  List.concat_map (tr_guarded_var ~mode:TVar.mode tr_tvar_effect) tvars @
+  List.concat_map (tr_guarded_var tr_gvar_effect) gvars
 
 let rec tr_type tp =
   match view tp with

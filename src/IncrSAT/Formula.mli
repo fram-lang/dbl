@@ -15,7 +15,7 @@ val bot : t
 (** Propositional variable as a formula *)
 val var : PropVar.t -> t
 
-(** Formula build from a single fresh propositional variable *)
+(** Formula built from a single fresh propositional variable *)
 val fresh_var : unit -> t
 
 (** Conjunction of two formuals *)
@@ -33,8 +33,8 @@ val is_false : t -> bool
 (** Check if one formula trivially implies the other *)
 val implies : t -> t -> bool
 
-(** Set some propositional variables in order to fix its value. Return the
-  value of the formula *)
+(** Set values of some propositional variables in order to fix the value
+  of the formula. Return the value of the formula *)
 val fix : t -> bool
 
 (** Convert implication to CNF, i.e., conjunction of disjunctions of litarals.
