@@ -133,6 +133,14 @@ and expr_data =
       fin_var   : var;
       fin_body  : expr;
     }
+  | EHandlerFn  of
+    { eff_var   : tvar;
+      cap_type  : typ;
+      in_type   : typ;
+      out_type  : typ;
+      comp_var  : var;
+      body      : expr
+    }
   | EEffect     of expr * var * expr * typ
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
