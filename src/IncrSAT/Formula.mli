@@ -18,7 +18,7 @@ val var : PropVar.t -> t
 (** Formula built from a single fresh propositional variable *)
 val fresh_var : unit -> t
 
-(** Conjunction of two formuals *)
+(** Conjunction of two formulas *)
 val conj : t -> t -> t
 
 (** Disjunction of two formulas *)
@@ -37,7 +37,7 @@ val implies : t -> t -> bool
   of the formula. Return the value of the formula *)
 val fix : t -> bool
 
-(** Convert implication to CNF, i.e., conjunction of disjunctions of litarals.
+(** Convert implication to CNF, i.e., conjunction of disjunctions of literals.
   The boolean flag at each literal describes polarity: [false] means that
   variable is negated. *)
 val imp_to_cnf : t -> t -> (PropVar.t * bool) list list
