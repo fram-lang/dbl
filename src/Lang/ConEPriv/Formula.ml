@@ -7,7 +7,7 @@
 
 Each formula is represented as a pair of formulas: one that says that
 the effect contains non-affine component, and one that says that the
-effect contains affine component. Since in Fram there is not possible to
+effect contains affine component. Since in Fram it is not possible to
 express effects with only non-affine component, the first formula always
 implies the second one. *)
 

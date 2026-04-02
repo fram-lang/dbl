@@ -257,7 +257,7 @@ module Formula : sig
   (** Formula built from a single fresh propositional variable *)
   val fresh_var : unit -> formula
 
-  (** Conjunction of two formuals *)
+  (** Conjunction of two formulas *)
   val conj : formula -> formula -> formula
 
   (** Disjunction of two formulas *)
@@ -277,7 +277,7 @@ module Formula : sig
   val fix : formula -> bool
 
   (** Convert implication to CNF, i.e., conjunction of disjunctions of
-    litarals. The boolean flag at each literal describes polarity: [false]
+    literals. The boolean flag at each literal describes polarity: [false]
     means that variable is negated. *)
   val imp_to_cnf : formula -> formula -> (IncrSAT.PropVar.t * bool) list list
 

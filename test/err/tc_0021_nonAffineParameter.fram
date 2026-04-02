@@ -7,4 +7,4 @@ parameter ~eff : Eff [E]
 
 let foo () = checkAffine ~eff.doEff
 
-# @stderr::8:
+# @stderr::8:.* error:

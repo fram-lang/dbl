@@ -52,10 +52,10 @@ val scope : t -> Scope.t
 (** Get the effect mode of a type variable.
 
   Effect mode makes sense only for variables of the effect kind (it is ignored
-  for other variables). When an effect variable is is used, it is
-  automatically projected to the effect mode associated with the variable.
-  Moreover, such a projection is not pretty-printed as a projection, but
-  simply as the variable itself. *)
+  for other variables). When an effect variable is used, it is automatically
+  projected to the effect mode associated with the variable. Moreover, such a
+  projection is not pretty-printed as a projection, but simply as the variable
+  itself. *)
 val mode : t -> EffectMode.t
 
 (** Check if a type variable can be used in a given scope *)
