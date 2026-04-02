@@ -57,9 +57,10 @@ val to_sexpr : t -> SExpr.t
 
 (** Convert formula to a list of possible modes, used for pretty-printing.
   Returns a list of pairs of a mode (to which the effect should be projected)
-  and a boolean flag describing whether the effect is guarded by some
-  propositional formula. The optional [mode] parameter describe the implicit
-  mode of the effect, i.e., if the [mode] is [Affine], the function will
-  return [Unrestricted], instead of [Affine], because the effect is implicitly
-  projected to [Affine], so there is no need of printing it. *)
+  and a boolean flag describing whether the effect is certainly present
+  (i.e., it is not guarded by a formula that is not trivially satisfied). The
+  optional [mode] parameter describe the implicit mode of the effect, i.e., if
+  the [mode] is [Affine], the function will return [Unrestricted], instead of
+  [Affine], because the effect is implicitly projected to [Affine], so there
+  is no need of printing it. *)
 val to_mode_list : ?mode:EffectMode.t -> t -> (EffectMode.t * bool) list
