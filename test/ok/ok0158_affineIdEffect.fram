@@ -1,4 +1,4 @@
-data Id E = { id : {X} -> X -> [aff E] X }
+data Id E = { id : {X} -> X ->[aff E] X }
 
 let hId =
   handler Id { id = aff effect x => resume x } end
