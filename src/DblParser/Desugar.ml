@@ -134,6 +134,8 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     end
   | TEffect tps ->
     make (TEffect (List.map tr_type_expr tps))
+  | TEffProj(mode, eff) ->
+    make (TEffProj(mode, tr_type_expr eff))
   | TApp(tp1, tp2) ->
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
   | TRecord _ | TTypeLbl _ ->
@@ -178,7 +180,7 @@ and tr_scheme_expr (tp : Raw.type_expr) =
       Error.fatal (Error.impure_scheme pos)
     end
 
-  | TWildcard | TVar _ | TArrow _ | TEffect _ | TApp _ ->
+  | TWildcard | TVar _ | TArrow _ | TEffect _ | TEffProj _ | TApp _ ->
     { sch_pos  = pos;
       sch_args = [];
       sch_body = tr_type_expr tp
@@ -213,8 +215,8 @@ and tr_type_var (tp : Raw.type_expr) =
   | TVar ({data = NPName x; _}, ka) ->
     let k = Option.value ka ~default:(make KWildcard) in
     (x, k)
-  | TVar ({data = NPSel _; _}, _) | TWildcard | TArrow _ | TEffect _ | TApp _
-  | TRecord _ | TTypeLbl _ ->
+  | TVar ({data = NPSel _; _}, _) | TWildcard | TArrow _ | TEffect _
+  | TEffProj _ | TApp _ | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a type expression as a type parameter *)
@@ -239,7 +241,7 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
     make (TNVar x, make (TA_Var(x, k)))
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TWildcard -> make (TNAnon, make (TA_Wildcard))
-  | TVar ({data = NPSel _; _}, _) | TArrow _ | TEffect _ | TApp _
+  | TVar ({data = NPSel _; _}, _) | TArrow _ | TEffect _ | TEffProj _ | TApp _
   | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -250,7 +252,7 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   | TVar ({data = NPName x; _}, _) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
   | TVar ({data = NPSel _; _}, _) | TWildcard | TParen _ | TArrow _
-  | TEffect _ | TRecord _ | TTypeLbl _ ->
+  | TEffect _ | TEffProj _ | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 let tr_ctor_decl (d : Raw.ctor_decl) =
@@ -574,13 +576,13 @@ and tr_expr (e : Raw.expr) =
     let e = tr_expr h in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     make (EHandler(e, rcs, fcs))
-  | EEffect { label; args; resumption; body } ->
+  | EEffect { label; mode; args; resumption; body } ->
     let (pos, res) =
       match resumption with
       | None     -> (e.pos, make (PId(false, IdVar("resume"))))
       | Some res -> (Position.join res.pos e.pos, tr_pattern res)
     in
-    let e = EEffect(Option.map tr_expr label, res, tr_expr body) in
+    let e = EEffect(Option.map tr_expr label, mode, res, tr_expr body) in
     make (tr_function args { pos; data = e }).data
   | EExtern name -> make (EExtern name)
   | EAnnot(e, AnnotTotal tp) ->
@@ -683,10 +685,10 @@ and tr_explicit_inst (fld : Raw.field) =
     Error.fatal (Error.desugar_error fld.pos)
   | FldNameFn (n, es, e) ->
     make (IVal(n, tr_poly_expr_def ({pos = fld.pos; data = EFn(es, e)})))
-  | FldNameEffectFn (n, label, es, resumption, e) ->
-    make (IVal(n, tr_poly_expr_def
-      { pos = fld.pos;
-        data = EEffect({label; args = es; resumption; body = e})
+  | FldNameEffectFn { name; mode; label; args; resumption; body } ->
+    make (IVal(name, tr_poly_expr_def
+      { pos  = fld.pos;
+        data = EEffect({label; mode; args; resumption; body})
       }))
 
 and tr_def (pos : Position.t) (def : Raw.def_data) =

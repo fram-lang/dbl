@@ -84,8 +84,8 @@ let eff_var_to_sexpr =
 let constr_to_sexpr c =
   SExpr.List [
     eff_var_to_sexpr c.eff_var;
-    List [ Sym "if";     IncrSAT.Formula.to_sexpr c.pformula ];
-    List [ Sym "unless"; IncrSAT.Formula.to_sexpr c.nformula ];
+    List [ Sym "if";     T.Formula.to_sexpr c.pformula ];
+    List [ Sym "unless"; T.Formula.to_sexpr c.nformula ];
     Sym "<:";
     T.Effct.to_sexpr c.rhs_effect
   ]
@@ -112,7 +112,7 @@ let add_irrelevant_constr st c =
   that normalizes the constraints again. *)
 let get_gvar eff =
   match T.Effct.view eff with
-  | ([], [(gv, p)]) when IncrSAT.Formula.is_true p -> gv
+  | ([], [(gv, p)]) when T.Formula.is_true p -> gv
   | _ ->
     InterpLib.InternalError.report
       ~reason:"Violation of constraint simplification invariant: \
@@ -159,7 +159,7 @@ let is_gvar_irrelevant st gv =
   variable. *)
 let normalize_tvar_constr st orig eff2 (x, p) =
   let nformula = T.Effct.lookup_tvar eff2 x in
-  if IncrSAT.Formula.implies p nformula then
+  if T.Formula.implies p nformula then
     (* The constraint is trivially satisfied. *)
     []
   else if is_eff_irrelevant st eff2 then begin
@@ -181,7 +181,7 @@ let normalize_tvar_constr st orig eff2 (x, p) =
   generalizable variable. *)
 let normalize_gvar_constr st orig eff2 (gv, p) =
   let nformula = T.Effct.lookup_gvar eff2 gv in
-  if IncrSAT.Formula.implies p nformula then
+  if T.Formula.implies p nformula then
     (* The constraint is trivially satisfied. *)
     []
   else if is_gvar_irrelevant st gv && is_eff_irrelevant st eff2 then begin
@@ -213,7 +213,7 @@ let normalize st (c : Constr.t) =
 let to_constr (c : constr) =
   let eff1 = T.Effct.guard (effect_of_eff_var c.eff_var) c.pformula in
   let eff2 =
-    if IncrSAT.Formula.is_true c.nformula then
+    if T.Formula.is_true c.nformula then
       c.rhs_effect
     else
       T.Effct.join c.rhs_effect (T.Effct.guard eff1 c.nformula)
@@ -228,7 +228,7 @@ let to_constr (c : constr) =
   not in the outer scope ([st.outer_scope]) and that [eff] does not contain
   [gv] itself. *)
 let set_gvar st gv eff =
-  assert (IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv));
+  assert (T.Formula.is_false (T.Effct.lookup_gvar eff gv));
   assert (not (T.GVar.in_scope gv st.outer_scope));
   let (_, eff_gvs) = T.Effct.view eff in
   let eff_gvs =
@@ -306,10 +306,10 @@ let build_single_upper_bounds st bnd (c : constr) =
     else if T.GVar.Set.mem gv st.pgvs then
       (* Variable occurs positively, ignore it. *)
       bnd
-    else if not (IncrSAT.Formula.is_true c.pformula) then
+    else if not (T.Formula.is_true c.pformula) then
       (* Upper-bound might be trivially satisfied. *)
       T.GVar.Map.add gv None bnd
-    else if not (IncrSAT.Formula.is_false c.nformula) then
+    else if not (T.Formula.is_false c.nformula) then
       (* Upper-bound might be trivially satisfied. *)
       T.GVar.Map.add gv None bnd
     else
@@ -338,7 +338,7 @@ let rule_move_up_negative st cs =
         constraints it is impossible, but such constraints may appear after
         setting some generalizable variables in this loop. For instance, when
         we have [a <: b] and [b <: a]. *)
-      if IncrSAT.Formula.is_false (T.Effct.lookup_gvar eff gv) then
+      if T.Formula.is_false (T.Effct.lookup_gvar eff gv) then
         set_gvar st gv eff)
     bounds;
   cs
@@ -367,12 +367,12 @@ let rule_move_up_negative st cs =
     cannot violate any constraint. *)
 let join_lower_bound gv lb (c : constr) =
   let p = T.Effct.lookup_gvar c.rhs_effect gv in
-  if IncrSAT.Formula.is_false p then
+  if T.Formula.is_false p then
     lb
   else
     T.Effct.join lb
       (T.Effct.guard (effect_of_eff_var c.eff_var)
-        (IncrSAT.Formula.conj c.pformula p))
+        (T.Formula.conj c.pformula p))
 
 let set_to_join_of_lower_bounds st cs gv =
   let lower_bound = List.fold_left (join_lower_bound gv) T.Effct.pure cs in
@@ -417,8 +417,8 @@ end
 let build_subeffect_graph cs =
   let add_to_graph graph (c : constr) =
     (* Ignore guarded constraints. *)
-    if not (IncrSAT.Formula.is_true c.pformula) then graph
-    else if not (IncrSAT.Formula.is_false c.nformula) then graph
+    if not (T.Formula.is_true c.pformula) then graph
+    else if not (T.Formula.is_false c.nformula) then graph
     else
       match T.Effct.view c.rhs_effect with
       | ([(x, _)], [])    ->
@@ -520,11 +520,11 @@ let trivial_subeffect eff1 eff2 =
   let (tvs1, gvs1) = T.Effct.view eff1 in
   List.for_all
     (fun (x, p1) ->
-      IncrSAT.Formula.implies p1 (T.Effct.lookup_tvar eff2 x))
+      T.Formula.implies p1 (T.Effct.lookup_tvar eff2 x))
     tvs1 &&
   List.for_all
     (fun (gv, p1) ->
-      IncrSAT.Formula.implies p1 (T.Effct.lookup_gvar eff2 gv))
+      T.Formula.implies p1 (T.Effct.lookup_gvar eff2 gv))
     gvs1
 
 (** Check if constraint [c1] implies constraint [c2]. It is assumed that
@@ -536,10 +536,8 @@ let trivial_subeffect eff1 eff2 =
     if [p2] implies [p1 or n2], and if [p2 and n1] implies [n2];
   - [eff1] is a trivial subeffect of [eff2]. *)
 let constr_implies (c1 : constr) (c2 : constr) =
-  IncrSAT.Formula.implies c2.pformula
-    (IncrSAT.Formula.disj c1.pformula c2.nformula) &&
-  IncrSAT.Formula.implies
-    (IncrSAT.Formula.conj c2.pformula c1.nformula)
+  T.Formula.implies c2.pformula (T.Formula.disj c1.pformula c2.nformula) &&
+  T.Formula.implies (T.Formula.conj c2.pformula c1.nformula)
     c2.nformula &&
   trivial_subeffect c1.rhs_effect c2.rhs_effect
 
@@ -607,10 +605,10 @@ let constr_as_gvar_equality st cs (c : constr) =
     if T.GVar.in_scope gv st.outer_scope then
       (* Variable is in scope, ignore it. *)
       None
-    else if not (IncrSAT.Formula.is_true c.pformula) then
+    else if not (T.Formula.is_true c.pformula) then
       (* Upper-bound is not clear -- might be trivially satisfied. *)
       None
-    else if not (IncrSAT.Formula.is_false c.nformula) then
+    else if not (T.Formula.is_false c.nformula) then
       (* Upper-bound is not clear -- might be trivially satisfied. *)
       None
     else if

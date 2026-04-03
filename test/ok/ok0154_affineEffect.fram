@@ -1,0 +1,4 @@
+let runAffine {R} (f : Unit ->[aff R] Unit) =
+  f ()
+
+let _ = runAffine (fn x => x)

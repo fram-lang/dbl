@@ -31,6 +31,11 @@ val in_scope : t -> Scope.t -> bool
 (** Get the unique identifier for pretty-printing *)
 val pp_uid : t -> PPTree.uid
 
+(** Get the effect mode of a type variable. For non-effect variables it is
+  always [EffectMode.Unrestricted]. For effect variables, each use of this
+  variable should be projected to this mode. *)
+val mode : t -> EffectMode.t
+
 (** Finite sets of type variables *)
 module Set : Set.S with type elt = t
 

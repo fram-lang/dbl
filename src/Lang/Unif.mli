@@ -129,6 +129,9 @@ and type_expr_data =
     (** Effect. It is represented as a list of simpler effects. Empty list
       is a pure effect. *)
 
+  | TE_EffProj of EffectMode.t * type_expr
+    (** Projection of an effect to a given mode *)
+
   | TE_PureArrow of scheme_expr * type_expr
     (** Pure arrow *)
 
@@ -438,10 +441,10 @@ and expr_data =
       (** Body of the finally clause *)
     }
 
-  | EEffect of expr * var * expr * typ
+  | EEffect of expr * EffectMode.t * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
-      continuation variable binder, body, and the type of the whole
-      expression. *)
+      effect mode, continuation variable binder, body, and the type of the
+      whole expression. *)
 
   | EExtern of string * typ
     (** Externally defined value *)
@@ -578,7 +581,8 @@ module TVar : sig
     - [pp_uid] will be used by the pretty-printer to identify the type
       variable. *)
   val fresh :
-    ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> tvar
+    ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> ?mode:EffectMode.t ->
+    scope:Scope.t -> kind -> tvar
 
   (** Compare two type variables *)
   val compare : tvar -> tvar -> int
