@@ -130,17 +130,14 @@ let mkTestCase
     (name : String)
     (f : { E_TL : effect
          , E_TT : effect
-         , E_M  : effect
-         , ~mut : M.Mut E_M
          , ~testLogger : TestLogger E_TL
          , ~testCaseTracker : TestCaseTracker E_TT
-         } -> Unit ->[E_TL, E_TT, E_M] Unit) =
+         } -> Unit ->[E_TL, E_TT] Unit) =
   let loc     = mkLoc
-  let body () =
-    M.hMut (fn {E=E_M} ~mut =>
-      handle ~testLogger / E_TL with testLoggerH in
-      handle ~testCaseTracker / E_TT with testCaseTrackerH in
-        f {E_TL, E_TT, E_M} ())
+  let body () = 
+    handle ~testLogger / E_TL with testLoggerH in
+    handle ~testCaseTracker / E_TT with testCaseTrackerH in
+      f {E_TL, E_TT} ()
   in
   TestCase {name, path=getPath (), loc, body}
 
@@ -316,12 +313,10 @@ pub let testCase
     {~__file__, ~__line__, ~__modulePath__, ~suitePath : Path}
     name
     (f : { E_TL
-         , E_TT
-         , E_M
-         , ~mut : M.Mut E_M
-         , ~testLogger : TestLogger E_TL
-         , ~testCaseTracker : TestCaseTracker E_TT
-         } -> Unit ->[E_TL, E_TT, E_M] Unit) =
+        , E_TT
+        , ~testLogger : TestLogger E_TL
+        , ~testCaseTracker : TestCaseTracker E_TT
+        } -> Unit ->[E_TL, E_TT] Unit) =
   tests := (mkTestCase name f :: tests.get)
 
 let runTest
@@ -376,8 +371,7 @@ handle _ = ()
 
 section
   parameter ~testCaseTracker : TestCaseTracker _
-  parameter ~testLogger : TestLogger _ 
-  parameter ~onError
+  parameter ~testLogger : TestLogger _
 
   let log' {~__line__, ~__file__} lt msg = ~testLogger.log (mkLogMsg lt msg)
 
@@ -444,11 +438,10 @@ section
         "Assertion Failed: Expected \{expected.show} and \{actual.show} to be equal"}
       (expected.equal actual)
 
-  let callsOnError {~onError} (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+  let callsOnError (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
     handle
-      ~onError = effect arg / r => fn _ => r (~onError arg) True
-      return _ => fn s => s
-      finally c => c False
+      ~onError = effect _ => True
+      return _ => False
     in f ()
 
   {##
