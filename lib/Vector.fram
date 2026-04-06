@@ -24,7 +24,7 @@ method getContentAt (Vector {content} : Vector E T) (n : Int) =
 
 method setContentAt (Vector {content} : Vector E T) (n : Int) (x : T) =
   content.get.at n := x
-  
+
 method setContent (Vector {content} : Vector E T) newContent =
   content := newContent
 
@@ -147,4 +147,4 @@ pub method toList (self : Vector E T) =
 pub method clear (self : Vector E T) =
   self.setSize 0;
   self.setCapacity 0;
-  self.setContent (self.mut.makeArray 0 ((extern dbl_magic : Int -> T) 0)) 
+  self.setContent (self.mut.makeArray 0 ((extern dbl_magic : Int -> T) 0))

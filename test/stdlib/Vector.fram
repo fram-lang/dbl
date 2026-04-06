@@ -23,7 +23,7 @@ let _ = testSuite "vector" (fn _ =>
     let lst = vec.back in
     assertEqS fst 1;
     assertEqS lst 5);
-  
+
   testCase "get" (fn _ =>
     let vec = makeEmptyVector {T=Int} 0 in
     vec.pushBack 6;
@@ -34,7 +34,7 @@ let _ = testSuite "vector" (fn _ =>
     let y = vec.get 3 in
     assertEqS x 7;
     assertEqS y 9);
-    
+
   testCase "clear" (fn _ =>
     let vec = makeEmptyVector {T=Int} 4 in
     vec.clear;
@@ -63,7 +63,7 @@ let _ = testSuite "vector" (fn _ =>
     let lst = vec.back in
     assertEqS fst "abc";
     assertEqS lst "a");
-    
+
   testCase "filled vector" (fn _ =>
     let vec = makeVector {T=String} 42 "" in
-    assertEqS (vec.get 0 + "A") "A")) 
+    assertEqS (vec.get 0 + "A") "A"))
