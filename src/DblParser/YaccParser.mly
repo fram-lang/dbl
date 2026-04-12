@@ -176,6 +176,7 @@ ty_expr_simple
 
 effct_bind
 : CBR_OPN UID CBR_CLS { Some $2 }
+| CBR_OPN UNDERSCORE CBR_CLS { None }
 | /* empty */         { None }
 ;
 

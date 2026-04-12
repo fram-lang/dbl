@@ -354,25 +354,38 @@ let rec print_type env (tp : type_tree) prec =
 
   | PP_THandler h ->
     paren env prec 0 (fun () ->
-      let name = gen_tvar_name (fun n -> fresh_for_type env n tp) "E" in
+      let name =
+        match Env.lookup_tvar env h.eff_var with
+        | Found name -> name
+        | Anon(name, _) -> name
+        | Unbound _ -> gen_tvar_name (fun n -> fresh_for_type env n tp) "E"
+      in
       let env1 = Env.add_tvar env name h.eff_var in
       Env.print_string env "handler ";
+      Env.print_string env "{";
       Env.print_string env name;
-      Env.print_string env " of ";
+      Env.print_string env "} ";
       print_type env1 h.cap_tp 1;
-      Env.print_string env " with [";
-      print_effect_body env1 h.in_eff;
-      Env.print_string env "] ";
-      print_type env1 h.in_tp 1;
-      begin match h.out_eff with
-      | [ PP_EffWildcard ] ->
-        Env.print_string env " ->> "
-      | effs ->
-        Env.print_string env " ->[";
-        print_effect_body env effs;
-        Env.print_string env "] "
-      end;
-      print_type env h.out_tp 1)
+      let print_comp env eff tp =
+        begin match eff with
+        | [ PP_EffWildcard ] -> ()
+        | _ ->
+          Env.print_string env " [";
+          print_effect_body env eff;
+          Env.print_string env "]"
+        end;
+        Env.print_string env " ";
+        print_type env tp 1
+      in
+      if h.in_eff = h.out_eff && h.in_tp = h.out_tp then (
+        Env.print_string env " =>";
+        print_comp env h.out_eff h.out_tp
+      ) else (
+        Env.print_string env " in";
+        print_comp env1 h.in_eff h.in_tp;
+        Env.print_string env " =>";
+        print_comp env h.out_eff h.out_tp
+      ))
 
   | PP_TEffect eff -> print_effect env eff prec
 
