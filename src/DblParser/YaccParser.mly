@@ -168,7 +168,17 @@ ty_expr_simple
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effct SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
+| KW_HANDLER effct_bind ty_expr KW_IN ty_expr ARROW2 ty_expr
+  { make (THandler ($2, $3, $5, $7)) }
+| KW_HANDLER effct_bind ty_expr ARROW2 ty_expr
+  { make (THandler ($2, $3, $5, $5)) }
 ;
+
+effct_bind
+: CBR_OPN UID CBR_CLS { Some $2 }
+| /* empty */         { None }
+;
+
 
 /* ------------------------------------------------------------------------- */
 

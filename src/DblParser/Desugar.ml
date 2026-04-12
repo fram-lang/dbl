@@ -136,6 +136,18 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     make (TEffect (List.map tr_type_expr tps))
   | TApp(tp1, tp2) ->
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
+  | THandler (effct_opt, cap_tp, in_comp, out_comp) ->
+      let cap_type = tr_type_expr cap_tp in
+      let effct = Option.value effct_opt ~default:"_" in
+      let in_eff_opt, in_type = tr_eff_type in_comp in
+      let in_eff =
+        Option.value in_eff_opt ~default:(make (TEffect [ make TWildcard ]))
+      in
+      let out_eff_opt, out_type = tr_eff_type out_comp in
+      let out_eff =
+        Option.value out_eff_opt ~default:(make (TEffect [ make TWildcard ]))
+      in
+      make (THandler { effct; cap_type; in_type; in_eff; out_type; out_eff })
   | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
@@ -178,7 +190,7 @@ and tr_scheme_expr (tp : Raw.type_expr) =
       Error.fatal (Error.impure_scheme pos)
     end
 
-  | TWildcard | TVar _ | TArrow _ | TEffect _ | TApp _ ->
+  | TWildcard | TVar _ | TArrow _ | TEffect _ | TApp _ | THandler _ ->
     { sch_pos  = pos;
       sch_args = [];
       sch_body = tr_type_expr tp
@@ -214,7 +226,7 @@ and tr_type_var (tp : Raw.type_expr) =
     let k = Option.value ka ~default:(make KWildcard) in
     (x, k)
   | TVar ({data = NPSel _; _}, _) | TWildcard | TArrow _ | TEffect _ | TApp _
-  | TRecord _ | TTypeLbl _ ->
+  | THandler _ | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a type expression as a type parameter *)
@@ -240,7 +252,7 @@ let rec tr_named_type_arg (tp : Raw.type_expr) =
   | TTypeLbl tp -> make (TNAnon, tr_type_arg tp)
   | TWildcard -> make (TNAnon, make (TA_Wildcard))
   | TVar ({data = NPSel _; _}, _) | TArrow _ | TEffect _ | TApp _
-  | TRecord _ ->
+  | THandler _ | TRecord _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 (** Translate a left-hand-side of the type definition. The additional
@@ -250,7 +262,7 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   | TVar ({data = NPName x; _}, _) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
   | TVar ({data = NPSel _; _}, _) | TWildcard | TParen _ | TArrow _
-  | TEffect _ | TRecord _ | TTypeLbl _ ->
+  | TEffect _ | THandler _ | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 let tr_ctor_decl (d : Raw.ctor_decl) =
