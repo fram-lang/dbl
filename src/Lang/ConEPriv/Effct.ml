@@ -297,11 +297,11 @@ let filter_to_scope ~scope eff =
 
 (* ========================================================================= *)
 
-let collect_gvars ~scope eff gvs =
+let collect_gvars ~outer_scope eff gvs =
   let (_, gm) = view_map eff in
   GVarMap.fold
     (fun gv _ gvs ->
-      if GVar.in_scope gv scope then gvs
+      if GVar.in_scope gv outer_scope then gvs
       else GVar.Set.add gv gvs)
     gm
     gvs

@@ -24,6 +24,11 @@ val import_many :
     modules and list of definitions. *)
 val import_prelude : unit -> import_set * Lang.Surface.def list
 
+(** Load all definitions from startup files specified in the command-line
+    arguments, returning the updated set of imported modules and list of
+    definitions. *)
+val load_startup_files : import_set -> import_set * Lang.Surface.def list
+
 (** Parse imports and prepend them to a complete program. *)
 val prepend_imports :
   use_prelude:bool -> Raw.import list -> Lang.Surface.program ->

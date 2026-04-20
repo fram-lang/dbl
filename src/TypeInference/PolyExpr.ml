@@ -112,7 +112,7 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     let expr = check_expr_type env expr body_tp in
     begin match expr.er_effect with
     | Pure   -> ()
-    | Impure -> Error.report (Error.func_not_pure ~pos)
+    | Impure -> Error.report (Error.func_not_total ~pos)
     end;
     let poly_fun = make (T.PF_Fun(tvs, xs, expr.er_expr)) in
     Poly(poly_fun, expr.er_constr)
@@ -139,7 +139,7 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     | _, _ ->
       begin match expr.er_effect with
       | Pure   -> ()
-      | Impure -> Error.report (Error.func_not_pure ~pos)
+      | Impure -> Error.report (Error.func_not_total ~pos)
       end;
       let poly_fun = make (T.PF_Fun(tvs, xs, expr.er_expr)) in
       Poly(poly_fun, expr.er_constr)
@@ -156,7 +156,7 @@ let check_def_scheme ~tcfix env (e : S.poly_expr_def) (sch : T.scheme) =
     let eff = T.Effect.join pat_eff body.er_effect in
     begin match eff with
     | Pure   -> ()
-    | Impure -> Error.report (Error.func_not_pure ~pos)
+    | Impure -> Error.report (Error.func_not_total ~pos)
     end;
     let body_expr = ExprUtils.match_args pats body.er_expr body_tp eff in
     let poly_fun = make (T.PF_Fun(tvs, xs, body_expr)) in
@@ -209,7 +209,7 @@ let infer_def_scheme ~tcfix env (e : S.poly_expr_def) =
     let eff = T.Effect.join eff body.er_effect in
     begin match eff with
     | Pure   -> ()
-    | Impure -> Error.report (Error.func_not_pure ~pos)
+    | Impure -> Error.report (Error.func_not_total ~pos)
     end;
     let named = named |>
       List.map (fun (name, pat, sch) ->

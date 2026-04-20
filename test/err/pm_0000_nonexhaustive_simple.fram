@@ -1,0 +1,12 @@
+rec
+  data MyList = MyNil | MyCons of MyList
+end
+
+let test = fn lst =>
+  match lst with
+  | MyNil => 0
+  end
+
+
+# @stderr:not exhaustive
+# @stderr:Cons _

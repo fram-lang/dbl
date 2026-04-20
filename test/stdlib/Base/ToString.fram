@@ -1,0 +1,27 @@
+import open Testing
+
+let _ =
+
+  testCase "Bool" (fn _ =>
+    assertEq (True).toString "True";
+    assertEq (False).toString "False");
+
+  testCase "String" (fn _ =>
+    assertEq "abc".toString "abc";
+    assertEq "".toString "";
+    assertEq "\n".toString "\n");
+
+  testCase "Char" (fn _ =>
+    assertEq ' '.toString " ";
+    assertEq 'a'.toString "a";
+    assertEq '\n'.toString "\n");
+
+  testCase "Int" (fn _ =>
+    assertEq 10.toString "10";
+    assertEq 0.toString "0";
+    assertEq (-1).toString "-1");
+
+  testCase "Int64" (fn _ =>
+    assertEq 10L.toString "10";
+    assertEq 0L.toString "0";
+    assertEq (-1L).toString "-1")

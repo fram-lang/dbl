@@ -1,0 +1,12 @@
+import open Testing
+
+let _ =
+
+testCase "operator (|>)" (fn _ =>
+  assertEq
+    (10 |> (fn x => 2 * x) |> (fn x => 2 + x))
+    22;
+  
+  assertEq
+    (10 |> (fn x => 2 + x) |> (fn x => 2 * x))
+    24)

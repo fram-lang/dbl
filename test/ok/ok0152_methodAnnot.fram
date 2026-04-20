@@ -1,0 +1,10 @@
+data T X = C of X
+
+method get1 {X} (c : T X) : X =
+  let (C x) = c in x
+
+method get2 {X} (c : T X) : total X =
+  let (C x) = c in x
+
+method get3 {X} (c : T X) : [] X =
+  let (C x) = c in x

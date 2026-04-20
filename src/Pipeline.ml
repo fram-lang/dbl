@@ -11,10 +11,24 @@ let use_prelude = ref true
 
 let use_stdlib = ref true
 
+let timings = ref false
+
 let dump_sexpr flag to_sexpr p =
   if flag then
     SExpr.pretty_stdout (to_sexpr p);
   p
+
+let print_timing label f arg =
+  if not !timings then f arg
+  else
+    let start = Unix.gettimeofday () in
+    let at_end () =
+      Printf.eprintf "[timing] %s:  %.3fs\n%!" label
+        (Unix.gettimeofday () -. start)
+    in
+    match f arg with
+    | r -> at_end (); r
+    | exception ex -> at_end (); raise ex
 
 let check_invariant check inv p =
   if check
@@ -34,22 +48,25 @@ let set_module_dirs ?fname () =
 
 let core_pipeline prog =
   prog
-  |> TypeInference.Main.tr_program
-  |> EffectInference.Main.tr_program ~solve_all:true
+  |> print_timing "type inference" TypeInference.Main.tr_program
+  |> print_timing "effect inference"
+       (EffectInference.Main.tr_program ~solve_all:true)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
-  |> ToCore.Main.tr_program
+  |> print_timing "to Core" ToCore.Main.tr_program
   |> dump_sexpr !dump_core Lang.Core.to_sexpr
-  |> check_invariant true Lang.Core.check_well_typed
-  |> CoreTypeErase.tr_program
-  |> Eval.eval_program
+  |> check_invariant true
+       (print_timing "Core type-check" Lang.Core.check_well_typed)
+  |> print_timing "type erasure" CoreTypeErase.tr_program
+  |> print_timing "evaluation" Eval.eval_program
 
 let nocore_pipeline prog =
   prog
-  |> TypeInference.Main.tr_program
-  |> EffectInference.Main.tr_program ~solve_all:false
+  |> print_timing "type inference" TypeInference.Main.tr_program
+  |> print_timing "effect inference"
+       (EffectInference.Main.tr_program ~solve_all:false)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
-  |> ConETypeErase.tr_program
-  |> Eval.eval_program
+  |> print_timing "type erasure" ConETypeErase.tr_program
+  |> print_timing "evaluation" Eval.eval_program
 
 let run_repl () =
   set_module_dirs ();

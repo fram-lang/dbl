@@ -101,8 +101,8 @@ val remove_tvar : TVar.t -> t -> t
 val remove_gvar : gvar -> t -> t
 
 (** Collect all generalizable variables that do not belong to the given
-  scope and add them to the given set. *)
-val collect_gvars : scope:Scope.t -> t -> GVar.Set.t -> GVar.Set.t
+  (outer) scope and add them to the given set. *)
+val collect_gvars : outer_scope:Scope.t -> t -> GVar.Set.t -> GVar.Set.t
 
 (** Pretty-print the effect as an S-expression. *)
 val to_sexpr : t -> SExpr.t

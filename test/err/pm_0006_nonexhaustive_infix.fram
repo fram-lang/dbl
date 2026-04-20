@@ -1,0 +1,11 @@
+data rec List X = [] | (::) of X, List X 
+data rec List2 X = Nil | Cons of X, List2 X 
+
+let lst = 1 :: 2 :: 3 :: []
+let len = match lst with 
+  | [] => 0
+  | x :: [] => 1 
+end
+
+# @stderr:not exhaustive
+# @stderr:(::) _ ((::) _ _)

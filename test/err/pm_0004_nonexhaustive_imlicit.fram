@@ -1,0 +1,8 @@
+data Config = Config of { ~timeout : Option Int, retries : Int }
+
+let f c = match c with
+  | Config { ~timeout=Some t} => t
+end
+
+# @stderr:not exhaustive
+# @stderr:~timeout = None

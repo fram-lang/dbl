@@ -1,0 +1,9 @@
+let id1 {X} x : X = x
+let id2 {X} x : total X = x
+
+let call {E} (f : _ ->[E] _) : [E] _ = f ()
+
+let ensureTotal (f : _ -> _) : total _ = f ()
+
+let _ = ensureTotal id1
+let _ = ensureTotal id2

@@ -33,6 +33,9 @@ let extern_str_seq =
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
     "dbl_strGet", 
       str_fun (fun s -> int_fun (fun n -> VNum (Char.code s.[n])));
+    "dbl_subStr",
+      str_fun (fun s ->
+        int_fun (fun p -> int_fun (fun l -> VStr (String.sub s p l))));
     "dbl_chrToString", int_fun (fun c -> VStr (String.make 1 (Char.chr c)));
     "dbl_chrEscape",   int_fun (fun c -> VStr (Char.escaped (Char.chr c)));
     "dbl_chrListToStr",

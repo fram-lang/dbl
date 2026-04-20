@@ -291,7 +291,7 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
       rfb_body_tp = rfb.rfb_body_tp
     }, T.Pure
 
-  | EAnnot(_, tp_expr) ->
+  | EAnnot(_, tp_expr) | EAnnotEff(_, tp_expr, _) | EAnnotTotal(_, tp_expr) ->
     let tp_expr = Type.tr_ttype env tp_expr in
     let tp' = T.TypeExpr.to_type tp_expr in
     Error.check_unify_result ~pos
@@ -338,7 +338,7 @@ let rec_def_scheme ~pos env (body : S.poly_expr_def) =
       Pattern.infer_named_patterns env nps in
     begin match eff1 with
     | Pure -> ()
-    | Impure -> Error.report (Error.func_not_pure ~pos)
+    | Impure -> Error.report (Error.func_not_total ~pos)
     end;
     let body_tp = Env.fresh_uvar ~pos:body.pos env T.Kind.k_type in
     (* we ignore renaming, because guessed scheme cannot contain variables
@@ -447,7 +447,7 @@ let rec check_rec_fun ~tcfix env (def : def3 T.node) =
     let er = check_expr_type body_env rf3.rf3_body body_tp in
     begin match args, er.er_effect with
     | _ :: _, _ | _, Pure -> ()
-    | [], Impure -> Error.report (Error.func_not_pure ~pos:def.pos)
+    | [], Impure -> Error.report (Error.func_not_total ~pos:def.pos)
     end;
     let (body, body_tp) = mk_function args er.er_expr body_tp in
     let def =
@@ -599,6 +599,9 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
 
     | EAnnot(e, tp) ->
       make (T.EAnnot(update_expr e, tp))
+
+    | EAnnotEff(e, tp, eff) ->
+      make (T.EAnnotEff(update_expr e, tp, eff))
 
     | ELetRec _ | ERecCtx _ | EMatchEmpty(_, _, _, Impure)
     | EMatch(_, _, _, Impure) | EMatchPoly(_, _, _, _, Impure) | EHandle _
