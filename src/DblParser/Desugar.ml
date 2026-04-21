@@ -138,7 +138,6 @@ let rec tr_type_expr (tp : Raw.type_expr) =
     make (TApp(tr_type_expr tp1, tr_type_expr tp2))
   | THandler (effct_opt, cap_tp, in_comp, out_comp) ->
       let cap_type = tr_type_expr cap_tp in
-      let effct = Option.value effct_opt ~default:"_" in
       let in_eff_opt, in_type = tr_eff_type in_comp in
       let in_eff =
         Option.value in_eff_opt ~default:(make (TEffect [ make TWildcard ]))
@@ -147,7 +146,14 @@ let rec tr_type_expr (tp : Raw.type_expr) =
       let out_eff =
         Option.value out_eff_opt ~default:(make (TEffect [ make TWildcard ]))
       in
-      make (THandler { effct; cap_type; in_type; in_eff; out_type; out_eff })
+      make (THandler {
+        effct = effct_opt;
+        cap_type;
+        in_type;
+        in_eff;
+        out_type;
+        out_eff;
+      })
   | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
