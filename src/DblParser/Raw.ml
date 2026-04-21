@@ -120,6 +120,9 @@ and type_expr_data =
   | TTypeLbl of type_expr
     (** Label of anonymous type parameter of ADT *)
 
+  | THandler of tvar option * type_expr * type_expr * type_expr
+    (** Handler type: effect binding, capability, input comp, output comp *)
+
 (** Field of record-like type *)
 and ty_field = (type_expr, type_expr) field_data node
 

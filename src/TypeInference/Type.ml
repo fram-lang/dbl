@@ -50,7 +50,11 @@ let rec infer_kind env (tp : S.type_expr) =
 
   | THandler { effct; cap_type; in_type; in_eff; out_type; out_eff } ->
     let (in_env, _) = Env.enter_scope env in
-    let (in_env, eff_var) = Env.add_tvar ~pos in_env effct T.Kind.k_effect in
+    let (in_env, eff_var) =
+      match effct with
+      | Some effct -> Env.add_tvar ~pos in_env effct T.Kind.k_effect
+      | None -> Env.add_anon_tvar ~pos ~name:"E" in_env T.Kind.k_effect
+    in
     let cap_type = tr_ttype  in_env cap_type in
     let in_type  = tr_ttype  in_env in_type in
     let in_eff   = tr_effect in_env in_eff in
