@@ -2,7 +2,10 @@ import subprocess
 import time
 import shlex
 
-from common import TIMEOUT, PROMPT, parse_tests, check_expectations
+try:
+    from .common import TIMEOUT, PROMPT, parse_repl_tests, find_expectation_failure
+except ImportError:
+    from common import TIMEOUT, PROMPT, parse_repl_tests, find_expectation_failure
 
 def read_until_prompt(proc, timeout=TIMEOUT):
     """Reads output until prompt is found or timeout occurs."""
@@ -24,30 +27,48 @@ def read_until_prompt(proc, timeout=TIMEOUT):
     raise TimeoutError(f"Timeout waiting for prompt after {timeout}s (elapsed: {elapsed:.2f}s, got {len(output)} chars)")
 
 def maybe_read_stderr(proc, timeout=0.1):
-    """Attempts to read stderr with timeout."""
+    """Reads all currently available stderr output with timeout."""
     try:
         import select
+        chunks = []
+
         ready, _, _ = select.select([proc.stderr], [], [], timeout)
-        return proc.stderr.readline() if ready else ""
+        while ready:
+            line = proc.stderr.readline()
+            if not line:
+                break
+            chunks.append(line)
+            ready, _, _ = select.select([proc.stderr], [], [], 0.01)
+
+        return "".join(chunks)
     except Exception:
         return ""
 
 def _run_single_test(proc, test, timeout):
-    """Runs a single REPL test, returns True if passes."""
+    """Runs a single REPL test, returns (passed, failure_message)."""
     try:
         proc.stdin.write(test["code"] + "\n")
         proc.stdin.flush()
         
         stdout = read_until_prompt(proc, timeout=timeout)
         stderr = maybe_read_stderr(proc, timeout=0.1)
-        
-        return check_expectations(test["expect"], stdout, stderr)
+
+        failure = find_expectation_failure(test["expect"], stdout, stderr)
+        if failure is not None:
+            return False, failure
+        return True, None
     except TimeoutError as e:
-        print(f"[TIMEOUT] Test '{test['code']}': {e}")
-        return False
+        return False, f"[TIMEOUT] Test '{test['code']}': {e}"
     except Exception as e:
-        print(f"[ERROR] Test '{test['code']}': {e}")
-        return False
+        return False, f"[ERROR] Test '{test['code']}': {e}"
+
+
+def _failure_entry(file, command, message):
+    return {
+        "file": file,
+        "command": command,
+        "message": message or "[UNKNOWN ERROR]",
+    }
 
 
 def _close_process(proc, timeout):
@@ -59,7 +80,7 @@ def _close_process(proc, timeout):
         proc.kill()
 
 def run_repl_test(binary, flags, file, timeout=TIMEOUT):
-    """Runs REPL tests from file, returns True if all pass."""
+    """Runs REPL tests from file, returns structured result with failures."""
     args = [binary] + shlex.split(flags)
     
     proc = subprocess.Popen(
@@ -71,14 +92,17 @@ def run_repl_test(binary, flags, file, timeout=TIMEOUT):
         bufsize=1
     )
 
+    failures = []
+
     try:
-        tests = parse_tests(file)
+        tests = parse_repl_tests(file)
         read_until_prompt(proc, timeout=timeout)  # consume initial prompt
 
-        for test in tests:
-            if not _run_single_test(proc, test, timeout):
-                return False
+        for index, test in enumerate(tests, start=1):
+            passed, failure = _run_single_test(proc, test, timeout)
+            if not passed:
+                failures.append(_failure_entry(file, index, failure))
 
-        return True
+        return {"passed": not failures, "failures": failures}
     finally:
         _close_process(proc, timeout)

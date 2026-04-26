@@ -6,6 +6,18 @@ TIMEOUT = 5.0
 # REPL prompt
 PROMPT = ">"
 
+EXP_PREFIX = "# @"
+
+REPL_END_MARKER = ";;"
+
+
+def _new_expectations():
+    return {
+        "stdout": [],
+        "stderr": [],
+        "stdout-empty": False,
+        "stderr-empty": False,
+    }
 
 def _parse_expectation_line(line):
     """Parses a single expectation line (# @...).
@@ -22,7 +34,7 @@ def _parse_expectation_line(line):
     Returns:
         Tuple (kind, text) or (None, None) if not an expectation line
     """
-    if not line.startswith("# @"):
+    if not line.startswith(EXP_PREFIX):
         return None, None
     
     rest = line[3:].strip()
@@ -37,64 +49,137 @@ def _parse_expectation_line(line):
     kind, text = rest.split(":", 1)
     return kind.strip(), text.strip()
 
-def parse_tests(path):
-    """Parses REPL test file with code lines and # @ expectations.
-    
-    Format:
-      code_line_1
-      # @stdout: expected_output
-      # @stderr: expected_error
-      # @stdout-empty          (expect empty stdout)
-      # @stderr-empty          (expect empty stderr)
-      code_line_2
-      ...
-    
-    Args:
-        path: Path to test file
-        
-    Returns:
-        List of tests, each with 'code' and 'expect' keys
+def parse_repl_tests(path):
+    """Parses REPL test file with multiline code blocks and expectations.
+
+    Rules:
+      - Code can span multiple lines.
+      - `# @...` lines are expectations for the current command.
+      - A new command starts when we hit a code line after a completed command
+        (completed means code ended with `;;` and had expectations attached).
+      - If command doesn't end with `;;`, parser appends it automatically.
     """
     tests = []
     current_test = None
+    code_lines = []
+
+    def finish_current():
+        nonlocal current_test, code_lines
+        if current_test is None:
+            return
+
+        code = "\n".join(code_lines).rstrip()
+        if code and not code.endswith(REPL_END_MARKER):
+            code = f"{code}\n{REPL_END_MARKER}"
+        current_test["code"] = code
+        tests.append(current_test)
+
+        current_test = None
+        code_lines = []
 
     with open(path) as f:
-        for line in f:
-            line = line.rstrip()
+        for raw_line in f:
+            line = raw_line.rstrip("\n")
+            stripped = line.strip()
+
+            if not stripped:
+                continue
+
+            kind, text = _parse_expectation_line(stripped)
+            if kind is not None:
+                if current_test is None:
+                    continue
+                if kind in ("stdout-empty", "stderr-empty"):
+                    current_test["expect"][kind] = True
+                elif kind in current_test["expect"]:
+                    current_test["expect"][kind].append(text)
+                continue
+
+            if current_test is None:
+                current_test = {"code": "", "expect": _new_expectations()}
+                code_lines = [line]
+                continue
+
+            previous_code = "\n".join(code_lines).rstrip()
+            previous_done = previous_code.endswith(REPL_END_MARKER)
+            has_expectations = (
+                bool(current_test["expect"]["stdout"])
+                or bool(current_test["expect"]["stderr"])
+                or current_test["expect"]["stdout-empty"]
+                or current_test["expect"]["stderr-empty"]
+            )
+
+            if has_expectations:
+                if stripped == REPL_END_MARKER and not previous_done:
+                    code_lines.append(line)
+                else:
+                    finish_current()
+                    current_test = {"code": "", "expect": _new_expectations()}
+                    code_lines = [line]
+            else:
+                code_lines.append(line)
+
+    finish_current()
+    return tests
+
+
+def parse_expectations(file):
+    expectations = _new_expectations()
+
+    with open(file) as f:
+        for raw_line in f:
+            line = raw_line.strip()
             if not line:
                 continue
 
-            # New code line = new test
-            if not line.startswith("#"):
-                if current_test:
-                    tests.append(current_test)
-                current_test = {
-                    "code": line,
-                    "expect": {"stdout": [], "stderr": [], "stdout-empty": False, "stderr-empty": False}
-                }
-            # Expected output annotation
-            elif current_test:
-                kind, text = _parse_expectation_line(line)
-                if kind:
-                    if kind in ("stdout-empty", "stderr-empty"):
-                        current_test["expect"][kind] = True
-                    elif kind in current_test["expect"]:
-                        current_test["expect"][kind].append(text)
+            kind, text = _parse_expectation_line(line)
+            if kind is None:
+                continue
 
-    if current_test:
-        tests.append(current_test)
-    return tests
-
-def parse_expectations(file):
-    tests = parse_tests(file)
-    expectations = {"stdout": [], "stderr": [], "stdout-empty": False, "stderr-empty": False}
-    for test in tests:
-        expectations["stdout"].extend(test["expect"]["stdout"])
-        expectations["stderr"].extend(test["expect"]["stderr"])
-        expectations["stdout-empty"] = expectations["stdout-empty"] or test["expect"]["stdout-empty"]
-        expectations["stderr-empty"] = expectations["stderr-empty"] or test["expect"]["stderr-empty"]
+            if kind in ("stdout-empty", "stderr-empty"):
+                expectations[kind] = True
+            elif kind in expectations:
+                expectations[kind].append(text)
 
     return expectations
+
+
+def find_expectation_failure(expectations, stdout, stderr):
+    if expectations["stdout-empty"] and stdout.strip():
+        return "\n".join([
+            "[FAILED stdout-empty]",
+            "  expected: empty stdout",
+            "  actual:",
+            stdout,
+        ])
+
+    if expectations["stderr-empty"] and stderr.strip():
+        return "\n".join([
+            "[FAILED stderr-empty]",
+            "  expected: empty stderr",
+            "  actual:",
+            stderr,
+        ])
+
+    for expected in expectations["stdout"]:
+        if expected not in stdout:
+            return "\n".join([
+                "[FAILED stdout]",
+                f"  expected substring: {expected!r}",
+                "  actual stdout:",
+                stdout,
+            ])
+
+    for expected in expectations["stderr"]:
+        if expected not in stderr:
+            return "\n".join([
+                "[FAILED stderr]",
+                f"  expected substring: {expected!r}",
+                "  actual stderr:",
+                stderr,
+            ])
+
+    return None
 
 def check_expectations(expectations, stdout, stderr):
     """Checks if output matches expectations for both stdout and stderr.
@@ -111,28 +196,9 @@ def check_expectations(expectations, stdout, stderr):
     Returns:
         True if all expectations are met, False otherwise
     """
-    # Check stdout-empty
-    if expectations["stdout-empty"]:
-        if stdout.strip():
-            print(f"[FAILED] Expected empty stdout, but got:\n{stdout}")
-            return False
-    
-    # Check stderr-empty
-    if expectations["stderr-empty"]:
-        if stderr.strip():
-            print(f"[FAILED] Expected empty stderr, but got:\n{stderr}")
-            return False
-    
-    # Check stdout contains expected text
-    for expected in expectations["stdout"]:
-        if expected not in stdout:
-            print(f"[FAILED stdout] '{expected}' not in:\n{stdout}")
-            return False
-    
-    for expected in expectations["stderr"]:
-        if expected not in stderr:
-            print(f"[FAILED stderr] '{expected}' not in:\n{stderr}")
-            return False
-    
+    failure = find_expectation_failure(expectations, stdout, stderr)
+    if failure is not None:
+        print(failure)
+        return False
     return True
 

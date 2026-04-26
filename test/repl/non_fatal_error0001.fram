@@ -1,7 +1,13 @@
-let f (x : Unit -> Unit) = x () ;;
-
-f () ;;
+let f (x : Unit -> Unit) = 
+    x () ;;
+# @stderr-empty
+f () 
 # @stderr: error
 
-42;;
+42
 # @stdout: 42
+;;
+
+let _ = foo {method m = fn x => x, module M}
+
+# @stderr: Cannot instantiate with a module after explicit method instantiation

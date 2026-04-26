@@ -1,10 +1,13 @@
 import subprocess
 import time
 
-from common import TIMEOUT, parse_expectations, check_expectations
+try:
+    from .common import TIMEOUT, parse_expectations, find_expectation_failure
+except ImportError:
+    from common import TIMEOUT, parse_expectations, find_expectation_failure
 
 def run_program_test(binary, flags, file, expect_exit, timeout=TIMEOUT):
-    """Runs program test and checks exit code and output expectations.
+    """Runs program test and returns structured pass/fail result.
     
     Args:
         binary: Path to executable
@@ -28,14 +31,23 @@ def run_program_test(binary, flags, file, expect_exit, timeout=TIMEOUT):
         )
     except subprocess.TimeoutExpired:
         elapsed = time.time() - start_time
-        print(f"TIMEOUT: {file} (exceeded {timeout}s timeout, ran for {elapsed:.2f}s)")
-        return False
+        return {
+            "passed": False,
+            "message": f"TIMEOUT: {file} (exceeded {timeout}s timeout, ran for {elapsed:.2f}s)",
+        }
 
     # Check exit code
     if proc.returncode != expect_exit:
-        print(f"BAD EXIT: {file} got {proc.returncode} expected {expect_exit}")
-        print(proc.stderr)
-        return False
+        stderr = proc.stderr.strip()
+        details = f"\n{stderr}" if stderr else ""
+        return {
+            "passed": False,
+            "message": f"BAD EXIT: {file} got {proc.returncode} expected {expect_exit}{details}",
+        }
 
     # Check expectations
-    return check_expectations(expectations, proc.stdout, proc.stderr)
+    failure = find_expectation_failure(expectations, proc.stdout, proc.stderr)
+    if failure is not None:
+        return {"passed": False, "message": failure}
+
+    return {"passed": True, "message": None}
