@@ -59,6 +59,8 @@ Source Code and Development
 Source code can be found in the `src` directory. For a high-level overview
 of the implementation we encourage to look into the `src/Pipeline.ml` file
 and `src/Lang` directory to see phases and intermediate languages of the
-interpreter. To run DBL interpreter on all test programs just type
-`./test.sh dbl test/test_suite`. Bugs can be reported on our
+interpreter. To run the full test suite just type `./test.sh`.
+To run a specific suite file, use `./test.sh path/to/suite` (e.g.,
+`./test.sh test/suite`). You can also run the Python test runner directly:
+`python3 -m runner.runner test/suite`. Bugs can be reported on our
 [issue tracker](https://github.com/fram-lang/dbl/issues).
