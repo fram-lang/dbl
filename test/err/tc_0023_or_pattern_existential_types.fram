@@ -4,4 +4,4 @@ let foo x =
   match x with
   | C | D => ()
   end
-# @stderr:Or-patterns cannot bind existential type variables.
+# @stderr:Or-patterns cannot bind type variables.

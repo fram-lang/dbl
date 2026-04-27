@@ -151,7 +151,7 @@ val or_pattern_type_vars_mismatch :
   pos:Position.t -> S.tvar -> t
 val or_pattern_modules_mismatch :
   pos:Position.t -> S.module_name -> t
-val or_pattern_existential_type :
+val or_pattern_binds_type_vars :
   pos:Position.t -> t
 
 val multiple_named_type_args :

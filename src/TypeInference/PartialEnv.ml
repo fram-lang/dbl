@@ -244,17 +244,8 @@ let intersect_module_info ~check_schemes ~pp ~pos name info1 info2 =
     ~on_mismatch:(fun () -> Error.report (Error.or_pattern_modules_mismatch ~pos name))
     ~on_both:(fun info1 info2 ->
       (* Check types *)
-      let types1 = StrMap.of_list info1.mi_types in
-      let types2 = StrMap.of_list info2.mi_types in
-      let check_type t_name t1 t2 =
-        merge_opts t1 t2
-          ~on_mismatch:(fun () -> Error.report (Error.or_pattern_type_vars_mismatch ~pos t_name))
-          ~on_both:(fun t1 t2 ->
-            if not (T.TVar.equal t1 t2) then
-              Error.report (Error.or_pattern_type_vars_mismatch ~pos t_name);
-            Some t1)
-      in
-      let _ = StrMap.merge check_type types1 types2 in
+      if info1.mi_types <> [] || info2.mi_types <> [] then
+        Error.report (Error.or_pattern_binds_type_vars ~pos);
       (* Check values *)
       let vals1 = Name.Map.of_list (List.map (fun (n, _, sch) -> (n, sch)) info1.mi_vals) in
       let vals2 = Name.Map.of_list (List.map (fun (n, _, sch) -> (n, sch)) info2.mi_vals) in
@@ -269,10 +260,10 @@ let intersect_module_info ~check_schemes ~pp ~pos name info1 info2 =
       Some info1)
 
 let intersect ?check_schemes ~pp ~pos ~scope penv1 penv2 =
-  (* Or-patterns with existential types are not supported YET *)
+  (* Or-patterns with type variable bindings are not supported YET *)
   if not (T.TVar.Map.is_empty penv1.tvar_tab) ||
      not (T.TVar.Map.is_empty penv2.tvar_tab) then
-    Error.report (Error.or_pattern_existential_type ~pos);
+    Error.report (Error.or_pattern_binds_type_vars ~pos);
   let ren =
     Name.Map.fold (fun name info2 ren ->
       match Name.Map.find_opt name penv1.val_map with

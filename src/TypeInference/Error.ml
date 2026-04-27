@@ -519,9 +519,9 @@ let or_pattern_modules_mismatch ~pos name =
       name,
     [])
 
-let or_pattern_existential_type ~pos =
+let or_pattern_binds_type_vars ~pos =
   (pos,
-    "Or-patterns cannot bind existential type variables.",
+    "Or-patterns cannot bind type variables.",
     [])
 
 let multiple_named_type_args ~pos ~ppos (name : S.tvar) =
