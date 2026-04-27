@@ -259,36 +259,36 @@ let intersect_module_info ~check_schemes ~pp ~pos name info1 info2 =
       let _ = Name.Map.merge check_val vals1 vals2 in
       Some info1)
 
+let add_var_ren vars1 name var2 ren =
+  match Name.Map.find_opt name vars1 with
+  | Some var1 -> T.Ren.add_var ren var2 var1
+  | None -> ren
+
+let build_ren ~scope penv1 penv2 =
+  let vars1 = Name.Map.map (fun info -> info.vi_var) penv1.val_map in
+  let ren =
+    Name.Map.fold (fun name info2 ren ->
+      add_var_ren vars1 name info2.vi_var ren
+    ) penv2.val_map (T.Ren.empty ~scope)
+  in
+  StrMap.fold (fun mname minfo2 ren ->
+    match StrMap.find_opt mname penv1.module_map with
+    | Some minfo1 ->
+      let vars1 =
+        List.fold_left
+          (fun m (name, var, _) -> Name.Map.add name var m)
+          Name.Map.empty minfo1.mi_vals
+      in
+      List.fold_left (fun ren (name, var2, _) -> add_var_ren vars1 name var2 ren) ren minfo2.mi_vals
+    | None -> ren
+  ) penv2.module_map ren
+
 let intersect ?check_schemes ~pp ~pos ~scope penv1 penv2 =
   (* Or-patterns with type variable bindings are not supported YET *)
   if not (T.TVar.Map.is_empty penv1.tvar_tab) ||
      not (T.TVar.Map.is_empty penv2.tvar_tab) then
     Error.report (Error.or_pattern_binds_type_vars ~pos);
-  let ren =
-    Name.Map.fold (fun name info2 ren ->
-      match Name.Map.find_opt name penv1.val_map with
-      | Some info1 -> T.Ren.add_var ren info2.vi_var info1.vi_var
-      | None -> ren
-    ) penv2.val_map (T.Ren.empty ~scope)
-  in
-  let ren =
-    StrMap.fold (fun mname minfo2 ren ->
-      match StrMap.find_opt mname penv1.module_map with
-      | Some minfo1 ->
-        let vars1 =
-          List.fold_left
-            (fun m (name, var, _) -> Name.Map.add name var m)
-            Name.Map.empty minfo1.mi_vals
-        in
-        List.fold_left
-          (fun ren (name, var2, _) ->
-            match Name.Map.find_opt name vars1 with
-            | Some var1 -> T.Ren.add_var ren var2 var1
-            | None -> ren)
-          ren minfo2.mi_vals
-      | None -> ren
-    ) penv2.module_map ren
-  in
+  let ren = build_ren ~scope penv1 penv2 in
   let penv =
     { tvar_map   =
         StrMap.merge (intersect_tvar_info ~pos) penv1.tvar_map penv2.tvar_map;
