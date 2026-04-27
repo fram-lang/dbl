@@ -212,6 +212,98 @@ let join ~pp penv1 penv2 =
 
 (* ========================================================================= *)
 
+let merge_opts ~on_mismatch ~on_both opt1 opt2 =
+  match opt1, opt2 with
+  | None, None -> None
+  | Some v1, None -> on_mismatch (); Some v1
+  | None, Some v2 -> on_mismatch (); Some v2
+  | Some v1, Some v2 -> on_both v1 v2
+
+let intersect_tvar_info ~pos name info1 info2 =
+  merge_opts info1 info2
+    ~on_mismatch:(fun () -> Error.report (Error.or_pattern_type_vars_mismatch ~pos name))
+    ~on_both:(fun info1 info2 ->
+      if not (T.TVar.equal info1.ti_tvar info2.ti_tvar) then
+        Error.report (Error.or_pattern_type_vars_mismatch ~pos name);
+      Some info1)
+
+let intersect_tvar_pos ~pos _ p1 p2 =
+  merge_opts p1 p2
+    ~on_mismatch:(fun () -> ())
+    ~on_both:(fun p1 _ -> Some p1)
+
+let intersect_val_info ~check_schemes ~pp ~pos name info1 info2 =
+  merge_opts info1 info2
+    ~on_mismatch:(fun () -> Error.report (Error.or_pattern_vars_mismatch ~pos ~pp name))
+    ~on_both:(fun info1 info2 ->
+      Option.iter (fun check -> check info1.vi_scheme info2.vi_scheme) check_schemes;
+      Some info1)
+
+let intersect_module_info ~check_schemes ~pp ~pos name info1 info2 =
+  merge_opts info1 info2
+    ~on_mismatch:(fun () -> Error.report (Error.or_pattern_modules_mismatch ~pos name))
+    ~on_both:(fun info1 info2 ->
+      (* Check types *)
+      if info1.mi_types <> [] || info2.mi_types <> [] then
+        Error.report (Error.or_pattern_binds_type_vars ~pos);
+      (* Check values *)
+      let vals1 = Name.Map.of_list (List.map (fun (n, _, sch) -> (n, sch)) info1.mi_vals) in
+      let vals2 = Name.Map.of_list (List.map (fun (n, _, sch) -> (n, sch)) info2.mi_vals) in
+      let check_val v_name sch1 sch2 =
+        merge_opts sch1 sch2
+          ~on_mismatch:(fun () -> Error.report (Error.or_pattern_vars_mismatch ~pos ~pp v_name))
+          ~on_both:(fun sch1 sch2 ->
+            Option.iter (fun check -> check sch1 sch2) check_schemes;
+            Some sch1)
+      in
+      let _ = Name.Map.merge check_val vals1 vals2 in
+      Some info1)
+
+let add_var_ren vars1 name var2 ren =
+  match Name.Map.find_opt name vars1 with
+  | Some var1 -> T.Ren.add_var ren var2 var1
+  | None -> ren
+
+let build_ren ~scope penv1 penv2 =
+  let vars1 = Name.Map.map (fun info -> info.vi_var) penv1.val_map in
+  let ren =
+    Name.Map.fold (fun name info2 ren ->
+      add_var_ren vars1 name info2.vi_var ren
+    ) penv2.val_map (T.Ren.empty ~scope)
+  in
+  StrMap.fold (fun mname minfo2 ren ->
+    match StrMap.find_opt mname penv1.module_map with
+    | Some minfo1 ->
+      let vars1 =
+        List.fold_left
+          (fun m (name, var, _) -> Name.Map.add name var m)
+          Name.Map.empty minfo1.mi_vals
+      in
+      List.fold_left (fun ren (name, var2, _) -> add_var_ren vars1 name var2 ren) ren minfo2.mi_vals
+    | None -> ren
+  ) penv2.module_map ren
+
+let intersect ?check_schemes ~pp ~pos ~scope penv1 penv2 =
+  (* Or-patterns with type variable bindings are not supported YET *)
+  if not (T.TVar.Map.is_empty penv1.tvar_tab) ||
+     not (T.TVar.Map.is_empty penv2.tvar_tab) then
+    Error.report (Error.or_pattern_binds_type_vars ~pos);
+  let ren = build_ren ~scope penv1 penv2 in
+  let penv =
+    { tvar_map   =
+        StrMap.merge (intersect_tvar_info ~pos) penv1.tvar_map penv2.tvar_map;
+      tvar_tab   =
+        T.TVar.Map.merge (intersect_tvar_pos ~pos) penv1.tvar_tab penv2.tvar_tab;
+      val_map    =
+        Name.Map.merge (intersect_val_info ~check_schemes ~pp ~pos) penv1.val_map penv2.val_map;
+      module_map =
+        StrMap.merge (intersect_module_info ~check_schemes ~pp ~pos) penv1.module_map penv2.module_map
+    }
+  in
+  (penv, ren)
+
+(* ========================================================================= *)
+
 let introduce_type_param (env, ren) (pos, _, x) =
   let (env, y) =
     Env.add_anon_tvar ~pos ~pp_uid:(T.TVar.pp_uid x) env (T.TVar.kind x) in

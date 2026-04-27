@@ -1,0 +1,6 @@
+data T = A of { x : Int } | B of { x : Int }
+
+let f t =
+  match t with
+  | A { module M } | B { module M } => M.x
+  end

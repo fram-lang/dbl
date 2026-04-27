@@ -1,0 +1,14 @@
+data Option A = None | Some of A
+data Result E A = Error of E | Ok of A
+
+let test_nested_option x =
+  match x with
+  | None | Some None => "none or some none"
+  | Some (Some _) => "some some"
+  end
+
+let test_result_option x =
+  match x with
+  | Ok None | Error None => "none value"
+  | Ok (Some _) | Error (Some _) => "some value"
+  end

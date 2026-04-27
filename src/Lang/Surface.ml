@@ -184,6 +184,9 @@ and pattern_data =
   | PAnnot of pattern * scheme_expr
     (** Scheme annotation *)
 
+  | POr of pattern * pattern
+    (** Or-pattern: matches if either sub-pattern matches *)
+
 (** Pattern for a named parameter *)
 and named_pattern = named_pattern_data node
 and named_pattern_data =

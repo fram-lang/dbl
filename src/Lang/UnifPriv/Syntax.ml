@@ -83,6 +83,7 @@ and pattern_data =
   | PCtor     of
     string * int * proof_expr * tvar list * pattern list * pattern list
   | PAnnot    of pattern * scheme_expr
+  | POr       of pattern * pattern
 
 type poly_expr = poly_expr_data node
 and poly_expr_data =

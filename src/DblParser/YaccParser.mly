@@ -451,7 +451,7 @@ expr_simple
 | STR                { make (EStr $1)          }
 | CHR                { make (EChr $1)          }
 | BR_OPN BR_CLS      { make EUnit              }
-| BR_OPN expr BR_CLS { make (EParen $2)        }
+| BR_OPN pattern BR_CLS { make (EParen $2)     }
 | SBR_OPN SBR_CLS    { make (EList [])         }
 | SBR_OPN expr_comma_sep SBR_CLS { make (EList $2)       }
 | KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
@@ -478,9 +478,17 @@ str_interp
 ;
 
 /* ========================================================================= */
+/* PATTERNS */
+
+pattern
+: expr               { $1 }
+| expr BAR pattern   { make (EPOr($1, $3)) }
+;
+
+/* ========================================================================= */
 
 match_clause
-: expr ARROW2 expr { make (Clause($1, $3)) }
+: pattern ARROW2 expr { make (Clause($1, $3)) }
 ;
 
 match_clause_list
@@ -594,8 +602,8 @@ def_list1
 /* ========================================================================= */
 
 h_clause
-: KW_RETURN  expr ARROW2 expr { make (HCReturn($2, $4))  }
-| KW_FINALLY expr ARROW2 expr { make (HCFinally($2, $4)) }
+: KW_RETURN  pattern ARROW2 expr { make (HCReturn($2, $4))  }
+| KW_FINALLY pattern ARROW2 expr { make (HCFinally($2, $4)) }
 ;
 
 h_clauses
