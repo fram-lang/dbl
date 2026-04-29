@@ -13,17 +13,62 @@ pub let FPerm { Rd, Wr } =
 
 abstr data File P E = File of { fd : Int }
 
-pub let openFileIn : String -> File Rd IO =
-  fn path => File { fd = (extern dbl_openFile : String -> Int -> Int) path 0 }
+abstr data OsErr = OsErr of String
+pub method toString (OsErr msg) = msg
 
-pub let openFileOut : String -> File Wr IO =
-  fn path => File { fd = (extern dbl_openFile : String -> Int -> Int) path 1 }
 
-pub let openFile : String -> File [Rd, Wr] IO =
-  fn path => File { fd = (extern dbl_openFile : String -> Int -> Int) path 2 }
+pub let openIn pth : Result (File Rd IO) OsErr =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) pth 0 with
+  | Err e => Err e
+  | Ok fd => Ok (File {fd})
+  end
+
+pub let openOut pth : Result (File Wr IO) OsErr =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) pth 1 with
+  | Err e => Err e
+  | Ok fd => Ok (File {fd})
+  end
+
+pub let openFile pth : Result (File [Rd, Wr] IO) OsErr =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) pth 2 with
+  | Err e => Err e
+  | Ok fd => Ok (File {fd})
+  end
+
+pub let close ((File {fd}) : File _ IO) =
+  (extern dbl_closeFile : Int -> Result Unit OsErr) fd
+
+# Reading
+pub let read ((File {fd}) : File [Rd, _] IO) n =
+  (extern dbl_read : Int -> Int ->[IO] Result String OsErr) fd n
+
+pub let readChar ((File {fd}) : File [Rd, _] IO) =
+  (extern dbl_read : Int -> Int ->[IO] Result String OsErr) fd 1
 
 pub let readLine ((File {fd}) : File [Rd, _] IO) =
-  (extern dbl_readLine : Int ->[IO] String) fd
+  (extern dbl_readLine : Int ->[IO] Result String OsErr) fd
 
-pub let writeLine ((File {fd}) : File [Wr, _] IO) str =
-  (extern dbl_writeLine : Int -> String ->[IO] Unit) fd str
+pub let readAll ((File {fd}) : File [Rd, _] IO) =
+  (extern dbl_readAll : Int ->[IO] Result String OsErr) fd
+
+pub let isEof ((File {fd}) : File [Rd, _] IO) =
+  (extern dbl_readAll : Int ->[IO] Result Bool OsErr)
+
+# Writing
+
+pub let write ((File {fd}) : File [Wr, _] IO) str =
+  (extern dbl_write : Int -> String ->[IO] Result Int OsErr) fd str
+
+pub let writeChar ((File {fd}) : File [Wr, _] IO) (chr : Char) =
+  (extern dbl_write : Int -> String ->[IO] Result Int OsErr) fd chr.toString
+
+pub let flush ((File {fd}) : File [Wr, _] IO) =
+  (extern dbl_flush : Int ->[IO] Result Unit OsErr) fd
+
+# Control
+
+pub let seek ((File {fd}) : File _ IO) n =
+  (extern dbl_seek : Int -> Int ->[IO] Result Unit OsErr) fd n
+
+pub let tell ((File {fd}) : File _ IO) =
+  (extern dbl_tell : Int ->[IO] Result Int OsErr) fd
