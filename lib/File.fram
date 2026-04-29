@@ -1,0 +1,29 @@
+{# This file is part of DBL, released under MIT license.
+ # See LICENSE for details.
+ #}
+
+
+data FPerm = FPerm of
+  { Rd  : effect
+  , Wr : effect
+  }
+
+pub let FPerm { Rd, Wr } =
+  (extern dbl_abstrType : Unit ->[IO] FPerm) ()
+
+abstr data File P E = File of { fd : Int }
+
+pub let openFileIn : String -> File Rd IO =
+  fn path => File { fd = (extern dbl_openFile : String -> Int -> Int) path 0 }
+
+pub let openFileOut : String -> File Wr IO =
+  fn path => File { fd = (extern dbl_openFile : String -> Int -> Int) path 1 }
+
+pub let openFile : String -> File [Rd, Wr] IO =
+  fn path => File { fd = (extern dbl_openFile : String -> Int -> Int) path 2 }
+
+pub let readLine ((File {fd}) : File [Rd, _] IO) =
+  (extern dbl_readLine : Int ->[IO] String) fd
+
+pub let writeLine ((File {fd}) : File [Wr, _] IO) str =
+  (extern dbl_writeLine : Int -> String ->[IO] Unit) fd str
