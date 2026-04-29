@@ -20,6 +20,9 @@ let rec tr_type env (tp : S.typ) =
     | KEffect ->
       S.UVar.raw_set u S.Type.t_effect;
       T.Type.t_effect (Env.fresh_gvar env)
+    | KType when instantiate_ktype_uvar ->
+      S.UVar.raw_set u S.Type.t_unit;
+      T.Type.t_var ()
 
     | _ ->
       (* TODO: we can handle them in the future. *)

@@ -61,9 +61,12 @@ let test_tagless = ref false
 let test_active (tags : string list) =
   match tags with
   | [] -> !test_tagless
-  | _  -> 
-    List.exists 
+  | _  ->
+    List.exists
       (fun s -> List.exists (fun g -> Dune_glob.V1.test g s) !test_globs) tags
 
 (** Use `show` method for pretty-printing in REPL. *)
 let repl_show_printing = ref true
+
+(**  Instantiate unsolved unification variables of kind Type to Unit *)
+let instantiate_ktype_uvar = ref false
