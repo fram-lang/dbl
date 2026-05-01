@@ -60,3 +60,6 @@ pub method min (self : Int64) oth =
   if self <= oth then self else oth
 pub method max (self : Int64) oth =
   if self >= oth then self else oth
+
+pub let maxValue = 9223372036854775807L
+pub let minValue = maxValue + 1L
