@@ -6,11 +6,6 @@ open Value
 open ExternalUtils
 open Unix
 
-
-let getEnv s =
-  Option.map (fun x -> VStr x) (Sys.getenv_opt s)
-  |> of_option
-
 let of_result res =
   match res with
   | Ok x    -> VCtor(0, [x])
@@ -18,24 +13,20 @@ let of_result res =
 
 let ok a = of_result (Ok a)
 
-let err_OsErr msg =
+let err_FileErr msg =
   VCtor(0, [VStr msg])
 
 let fun_try f x =
   try f x |> ok
   with
-  | Sys_error s -> of_result (Error (err_OsErr s))
+  | Sys_error s -> of_result (Error (err_FileErr s))
   | Unix.Unix_error (e,f,s) ->
-    of_result (Error (err_OsErr (Unix.error_message e)))
+    of_result (Error (err_FileErr (Unix.error_message e)))
   | Failure s ->
-    of_result (Error (err_OsErr s))
+    of_result (Error (err_FileErr s))
 
 let int_fun_try f = int_fun (fun_try f)
 let str_fun_try f = str_fun (fun_try f)
-
-let getArgv () =
-  let argv = Array.of_list !DblConfig.prog_args in
-  of_list (Array.map (fun s -> VStr s) argv |> Array.to_list)
 
 let openFile = str_fun (fun s ->
 int_fun_try (
@@ -75,7 +66,6 @@ let readLine = int_fun_try (fun fd ->
       in
       read_loop ())
 
-
 let write = int_fun (fun fd ->
   str_fun_try (fun s ->
     let buf = Bytes.of_string s in
@@ -105,10 +95,10 @@ let extern_file_seq =
     "dbl_closeFile", int_fun_try (fun fd -> Unix.close @@ Obj.magic fd; v_unit);
     "dbl_readFile",  readFile;
     "dbl_readLine",  readLine;
-    "dbl_isEof",     isEof;
     "dbl_write",     write;
     "dbl_flush",     int_fun_try (fun fd -> Unix.fsync @@ Obj.magic fd; v_unit);
     "dbl_seek",      seek;
     "dbl_tell",      int_fun_try (fun fd ->
-      VNum (Unix.lseek (Obj.magic fd) 0 SEEK_CUR))
+      VNum (Unix.lseek (Obj.magic fd) 0 SEEK_CUR));
+    "dbl_isEof",     isEof
   ] |> List.to_seq
