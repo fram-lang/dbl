@@ -49,4 +49,3 @@ let extern_os_seq =
     (* TODO: remove of_float after adding floats *)
     "dbl_getUnixTime", unit_fun (fun () -> VNum (Unix.time () |> Int.of_float))
   ] |> List.to_seq
-

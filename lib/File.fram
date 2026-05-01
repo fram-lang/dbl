@@ -16,6 +16,37 @@ abstr data File P E = File of { fd : Int }
 abstr data OsErr = OsErr of String
 pub method toString (OsErr msg) = msg
 
+pub data IoRead T =
+  | Data of T
+  | Eof
+  | Err of OsErr
+
+pub method isEof self =
+  match self with
+  | Eof => True
+  | _   => False
+  end
+
+pub method unwrapOr self default =
+  match self with
+  | Err e  => default
+  | Eof    => ""
+  | Data s => s
+  end
+
+pub method unwrapErr {~onError} self =
+  match self with
+  | Err e  => ~onError ()
+  | Eof    => ""
+  | Data s => s
+  end
+
+pub method unwrap {?msg} self =
+  match self with
+  | Err _  => runtimeError (msg.unwrapOr "Called `unwrap` on `Err`")
+  | Eof    => ""
+  | Data s => s
+  end
 
 pub let openIn pth : Result (File Rd IO) OsErr =
   match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) pth 0 with
@@ -40,16 +71,20 @@ pub let close ((File {fd}) : File _ IO) =
 
 # Reading
 pub let read ((File {fd}) : File [Rd, _] IO) n =
-  (extern dbl_read : Int -> Int ->[IO] Result String OsErr) fd n
+  (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd n
 
 pub let readChar ((File {fd}) : File [Rd, _] IO) =
-  (extern dbl_read : Int -> Int ->[IO] Result String OsErr) fd 1
+  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1 with
+  | Ok x =>
+    if x.length == 0
+    then Err "nie psecytalem"
+    else Ok (x.get 0)
+  | err   => err
+  end
+
 
 pub let readLine ((File {fd}) : File [Rd, _] IO) =
-  (extern dbl_readLine : Int ->[IO] Result String OsErr) fd
-
-pub let readAll ((File {fd}) : File [Rd, _] IO) =
-  (extern dbl_readAll : Int ->[IO] Result String OsErr) fd
+  (extern dbl_readLine : Int ->[IO] Result (Option String) OsErr) fd
 
 pub let isEof ((File {fd}) : File [Rd, _] IO) =
   (extern dbl_readAll : Int ->[IO] Result Bool OsErr)
