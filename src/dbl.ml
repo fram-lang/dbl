@@ -83,8 +83,8 @@ let cmd_args_options = Arg.align
     Arg.Clear DblConfig.repl_show_printing,
     " Disable REPL from using method `show' for pretty-printing.";
 
-    "-instantiate-type-kind-uvars",
-    Arg.Set DblConfig.instantiate_ktype_uvar,
+    "-instantiate-kind-type-uvars",
+    Arg.Set EffectInference.Type.instantiate_ktype_uvar,
     " Instantiates unsolved unification variables of kind Type to Unit";
   ]
 
