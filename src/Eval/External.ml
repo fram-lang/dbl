@@ -7,9 +7,9 @@ open ExternalUtils
 
 let extern_map =
   let extern_map =
-    [ "dbl_runtimeError", str_fun (fun fname -> 
-                            int_fun (fun line -> 
-                              str_fun (fun msg -> 
+    [ "dbl_runtimeError", str_fun (fun fname ->
+                            int_fun (fun line ->
+                              str_fun (fun msg ->
                                 runtime_error_with_postion fname line msg)));
       "dbl_magic",         pure_fun Fun.id;
       "dbl_defaultShow",   pure_fun (fun v -> VStr (Value.to_string v));
@@ -22,6 +22,7 @@ let extern_map =
       ExternalInt64.extern_int64_seq;
       ExternalRef.extern_ref_seq;
       ExternalOs.extern_os_seq;
+      ExternalFile.extern_file_seq;
     ] |> List.to_seq |> Seq.concat in
   Hashtbl.add_seq extern_map lib_externs;
   extern_map
