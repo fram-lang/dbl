@@ -2,6 +2,7 @@
  # See LICENSE for details.
  #}
 
+import Os
 
 data FPerm = FPerm of
   { Rd  : effect
@@ -13,40 +14,10 @@ pub let FPerm { Rd, Wr } =
 
 abstr data File P E = File of { fd : Int }
 
-abstr data OsErr = OsErr of String
-pub method toString (OsErr msg) = msg
-
-pub data IoRead T =
-  | Data of T
-  | Eof
-  | Err of OsErr
-
-pub method isEof self =
-  match self with
-  | Eof => True
-  | _   => False
-  end
-
-pub method unwrapOr self default =
-  match self with
-  | Err e  => default
-  | Eof    => ""
-  | Data s => s
-  end
-
-pub method unwrapErr {~onError} self =
-  match self with
-  | Err e  => ~onError ()
-  | Eof    => ""
-  | Data s => s
-  end
-
-pub method unwrap {?msg} self =
-  match self with
-  | Err _  => runtimeError (msg.unwrapOr "Called `unwrap` on `Err`")
-  | Eof    => ""
-  | Data s => s
-  end
+pub data SeekOption =
+  | SEEK_SET
+  | SEEK_CUR
+  | SEEK_END
 
 pub let openIn pth : Result (File Rd IO) OsErr =
   match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) pth 0 with
@@ -77,17 +48,16 @@ pub let readChar ((File {fd}) : File [Rd, _] IO) =
   match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1 with
   | Ok x =>
     if x.length == 0
-    then Err "nie psecytalem"
-    else Ok (x.get 0)
-  | err   => err
+    then Ok None
+    else Ok (Some (x.get 0))
+  | err  => err
   end
-
 
 pub let readLine ((File {fd}) : File [Rd, _] IO) =
   (extern dbl_readLine : Int ->[IO] Result (Option String) OsErr) fd
 
 pub let isEof ((File {fd}) : File [Rd, _] IO) =
-  (extern dbl_readAll : Int ->[IO] Result Bool OsErr)
+  (extern dbl_isEof : Int ->[IO] Result Bool OsErr)
 
 # Writing
 
@@ -102,8 +72,14 @@ pub let flush ((File {fd}) : File [Wr, _] IO) =
 
 # Control
 
-pub let seek ((File {fd}) : File _ IO) n =
-  (extern dbl_seek : Int -> Int ->[IO] Result Unit OsErr) fd n
+pub let seek ((File {fd}) : File _ IO) n opt =
+  let opt =
+    match opt with
+    | SEEK_SET -> 0
+    | SEEK_CUR -> 1
+    | SEEK_END -> 2
+  in
+  (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) fd n opt
 
 pub let tell ((File {fd}) : File _ IO) =
   (extern dbl_tell : Int ->[IO] Result Int OsErr) fd
