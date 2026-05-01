@@ -9,3 +9,5 @@ include UnifCommon.TVar
 let fresh_eff ~scope = fresh ~scope UnifCommon.Kind.k_effect
 
 let clone_unif = clone
+
+let tv_unit = UnifCommon.BuiltinType.tv_unit

@@ -6,6 +6,8 @@
 
 open Common
 
+let instantiate_ktype_uvar = ref false
+
 let tr_ceffect env (eff : S.effct) =
   match eff with
   | Pure   -> T.Pure
@@ -20,7 +22,9 @@ let rec tr_type env (tp : S.typ) =
     | KEffect ->
       S.UVar.raw_set u S.Type.t_effect;
       T.Type.t_effect (Env.fresh_gvar env)
-
+    | KType when !instantiate_ktype_uvar ->
+      S.UVar.raw_set u S.Type.t_unit;
+      T.Type.t_var (T.TVar.tv_unit)
     | _ ->
       (* TODO: we can handle them in the future. *)
       Error.fatal (Error.unsolved_unification_variable ~pos:(S.UVar.pos u))

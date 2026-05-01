@@ -121,7 +121,7 @@ type expr =
   | EUnitPrf
     (** ADT-shape proof for unit type *)
 
-  | EBoolPrf 
+  | EBoolPrf
     (** ADT-shape proof for bool type *)
 
   | EOptionPrf
@@ -278,6 +278,9 @@ module TVar : sig
 
   (** Pretty-print type variable as S-expression *)
   val to_sexpr : tvar -> SExpr.t
+
+  (** Unit type *)
+  val tv_unit : tvar
 end
 
 (* ========================================================================= *)
