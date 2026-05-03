@@ -62,4 +62,5 @@ pub method max (self : Int64) oth =
   if self >= oth then self else oth
 
 pub let maxValue = 9223372036854775807L
-pub let minValue = maxValue + 1L
+# Workaround due to issue #340
+pub let minValue = -9223372036854775807L - 1L
