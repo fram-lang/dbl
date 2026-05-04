@@ -22,7 +22,11 @@ let err_OsErr msg =
 
 let fun_try f x =
   try f x |> ok
-  with Sys_error s -> of_result (Error (err_OsErr s))
+  with
+  | Sys_error s -> of_result (Error (err_OsErr s))
+  | Unix_error (e,f,s) ->
+    of_result (Error (err_OsErr (Unix.error_message e)))
+  | Failure s -> of_result (Error (err_OsErr s))
 
 let int_fun_try f = int_fun (fun_try f)
 let str_fun_try f = str_fun (fun_try f)

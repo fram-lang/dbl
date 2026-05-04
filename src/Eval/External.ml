@@ -22,7 +22,6 @@ let extern_map =
       ExternalInt64.extern_int64_seq;
       ExternalRef.extern_ref_seq;
       ExternalOs.extern_os_seq;
-      ExternalFile.extern_file_seq;
     ] |> List.to_seq |> Seq.concat in
   Hashtbl.add_seq extern_map lib_externs;
   extern_map
