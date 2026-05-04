@@ -57,3 +57,125 @@ pub let readDirectory =
 
 {## Get the current time in Unix format. ##}
 pub let getUnixTime = (extern dbl_getUnixTime : Unit ->[IO] Int)
+
+## ## File manipulation
+
+data FPerm = FPerm of
+  { Rd : effect
+  , Wr : effect
+  }
+
+pub let FPerm { Rd, Wr } =
+  (extern dbl_abstrType : Unit ->[IO] FPerm) ()
+
+abstr data File P E = File of { fd : Int }
+
+pub data SeekOption =
+  | SEEK_SET
+  | SEEK_CUR
+  | SEEK_END
+
+## ## Standard file descriptors
+
+{## Standard input file ##}
+pub let stdin : File Rd IO =
+  File {fd = (extern dbl_stdinFile : Unit -> Int) ()}
+{## Standard output file ##}
+pub let stdout : File Wr IO =
+  File {fd = (extern dbl_stdoutFile : Unit -> Int) ()}
+{## Standard error file ##}
+pub let stderr : File Wr IO =
+  File {fd = (extern dbl_stderrFile : Unit -> Int) ()}
+
+## ### Opening and closing
+
+{## Opens a file for reading ##}
+pub let openIn p : Result (File Rd IO) OsErr =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 0 with
+  | Err e => Err e
+  | Ok fd => Ok (File {fd})
+  end
+
+{## Opens a file for writing ##}
+pub let openOut p : Result (File Wr IO) OsErr =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 1 with
+  | Err e => Err e
+  | Ok fd => Ok (File {fd})
+  end
+
+{## Opens a file for both reading and writing ##}
+pub let openFile p : Result (File [Rd, Wr] IO) OsErr =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 2 with
+  | Err e => Err e
+  | Ok fd => Ok (File {fd})
+  end
+
+{## Closes a file ##}
+pub let close ((File {fd}) : File _ IO) =
+  (extern dbl_closeFile : Int -> Result Unit OsErr) fd
+
+## ### Reading
+
+{## Reads up to `n` bytes from a file ##}
+pub let read ((File {fd}) : File [Rd, _] IO) n =
+  (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd n
+
+{##
+  Reads a single char from a file and returns `Option Char` with `None`
+  signifying end of file.
+ ##}
+pub let readChar ((File {fd}) : File [Rd, _] IO) =
+  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1
+  with
+  | Ok x =>
+    if x.length == 0
+    then Ok None
+    else Ok (Some (x.get 0))
+  | Err e  => Err e
+  end
+
+{##
+  Reads a single line from a file, delimited with `\n`.
+  Returns `Option String` with `None` signifying end of file.
+##}
+pub let readLine ((File {fd}) : File [Rd, _] IO) =
+  (extern dbl_readLine : Int ->[IO] Result (Option String) OsErr) fd
+
+## ### Writing
+
+{## Writes a string to a file ##}
+pub let write ((File {fd}) : File [Wr, _] IO) str =
+  (extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) fd str
+
+{## Writes a single `Char` to a file ##}
+pub let writeChar ((File {fd}) : File [Wr, _] IO) (chr : Char) =
+  (extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) fd chr.toString
+
+{## Flushes the buffer to the file and syncs it with the disk ##}
+pub let flush ((File {fd}) : File [Wr, _] IO) =
+  (extern dbl_flush : Int ->[IO] Result Unit OsErr) fd
+
+## ### Control
+
+{## Changes the position of the cursor ##}
+pub let seek ((File {fd}) : File _ IO) n opt =
+  let opt =
+    match opt with
+    | SEEK_SET => 0
+    | SEEK_CUR => 1
+    | SEEK_END => 2
+    end
+  in
+  (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) fd n opt
+
+{## Finds the position of the cursor ##}
+pub let tell ((File {fd}) : File _ IO) =
+  (extern dbl_tell : Int ->[IO] Result Int OsErr) fd
+
+{## Resets the cursor to begginig of file ##}
+pub let reset ((File {fd}) : File _ IO) =
+  (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) fd 0 0
+
+{## Checks if the cursor is currently at the end of the file ##}
+pub let isEof ((File {fd}) : File [Rd, _] IO) =
+  (extern dbl_isEof : Int ->[IO] Result Bool OsErr)
