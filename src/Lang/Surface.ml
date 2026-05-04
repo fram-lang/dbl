@@ -266,6 +266,10 @@ and expr_data =
     (** First-class handler, with return and finally clauses. For each of these
       clause lists, empty list means the default identity clause *)
 
+  | EHandlerFn of def list * expr * match_clause list * match_clause list
+    (** First-class handler defined on top of a block of definitions. In
+      contrast to [EHandler], this handler does not create a fresh label. *)
+
   | EEffect of expr option * pattern * expr
     (** Effectful operation. The only argument is a continuation. Other
       arguments should be bound using regular lambda abstractions ([EFn]).

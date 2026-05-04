@@ -1,0 +1,14 @@
+data Exn E = { raise : {X} -> Unit ->[E] X }
+
+data BT E =
+  { flip : Unit ->[E] Bool
+  , fail : {X} -> Unit ->[E] X
+  }
+
+let hBT =
+  handlerfn
+    handle flip = effect () => resume True; resume False
+    handle exn = Exn { effect raise () = () }
+    in
+    BT { flip, fail = exn.raise }
+  end
