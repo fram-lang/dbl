@@ -196,7 +196,7 @@ let rec update_rec_body ~rec_ctx (e : T.expr) : T.expr =
       x,
       update_rec_body ~rec_ctx ret)
 
-  | ERepl _ | EReplExpr _ ->
+  | ERepl _ | EReplExpr _ | EReplDir _ ->
     assert false
 
 and update_rec_def_rec_body ~rec_ctx (rd : T.rec_def) : T.rec_def =
