@@ -122,10 +122,6 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
     let delim_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
     let er_cap = infer_expr_type env cap in
-    begin match er_cap.er_effect with
-    | Pure -> ()
-    | Impure -> Error.report (Error.handler_not_total ~pos)
-    end;
     let cap_tp = expr_result_type er_cap in
     let body_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
     let fin_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
@@ -363,10 +359,6 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
       let delim_tp = Env.fresh_uvar ~pos env T.Kind.k_type in
       let (env, lx) = Env.add_the_label env (T.Type.t_label delim_tp) in
       let er_cap = check_expr_type env cap cap_tp in
-      begin match er_cap.er_effect with
-      | Pure -> ()
-      | Impure -> Error.report (Error.handler_not_total ~pos)
-      end;
       let (ret_x, er_ret) =
         MatchClause.tr_return_clauses ~tcfix ~pos env tp_in rcs
           (Check delim_tp) in

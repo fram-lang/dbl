@@ -466,7 +466,8 @@ and infer_type : type ed.
     let env = Env.add_mono_var env h.label
       (T.Type.t_label h_eff delim_tp delim_eff) in
     (* Translate the capability *)
-    let (cap_body, Checked) = check_type env h.cap_body cap_tp (Check Pure) in
+    let (cap_body, Checked) =
+      check_type env h.cap_body cap_tp (Check (Impure out_eff)) in
     (* Translate the return clause *)
     let ret_env = Env.add_mono_var env h.ret_var in_tp in
     let (ret_body, Checked) =
