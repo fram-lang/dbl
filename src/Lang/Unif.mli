@@ -419,7 +419,7 @@ and expr_data =
 
       cap_body  : expr;
       (** An expression that should evaluate to effect capability. It can use
-        [label] and [effect]. It should be pure and have type [cap_type]. *)
+        [label] and [effect]. It should have the type [cap_type]. *)
 
       ret_var   : var;
       (** An argument to the return clause *)
