@@ -496,6 +496,15 @@ let or_pattern_vars_mismatch ~pos ~pp name =
   in
   (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
 
+let or_pattern_var_visibility_mismatch ~pos ~pp name =
+  let pp_ctx = T.Pretty.empty_context () in
+  let msg =
+    Printf.sprintf
+      "Or-pattern branches must bind %s with the same visibility, but it is public in one branch and private in another"
+      (string_of_val_name ~pp ~pp_ctx ~cap:false name)
+  in
+  (pos, msg ^ T.Pretty.additional_info pp_ctx, [])
+
 let or_pattern_scheme_mismatch ~pos ~pp sch1 sch2 =
   let pp_ctx = T.Pretty.empty_context () in
   let msg = Printf.sprintf
@@ -512,10 +521,24 @@ let or_pattern_type_vars_mismatch ~pos name =
       name,
     [])
 
+let or_pattern_type_var_visibility_mismatch ~pos name =
+  (pos,
+    Printf.sprintf
+      "Or-pattern branches must bind type variable %s with the same visibility, but it is public in one branch and private in another"
+      name,
+    [])
+
 let or_pattern_modules_mismatch ~pos name =
   (pos,
     Printf.sprintf
       "Or-pattern branches must bind the same modules, but %s is not bound in all branches"
+      name,
+    [])
+
+let or_pattern_module_visibility_mismatch ~pos name =
+  (pos,
+    Printf.sprintf
+      "Or-pattern branches must bind module %s with the same visibility, but it is public in one branch and private in another"
       name,
     [])
 

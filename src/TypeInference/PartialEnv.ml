@@ -223,19 +223,18 @@ let intersect_tvar_info ~pos name info1 info2 =
   merge_opts info1 info2
     ~on_mismatch:(fun () -> Error.report (Error.or_pattern_type_vars_mismatch ~pos name))
     ~on_both:(fun info1 info2 ->
+      if info1.ti_public <> info2.ti_public then
+        Error.report (Error.or_pattern_type_var_visibility_mismatch ~pos name);
       if not (T.TVar.equal info1.ti_tvar info2.ti_tvar) then
         Error.report (Error.or_pattern_type_vars_mismatch ~pos name);
       Some info1)
-
-let intersect_tvar_pos ~pos _ p1 p2 =
-  merge_opts p1 p2
-    ~on_mismatch:(fun () -> ())
-    ~on_both:(fun p1 _ -> Some p1)
 
 let intersect_val_info ~check_schemes ~pp ~pos name info1 info2 =
   merge_opts info1 info2
     ~on_mismatch:(fun () -> Error.report (Error.or_pattern_vars_mismatch ~pos ~pp name))
     ~on_both:(fun info1 info2 ->
+      if info1.vi_public <> info2.vi_public then
+        Error.report (Error.or_pattern_var_visibility_mismatch ~pos ~pp name);
       Option.iter (fun check -> check info1.vi_scheme info2.vi_scheme) check_schemes;
       Some info1)
 
@@ -243,6 +242,8 @@ let intersect_module_info ~check_schemes ~pp ~pos name info1 info2 =
   merge_opts info1 info2
     ~on_mismatch:(fun () -> Error.report (Error.or_pattern_modules_mismatch ~pos name))
     ~on_both:(fun info1 info2 ->
+      if info1.mi_public <> info2.mi_public then
+        Error.report (Error.or_pattern_module_visibility_mismatch ~pos name);
       (* Check types *)
       if info1.mi_types <> [] || info2.mi_types <> [] then
         Error.report (Error.or_pattern_binds_type_vars ~pos);
@@ -293,7 +294,7 @@ let intersect ?check_schemes ~pp ~pos ~scope penv1 penv2 =
     { tvar_map   =
         StrMap.merge (intersect_tvar_info ~pos) penv1.tvar_map penv2.tvar_map;
       tvar_tab   =
-        T.TVar.Map.merge (intersect_tvar_pos ~pos) penv1.tvar_tab penv2.tvar_tab;
+        T.TVar.Map.empty;
       val_map    =
         Name.Map.merge (intersect_val_info ~check_schemes ~pp ~pos) penv1.val_map penv2.val_map;
       module_map =
