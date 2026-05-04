@@ -39,6 +39,3 @@ module Map : Map.S with type key = t
 
 (** Pretty-print a type variable as an S-expression *)
 val to_sexpr : t -> SExpr.t
-
-(** Unit type *)
-val tv_unit : t

@@ -6,8 +6,6 @@
 
 open Common
 
-val instantiate_ktype_uvar : bool ref
-
 (** Translate a type *)
 val tr_type : Env.t -> S.typ -> T.typ
 

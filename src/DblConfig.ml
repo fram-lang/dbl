@@ -68,5 +68,5 @@ let test_active (tags : string list) =
 (** Use `show` method for pretty-printing in REPL. *)
 let repl_show_printing = ref true
 
-(**  Instantiate unsolved unification variables of kind Type to Unit *)
-let instantiate_ktype_uvar = ref false
+(**  Instantiate unsolved unification variables of `type` kind to Unit *)
+let instantiate_type_uvars = ref false

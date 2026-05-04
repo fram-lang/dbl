@@ -278,9 +278,6 @@ module TVar : sig
 
   (** Pretty-print type variable as S-expression *)
   val to_sexpr : tvar -> SExpr.t
-
-  (** Unit type *)
-  val tv_unit : tvar
 end
 
 (* ========================================================================= *)
