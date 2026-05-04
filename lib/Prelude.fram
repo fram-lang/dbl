@@ -53,9 +53,6 @@ end
 
 pub module Int64
   pub open Int64
-  pub let zero = 0L
-  pub let one  = 1L
-  pub let ofInt (n : Int) = n.toInt64
 end
 
 ## Returns the greater of two elements `x` and `y`.
