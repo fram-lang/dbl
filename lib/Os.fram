@@ -111,7 +111,7 @@ pub let openFile p : Result (File [Rd, Wr] IO) OsErr =
   end
 
 {## Closes a file ##}
-pub let close ((File {fd}) : File _ IO) =
+pub let closeFile ((File {fd}) : File _ IO) =
   (extern dbl_closeFile : Int -> Result Unit OsErr) fd
 
 ## ### Reading
@@ -173,9 +173,26 @@ pub let tell ((File {fd}) : File _ IO) =
   (extern dbl_tell : Int ->[IO] Result Int OsErr) fd
 
 {## Resets the cursor to begginig of file ##}
-pub let reset ((File {fd}) : File _ IO) =
+pub let resetCursor ((File {fd}) : File _ IO) =
   (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) fd 0 0
 
 {## Checks if the cursor is currently at the end of the file ##}
 pub let isEof ((File {fd}) : File [Rd, _] IO) =
   (extern dbl_isEof : Int ->[IO] Result Bool OsErr)
+
+
+# Method definitions
+
+pub method close = closeFile
+pub method read = read
+pub method write = write
+pub method writeChar = writeChar
+pub method readLine = readLine
+pub method write = write
+pub method writeChar = writeChar
+pub method flush = flush
+pub method seek = seek
+pub method tell = tell
+pub method reset = resetCursor
+pub method isEof = isEof
+pub method shiftl = write
