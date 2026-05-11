@@ -327,6 +327,13 @@ let rec compare_effect eff1 eff2 : int =
   | PP_EffUVar _, _ -> -1
   | _, PP_EffUVar _ -> 1
   | PP_EffSimpleGuard e1, PP_EffSimpleGuard e2 -> compare_effect e1 e2
+  | PP_EffSimpleGuard _, _ -> -1
+  | _, PP_EffSimpleGuard _ -> 1
+  | PP_EffProj (m1, e1), PP_EffProj (m2, e2) ->
+    (match (m1, m2) with
+      | Affine, Affine | Unrestricted, Unrestricted -> compare_effect e1 e2
+      | Unrestricted, _ -> -1
+      | _, Unrestricted -> 1)
 
 let effects_equal effs1 effs2 =
   if List.length effs1 <> List.length effs2 then false
@@ -343,6 +350,7 @@ let tvar_in_effects x effs =
     | PP_EffWildcard | PP_EffUVar _ -> false
     | PP_EffVar y -> TVar.equal x y
     | PP_EffSimpleGuard eff -> check_eff eff
+    | PP_EffProj (_, eff) -> check_eff eff
   in
   List.exists check_eff effs
 
