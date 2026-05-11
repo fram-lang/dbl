@@ -26,6 +26,7 @@ let kw_map =
   ; "fn",        KW_FN
   ; "handle",    KW_HANDLE
   ; "handler",   KW_HANDLER
+  ; "handlerfn", KW_HANDLERFN
   ; "if",        KW_IF
   ; "import",    KW_IMPORT
   ; "in",        KW_IN

@@ -209,6 +209,10 @@ and expr_data =
   | EHandler of expr * h_clause list
     (** First-class handler *)
 
+  | EHandlerFn of def list * expr * h_clause list
+    (** First-class handler defined on top of a block of definitions. In
+      contrast to [EHandler], this handler does not create a fresh label. *)
+
   | EEffect of
     { label      : expr option;
       mode       : EffectMode.t;

@@ -466,7 +466,8 @@ and infer_type : type ed.
     let env = Env.add_mono_var env h.label
       (T.Type.t_label h_eff delim_tp delim_eff) in
     (* Translate the capability *)
-    let (cap_body, Checked) = check_type env h.cap_body cap_tp (Check Pure) in
+    let (cap_body, Checked) =
+      check_type env h.cap_body cap_tp (Check (Impure out_eff)) in
     (* Translate the return clause *)
     let ret_env = Env.add_mono_var env h.ret_var in_tp in
     let (ret_body, Checked) =
@@ -493,6 +494,35 @@ and infer_type : type ed.
         ~delim_tp ~delim_eff ~cap_tp ~in_tp ~in_eff 
         ~cap_body ~ret_var:h.ret_var ~ret_body ~fin_var:h.fin_var ~fin_body
         () in
+    (res, tp, return_pure eff_req)
+
+  | EHandlerFn { eff_var; cap_type; in_type; out_type; comp_var; body } ->
+    (* create effect variable *)
+    let inner_env = Env.enter_scope env in
+    let (inner_env, eff_var) = Env.add_tvar inner_env eff_var in
+    (* compute inner type and effect *)
+    let cap_type = Type.tr_type inner_env cap_type in
+    let in_type  = Type.tr_type inner_env in_type in
+    let in_eff   = T.Effct.join (T.Effct.var eff_var) (Env.fresh_gvar env) in
+    let comp_sch =
+      { T.sch_targs = [(TNAnon, eff_var)];
+        T.sch_named = [];
+        T.sch_body  =
+          T.Type.t_arrow (T.Scheme.of_type cap_type) in_type (Impure in_eff)
+      } in
+    ConstrSolver.leave_scope_with_scheme ~outer_env:env ~tvars:[eff_var]
+      (Env.constraints inner_env) comp_sch;
+    (* compute outer type and effect *)
+    let out_type = Type.tr_type env out_type in
+    let out_eff  = Env.fresh_gvar env in
+    (* check the body *)
+    let env = Env.add_poly_var env comp_var comp_sch in
+    let (body, Checked) =
+      check_type env body out_type (Check (Impure out_eff)) in
+    (* build the result *)
+    let res = T.EFn(comp_var, comp_sch, body) in
+    let tp =
+      T.Type.t_handler eff_var cap_type in_type in_eff out_type out_eff in
     (res, tp, return_pure eff_req)
 
   | EEffect(lbl, mode, x, body, res_tp) ->

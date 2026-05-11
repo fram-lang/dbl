@@ -294,9 +294,10 @@ let rec tr_ctor_pattern (p : Raw.expr) =
   | ESelect(path, p) -> path_append path (tr_ctor_pattern p)
 
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EVar _
-  | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _ | EEffect _
-  | ERecord _ | EMethod _ | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _
-  | EList (_ :: _) | EPub _ | EMethodCall _ | EInterp (_, _) ->
+  | EImplicit _ | EFn _ | EApp _ | EDefs _ | EMatch _ | EHandler _
+  | EHandlerFn _ | EEffect _ | ERecord _ | EMethod _ | EExtern _ | EAnnot _
+  | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _ | EMethodCall _
+  | EInterp (_, _) ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern *)
@@ -343,8 +344,9 @@ let rec tr_pattern (p : Raw.expr) =
     make (List.fold_right cons ps pnil).data
   | EPub p -> make (Attributes.make_vis_pattern (tr_pattern p)).data
 
-  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ | EMethodCall _ | EAnnot(_, AnnotTotal _) ->
+  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _
+  | ERecord _ | EMethod _ | EExtern _ | EIf _ | EMethodCall _
+  | EAnnot(_, AnnotTotal _) ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a pattern, separating out its annotation [Some sch] if present,
@@ -362,8 +364,9 @@ and tr_annot_pattern (p : Raw.expr) =
     Error.fatal (Error.desugar_error pos)
   | EWildcard | EUnit | EVar _ | EBOpID _ | EUOpID _ | EImplicit _ | ECtor _
   | ENum _ | ENum64 _ | EStr _ |  EChr _ | EFn _ | EApp _ | EDefs _ | EMatch _
-  | EHandler _ | EEffect _ | ERecord _ | EMethod _ | EMethodCall _ | EExtern _
-  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EPub _ | EInterp (_, _) ->
+  | EHandler _ | EHandlerFn _ | EEffect _ | ERecord _ | EMethod _
+  | EMethodCall _ | EExtern _ | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _
+  | EPub _ | EInterp (_, _) ->
     tr_pattern p, None
 
 and tr_named_pattern (fld : Raw.field) =
@@ -434,8 +437,9 @@ let rec tr_let_pattern (p : Raw.expr) =
       LP_Pat(tr_pattern p)
 
     | EWildcard | EParen _ | EFn _ | EApp _ | EDefs _ 
-    | EMatch _ | EHandler _| EEffect _ | ERecord _ | EMethod _ 
-    | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EPub _ | EMethodCall _ ->
+    | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _ | ERecord _ | EMethod _
+    | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EPub _
+    | EMethodCall _ ->
       Error.fatal (Error.desugar_error p1.pos)
     end
 
@@ -444,8 +448,8 @@ let rec tr_let_pattern (p : Raw.expr) =
   | EInterp (_, _) ->
     LP_Pat (tr_pattern p)
 
-  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EEffect _ | ERecord _
-  | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
+  | EFn _ | EDefs _ | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _
+  | ERecord _ | EMethod _ | EExtern _ | EIf _ | EMethodCall _  ->
     Error.fatal (Error.desugar_error p.pos)
 
 (** Translate a function, given a list of formal parameters *)
@@ -494,14 +498,15 @@ let rec tr_poly_expr (e : Raw.expr) =
     
     | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _
     | EApp _ | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _
-    | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _ | EBOp _ | EUOp _
-    | EList (_ :: _) | EPub _ | EMethodCall _ | EInterp (_, _) ->
+    | EHandlerFn _ | EExtern _ | EAnnot _ | EIf _ | EMethod _ | ESelect _
+    | EBOp _ | EUOp _ | EList (_ :: _) | EPub _ | EMethodCall _
+    | EInterp (_, _) ->
       Error.fatal (Error.desugar_error e.pos)
     end
 
   | EWildcard | ENum _ | ENum64 _ | EStr _ | EChr _ | EParen _ | EFn _ | EApp _
-  | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EExtern _
-  | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
+  | EEffect _ | EDefs _ | EMatch _ | ERecord _ | EHandler _ | EHandlerFn _
+  | EExtern _ | EAnnot _ | EIf _ | EBOp _ | EUOp _ | EList (_ :: _) | EPub _
   | EMethodCall _ | EInterp (_, _) ->
     Error.fatal (Error.desugar_error e.pos)
 
@@ -516,9 +521,9 @@ and tr_poly_expr_def (e : Raw.expr) =
     make (PE_Poly (tr_poly_expr e))
 
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EApp _ | EMethodCall _ | EDefs _
-  | EMatch _ | EHandler _ | EEffect _ | EExtern _ | EAnnot _ | EIf _
-  | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _ | EPub _ 
-  | EInterp (_, _) ->
+  | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _ | EExtern _ | EAnnot _
+  | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _
+  | EPub _ | EInterp (_, _) ->
     make (PE_Expr (tr_expr e))
 
 and tr_apply (e1 : Raw.expr) (es : Raw.expr list) =
@@ -576,6 +581,11 @@ and tr_expr (e : Raw.expr) =
     let e = tr_expr h in
     let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
     make (EHandler(e, rcs, fcs))
+  | EHandlerFn(defs, cap_e, hcs) ->
+    let defs  = tr_defs defs in
+    let cap_e = tr_expr cap_e in
+    let (rcs, fcs) = map_h_clauses tr_h_clause hcs in
+    make (EHandlerFn(defs, cap_e, rcs, fcs))
   | EEffect { label; mode; args; resumption; body } ->
     let (pos, res) =
       match resumption with

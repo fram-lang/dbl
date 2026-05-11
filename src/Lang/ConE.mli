@@ -121,7 +121,7 @@ type expr =
   | EUnitPrf
     (** ADT-shape proof for unit type *)
 
-  | EBoolPrf 
+  | EBoolPrf
     (** ADT-shape proof for bool type *)
 
   | EOptionPrf

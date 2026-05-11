@@ -13,7 +13,7 @@
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS ATTR_OPEN
 %token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AFF KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
-%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_IF KW_IMPORT
+%token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_HANDLERFN KW_IF KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
 %token KW_PARAMETER KW_PUB
 %token KW_REC
@@ -477,6 +477,8 @@ expr_simple
 | KW_MATCH expr KW_WITH bar_opt match_clause_list KW_END
   { make (EMatch($2, $5)) }
 | KW_HANDLER expr h_clauses KW_END { make (EHandler($2, $3)) }
+| KW_HANDLERFN def_list KW_IN expr h_clauses KW_END
+    { make (EHandlerFn($2, $4, $5)) }
 | CBR_OPN field_list CBR_CLS { make (ERecord $2) }
 | BR_OPN op BR_CLS           { make (EBOpID ($2).data)}
 | BR_OPN op DOT BR_CLS       { make (EUOpID ($2).data)}
