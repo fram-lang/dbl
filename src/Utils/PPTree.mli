@@ -55,9 +55,3 @@ val open_module : public:bool -> t -> pp_module -> t
 
 (** Lookup for a unique name of the type of given UID. *)
 val lookup : t -> uid -> pp_result
-
-(** Compare two PPTree uids. *)
-val uid_compare : uid -> uid -> int
-
-(** Check uid equality. *)
-val uid_equal : uid -> uid -> bool

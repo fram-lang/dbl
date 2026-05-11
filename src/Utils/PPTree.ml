@@ -99,10 +99,6 @@ let add_anon ?pos ?name pp_tree (PP_UID uid) =
     var_map   = UID.Map.update uid update pp_tree.var_map
   }
 
-let uid_compare (PP_UID u1) (PP_UID u2) = UID.compare u1 u2
-
-let uid_equal u1 u2 = uid_compare u1 u2 = 0
-
 let declare ?pos pp_tree name uid =
   add_named ~vis:Declared ?pos pp_tree name uid
 
