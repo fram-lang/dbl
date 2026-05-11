@@ -422,7 +422,7 @@ and expr_data =
 
       cap_body  : expr;
       (** An expression that should evaluate to effect capability. It can use
-        [label] and [effect]. It should be pure and have type [cap_type]. *)
+        [label] and [effect]. It should have the type [cap_type]. *)
 
       ret_var   : var;
       (** An argument to the return clause *)
@@ -439,6 +439,30 @@ and expr_data =
 
       fin_body  : expr;
       (** Body of the finally clause *)
+    }
+
+  | EHandlerFn of (** First class handler, defined as a function *)
+    { eff_var   : tvar;
+      (** Effect variable *)
+
+      cap_type  : typ;
+      (** Type of the capability *)
+
+      in_type   : typ;
+      (** Inner type of a handler: a type of expression that can be run
+        inside this handler *)
+
+      out_type  : typ;
+      (** Outer type of a handler: a type of the whole handler expression
+        *)
+
+      comp_var  : var;
+      (** An argument to the body of the handler function. It has type
+        [{eff_var} -> cap_type ->[eff_var, ...] in_type] *)
+
+      body      : expr
+      (** Body of the handler function. It can use [comp_var] and it should
+        have type [out_type]. *)
     }
 
   | EEffect of expr * var * expr * typ

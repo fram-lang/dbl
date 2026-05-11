@@ -305,7 +305,7 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
     }, T.Impure
 
   | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _
-  | EMatch _ | EHandler _ | EEffect _ | EExtern _ | ERepl _ ->
+  | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _ | EExtern _ | ERepl _ ->
     let pp = Env.pp_tree env in
     { rfb_type    = { T.pos = pos; T.pp = pp; T.data = T.TE_Type tp };
       rfb_args    = [];
@@ -595,6 +595,16 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
         ret_body = update_expr h.ret_body;
         fin_var  = h.fin_var;
         fin_body = update_expr h.fin_body
+      })
+
+    | EHandlerFn h ->
+      make (T.EHandlerFn {
+        eff_var  = h.eff_var;
+        cap_type = h.cap_type;
+        in_type  = h.in_type;
+        out_type = h.out_type;
+        comp_var = h.comp_var;
+        body     = update_expr h.body
       })
 
     | EAnnot(e, tp) ->

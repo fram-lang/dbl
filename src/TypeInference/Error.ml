@@ -200,11 +200,6 @@ let func_not_total ~pos =
   (pos, "Cannot ensure that this function is total "
     ^ "(pure and terminating)", [])
 
-let handler_not_total ~pos =
-  (pos,
-    "Cannot ensure that this handler expression is total "
-    ^ "(pure and terminating)", [])
-
 let expr_not_total ~pos =
   (pos, "Cannot ensure that this expression is total "
     ^ "(pure and terminating)", [])
