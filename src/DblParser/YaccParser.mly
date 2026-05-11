@@ -172,12 +172,15 @@ ty_expr_simple
   { make (THandler ($2, $3, $5, $7)) }
 | KW_HANDLER effct_bind ty_expr ARROW2 ty_expr
   { make (THandler ($2, $3, $5, $5)) }
+| KW_HANDLER ty_expr KW_IN ty_expr ARROW2 ty_expr
+  { make (THandler (None, $2, $4, $6)) }
+| KW_HANDLER ty_expr ARROW2 ty_expr
+  { make (THandler (None, $2, $4, $4)) }
 ;
 
 effct_bind
 : CBR_OPN UID CBR_CLS { Some $2 }
 | CBR_OPN UNDERSCORE CBR_CLS { None }
-| /* empty */         { None }
 ;
 
 

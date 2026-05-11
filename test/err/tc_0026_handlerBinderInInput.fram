@@ -1,0 +1,1 @@
+let bad {A, B, E} (x : handler A => A) : handler {E} B in [E] B => [E] B = x

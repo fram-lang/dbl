@@ -1,0 +1,7 @@
+let h1 {A, E} (x : handler {E} A in [E] A => [E] A) = x
+
+let h2 {A} (x : handler A in A => A) = x
+
+let h3 {A, E} (x : handler {E} A => [E] A) = x
+
+let h4 {A} (x : handler A => A) = x
