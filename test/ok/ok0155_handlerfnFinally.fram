@@ -1,0 +1,27 @@
+data rec List X =
+  | []
+  | (::) of X, List X
+
+data BT E =
+  { flip : Unit ->[E] Bool
+  , fail : {X} -> Unit ->[E] X
+  }
+
+let hBT =
+  handler BT
+    { effect flip () = resume True || resume False
+    , effect fail () = False
+    }
+  return () => True
+  end
+
+let hBT' =
+  handlerfn
+    handle bt with hBT
+    in
+    bt
+  return  _ :: _  => ()
+  return  []      => bt.fail ()
+  finally True  => "ok"
+  finally False => "fail"
+  end

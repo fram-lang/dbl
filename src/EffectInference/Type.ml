@@ -20,7 +20,9 @@ let rec tr_type env (tp : S.typ) =
     | KEffect ->
       S.UVar.raw_set u S.Type.t_effect;
       T.Type.t_effect (Env.fresh_gvar env)
-
+    | KType when !DblConfig.instantiate_type_uvars ->
+      S.UVar.raw_set u S.Type.t_unit;
+      T.Type.t_var T.BuiltinType.tv_unit
     | _ ->
       (* TODO: we can handle them in the future. *)
       Error.fatal (Error.unsolved_unification_variable ~pos:(S.UVar.pos u))

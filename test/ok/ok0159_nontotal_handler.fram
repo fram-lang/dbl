@@ -1,0 +1,7 @@
+let hId = handler effect x => resume x end
+
+handle (id : Unit ->> Unit) with hId
+
+let hConst x = handler id (); effect _ => resume x end
+
+let x = handle get with hConst 42 in get ()

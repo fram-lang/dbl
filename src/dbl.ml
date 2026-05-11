@@ -10,7 +10,7 @@ let usage_string =
 let cli_lib_search_dirs = ref []
 let cli_local_search_dirs = ref []
 
-let include_cli_search_dirs () = 
+let include_cli_search_dirs () =
   DblConfig.lib_search_dirs :=
     List.rev_append !cli_lib_search_dirs !DblConfig.lib_search_dirs;
   DblConfig.local_search_dirs :=
@@ -72,16 +72,20 @@ let cmd_args_options = Arg.align
     " Run tagless tests";
 
     "-test-tags",
-    Arg.String 
-      (fun s -> String.split_on_char ',' s 
-      |> List.map String.trim 
-      |> List.map DblConfig.compile_glob 
+    Arg.String
+      (fun s -> String.split_on_char ',' s
+      |> List.map String.trim
+      |> List.map DblConfig.compile_glob
       |> fun s -> DblConfig.test_globs := !DblConfig.test_globs @ s),
     "GLOBS Run tagged tests matching GLOBS (comma-separated list of globs)";
-  
+
     "-no-show-printing",
     Arg.Clear DblConfig.repl_show_printing,
     " Disable REPL from using method `show' for pretty-printing.";
+
+    "-instantiate-type-uvars",
+    Arg.Set DblConfig.instantiate_type_uvars,
+    " Instantiates unsolved unification variables of `type` kind to Unit";
   ]
 
 let fname = ref None
