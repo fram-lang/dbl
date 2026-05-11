@@ -72,14 +72,16 @@ let rec simplify_clauses status cls =
   if !dirty then simplify_clauses status cls
   else cls
 
-let add_imply solver origin p1 p2 =
-  let cls =
-    List.map (fun lits -> { origin; lits }) (Formula.imp_to_cnf p1 p2) in
+let add_cnf solver origin cnf =
+  let cls = List.map (fun lits -> { origin; lits }) cnf in
   match simplify_clauses solver.status cls with
   | cls ->
     BRef.set solver.clauses (cls @ BRef.get solver.clauses)
   | exception Solver_error ->
     ()
+
+let add_imply solver origin p1 p2 =
+  add_cnf solver origin (Formula.imp_to_cnf p1 p2)
 
 (* ========================================================================= *)
 

@@ -27,7 +27,7 @@ let tv_option = TVar.fresh ~scope:Scope.initial
   (Kind.k_noneff_arrow Kind.k_type Kind.k_type)
 
 (** IO effect *)
-let tv_io = TVar.fresh ~scope:Scope.initial Kind.k_effect
+let tv_io = TVar.fresh ~scope:Scope.initial ~mode:Affine Kind.k_effect
 
 (** List of all built-in types together with their names *)
 let all =

@@ -198,6 +198,7 @@ type effect_tree =
   | PP_EffVar         of TVar.t
   | PP_EffUVar        of UID.t
   | PP_EffSimpleGuard of effect_tree
+  | PP_EffProj        of EffectMode.t * effect_tree
 
 type type_tree =
   | PP_TVar       of TVar.t
@@ -235,6 +236,7 @@ let rec fresh_for_effect env name (eff : effect_tree) =
   | PP_EffWildcard | PP_EffUVar _ -> true
   | PP_EffVar x -> fresh_for_tvar env name x
   | PP_EffSimpleGuard eff -> fresh_for_effect env name eff
+  | PP_EffProj(_, eff) -> fresh_for_effect env name eff
 
 let fresh_for_effects env name effs =
   List.for_all (fresh_for_effect env name) effs
@@ -292,14 +294,26 @@ let print_tvar env x prec =
 let print_uvar env u prec =
   Env.print_string env (uvar_to_string env u)
 
-let rec print_single_effect env (eff : effect_tree) =
+let print_effect_mode (mode : EffectMode.t) =
+  match mode with
+  | Unrestricted -> "<unrestricted>"
+  | Affine       -> "aff"
+
+let rec print_single_effect env (eff : effect_tree) prec =
   match eff with
   | PP_EffWildcard -> Env.print_string env "_"
-  | PP_EffVar  x   -> print_tvar env x 0
-  | PP_EffUVar u   -> print_uvar env u 0
+  | PP_EffVar  x   -> print_tvar env x prec
+  | PP_EffUVar u   -> print_uvar env u prec
   | PP_EffSimpleGuard eff ->
-    print_single_effect env eff;
+    print_single_effect env eff prec;
     Env.print_string env "?"
+  | PP_EffProj(Unrestricted, eff) ->
+    print_single_effect env eff prec
+  | PP_EffProj(mode, eff) ->
+    paren env prec 10 (fun () ->
+      Env.print_string env (print_effect_mode mode);
+      Env.print_string env " ";
+      print_single_effect env eff 11)
 
 let rec compare_effect eff1 eff2 : int =
   match (eff1, eff2) with
@@ -359,14 +373,14 @@ let print_effect_body env effs =
   match effs with
   | [] -> ()
   | eff :: effs ->
-      print_single_effect env eff;
+    print_single_effect env eff 0;
     effs |> List.iter (fun eff ->
-          Env.print_string env ",";
-          print_single_effect env eff)
+      Env.print_string env ",";
+      print_single_effect env eff 0)
 
 let print_effect env effs prec =
   match effs with
-  | [eff] -> print_single_effect env eff
+  | [eff] -> print_single_effect env eff prec
   | _ ->
       Env.print_string env "[";
       print_effect_body env effs;

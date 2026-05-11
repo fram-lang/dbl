@@ -1,0 +1,34 @@
+data rec List X =
+  | []
+  | (::) of X, List X
+
+data ST E X =
+  { get : Unit ->[E] X
+  , put : X ->[E] Unit
+  }
+
+let hST st0 =
+  handler ST
+    { effect get () = fn st => resume st st
+    , effect put st = fn _  => resume () st
+    }
+  return  x => fn _ => x
+  finally c => c st0
+  end
+
+data Writer E X =
+  { tell : X ->[E] Unit
+  }
+
+let hWriter =
+  handlerfn
+    handle st with hST []
+    in
+    Writer { tell x = st.put (x :: st.get ()) }
+  return () => st.get ()
+  end
+
+let _ : List Int =
+  handle wr with hWriter in
+  wr.tell 1;
+  wr.tell 2

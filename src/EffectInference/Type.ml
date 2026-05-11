@@ -20,13 +20,25 @@ let rec tr_type env (tp : S.typ) =
     | KEffect ->
       S.UVar.raw_set u S.Type.t_effect;
       T.Type.t_effect (Env.fresh_gvar env)
-
+    | KType when !DblConfig.instantiate_type_uvars ->
+      S.UVar.raw_set u S.Type.t_unit;
+      T.Type.t_var T.BuiltinType.tv_unit
     | _ ->
       (* TODO: we can handle them in the future. *)
       Error.fatal (Error.unsolved_unification_variable ~pos:(S.UVar.pos u))
     end
 
-  | TVar x -> T.Type.t_var (Env.lookup_tvar env x)
+  | TVar x ->
+    (* Add a projection, if necessary. *)
+    let x = Env.lookup_tvar env x in
+    begin match T.TVar.mode x with
+    | Unrestricted -> T.Type.t_var x
+    | mode ->
+      T.Type.t_var x
+      |> T.Type.to_effect
+      |> T.Effct.proj mode
+      |> T.Type.t_effect
+    end
 
   | TArrow(sch, tp, eff) ->
     T.Type.t_arrow (tr_scheme env sch) (tr_type env tp) (tr_ceffect env eff)
@@ -95,6 +107,10 @@ let rec tr_type_expr env (tp : S.type_expr) =
           T.Effct.join eff (tr_effect_expr env tp))
         T.Effct.pure
         tps)
+
+  | TE_EffProj(mode, eff) ->
+    let eff = tr_effect_expr env eff in
+    T.Type.t_effect (T.Effct.proj mode eff)
 
   | TE_PureArrow(sch, tp) ->
     T.Type.t_arrow (tr_scheme_expr env sch) (tr_type_expr env tp) Pure

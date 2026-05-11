@@ -1,0 +1,5 @@
+let runH {A} h (f : {E} -> (A ->[E] A) ->[E] _) =
+  handle x with h in
+  f x
+
+let _ = runH (handlerfn in (fn x => x) end) (fn op => op ())

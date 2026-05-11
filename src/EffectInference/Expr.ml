@@ -466,7 +466,8 @@ and infer_type : type ed.
     let env = Env.add_mono_var env h.label
       (T.Type.t_label h_eff delim_tp delim_eff) in
     (* Translate the capability *)
-    let (cap_body, Checked) = check_type env h.cap_body cap_tp (Check Pure) in
+    let (cap_body, Checked) =
+      check_type env h.cap_body cap_tp (Check (Impure out_eff)) in
     (* Translate the return clause *)
     let ret_env = Env.add_mono_var env h.ret_var in_tp in
     let (ret_body, Checked) =
@@ -495,7 +496,37 @@ and infer_type : type ed.
         () in
     (res, tp, return_pure eff_req)
 
-  | EEffect(lbl, x, body, res_tp) ->
+  | EHandlerFn { eff_var; cap_type; in_type; out_type; comp_var; body } ->
+    (* create effect variable *)
+    let inner_env = Env.enter_scope env in
+    let (inner_env, eff_var) = Env.add_tvar inner_env eff_var in
+    (* compute inner type and effect *)
+    let cap_type = Type.tr_type inner_env cap_type in
+    let in_type  = Type.tr_type inner_env in_type in
+    let in_eff   = T.Effct.join (T.Effct.var eff_var) (Env.fresh_gvar env) in
+    let comp_sch =
+      { T.sch_targs = [(TNAnon, eff_var)];
+        T.sch_named = [];
+        T.sch_body  =
+          T.Type.t_arrow (T.Scheme.of_type cap_type) in_type (Impure in_eff)
+      } in
+    ConstrSolver.leave_scope_with_scheme ~outer_env:env ~tvars:[eff_var]
+      (Env.constraints inner_env) comp_sch;
+    (* compute outer type and effect *)
+    let out_type = Type.tr_type env out_type in
+    let out_eff  = Env.fresh_gvar env in
+    (* check the body *)
+    let env = Env.add_poly_var env comp_var comp_sch in
+    let (body, Checked) =
+      check_type env body out_type (Check (Impure out_eff)) in
+    (* build the result *)
+    let res = T.EFn(comp_var, comp_sch, body) in
+    let tp =
+      T.Type.t_handler eff_var cap_type in_type in_eff out_type out_eff in
+    (res, tp, return_pure eff_req)
+
+  | EEffect(lbl, mode, x, body, res_tp) ->
+    (* TODO: check if the usage of resumption respects the mode *)
     let (lbl, lbl_tp, eff_resp1) = infer_type env lbl eff_req in
     let (eff, delim_tp, delim_eff) = Subtyping.as_label lbl_tp in
     let res_tp = Type.tr_type env res_tp in
@@ -504,7 +535,8 @@ and infer_type : type ed.
     let env = Env.add_mono_var env x cont_tp in
     let (body, Checked) =
       check_type env body delim_tp (Check (Impure delim_eff)) in
-    let eff_resp2 = return_effect env ~node:e eff_req (Impure eff) in
+    let eff_resp2 =
+      return_effect env ~node:e eff_req (Impure (T.Effct.proj mode eff)) in
     let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
     let res = T.EShift(lbl, x, body, res_tp) in
     (res, res_tp, eff_resp)

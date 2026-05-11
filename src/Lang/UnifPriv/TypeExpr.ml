@@ -12,6 +12,7 @@ let rec to_type (tp : type_expr) =
   match tp.data with
   | TE_Type tp  -> tp
   | TE_Effect _ -> t_effect
+  | TE_EffProj _ -> t_effect
   | TE_PureArrow(sch, tp) ->
     t_pure_arrow (to_scheme sch) (to_type tp)
   | TE_Arrow(sch, tp, _) ->
@@ -76,6 +77,7 @@ let rec subst sub (tp : type_expr) =
     match tp.data with
     | TE_Type tp    -> TE_Type (Subst.in_type sub tp)
     | TE_Effect tps -> TE_Effect (List.map (subst sub) tps)
+    | TE_EffProj(mode, tp) -> TE_EffProj(mode, subst sub tp)
     | TE_PureArrow(sch, tp) ->
       TE_PureArrow(subst_in_scheme sub sch, subst sub tp)
     | TE_Arrow(sch, tp, eff) ->

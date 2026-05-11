@@ -102,6 +102,7 @@ let mk_handler
     ~eff_var ~lbl_var ~delim_tp ~delim_eff ~cap_tp ~in_tp ~in_eff 
     ~cap_body ~ret_var ~ret_body ~fin_var ~fin_body () =
   let comp_var = Var.fresh ~name:"comp" () in
+  let cap_var = Var.fresh ~name:"cap" () in
   let sch =
     { T.sch_targs = [(TNAnon, eff_var)];
       T.sch_named = [];
@@ -119,9 +120,11 @@ let mk_handler
   T.EFn(comp_var, sch,
     T.EData([label_dd],
       T.ELet(fin_var,
-        T.EReset(T.EVar lbl_var,
-          T.EApp(T.ETApp(T.EVar comp_var, T.Type.t_var eff_var), cap_body),
-          ret_var, ret_body),
+        T.ELet(cap_var, cap_body,
+          T.EReset(T.EVar lbl_var,
+            T.EApp(T.ETApp(T.EVar comp_var, T.Type.t_var eff_var),
+              (T.EVar cap_var)),
+            ret_var, ret_body)),
         fin_body)))
 
 (* ========================================================================= *)

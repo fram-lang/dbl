@@ -129,6 +129,9 @@ and type_expr_data =
     (** Effect. It is represented as a list of simpler effects. Empty list
       is a pure effect. *)
 
+  | TE_EffProj of EffectMode.t * type_expr
+    (** Projection of an effect to a given mode *)
+
   | TE_PureArrow of scheme_expr * type_expr
     (** Pure arrow *)
 
@@ -419,7 +422,7 @@ and expr_data =
 
       cap_body  : expr;
       (** An expression that should evaluate to effect capability. It can use
-        [label] and [effect]. It should be pure and have type [cap_type]. *)
+        [label] and [effect]. It should have the type [cap_type]. *)
 
       ret_var   : var;
       (** An argument to the return clause *)
@@ -438,10 +441,34 @@ and expr_data =
       (** Body of the finally clause *)
     }
 
-  | EEffect of expr * var * expr * typ
+  | EHandlerFn of (** First class handler, defined as a function *)
+    { eff_var   : tvar;
+      (** Effect variable *)
+
+      cap_type  : typ;
+      (** Type of the capability *)
+
+      in_type   : typ;
+      (** Inner type of a handler: a type of expression that can be run
+        inside this handler *)
+
+      out_type  : typ;
+      (** Outer type of a handler: a type of the whole handler expression
+        *)
+
+      comp_var  : var;
+      (** An argument to the body of the handler function. It has type
+        [{eff_var} -> cap_type ->[eff_var, ...] in_type] *)
+
+      body      : expr
+      (** Body of the handler function. It can use [comp_var] and it should
+        have type [out_type]. *)
+    }
+
+  | EEffect of expr * EffectMode.t * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
-      continuation variable binder, body, and the type of the whole
-      expression. *)
+      effect mode, continuation variable binder, body, and the type of the
+      whole expression. *)
 
   | EExtern of string * typ
     (** Externally defined value *)
@@ -578,7 +605,8 @@ module TVar : sig
     - [pp_uid] will be used by the pretty-printer to identify the type
       variable. *)
   val fresh :
-    ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> scope:Scope.t -> kind -> tvar
+    ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> ?mode:EffectMode.t ->
+    scope:Scope.t -> kind -> tvar
 
   (** Compare two type variables *)
   val compare : tvar -> tvar -> int

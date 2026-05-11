@@ -1,0 +1,48 @@
+import open Testing
+import open /Exception
+
+let _ = testCase "normal return" (fn _ =>
+  let result =
+    handle _ with hExn {Arg=Bool} (fn _ => -1) in 42
+  in
+  assertEq result 42)
+
+let _ = testCase "raise" (fn _ =>
+  let result =
+    handle exn with hExn {Arg=Int} (fn x => x.toString) in
+    exn.raise 5
+  in
+  assertEq result "5")
+
+let _ = testCase "raise is polymorphic" (fn _ =>
+  let result =
+    handle exn with hExn (fn _ => 13) in
+    if exn.raise () then exn.raise () else 42
+  in
+  assertEq result 13)
+
+let _ = testCase "handler executed once" (fn _ =>
+  let count = ~mut.ref 0 in
+  let _ =
+    handle exn with hExn (fn _ => count := count.get + 1) in
+    exn.raise ();
+    exn.raise ()
+  in
+  assertEq count.get 1)
+
+let _ = testCase "cascade" (fn _ =>
+  let result =
+    handle exn1 with hExn (fn s => "1" + s)
+    handle exn2 with hExn (fn s => exn1.raise ("2" + s))
+    in
+    exn2.raise "raise"
+  in
+  assertEqS result "12raise")
+
+let _ = testCase "skip inner handler" (fn _ =>
+  let result =
+    handle exn with hExn (fn _ => "outer")
+    handle _ with hExn {Arg=String} (fn _ => "inner") in
+    exn.raise "error"
+  in
+  assertEqS result "outer")

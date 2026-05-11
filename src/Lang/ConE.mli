@@ -6,7 +6,7 @@
   effect-inference phase. *)
 
 (** Formulas used for effect guards *)
-type formula = IncrSAT.Formula.t
+type formula
 
 (** Kinds (shared with Unif) *)
 type kind = UnifCommon.Kind.t
@@ -121,7 +121,7 @@ type expr =
   | EUnitPrf
     (** ADT-shape proof for unit type *)
 
-  | EBoolPrf 
+  | EBoolPrf
     (** ADT-shape proof for bool type *)
 
   | EOptionPrf
@@ -243,6 +243,49 @@ and match_clause =
 type program = expr
 
 (* ========================================================================= *)
+(** Operations on formulas *)
+module Formula : sig
+  (** Always true formula *)
+  val top : formula
+
+  (* Always false formula *)
+  val bot : formula
+
+  (** Create a formula that represents a given effect mode. *)
+  val of_mode : EffectMode.t -> formula
+
+  (** Formula built from a single fresh propositional variable *)
+  val fresh_var : unit -> formula
+
+  (** Conjunction of two formulas *)
+  val conj : formula -> formula -> formula
+
+  (** Disjunction of two formulas *)
+  val disj : formula -> formula -> formula
+
+  (** Check if formula is trivially true *)
+  val is_true : formula -> bool
+
+  (** Check if formula is trivially false *)
+  val is_false : formula -> bool
+
+  (** Check if one formula trivially implies the other *)
+  val implies : formula -> formula -> bool
+
+  (** Set values of some propositional variables in order to fix the value
+    of the formula. Return the value of the formula *)
+  val fix : formula -> bool
+
+  (** Convert implication to CNF, i.e., conjunction of disjunctions of
+    literals. The boolean flag at each literal describes polarity: [false]
+    means that variable is negated. *)
+  val imp_to_cnf : formula -> formula -> (IncrSAT.PropVar.t * bool) list list
+
+  (** Pretty-print formula as S-expression *)
+  val to_sexpr : formula -> SExpr.t
+end
+
+(* ========================================================================= *)
 (** Operations on type variables *)
 module TVar : sig
   (** Kind of a type variable *)
@@ -269,6 +312,11 @@ module TVar : sig
 
   (** Get the unique identifier for pretty-printing *)
   val pp_uid : tvar -> PPTree.uid
+
+  (** Get the effect mode of a type variable. For non-effect variables it is
+    always [EffectMode.Unrestricted]. For effect variables, each use of this
+    variable should be projected to this mode. *)
+  val mode : tvar -> EffectMode.t
 
   (** Finite sets of type variables *)
   module Set : Set.S with type elt = tvar
@@ -341,6 +389,10 @@ module Effct : sig
     satisfied, and equal to the pure effect when the formula is not satisfied.
     *)
   val guard : effct -> formula -> effct
+
+  (** Project the effect to the given mode. The call to [proj mode eff] is
+    equivalent to [guard eff (Formula.of_mode mode)]. *)
+  val proj : EffectMode.t -> effct -> effct
 
   (** Remove all components of the effect that do not belong to the given
     scope. *)
