@@ -445,7 +445,7 @@ let rec print_type env (tp : type_tree) prec =
             print_type env tp 1
           in
           if
-            h.in_eff = h.out_eff && h.in_tp = h.out_tp
+            effects_equal h.in_eff h.out_eff && h.in_tp = h.out_tp
             && (not (tvar_in_effects h.eff_var h.out_eff))
             && (not (tvar_in_type h.eff_var h.out_tp))
           then (
