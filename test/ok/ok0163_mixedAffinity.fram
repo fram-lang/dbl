@@ -1,0 +1,11 @@
+data BT E =
+  { flip : Unit ->[E] Bool
+  , fail : {X} -> Unit ->[aff E] X
+  }
+
+let hBT =
+  handler BT
+    {     effect flip () = resume True; resume False
+    , aff effect fail () = ()
+    }
+  end

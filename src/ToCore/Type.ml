@@ -12,7 +12,7 @@ let tr_effect env eff =
   List.iter (fun (gv, _) -> S.GVar.set gv S.Effct.pure) gvars;
   List.fold_left
     (fun eff (x, p) ->
-      if IncrSAT.Formula.fix p then 
+      if S.Formula.fix p then 
         let (Ex x) = Env.lookup_tvar env x in
         match T.TVar.kind x with
         | KEffect -> T.Effect.join (TVar x) eff

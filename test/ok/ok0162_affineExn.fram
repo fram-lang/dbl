@@ -1,0 +1,6 @@
+data Exn E = { raise : {X} -> Int ->[aff E] X }
+
+let hExn =
+  handler Exn
+    { aff effect raise n = n }
+  end

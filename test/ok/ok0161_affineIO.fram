@@ -1,0 +1,5 @@
+let printStrLn = extern dbl_printStrLn : String ->[IO] Unit
+
+let runAffine {R} (f : Unit ->[aff R] Unit) = f ()
+
+let f () = runAffine (fn () => printStrLn "Hello")

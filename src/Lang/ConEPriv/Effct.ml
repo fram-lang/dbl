@@ -10,14 +10,12 @@
   second map is represented as a map from UIDs, because of the circular
   dependencies between types. *)
 
-type formula = IncrSAT.Formula.t
-
 type t =
-  { tvars : formula TVar.Map.t BRef.t;
+  { tvars : Formula.t TVar.Map.t BRef.t;
     gvars : gvar_map BRef.t
   }
 
-and gvar_map = (gvar * formula) UID.Map.t
+and gvar_map = (gvar * Formula.t) UID.Map.t
 
 and gvar =
   { uid   : UID.t;
@@ -33,19 +31,19 @@ and gvar_state =
 
 (* ========================================================================= *)
 module TVarMap : sig
-  type t = formula TVar.Map.t
+  type t = Formula.t TVar.Map.t
 
   val empty     : t
-  val singleton : TVar.t -> formula -> t
-  val filter    : (TVar.t -> formula -> bool) -> t -> t
+  val singleton : TVar.t -> Formula.t -> t
+  val filter    : (TVar.t -> Formula.t -> bool) -> t -> t
   val remove    : TVar.t -> t -> t
-  val add       : TVar.t -> formula -> t -> t
+  val add       : TVar.t -> Formula.t -> t -> t
   val union     : t -> t -> t
-  val guard     : t -> formula -> t
-  val lookup    : t -> TVar.t -> formula
-  val to_list   : t -> (TVar.t * formula) list
+  val guard     : t -> Formula.t -> t
+  val lookup    : t -> TVar.t -> Formula.t
+  val to_list   : t -> (TVar.t * Formula.t) list
 end = struct
-  type t = formula TVar.Map.t
+  type t = Formula.t TVar.Map.t
 
   let empty = TVar.Map.empty
   let singleton = TVar.Map.singleton
@@ -55,18 +53,18 @@ end = struct
   let add x p m =
     match TVar.Map.find_opt x m with
     | None    -> TVar.Map.add x p m
-    | Some p2 -> TVar.Map.add x (IncrSAT.Formula.disj p p2) m
+    | Some p2 -> TVar.Map.add x (Formula.disj p p2) m
 
   let union =
-    TVar.Map.union (fun _ p1 p2 -> Some (IncrSAT.Formula.disj p1 p2))
+    TVar.Map.union (fun _ p1 p2 -> Some (Formula.disj p1 p2))
 
   let guard m p =
-    if IncrSAT.Formula.is_true p then m
-    else TVar.Map.map (IncrSAT.Formula.conj p) m
+    if Formula.is_true p then m
+    else TVar.Map.map (Formula.conj p) m
 
   let lookup m x =
     match TVar.Map.find_opt x m with
-    | None   -> IncrSAT.Formula.bot
+    | None   -> Formula.bot
     | Some p -> p
 
   let to_list = TVar.Map.bindings
@@ -77,15 +75,15 @@ module GVarMap : sig
   type t = gvar_map
 
   val empty     : t
-  val singleton : gvar -> formula -> t
-  val filter    : (gvar -> formula -> bool) -> t -> t
+  val singleton : gvar -> Formula.t -> t
+  val filter    : (gvar -> Formula.t -> bool) -> t -> t
   val remove    : gvar -> t -> t
-  val add       : gvar -> formula -> t -> t
-  val fold      : (gvar -> formula -> 'a -> 'a) -> t -> 'a -> 'a
+  val add       : gvar -> Formula.t -> t -> t
+  val fold      : (gvar -> Formula.t -> 'a -> 'a) -> t -> 'a -> 'a
   val union     : t -> t -> t
-  val guard     : t -> formula -> t
-  val lookup    : t -> gvar -> formula
-  val to_list   : t -> (gvar * formula) list
+  val guard     : t -> Formula.t -> t
+  val lookup    : t -> gvar -> Formula.t
+  val to_list   : t -> (gvar * Formula.t) list
 end = struct
   type t = gvar_map
 
@@ -97,7 +95,7 @@ end = struct
   let add gv p m =
     match UID.Map.find_opt gv.uid m with
     | None         -> UID.Map.add gv.uid (gv, p) m
-    | Some (_, p2) -> UID.Map.add gv.uid (gv, IncrSAT.Formula.disj p p2) m
+    | Some (_, p2) -> UID.Map.add gv.uid (gv, Formula.disj p p2) m
 
   let fold f m a = UID.Map.fold (fun _ (gv, p) -> f gv p) m a
 
@@ -105,15 +103,15 @@ end = struct
     UID.Map.union
       (fun _ (u1, p1) (u2, p2) ->
         assert (u1.uid = u2.uid);
-        Some (u1, IncrSAT.Formula.disj p1 p2))
+        Some (u1, Formula.disj p1 p2))
 
   let guard m p =
-    if IncrSAT.Formula.is_true p then m
-    else UID.Map.map (fun (gv, p1) -> (gv, IncrSAT.Formula.conj p1 p)) m
+    if Formula.is_true p then m
+    else UID.Map.map (fun (gv, p1) -> (gv, Formula.conj p1 p)) m
 
   let lookup m gv =
     match UID.Map.find_opt gv.uid m with
-    | None       -> IncrSAT.Formula.bot
+    | None       -> Formula.bot
     | Some(_, p) -> p
 
   let to_list m = UID.Map.bindings m |> List.map snd
@@ -127,13 +125,13 @@ let pure =
   }
 
 let var x =
-  { tvars = BRef.create (TVarMap.singleton x IncrSAT.Formula.top);
+  { tvars = BRef.create (TVarMap.singleton x Formula.top);
     gvars = BRef.create GVarMap.empty
   }
 
 let gvar gv =
   { tvars = BRef.create TVarMap.empty;
-    gvars = BRef.create (GVarMap.singleton gv IncrSAT.Formula.top)
+    gvars = BRef.create (GVarMap.singleton gv Formula.top)
   }
 
 let cons x p eff =
@@ -149,11 +147,14 @@ let join eff1 eff2 =
   }
 
 let guard eff p =
-  if IncrSAT.Formula.is_true p then eff
+  if Formula.is_true p then eff
   else
     { tvars = BRef.create (TVarMap.guard (BRef.get eff.tvars) p);
       gvars = BRef.create (GVarMap.guard (BRef.get eff.gvars) p)
     }
+
+let proj mode eff =
+  guard eff (Formula.of_mode mode)
 
 let fresh_gvar ~scope =
   gvar { uid = UID.fresh (); state = BRef.create (GVar scope) }
@@ -194,12 +195,12 @@ module GVar = struct
         } in
       let tm =
         List.fold_left
-          (fun tm x -> TVarMap.add x (IncrSAT.Formula.fresh_var ()) tm)
+          (fun tm x -> TVarMap.add x (Formula.fresh_var ()) tm)
           TVarMap.empty
           tvars in
       let eff =
         { tvars = BRef.create tm;
-          gvars = BRef.create (GVarMap.singleton new_gv IncrSAT.Formula.top)
+          gvars = BRef.create (GVarMap.singleton new_gv Formula.top)
         } in
       BRef.set gv.state (Effect eff);
       new_gv
@@ -231,7 +232,7 @@ end
 let rec view_map eff =
   let tm =
     BRef.get eff.tvars
-    |> TVarMap.filter (fun _ p -> not (IncrSAT.Formula.is_false p)) in
+    |> TVarMap.filter (fun _ p -> not (Formula.is_false p)) in
   let (tm, gm) =
     GVarMap.fold view_add_gvar (BRef.get eff.gvars) (tm, GVarMap.empty) in
   BRef.set eff.tvars tm;
@@ -239,7 +240,7 @@ let rec view_map eff =
   (tm, gm)
 
 and view_add_gvar gv p (tm, gm) =
-  if IncrSAT.Formula.is_false p then (tm, gm)
+  if Formula.is_false p then (tm, gm)
   else
     match BRef.get gv.state with
     | GVar _     -> (tm, GVarMap.add gv p gm)
@@ -309,8 +310,8 @@ let collect_gvars ~outer_scope eff gvs =
 (* ========================================================================= *)
 
 let guarded_to_sexpr to_sexpr (x, p) =
-  if IncrSAT.Formula.is_true p then to_sexpr x
-  else SExpr.List [ to_sexpr x; Sym "?"; IncrSAT.Formula.to_sexpr p ]
+  if Formula.is_true p then to_sexpr x
+  else SExpr.List [ to_sexpr x; Sym "?"; Formula.to_sexpr p ]
 
 let to_sexpr eff =
   let (tvs, gvs) = view eff in
