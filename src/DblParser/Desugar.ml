@@ -270,7 +270,7 @@ let rec tr_type_def (tp : Raw.type_expr) args =
   | TVar ({data = NPName x; _}, _) -> TD_Id(x, args)
   | TApp(tp1, tp2) -> tr_type_def tp1 (tp2 :: args)
   | TVar ({data = NPSel _; _}, _) | TWildcard | TParen _ | TArrow _
-  | THandler | TEffect _ | TEffProj _ | TRecord _ | TTypeLbl _ ->
+  | THandler _ | TEffect _ | TEffProj _ | TRecord _ | TTypeLbl _ ->
     Error.fatal (Error.desugar_error tp.pos)
 
 let tr_ctor_decl (d : Raw.ctor_decl) =
