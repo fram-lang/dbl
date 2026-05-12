@@ -1,0 +1,23 @@
+data Option A = None | Some of A
+data Two A = First of A | Second of A
+data Triple = A | B | C
+
+let nested x =
+  match x with
+  | Some (First a | Second a) => Some a
+  | None => None
+  end
+
+let deep x =
+  match x with
+  | Some (Some (First a | Second a)) => Some a
+  | Some None => None
+  | None => None
+  end
+
+let multi_level x =
+  match x with
+  | Some (First (A | B) | Second C) => ()
+  | Some (First C | Second (A | B)) => ()
+  | None => ()
+  end
