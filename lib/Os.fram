@@ -3,6 +3,7 @@
  #}
 
 import List
+import Base/Result
 
 {# ========================================================================= #}
 ## ## Os interaction
@@ -248,7 +249,7 @@ pub let resetCursorErr {~onError} ((File {fd}) : File _ IO) =
 pub let isEof ((File {fd}) : File [Rd, _] IO) =
   (extern dbl_isEof : Int ->[IO] Result Bool OsErr) fd
 
-pub let isEof {~onError} ((File {fd}) : File [Rd, _] IO) =
+pub let isEofErr {~onError} ((File {fd}) : File [Rd, _] IO) =
   ((extern dbl_isEof : Int ->[IO] Result Bool OsErr) fd).unwrapErr
 
 # Method definitions
