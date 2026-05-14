@@ -1,0 +1,181 @@
+import open Testing
+import open /Os
+import Base/Result
+
+let ~onError _ = runtimeError "Unhandled ~onError in Os test module!"
+
+let noError = assertDoesNotCallOnError
+
+
+let checkOk v =
+  match v with
+  | Ok _  => True
+  | Err _ => False
+  end
+
+let _ =
+testSuite "opening and closing" (fn _ =>
+  testCase "openFile" (fn _ =>
+    let p = "test/OsFileData1.txt"
+    let fres = openFile p in
+    noError (fn _ => fres.unwrapErr);
+    let f1 = fres.unwrap
+    let f2 = openFileErr {~onError = fn _ => f1} p in
+    assertFalse (f1 == f2);
+    noError (fn _ => f1.close.unwrapErr);
+    noError (fn _ => f2.closeErr);
+    assertFalse (checkOk (openFile "test/data/__nonexistent"));
+    assertCallsOnError (fn () => openFileErr "test/data/__nonexistent"));
+
+  testCase "openFileIn" (fn _ =>
+    let p = "test/OsFileData1.txt" in
+    let fres = openFileIn p in
+    noError (fn _ => fres.unwrapErr);
+    let f1 = fres.unwrap
+    let f2 = openFileInErr {~onError = fn _ => f1} p in
+    assertFalse (f1 == f2);
+    noError (fn _ => f1.close.unwrapErr);
+    noError (fn _ => f2.closeErr);
+    assertFalse (checkOk (openFileIn "test/data/__nonexistent"));
+    assertCallsOnError (fn () => openFileInErr "test/data/__nonexistent"));
+
+  testCase "openFileOut" (fn _ =>
+    let p = "test/OsFileData1.txt"
+    let fres = openFileOut p in
+    noError (fn _ => fres.unwrapErr);
+    let f1 = fres.unwrap
+    let f2 = openFileOutErr {~onError = fn _ => f1} p in
+    assertFalse (f1 == f2);
+    noError (fn _ => f1.close.unwrapErr);
+    noError (fn _ => f2.closeErr);
+    assertFalse (checkOk (openFileOut "test/data/__nonexistent"));
+    assertCallsOnError (fn () => openFileOutErr "test/data/__nonexistent")));
+
+testSuite "reading" (fn _ =>
+  testCase "read" (fn _ =>
+    let str1 = "abcdefghijklmnopqrstuvwxyz"
+    let str2 = "0123456789"
+    let fres = openFileIn "test/data/OsFileData1.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS str1 ((f.read 27).unwrapOr "");
+    assertEqS str2 ((f.readErr {~onError = fn () => ""} 10));
+    noError (fn _ => f.closeErr);
+    let fres = openFileIn "test/data/empty.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS "" ((f.read 1000).unwrapOr "err");
+    assertEqS "" ((f.readErr {~onError = fn () => "err"} 1000));
+    noError (fn _ => f.closeErr));
+
+  testCase "readChar" (fn _ =>
+    let fres = openFileIn "test/data/OsFileData1.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS (Some 'a') (f.readChar.unwrapOr None);
+    assertEqS (Some 'b') (f.readCharErr {~onError = fn () => None});
+    noError (fn _ => f.closeErr);
+    let fres = openFileIn "test/data/empty.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS None (f.readChar.unwrapOr (Some 'x'));
+    assertEqS None (f.readCharErr {~onError = fn () => (Some 'x')});
+    noError (fn _ => f.closeErr));
+
+  testCase "readLine" (fn _ =>
+    let fres = openFileIn "test/data/OsFileData2.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap
+    let l1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+    let l2 = "Morbi a elit sed nunc sagittis tristique."
+    let l3 =
+      "Class aptent taciti sociosqu ad litora torquent" +
+      "per conubia nostra, per inceptos himenaeos."
+    let l4 = "" in
+    assertEqS (Some l1) (f.readLine.unwrapOr (Some ""));
+    assertEqS (Some l2) (f.readLine.unwrapOr (Some ""));
+    assertEqS (Some l3) (f.readLineErr {~onError = fn () => None});
+    assertEqS (Some l4) (f.readLineErr {~onError = fn () => None});
+    let rec aux n = if n == 0 then () else (let _ = f.readLineErr in aux (n-1))
+    let _ = aux 10 in
+    assertEqS None (f.readLine.unwrapOr (Some ""));
+    assertEqS None (f.readLineErr {~onError = fn () => Some ""});
+    noError (fn _ => f.closeErr)));
+
+testSuite "cursor manipulation" (fn _ =>
+  testCase "seek and reset" (fn _ =>
+    let fres = openFileIn "test/data/OsFileData1.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    noError (fn _ => f.seekErr 5);
+    assertEqS "fgh" ((f.read 3).unwrapOr "");
+    noError (fn _ => f.seekErr {opt = SEEK_SET} 3);
+    assertEqS "de" ((f.read 2).unwrapOr "");
+    noError (fn _ => f.seekErr {opt = SEEK_CUR} 5);
+    assertEqS "klm" ((f.read 3).unwrapOr "");
+    noError (fn _ => f.seekErr {opt = SEEK_END} (-10));
+    assertEqS "0123456789" ((f.read 10).unwrapOr "");
+    noError (fn _ => f.resetCursorErr);
+    assertEqS "abcde" ((f.read 5).unwrapOr "");
+    noError (fn _ => f.closeErr));
+
+  testCase "tell" (fn _ =>
+    let fres = openFileIn "test/data/OsFileData1.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS 0 (f.tell.unwrapOr (-1));
+    noError (fn _ => (f.seekErr 10));
+    assertEqS 10 (f.tell.unwrapOr (-1));
+    noError (fn _ => f.resetCursorErr);
+    assertEqS 0 (f.tell.unwrapOr (-1));
+    noError (fn _ => f.closeErr));
+
+  testCase "isEof" (fn _ =>
+    let fres = openFileIn "test/data/empty.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f1 = fres.unwrap in
+    assertTrue (f1.isEof.unwrapOr False);
+    noError (fn _ => f1.closeErr);
+    let fres = openFileIn "test/data/OsFileData1.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f2 = fres.unwrap in
+    assertFalse (f2.isEof.unwrapOr True);
+    noError (fn _ => f2.closeErr)));
+
+testSuite "writing" (fn _ =>
+  testCase "write" (fn _ =>
+    let testString = "Example string for testing Os module file IO writing" in
+    let fres = openFile "test/data/OsFileWrite.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS 53 ((f.write testString).unwrapOr 0);
+    assertEqS 53 (f.writeErr {~onError = fn () => 0} testString);
+    noError (fn _ => f.flushErr);
+    noError (fn _ => f.resetCursorErr);
+    assertEqS testString ((f.read 53).unwrapOr "");
+    noError (fn _ => f.seekErr {opt = SEEK_SET} 5);
+    assertEqS 10 ((f.write testString).unwrapOr 0);
+    noError (fn _ => f.resetCursorErr);
+    assertEqS ("Examp" + testString) ((f.read 58).unwrapOr "");
+    noError (fn _ => f.seekErr {opt = SEEK_SET} 10);
+    assertEqS 10 ((f.write testString).unwrapOr 0);
+    noError (fn _ => f.resetCursorErr);
+    assertEqS ("ExampExamp" + testString) ((f.read 63).unwrapOr "");
+    noError (fn _ => f.closeErr));
+
+  testCase "writeChar" (fn _ =>
+    let fres = openFile "test/data/OsFileWrite.txt" in
+    noError (fn _ => fres.unwrapErr);
+    let f = fres.unwrap in
+    assertEqS 1 ((f.writeChar '$').unwrapOr 0);
+    assertEqS 1 (f.writeCharErr {~onError = fn () => 0} '$');
+    noError (fn _ => f.flushErr);
+    noError (fn _ => f.resetCursorErr);
+    assertEqS "$" ((f.read 1).unwrapOr "");
+    assertEqS (Some '$') (f.readChar.unwrapOr None);
+    noError (fn _ => f.resetCursorErr);
+    assertEqS 1 ((f.writeChar 'x').unwrapOr 0);
+    assertEqS 1 (f.writeCharErr {~onError = fn () => 0} 'y');
+    noError (fn _ => f.resetCursorErr);
+    assertEqS "x" ((f.read 1).unwrapOr "");
+    assertEqS (Some 'y') (f.readChar.unwrapOr None)))
