@@ -1,0 +1,186 @@
+import open Testing
+import open /Os
+
+let ~onError _ = runtimeError "Unhandled ~onError in Os test module!"
+
+# let unwrapFail (v : Result _ OsErr) =
+#   match v with
+#   | Ok v  => v
+#   | Err e => assertTrue {msg = e.toString} False ()
+#   end
+
+let unwrapExit (v : Result _ OsErr) =
+  match v with
+  | Ok v  => v
+  | Err e => testExit {msg = e.toString} ()
+  end
+
+# let unwrapUnitFail v =
+#   match v with
+#   | Ok _  => ()
+#   | Err e => assertTrue {msg = e.toString} False ()
+#   end
+
+let unwrapUnitExit v =
+  match v with
+  | Ok _  => ()
+  | Err e => testExit {msg = e.toString} ()
+  end
+
+let checkOk v =
+  match v with
+  | Ok _  => True
+  | Err _ => False
+  end
+
+let _ =
+testSuite "opening and closing" (fn _ =>
+  testCase "openFile" (fn _ =>
+    let p = "test/OsFileData1.txt" in
+    let f = unwrapFail (openFile p) in
+    unwrapUnitFail f.close;
+    let f =
+      unwrapFail (assertDoesNotCallOnError (fn () => openFileErr p))
+    in
+    unwrapUnitFail f.close;
+    assertFalse (checkOk (openFile "test/data/__nonexistent"));
+    assertCallsOnError (fn () => openFileErr "test/data/__nonexistent"));
+
+  testCase "openFileIn" (fn _ =>
+    let p = "test/OsFileData1.txt" in
+    let f = unwrapFail (openFileIn p) in
+    unwrapUnitFail f.close;
+    let f =
+      unwrapFail (assertDoesNotCallOnError (fn () => openFileInErr p))
+    in
+    unwrapUnitFail f.close;
+    assertFalse (checkOk (openFileIn "test/data/__nonexistent"));
+    assertCallsOnError (fn () => openFileInErr "test/data/__nonexistent");
+    ());
+
+  testCase "openFileOut" (fn _ =>
+    let p = "test/OsFileData1.txt"
+    let f = unwrapFail (openFileOut p) in
+    unwrapUnitFail f.close;
+    let f =
+      unwrapFail (assertDoesNotCallOnError (fn () => openFileOutErr p))
+    in
+    unwrapUnitFail f.close;
+    assertFalse (checkOk (openFileOut "test/data/__nonexistent"));
+    assertCallsOnError (fn () => openFileOutErr "test/data/__nonexistent");
+    ()));
+
+testSuite "reading" (fn _ =>
+  testCase "read" (fn _ =>
+    let str1 = "abcdefghijklmnopqrstuvwxyz"
+    let str2 = "0123456789"
+    let f = unwrapExit (openFileIn "test/data/OsFileData1.txt") in
+    assertEqS str1 ((f.read 27).unwrapOr "");
+    assertEqS str2 ((f.readErr {~onError = fn () => ""} 10));
+    unwrapUnitExit f.close;
+    let f = unwrapExit (openFileIn "test/data/empty.txt") in
+    assertEqS "" ((f.read 1000).unwrapOr "err");
+    assertEqS "" ((f.readErr {~onError = fn () => "err"} 1000));
+    unwrapUnitExit f.close);
+
+  testCase "readChar" (fn _ =>
+    let f = unwrapExit (openFileIn "test/data/OsFileData1.txt") in
+    assertEqS (Some 'a') (f.readChar.unwrapOr None);
+    assertEqS (Some 'b') (f.readCharErr {~onError = fn () => None});
+    unwrapUnitExit f.close;
+    let f = unwrapExit (openFileIn "test/data/empty.txt") in
+    assertEqS None (f.readChar.unwrapOr (Some 'x'));
+    assertEqS None (f.readCharErr {~onError = fn () => (Some 'x')});
+    unwrapUnitExit f.close);
+
+  testCase "readLine" (fn _ =>
+    let f = unwrapExit (openFileIn "test/data/OsFileData2.txt")
+    let l1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+    let l2 = "Morbi a elit sed nunc sagittis tristique."
+    let l3 =
+      "Class aptent taciti sociosqu ad litora torquent" +
+      "per conubia nostra, per inceptos himenaeos."
+    let l4 = "" in
+    assertEqS l1 (f.readLine.unwrapOr (Some ""));
+    assertEqS l2 (f.readLine.unwrapOr (Some ""));
+    let ~onError = fn () => None in
+    assertEqS (Some l3) f.readLineErr;
+    assertEqS (Some l4) f.readLineErr;
+    let rec f n = if n == 0 then () else (let _ = f.readLineErr in f (n-1))
+    let _ = f 10 in
+    assertEqS None (f.readLine.unwrapOr (Some ""));
+    assertEqS None (f.readLineErr {~onError = fn () => Some ""}));
+    unwrapUnitExit f.close)
+
+testSuite "cursor manipulation" (fn _ =>
+  testCase "seek and reset" (fn _ =>
+    let fr = unwrapExit (openFileIn "test/data/OsFileData1.txt") in
+    unwrapUnitFail (fr.seek 5);
+    assertEqS "fgh" ((fr.read 3).unwrapOr "");
+    unwrapUnitFail (fr.seek {?opt = SEEK_SET} 3);
+    assertEqS "de" ((fr.read 2).unwrapOr "");
+    unwrapUnitFail (fr.seek {?opt = SEEK_CUR} 5);
+    assertEqS "klm" ((fr.read 3).unwrapOr "");
+    unwrapUnitFail (fr.seek {?opt = SEEK_END} -10);
+    assertEqS "0123456789" ((fr.read 10).unwrapOr "");
+    unwrapUnitFail fr.resetCursor;
+    assertEqS "abcde" ((fr.read 5).unwrapOr "");
+    unwrapUnitExit fr.close);
+
+  testCase "tell" (fn _ =>
+    let fr = unwrapExit (openFileIn "test/data/OsFileData1.txt") in
+    assertEqS 0 (fr.tell.unwrapOr -1);
+    unwrapUnitExit (fr.seek 10);
+    assertEqS 10 (fr.tell.unwrapOr -1);
+    unwrapUnitExit fr.resetCursor;
+    assertEqS 0 (fr.tell.unwrapOr -1);
+    unwrapUnitExit fr.close);
+
+  testCase "isEof" (fn _ =>
+    let f1 = unwrapExit (openFileIn "test/data/empty.txt") in
+    assertTrue (f1.isEof.unwrapOr False);
+    unwrapUnitExit f1.close;
+    let f2 = unwrapExit (openFileIn "test/data/OsFileData1.txt") in
+    assertFalse (f2.isEof.unwrapOr True);
+    unwrapUnitExit f2.close))
+
+testSuite "writing" (fn _ =>
+  testCase "write" (fn _ =>
+    let testString = "Example string for testing Os module file IO writing" in
+    let f = unwrapExit (openFile "test/tmp/OsFileWrite.txt") in
+    assertEqS 53 ((f.write testString).unwrapOr 0);
+    assertEqS 53 (f.writeErr {~onError = fn () => 0} testString);
+    unwrapUnitFail f.flush;
+    unwrapUnitExit f.resetCursor;
+    assertEqS testString ((f.read 53).unwrapOr "");
+    unwrapUnitExit (f.seek {?opt = SEEK_SET} 5);
+    assertEqS 10 ((f.write testString).unwrapOr 0);
+    unwrapUnitExit f.resetCursor;
+    assertEqS ("Examp" + testString) ((f.read 58).unwrapOr "");
+    unwrapUnitExit (f.seek {?opt = SEEK_SET} 10);
+    assertEqS 10 ((f.write testString).unwrapOr 0);
+    unwrapUnitExit f.resetCursor;
+    assertEqS ("ExampExamp" + testString) ((f.read 63).unwrapOr "");
+    unwrapUnitExit f.close);
+
+  testCase "writeChar" (fn _ =>
+    let f = unwrapExit (openFile "test/tmp/OsFileWrite.txt") in
+    assertEqS 1 (f.writeChar '$'.unwrapOr 0);
+    assertEqS 1 (f.writeCharErr {~onError = fn () => 0} '$');
+    unwrapUnitFail f.flush;
+    unwrapUnitExit f.resetCursor;
+    assertEqS "$" ((f.read 1).unwrapOr "");
+    assertEqS (Some '$') (f.readChar.unwrapOr None);
+    unwrapUnitExit f.resetCursor;
+    assertEqS 1 ((f.writeChar 'x').unwrapOr 0);
+    assertEqS 1 (f.writeCharErr {~onError = fn () => 0} 'y');
+    unwrapUnitExit f.resetCursor;
+    assertEqS "x" ((f.read 1).unwrapOr "");
+    assertEqS (Some 'y') (f.readChar.unwrapOr None)))
+
+testCase "equal" (fn _ =>
+  let f1 = unwrapExit (openFileIn "test/data/OsFileData1.txt")
+  let f2 = unwrapExit (openFileIn "test/data/OsFileData2.txt") in
+  assertTrue (f1 == f1);
+  assertTrue (f2 == f2);
+  assertFalse (f1 == f2))
