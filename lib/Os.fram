@@ -89,49 +89,85 @@ pub let stderr : File Wr IO =
 
 ## ### Opening and closing
 
-{## Opens a file for reading ##}
-pub let openIn p : Result (File Rd IO) OsErr =
+{## Open a file for reading. ##}
+pub let openFileIn p : Result (File Rd IO) OsErr =
   match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 0 with
-  | Err e => Err e
   | Ok fd => Ok (File {fd})
+  | Err e => Err e
   end
 
-{## Opens a file for writing ##}
-pub let openOut p : Result (File Wr IO) OsErr =
+{## Open a file for reading. Calls `~onError` on fail. ##}
+pub let openFileInErr { ~onError } p : File Rd IO =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 0 with
+  | Ok fd => File {fd}
+  | Err _ => ~onError ()
+  end
+
+{## Open a file for writing, ##}
+pub let openFileOut p : Result (File Wr IO) OsErr =
   match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 1 with
-  | Err e => Err e
   | Ok fd => Ok (File {fd})
+  | Err e => Err e
   end
 
-{## Opens a file for both reading and writing ##}
+{## Open a file for writing. Calls `~onError` on fail. ##}
+pub let openFileOutErr {~onError} p : File Wr IO =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 1 with
+  | Ok fd => File {fd}
+  | Err _ => ~onError ()
+  end
+
+{## Open a file for both reading and writing, ##}
 pub let openFile p : Result (File [Rd, Wr] IO) OsErr =
   match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 2 with
-  | Err e => Err e
   | Ok fd => Ok (File {fd})
+  | Err e => Err e
   end
 
-{## Closes a file ##}
+{## Open a file for both reading and writing. Calls `~onError` on fail. ##}
+pub let openFileErr {~onError} p : File [Rd, Wr] IO =
+  match (extern dbl_openFile : String -> Int ->[IO] Result Int OsErr) p 2 with
+  | Ok fd => File {fd}
+  | Err _ => ~onError ()
+  end
+
+{## Close a file. ##}
 pub let closeFile ((File {fd}) : File _ IO) =
-  (extern dbl_closeFile : Int -> Result Unit OsErr) fd
+  (extern dbl_closeFile : Int ->[IO] Result Unit OsErr) fd
+
+pub let closeFileErr {~onError} ((File {fd}) : File _ IO) =
+  ((extern dbl_closeFile : Int ->[IO] Result Unit OsErr) fd).unwrapErr
 
 ## ### Reading
 
-{## Reads up to `n` bytes from a file ##}
-pub let read ((File {fd}) : File [Rd, _] IO) n =
+{## Read up to `n` bytes from a file. ##}
+pub let readFile ((File {fd}) : File [Rd, _] IO) n =
   (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd n
 
+{## Read up to `n` bytes from a file. Calls `~onError` on fail. ##}
+pub let readFileErr {~onError} ((File {fd}) : File [Rd, _] IO) n =
+  ((extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd n).unwrapErr
+
 {##
-  Reads a single char from a file and returns `Option Char` with `None`
+  Read a single char from a file. Returns `Option Char` with `None`
   signifying end of file.
  ##}
 pub let readChar ((File {fd}) : File [Rd, _] IO) =
-  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1
-  with
+  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1 with
   | Ok x =>
     if x.length == 0
     then Ok None
     else Ok (Some (x.get 0))
   | Err e  => Err e
+  end
+
+pub let readCharErr {~onError} ((File {fd}) : File [Rd, _] IO) =
+  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1 with
+  | Ok x =>
+    if x.length == 0
+    then None
+    else Some (x.get 0)
+  | Err _ => ~onError ()
   end
 
 {##
@@ -141,58 +177,105 @@ pub let readChar ((File {fd}) : File [Rd, _] IO) =
 pub let readLine ((File {fd}) : File [Rd, _] IO) =
   (extern dbl_readLine : Int ->[IO] Result (Option String) OsErr) fd
 
+pub let readLineErr {~onError} ((File {fd}) : File [Rd, _] IO) =
+  ((extern dbl_readLine : Int ->[IO] Result (Option String) OsErr) fd).unwrapErr
+
 ## ### Writing
 
 {## Writes a string to a file ##}
-pub let write ((File {fd}) : File [Wr, _] IO) str =
+pub let writeFile ((File {fd}) : File [Wr, _] IO) str =
   (extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) fd str
+
+pub let writeFileErr {~onError} ((File {fd=f}) : File [Wr, _] IO) s =
+  ((extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) f s).unwrapErr
 
 {## Writes a single `Char` to a file ##}
 pub let writeChar ((File {fd}) : File [Wr, _] IO) (chr : Char) =
   (extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) fd chr.toString
 
+pub let writeCharErr {~onError} ((File {fd=f}) : File [Wr, _] IO) (c : Char) =
+  let s = c.toString in
+  ((extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) f s).unwrapErr
+
 {## Flushes the buffer to the file and syncs it with the disk ##}
-pub let flush ((File {fd}) : File [Wr, _] IO) =
+pub let flushFile ((File {fd}) : File [Wr, _] IO) =
   (extern dbl_flush : Int ->[IO] Result Unit OsErr) fd
+
+pub let flushFileErr {~onError} ((File {fd} : File [Wr, _] IO)) =
+  ((extern dbl_flush : Int ->[IO] Result Unit OsErr) fd).unwrapErr
 
 ## ### Control
 
 {## Changes the position of the cursor ##}
-pub let seek ((File {fd}) : File _ IO) n opt =
+pub let seekFile {?opt} ((File {fd}) : File _ IO) n =
   let opt =
     match opt with
-    | SEEK_SET => 0
-    | SEEK_CUR => 1
-    | SEEK_END => 2
+    | None          => 1
+    | Some SEEK_SET => 0
+    | Some SEEK_CUR => 1
+    | Some SEEK_END => 2
     end
   in
   (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) fd n opt
 
+pub let seekFileErr {?opt, ~onError} ((File {fd} : File _ IO)) n =
+  let opt =
+    match opt with
+    | None          => 1
+    | Some SEEK_SET => 0
+    | Some SEEK_CUR => 1
+    | Some SEEK_END => 2
+    end
+  let f = (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) in
+  (f fd n opt).unwrapErr
+
 {## Finds the position of the cursor ##}
-pub let tell ((File {fd}) : File _ IO) =
+pub let tellFile ((File {fd}) : File _ IO) =
   (extern dbl_tell : Int ->[IO] Result Int OsErr) fd
 
-{## Resets the cursor to begginig of file ##}
+pub let tellFileErr {~onError} ((File {fd}) : File _ IO) =
+  ((extern dbl_tell : Int ->[IO] Result Int OsErr) fd).unwrapErr
+
+{## Resets the cursor to beggining of file ##}
 pub let resetCursor ((File {fd}) : File _ IO) =
   (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) fd 0 0
 
+pub let resetCursorErr {~onError} ((File {fd}) : File _ IO) =
+  let f = (extern dbl_seek : Int -> Int -> Int ->[IO] Result Unit OsErr) in
+  (f fd 0 0).unwrapErr
+
 {## Checks if the cursor is currently at the end of the file ##}
 pub let isEof ((File {fd}) : File [Rd, _] IO) =
-  (extern dbl_isEof : Int ->[IO] Result Bool OsErr)
+  (extern dbl_isEof : Int ->[IO] Result Bool OsErr) fd
 
+pub let isEof {~onError} ((File {fd}) : File [Rd, _] IO) =
+  ((extern dbl_isEof : Int ->[IO] Result Bool OsErr) fd).unwrapErr
 
 # Method definitions
 
+parameter ~onError
+
 pub method close = closeFile
-pub method read = read
-pub method write = write
-pub method writeChar = writeChar
+pub method closeErr = closeFileErr
+pub method read = readFile
+pub method readErr = readFileErr
+pub method readChar = readChar
+pub method readCharErr = readCharErr
 pub method readLine = readLine
-pub method write = write
+pub method readLineErr = readLineErr
+pub method write = writeFile
+pub method writeErr = writeFileErr
 pub method writeChar = writeChar
-pub method flush = flush
-pub method seek = seek
-pub method tell = tell
-pub method reset = resetCursor
+pub method writeCharErr = writeCharErr
+pub method flush = flushFile
+pub method flushErr = flushFileErr
+pub method seek {?opt} self n = seekFile {?opt = opt} self n
+pub method seekErr {?opt} self n = seekFileErr {?opt = opt} self n
+pub method tell = tellFile
+pub method tellErr = tellFileErr
+pub method resetCursor = resetCursor
+pub method resetCursorErr = resetCursorErr
 pub method isEof = isEof
-pub method shiftl = write
+pub method isEofErr = isEofErr
+pub method shiftl = writeFileErr
+pub method equal (File {fd=fd1}) (File {fd=fd2}) = fd1 == fd2

@@ -17,7 +17,10 @@ function simple_examples {
 run_with_flags simple_examples ""
 
 function simple_stdlib_tests {
+  mkdir test/tmp
   simple_test test/stdlib/TestAll.fram
+  rm test/tmp/*
+  rmdir test/tmp
 }
 
 run_with_flags simple_stdlib_tests ""
