@@ -161,7 +161,7 @@ testSuite "writing" (fn _ =>
     assertEqS 10 ((f.write testString).unwrapOr 0);
     noError (fn _ => f.resetCursorErr);
     assertEqS ("ExampExamp" + testString) ((f.read 63).unwrapOr "");
-    noError (fn _ => f.closeErr)); ()
+    noError (fn _ => f.closeErr));
 
   testCase "writeChar" (fn _ =>
     let fres = openFile "test/data/OsFileWrite.txt" in
