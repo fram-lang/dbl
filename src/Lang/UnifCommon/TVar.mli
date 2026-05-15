@@ -9,7 +9,8 @@ type t = private {
   method_ns : UID.t;
   pp_uid    : PPTree.uid;
   kind      : Kind.t;
-  scope     : Scope.t
+  scope     : Scope.t;
+  mode      : EffectMode.t
 }
 
 (** Kind of a type variable *)
@@ -23,7 +24,8 @@ val kind : t -> Kind.t
   - [pp_uid] will be used by the pretty-printer to identify the type variable.
 *)
 val fresh :
-  ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> scope:Scope.t -> Kind.t -> t
+  ?method_ns:UID.t -> ?pp_uid:PPTree.uid -> ?mode:EffectMode.t ->
+  scope:Scope.t -> Kind.t -> t
 
 (** Create a fresh type variable of the same kind and with the same
   pretty-printer UID as the given one. *)
@@ -46,6 +48,15 @@ val pp_uid : t -> PPTree.uid
 
 (** Get the scope of a type variable *)
 val scope : t -> Scope.t
+
+(** Get the effect mode of a type variable.
+
+  Effect mode makes sense only for variables of the effect kind (it is ignored
+  for other variables). When an effect variable is used, it is automatically
+  projected to the effect mode associated with the variable. Moreover, such a
+  projection is not pretty-printed as a projection, but simply as the variable
+  itself. *)
+val mode : t -> EffectMode.t
 
 (** Check if a type variable can be used in a given scope *)
 val in_scope : t -> Scope.t -> bool

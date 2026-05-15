@@ -10,7 +10,8 @@ module Ordered = struct
     method_ns : UID.t;
     pp_uid    : PPTree.uid;
     kind      : Kind.t;
-    scope     : Scope.t
+    scope     : Scope.t;
+    mode      : EffectMode.t
   }
 
   let compare x y = UID.compare x.uid y.uid
@@ -19,14 +20,15 @@ include Ordered
 
 let kind x = x.kind
 
-let fresh ?method_ns ?pp_uid ~scope kind =
+let fresh ?method_ns ?pp_uid ?(mode=EffectMode.Unrestricted) ~scope kind =
   assert (not (Scope.equal scope Scope.root));
   let uid = UID.fresh () in
   { uid       = uid;
     method_ns = Option.value method_ns ~default:uid;
     pp_uid    = Option.value pp_uid ~default:(PPTree.PP_UID uid);
     kind      = kind;
-    scope     = scope
+    scope     = scope;
+    mode      = mode
   }
 
 let clone ~scope x =
@@ -42,6 +44,8 @@ let method_ns x = x.method_ns
 let pp_uid x = x.pp_uid
 
 let scope x = x.scope
+
+let mode x = x.mode
 
 let in_scope x scope = Scope.mem x.scope scope
 

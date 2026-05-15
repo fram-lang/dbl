@@ -12,7 +12,7 @@
 %token<char> CHR
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS ATTR_OPEN
 %token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
-%token KW_ABSTR KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
+%token KW_ABSTR KW_AFF KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
 %token KW_FINALLY KW_FN KW_HANDLE KW_HANDLER KW_HANDLERFN KW_IF KW_IMPORT
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
 %token KW_PARAMETER KW_PUB
@@ -52,6 +52,11 @@ let make_def is_rec data =
 bar_opt
 : /* empty */ { () }
 | BAR         { () }
+;
+
+eff_mode
+: /* empty */ { EffectMode.Unrestricted }
+| KW_AFF      { EffectMode.Affine }
 ;
 
 /* ========================================================================= */
@@ -158,6 +163,7 @@ ty_expr
 ty_expr_app
 : ty_expr_app ty_expr_simple { make (TApp($1, $2)) }
 | KW_TYPE   ty_expr_simple { make (TTypeLbl $2) }
+| KW_AFF    ty_expr_simple { make (TEffProj(Affine, $2)) }
 | ty_expr_simple { $1 }
 ;
 
@@ -258,17 +264,30 @@ ctor_decl_list
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_250_list1 ARROW2 expr { make (EFn($2, $4))   }
-| effect_label_opt KW_EFFECT expr_250_list effect_resumption_opt ARROW2 expr
-    { make (EEffect { label = $1; args = $3; resumption = $4; body = $6 }) }
+| effect_label_opt eff_mode KW_EFFECT expr_250_list effect_resumption_opt
+  ARROW2 expr
+    { make (EEffect {
+      label      = $1;
+      mode       = $2;
+      args       = $4;
+      resumption = $5;
+      body       = $7
+    }) }
 | expr_0 { $1 }
 ;
 
 expr_no_comma
 : def_list1 KW_IN expr_no_comma  { make (EDefs($1, $3)) }
 | KW_FN expr_250_list1 ARROW2 expr_no_comma { make (EFn($2, $4))   }
-| effect_label_opt KW_EFFECT expr_250_list effect_resumption_opt
+| effect_label_opt eff_mode KW_EFFECT expr_250_list effect_resumption_opt
   ARROW2 expr_no_comma
-    { make (EEffect { label = $1; args = $3; resumption = $4; body = $6 }) }
+    { make (EEffect {
+      label      = $1;
+      mode       = $2;
+      args       = $4;
+      resumption = $5;
+      body       = $7
+    }) }
 | expr_0_no_comma { $1 }
 ;
 
@@ -499,9 +518,16 @@ field
 | UID COLON kind_expr   { make (FldType($1, Some $3)) }
 | name expr_250_list1 EQ expr_no_comma
     { make (FldNameFn($1, $2, $4)) }
-| effect_label_opt KW_EFFECT name
+| effect_label_opt eff_mode KW_EFFECT name
   expr_250_list1 effect_resumption_opt EQ expr_no_comma
-    { make (FldNameEffectFn($3, $1, $4, $5, $7)) }
+    { make (FldNameEffectFn {
+      name       = $4;
+      label      = $1;
+      mode       = $2;
+      args       = $5;
+      resumption = $6;
+      body       = $8
+    }) }
 | name                  { make (FldName $1)           }
 | name EQ expr_no_comma { make (FldNameVal($1, $3))   }
 | name COLON ty_expr    { make (FldNameAnnot($1, $3)) }
