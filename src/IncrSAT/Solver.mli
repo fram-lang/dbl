@@ -9,6 +9,9 @@ type 'a t
 (** Create a new solver *)
 val create : unit -> 'a t
 
+(** Add a formula in CNF with attached value. *)
+val add_cnf : 'a t -> 'a -> (PropVar.t * bool) list list -> unit
+
 (** Add formula implication with attached value. *)
 val add_imply : 'a t -> 'a -> Formula.t -> Formula.t -> unit
 

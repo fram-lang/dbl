@@ -17,6 +17,7 @@ type type_expr = type_expr_data node
 and type_expr_data =
   | TE_Type      of typ
   | TE_Effect    of type_expr list
+  | TE_EffProj   of EffectMode.t * type_expr
   | TE_PureArrow of scheme_expr * type_expr
   | TE_Arrow     of scheme_expr * type_expr * type_expr
   | TE_Handler   of
@@ -141,7 +142,7 @@ and expr_data =
       comp_var  : var;
       body      : expr
     }
-  | EEffect     of expr * var * expr * typ
+  | EEffect     of expr * EffectMode.t * var * expr * typ
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
   | EAnnotEff   of expr * type_expr * type_expr

@@ -8,10 +8,11 @@
 include ConEPriv.TypeBase
 include ConEPriv.Syntax
 
-type formula = IncrSAT.Formula.t
+type formula = ConEPriv.Formula.t
 
 type subst = ConEPriv.Subst.t
 
+module Formula = ConEPriv.Formula
 module TVar    = ConEPriv.TVar
 module GVar    = ConEPriv.Effct.GVar
 

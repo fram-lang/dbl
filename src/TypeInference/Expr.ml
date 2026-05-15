@@ -488,14 +488,14 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
       Error.fatal (Error.expr_not_handler_ctx ~pos ~pp tp)
     end
 
-  | EEffect(lbl_opt, cont_pat, body) ->
+  | EEffect(lbl_opt, mode, cont_pat, body) ->
     let (lbl, delim_tp, lbl_cs) = check_label ~tcfix ~pos env lbl_opt in
     let cont_tp = T.Type.t_arrow (T.Scheme.of_type tp) delim_tp Impure in
     let (env, cont_pat, _) = Pattern.check_type_ext env cont_pat cont_tp in
     let er_body = check_expr_type env body delim_tp in
     let (x, body) =
       ExprUtils.match_var cont_pat er_body.er_expr delim_tp Impure in
-    { er_expr   = make (T.EEffect(lbl, x, body, tp));
+    { er_expr   = make (T.EEffect(lbl, mode, x, body, tp));
       er_type   = Checked;
       er_effect = Impure;
       er_constr = lbl_cs @ er_body.er_constr

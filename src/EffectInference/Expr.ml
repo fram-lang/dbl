@@ -525,7 +525,8 @@ and infer_type : type ed.
       T.Type.t_handler eff_var cap_type in_type in_eff out_type out_eff in
     (res, tp, return_pure eff_req)
 
-  | EEffect(lbl, x, body, res_tp) ->
+  | EEffect(lbl, mode, x, body, res_tp) ->
+    (* TODO: check if the usage of resumption respects the mode *)
     let (lbl, lbl_tp, eff_resp1) = infer_type env lbl eff_req in
     let (eff, delim_tp, delim_eff) = Subtyping.as_label lbl_tp in
     let res_tp = Type.tr_type env res_tp in
@@ -534,7 +535,8 @@ and infer_type : type ed.
     let env = Env.add_mono_var env x cont_tp in
     let (body, Checked) =
       check_type env body delim_tp (Check (Impure delim_eff)) in
-    let eff_resp2 = return_effect env ~node:e eff_req (Impure eff) in
+    let eff_resp2 =
+      return_effect env ~node:e eff_req (Impure (T.Effct.proj mode eff)) in
     let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
     let res = T.EShift(lbl, x, body, res_tp) in
     (res, res_tp, eff_resp)

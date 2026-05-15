@@ -171,7 +171,8 @@ let clear_constraints env =
   ConstrSet.clear env.constr
 
 let add_formula_constraint env ~origin x p1 p2 =
-  IncrSAT.Solver.add_imply env.sat_solver (x, origin) p1 p2
+  IncrSAT.Solver.add_cnf env.sat_solver (x, origin)
+    (T.Formula.imp_to_cnf p1 p2)
 
 let sat_solver env = env.sat_solver
 

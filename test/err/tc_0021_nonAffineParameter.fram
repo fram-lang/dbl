@@ -1,0 +1,10 @@
+let checkAffine (f : _ ->[aff _] _) = f ()
+
+data Eff E = { doEff : Unit ->[E] Unit }
+
+parameter E
+parameter ~eff : Eff [E]
+
+let foo () = checkAffine ~eff.doEff
+
+# @stderr::8:.* error:

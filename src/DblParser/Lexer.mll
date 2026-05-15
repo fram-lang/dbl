@@ -15,6 +15,7 @@ let reset () =
 let kw_map =
   let open YaccParser in
   [ "abstr",     KW_ABSTR
+  ; "aff",       KW_AFF
   ; "as",        KW_AS
   ; "data",      KW_DATA
   ; "effect",    KW_EFFECT

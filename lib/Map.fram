@@ -6,8 +6,7 @@
 # Red Black Tree implementation
 #==============================================================================
 
-# Due to frequent request for understanding this file please
-# see comments at the end of this file
+# This algorithm is based on few papers, they are listed at the end of file.
 
 import List
 

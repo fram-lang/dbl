@@ -4,9 +4,6 @@
 
 (** Internal representation of effects in the ConE language. *)
 
-(** Formulas used for effect guards. *)
-type formula = IncrSAT.Formula.t
-
 (** Generalizable variable *)
 type gvar
 
@@ -58,7 +55,7 @@ val var : TVar.t -> t
 val gvar : gvar -> t
 
 (** Extend the effect with a type variable *)
-val cons : TVar.t -> formula -> t -> t
+val cons : TVar.t -> Formula.t -> t -> t
 
 (** Join of two effects *)
 val join : t -> t -> t
@@ -66,7 +63,11 @@ val join : t -> t -> t
 (** Create effect that is equal to the given effect when the formula is
   satisfied, and equal to the pure effect when the formula is not satisfied.
   *)
-val guard : t -> formula -> t
+val guard : t -> Formula.t -> t
+
+(** Project the effect to the given mode. The call to [proj mode eff] is
+  equivalent to [guard eff (Formula.of_mode mode)]. *)
+val proj : EffectMode.t -> t -> t
 
 (** Remove all components of the effect that do not belong to the given
   scope. *)
@@ -77,20 +78,20 @@ val fresh_gvar : scope:Scope.t -> t
 
 (** Reveal the representation of the effect: two list of atomic effects
   with predicates that states if the atomic effect belongs to the effect. *)
-val view : t -> (TVar.t * formula) list * (gvar * formula) list
+val view : t -> (TVar.t * Formula.t) list * (gvar * Formula.t) list
 
 (** Split the effect into a list of type variables (together with the
   predicates), and the remaining effect built only from generalizable
   variables. *)
-val take_tvars : t -> (TVar.t * formula) list * t
+val take_tvars : t -> (TVar.t * Formula.t) list * t
 
 (** Lookup a type variable in the effect. Returns formula that indicates if
   a type variable is included in the effect. *)
-val lookup_tvar : t -> TVar.t -> formula
+val lookup_tvar : t -> TVar.t -> Formula.t
 
 (** Lookup a generalizable variable in the effect. Returns a formula that
   indicates if a generalizable variable is included in the effect. *)
-val lookup_gvar : t -> gvar -> formula
+val lookup_gvar : t -> gvar -> Formula.t
 
 (** Remove all occurrences of the given type variable from the effect.
   Equivalent to substituting it with the pure effect. *)
