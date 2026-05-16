@@ -429,12 +429,7 @@ let rec print_type env (tp : type_tree) prec =
           print_type env delim_tp 11)
   | PP_THandler h ->
       paren env prec 0 (fun () ->
-          let name =
-            match Env.lookup_tvar env h.eff_var with
-            | Found name -> name
-            | Anon (name, _) -> name
-            | Unbound _ -> gen_tvar_name (fun n -> fresh_for_type env n tp) "E"
-          in
+          let name = gen_tvar_name (fun n -> fresh_for_type env n tp) "E" in
           let env1 = Env.add_tvar env name h.eff_var in
           Env.print_string env "handler ";
           Env.print_string env "{";
