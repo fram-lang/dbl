@@ -6,7 +6,6 @@ let ~onError _ = runtimeError "Unhandled ~onError in Os test module!"
 
 let noError = assertDoesNotCallOnError
 
-
 let checkOk v =
   match v with
   | Ok _  => True
