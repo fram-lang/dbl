@@ -150,28 +150,6 @@ pub let readFileErr {~onError} ((File {fd}) : File [Rd, _] IO) n =
   ((extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd n).unwrapErr
 
 {##
-  Read a single char from a file. Returns `Option Char` with `None`
-  signifying end of file.
- ##}
-pub let readChar ((File {fd}) : File [Rd, _] IO) =
-  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1 with
-  | Ok x =>
-    if x.length == 0
-    then Ok None
-    else Ok (Some (x.get 0))
-  | Err e  => Err e
-  end
-
-pub let readCharErr {~onError} ((File {fd}) : File [Rd, _] IO) =
-  match (extern dbl_readFile : Int -> Int ->[IO] Result String OsErr) fd 1 with
-  | Ok x =>
-    if x.length == 0
-    then None
-    else Some (x.get 0)
-  | Err _ => ~onError ()
-  end
-
-{##
   Reads a single line from a file, delimited with `\n`.
   Returns `Option String` with `None` signifying end of file.
 ##}
@@ -188,14 +166,6 @@ pub let writeFile ((File {fd}) : File [Wr, _] IO) str =
   (extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) fd str
 
 pub let writeFileErr {~onError} ((File {fd=f}) : File [Wr, _] IO) s =
-  ((extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) f s).unwrapErr
-
-{## Writes a single `Char` to a file ##}
-pub let writeChar ((File {fd}) : File [Wr, _] IO) (chr : Char) =
-  (extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) fd chr.toString
-
-pub let writeCharErr {~onError} ((File {fd=f}) : File [Wr, _] IO) (c : Char) =
-  let s = c.toString in
   ((extern dbl_writeFile : Int -> String ->[IO] Result Int OsErr) f s).unwrapErr
 
 {## Flushes the buffer to the file and syncs it with the disk ##}
@@ -260,14 +230,10 @@ pub method close = closeFile
 pub method closeErr = closeFileErr
 pub method read = readFile
 pub method readErr = readFileErr
-pub method readChar = readChar
-pub method readCharErr = readCharErr
 pub method readLine = readLine
 pub method readLineErr = readLineErr
 pub method write = writeFile
 pub method writeErr = writeFileErr
-pub method writeChar = writeChar
-pub method writeCharErr = writeCharErr
 pub method flush = flushFile
 pub method flushErr = flushFileErr
 pub method seek {?opt} self n = seekFile {?opt = opt} self n

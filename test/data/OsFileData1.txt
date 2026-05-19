@@ -1,1 +1,1 @@
-Example data for Os module File IO reading testing purposes.
+abcdefghijklmnopqrstuvwxyz0123456789
