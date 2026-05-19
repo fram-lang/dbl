@@ -244,5 +244,4 @@ pub method resetCursor = resetCursor
 pub method resetCursorErr = resetCursorErr
 pub method isEof = isEof
 pub method isEofErr = isEofErr
-pub method shiftl = writeFileErr
 pub method equal (File {fd=fd1}) (File {fd=fd2}) = fd1 == fd2

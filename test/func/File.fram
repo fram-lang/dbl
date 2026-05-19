@@ -1,9 +1,9 @@
 import open /Os
 
-
 # Helper functions
 
-let ~onError {~__line__, ~__file__} _ = runtimeError "Unhandled ~onError in Os test module!"
+let ~onError {~__line__, ~__file__} _ =
+  runtimeError "Unhandled ~onError in Os test module!"
 
 let checkOk v =
   match v with
@@ -50,7 +50,7 @@ let assertEq
 
 # Opening and closing
 let _ =
-  let p = "test/FileIOTest.txt"
+  let p = "test/data/FileIOTest.txt"
   # openFile
   let f1 = unwrapRes (openFile p)
   let f2 = openFileErr {~onError = fn _ => f1} p in
@@ -94,7 +94,9 @@ let _ =
   assertFalse (fileExists "test/tmp/__nonexistent");
   assertFalse (checkOk (openFileIn "test/tmp/__nonexistent"));
   assertFalse (fileExists "test/tmp/__nonexistent");
-  assert (callsOnError {~onError = fn _ => stdin} (fn () => openFileInErr "test/tmp/__nonexistent"));
+  assert (callsOnError
+    {~onError = fn _ => stdin}
+    (fn () => openFileInErr "test/tmp/__nonexistent"));
   assertFalse (fileExists "test/tmp/__nonexistent")
 
 # Reading
