@@ -336,13 +336,11 @@ let rec compare_effect eff1 eff2 : int =
       | _, Unrestricted -> 1)
 
 let effects_equal effs1 effs2 =
-  if List.length effs1 <> List.length effs2 then false
-  else
-    let sorted1 = List.sort compare_effect effs1 in
-    let sorted2 = List.sort compare_effect effs2 in
-    List.for_all2
-      (fun eff1 eff2 -> compare_effect eff1 eff2 = 0)
-      sorted1 sorted2
+  let sorted1 = List.sort compare_effect effs1 in
+  let sorted2 = List.sort compare_effect effs2 in
+  List.for_all2
+    (fun eff1 eff2 -> compare_effect eff1 eff2 = 0)
+    sorted1 sorted2
 
 let tvar_in_effects x effs =
   let rec check_eff (eff : effect_tree) =
@@ -390,9 +388,9 @@ let print_effect env effs prec =
   match effs with
   | [eff] -> print_single_effect env eff prec
   | _ ->
-      Env.print_string env "[";
-      print_effect_body env effs;
-      Env.print_string env "]"
+    Env.print_string env "[";
+    print_effect_body env effs;
+    Env.print_string env "]"
 
 let rec print_type env (tp : type_tree) prec =
   match tp with
@@ -400,65 +398,66 @@ let rec print_type env (tp : type_tree) prec =
   | PP_TUVar u -> print_uvar env u prec
 
   | PP_TPureArrow(sch, tp) ->
-      paren env prec 0 (fun () ->
-          print_scheme env sch 1;
-          Env.print_string env " -> ";
-          print_type env tp 0)
+    paren env prec 0 (fun () ->
+      print_scheme env sch 1;
+      Env.print_string env " -> ";
+      print_type env tp 0)
 
   | PP_TArrow(sch, tp, [ PP_EffWildcard ]) ->
-      paren env prec 0 (fun () ->
-          print_scheme env sch 1;
-          Env.print_string env " ->> ";
-          print_type env tp 0)
+    paren env prec 0 (fun () ->
+      print_scheme env sch 1;
+      Env.print_string env " ->> ";
+      print_type env tp 0)
 
   | PP_TArrow(sch, tp, effs) ->
-      paren env prec 0 (fun () ->
-          print_scheme env sch 1;
-          Env.print_string env " ->[";
-          print_effect_body env effs;
-          Env.print_string env "] ";
-          print_type env tp 0)
+    paren env prec 0 (fun () ->
+      print_scheme env sch 1;
+      Env.print_string env " ->[";
+      print_effect_body env effs;
+      Env.print_string env "] ";
+      print_type env tp 0)
 
   | PP_TLabel(eff, delim_tp, delim_eff) ->
-      paren env prec 0 (fun () ->
-          Env.print_string env "label ";
-          print_effect env eff 11;
-          Env.print_string env " [";
-          print_effect_body env delim_eff;
-          Env.print_string env "] ";
-          print_type env delim_tp 11)
+    paren env prec 0 (fun () ->
+      Env.print_string env "label ";
+      print_effect env eff 11;
+      Env.print_string env " [";
+      print_effect_body env delim_eff;
+      Env.print_string env "] ";
+      print_type env delim_tp 11)
+
   | PP_THandler h ->
-      paren env prec 0 (fun () ->
-          let name = gen_tvar_name (fun n -> fresh_for_type env n tp) "E" in
-          let env1 = Env.add_tvar env name h.eff_var in
-          Env.print_string env "handler ";
-          Env.print_string env "{";
-          Env.print_string env name;
-          Env.print_string env "} ";
-          print_type env1 h.cap_tp 1;
-          let print_comp env eff tp =
-            begin match eff with
-            | [ PP_EffWildcard ] -> ()
-            | _ ->
-                Env.print_string env " [";
-                print_effect_body env eff;
-                Env.print_string env "]"
-            end;
-            Env.print_string env " ";
-            print_type env tp 1
-          in
-          if
-            effects_equal h.in_eff h.out_eff && h.in_tp = h.out_tp
-            && (not (tvar_in_effects h.eff_var h.out_eff))
-            && (not (tvar_in_type h.eff_var h.out_tp))
-          then (
-            Env.print_string env " =>";
-            print_comp env h.out_eff h.out_tp)
-          else (
-            Env.print_string env " in";
-            print_comp env1 h.in_eff h.in_tp;
-            Env.print_string env " =>";
-            print_comp env h.out_eff h.out_tp))
+    paren env prec 0 (fun () ->
+      let name = gen_tvar_name (fun n -> fresh_for_type env n tp) "E" in
+      let env1 = Env.add_tvar env name h.eff_var in
+      Env.print_string env "handler ";
+      Env.print_string env "{";
+      Env.print_string env name;
+      Env.print_string env "} ";
+      print_type env1 h.cap_tp 1;
+      let print_comp env eff tp =
+        begin match eff with
+        | [ PP_EffWildcard ] -> ()
+        | _ ->
+          Env.print_string env " [";
+          print_effect_body env eff;
+          Env.print_string env "]"
+        end;
+        Env.print_string env " ";
+        print_type env tp 1
+      in
+      if
+        effects_equal h.in_eff h.out_eff && h.in_tp = h.out_tp
+        && (not (tvar_in_effects h.eff_var h.out_eff))
+        && (not (tvar_in_type h.eff_var h.out_tp))
+      then (
+        Env.print_string env " =>";
+        print_comp env h.out_eff h.out_tp)
+      else (
+        Env.print_string env " in";
+        print_comp env1 h.in_eff h.in_tp;
+        Env.print_string env " =>";
+        print_comp env h.out_eff h.out_tp))
 
   | PP_TEffect eff -> print_effect env eff prec
 

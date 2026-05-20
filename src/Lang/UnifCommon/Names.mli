@@ -16,8 +16,11 @@ type name =
   | NImplicit of string
   | NMethod of string
 
+(** Linear order on tname values *)
 val compare_tname : tname -> tname -> int
 
+(** Linear order on name values *)
 val compare : name -> name -> int
 
+(** Equality test on names *)
 val equal : name -> name -> bool
