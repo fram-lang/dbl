@@ -1,0 +1,112 @@
+import open /ToString
+import open Testing
+
+let _ = testCase "Unit" (fn _ =>
+  assertEq ().toString "()";
+  let fmt = UnitFmt {unit="Unit"} in
+  assertEq (().toString {fmt}) "Unit";
+  let fmt = UnitFmt {size=5, fill='#', alignLeft=True} in
+  assertEq (().toString {fmt}) "()###";
+  let fmt = UnitFmt {size=4, fill='?', unit="U"} in
+  assertEq (().toString {fmt}) "???U")
+
+let _ = testCase "Bool" (fn _ =>
+  assertEq (True).toString  "True";
+  assertEq (False).toString "False";
+  let fmt = BoolFmt {true="#t", false="#f", size=3} in
+  assertEq ((True).toString {fmt}) " #t";
+  assertEq ((False).toString {fmt}) " #f")
+
+let _ = testCase "Int" (fn _ => 
+  assertEq 10.toString "10";
+  assertEq (-10).toString "-10";
+  assertEq ((-10).toString {prec=200}) "(-10)";
+  assertEq ((-10).toString {prec=200, fmt=IntFmt{parenths=False}}) "-10";
+  let (num : Int) = ((15 * 36 + 27) * 36 + 10) * 36 + 22
+  let fmt = IntFmt {prefix="36x", base=36} in
+  assertEq (num.toString {fmt}) "36xFRAM")
+
+let _ = testCase "Int64" (fn _ => 
+  assertEq 10L.toString "10L";
+  assertEq (-10L).toString "-10L";
+  assertEq ((-10L).toString {prec=200}) "(-10L)";
+  assertEq ((-10L).toString {prec=200, fmt=Int64Fmt{parenths=False}}) "-10L";
+  let (num : Int64) = ((15L * 36L + 27L) * 36L + 10L) * 36L + 22L
+  let fmt = Int64Fmt {prefix="36x", base=36, suffix=""} in
+  assertEq (num.toString {fmt}) "36xFRAM")
+
+let _ = testCase "Char" (fn _ =>
+  assertEq 'a'.toString "'a'";
+  assertEq '\xFF'.toString "'\\xFF'";
+  let fmt = CharFmt {escape=False, size=3} in
+  assertEq ('\n'.toString {fmt}) "  \n";
+  let fmt = CharFmt {asInt=IntFmt {base=16, prefix="\\x"}} in
+  assertEq (' '.toString {fmt}) "\\x20")
+
+let _ = testCase "String" (fn _ =>
+  assertEq "abc".toString "\"abc\"";
+  assertEq "\n\t\r".toString "\"\\n\\t\\r\"";
+  let fmt = StringFmt {escape=False} in
+  assertEq ("\n\t\r".toString {fmt}) "\n\t\r")
+
+let _ = testCase "List" (fn _ =>
+  assertEq [True, False].toString "[True, False]";
+  let fmt = ListFmt 
+    { opn="[| ", cls=" |]", sep=" "
+    , inner = BoolFmt {true="1", false="0"}} in
+  assertEq ([True, False].toString {fmt}) "[| 1 0 |]")
+
+let _ = testCase "Option" (fn _ =>
+  assertEq (Some ()).toString "Some ()";
+  assertEq (None : Option Unit).toString "None";
+  let fmt = OptionFmt 
+    { some = "S", none = "N"
+    , inner = UnitFmt {unit = "U"}} in
+  assertEq ((Some ()).toString {fmt}) "SU")
+
+let _ = testCase "Either" (fn _ =>
+  type T = _ in
+  assertEq (Left 10   : T).toString "Left 10";
+  assertEq (Right "a" : T).toString "Right \"a\"";
+  let fmt = EitherFmt
+    { left="L ", right="R "
+    , innerL=IntFmt {prefix="(dec)"}
+    , innerR=StringFmt {escape=False} } in
+  assertEq ((Left 10   : T).toString {fmt}) "L (dec)10";
+  assertEq ((Right "a" : T).toString {fmt}) "R a")
+
+let _ = testCase "Result" (fn _ =>
+  type T = _ in
+  assertEq (Ok 10   : T).toString "Ok 10";
+  assertEq (Err "a" : T).toString "Err \"a\"";
+  let fmt = ResultFmt
+    { ok="O ", err="E "
+    , innerO=IntFmt {prefix="(dec)"}
+    , innerE=StringFmt {escape=False} } in
+  assertEq ((Ok 10   : T).toString {fmt}) "O (dec)10";
+  assertEq ((Err "a" : T).toString {fmt}) "E a")
+
+let _ = testCase "Pair" (fn _ =>
+  assertEq ((), 'a').toString "((), 'a')";
+  let fmt = PairFmt
+    { opn="<|", sep="+", cls="|>"
+    , fst=UnitFmt{unit="UNIT"}
+    , snd=CharFmt{escape=False} } in
+  assertEq (((), 'a').toString {fmt}) "<|UNIT+a|>")
+
+let _ = testCase "All at once" (fn _ =>
+  let d = ("abc", [Left 10, Right (Some True), Right None])
+  let fmt = PairFmt 
+    { opn="{", cls="}"
+    , fst=StringFmt{escape=False}
+    , snd=ListFmt
+      { opn="[|", cls="|]"
+      , inner=EitherFmt
+        { left="L", right="R"
+        , innerL=IntFmt {base=2}
+        , innerR=OptionFmt
+          { none="N", some="S"
+          , parenths=False
+          , inner=BoolFmt {true="T", false="F"}}}}} in
+  assertEq d.toString "(\"abc\", [Left 10, Right (Some True), Right None])";
+  assertEq (d.toString {fmt}) "{abc, [|L1010, RST, RN|]}")
