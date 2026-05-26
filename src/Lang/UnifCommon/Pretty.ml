@@ -371,9 +371,9 @@ let rec tvar_in_type x (tp : type_tree) =
   | PP_TAlias (_, tp) -> tvar_in_type x tp
 
 and tvar_in_scheme x (sch : scheme_tree) =
-  List.exists (fun (_, y) -> TVar.equal x y) sch.ppsch_targs
-  || List.exists (fun (_, s) -> tvar_in_scheme x s) sch.ppsch_named
-  || tvar_in_type x sch.ppsch_body
+  List.for_all (fun (_, y) -> not (TVar.equal x y)) sch.ppsch_targs &&
+  (List.exists (fun (_, s) -> tvar_in_scheme x s) sch.ppsch_named
+  || tvar_in_type x sch.ppsch_body)
 
 let print_effect_body env effs =
   match effs with
