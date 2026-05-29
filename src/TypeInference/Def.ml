@@ -180,7 +180,8 @@ let check_def : type st dir. tcfix:tcfix ->
       match sch with
       | Some sch -> Type.tr_scheme sch_env sch
       | None     ->
-        let tp = make_local (T.TE_Type (Env.fresh_uvar ~pos:pos env T.Kind.k_type)) in
+        let tp =
+          make_local (T.TE_Type (Env.fresh_uvar ~pos:pos env T.Kind.k_type)) in
         T.SchemeExpr.of_type_expr tp
     in
     let env = ParamGen.end_generalize_declare ~pos params env name x sch in

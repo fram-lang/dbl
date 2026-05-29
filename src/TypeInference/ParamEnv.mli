@@ -21,8 +21,9 @@ type ('name, 'a) param_status =
       of the declaration. *)
 
   | StValid of 'a
-    (** Parameter is valid -- it was generalized and can be used. The constructor
-      stores the variable and scheme assigned to this parameter. *)
+    (** Parameter is valid -- it was generalized and can be used.
+      The constructor stores the variable and scheme assigned to
+      this parameter. *)
 
   | StRejected of 'name * Position.t
     (** Parameter is rejected -- it was not used at the time of generalization,

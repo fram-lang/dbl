@@ -72,7 +72,7 @@ let escaping_tvar_message ~env x =
   in msg ^ T.Pretty.additional_info pp_ctx
 
 let unification_error_to_string (err : Unification.error_info) =
-  match err with 
+  match err with
   | TVarEscapesScope(env, tv) -> escaping_tvar_message ~env tv
 
 let check_unify_result ?(is_fatal=false) ~pos
@@ -80,7 +80,7 @@ let check_unify_result ?(is_fatal=false) ~pos
   let inform = if is_fatal then fatal else report in
   match result with
   | Unify_Success -> ()
-  | Unify_Fail errors -> 
+  | Unify_Fail errors ->
     inform (add_notes (on_error ~pos)
       (List.map (fun err -> (pos, unification_error_to_string err)) errors))
 
@@ -104,8 +104,8 @@ let named_type_kind_mismatch ~pos name k1 k2 =
 let effect_arrow_kind ~pos =
   (pos, "Effect kind cannot be used as a codomain of an arrow kind", [])
 
-let kind_annot_mismatch ~pos k k_annot = 
-  let pp_ctx = T.Pretty.empty_context () in 
+let kind_annot_mismatch ~pos k k_annot =
+  let pp_ctx = T.Pretty.empty_context () in
   let msg = Printf.sprintf
     "Kind %s of type differs from its annotation %s"
     (T.Pretty.pp_kind pp_ctx k)
@@ -429,13 +429,14 @@ let named_param_provided_as_optional ~pos name =
   (pos, Printf.sprintf "Named parameter %s is provided as optional" name, [])
 
 let ambiguous_method_inst ~pos name =
-  (pos, 
-    Printf.sprintf 
+  (pos,
+    Printf.sprintf
       ("There are more than one method named %s expected by this function. " ^^
        "They cannot be provided explicitly.") name, [])
 
 let module_inst_after_method_inst ~pos =
-  (pos, "Cannot instantiate with a module after explicit method instantiation", [])
+  (pos, "Cannot instantiate with a module after explicit method instantiation",
+   [])
 
 let unknown_named_type_pattern ~pos name =
   (pos, Printf.sprintf "Type %s was not expected here" name, [])
@@ -522,8 +523,8 @@ let or_pattern_type_vars_mismatch ~pos name =
 let or_pattern_type_var_visibility_mismatch ~pos name =
   (pos,
     Printf.sprintf
-      ("Or-pattern branches must bind type variable %s with the same visibility,"
-      ^^ " but it is public in one branch and private in another")
+      ("Or-pattern branches must bind type variable %s with the same"
+      ^^ " visibility, but it is public in one branch and private in another")
       name,
     [])
 
@@ -570,7 +571,7 @@ let generalized_type_clash ~pos name =
 
 let generalized_name_clash ~pos ~pp name =
   let pp_ctx = T.Pretty.empty_context () in
-  let msg = 
+  let msg =
     Printf.sprintf
       "Implicitly generalized %s clashes with other named parameters"
       (string_of_name ~pp ~pp_ctx name)

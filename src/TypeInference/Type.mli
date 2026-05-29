@@ -38,6 +38,7 @@ val tr_effect : 'st Env.t -> S.type_expr -> T.type_expr
 val check_type_arg : 'st Env.t -> S.type_arg -> T.kind ->
   'st Env.t * T.tname * T.tvar
 
-(** Translate formal type parameters. The returned type variables should be provided
-  to [PartialEnv.extend] function in order to add them to the environment. *)
+(** Translate formal type parameters. The returned type variables should
+  be provided to [PartialEnv.extend] function in order to add them
+  to the environment. *)
 val tr_named_type_args : S.named_type_arg list -> PartialEnv.t * type_param list
