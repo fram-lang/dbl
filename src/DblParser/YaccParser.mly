@@ -10,6 +10,10 @@
 %token<int64> NUM64
 %token<string> STR CSTR BSTR ESTR
 %token<char> CHR
+
+%nonassoc ty_field_p
+%nonassoc CBR_CLS
+
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS ATTR_OPEN
 %token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AFF KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
@@ -235,7 +239,7 @@ ty_expr_list1
 
 ty_field
 : KW_TYPE ty_expr      { make (FldAnonType $2)       }
-| UID                  { make (FldType($1, None))    }
+| UID %prec ty_field_p { make (FldType($1, None))    }
 | UID COLON kind_expr  { make (FldType($1, Some $3)) }
 | UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
 | name                 { make (FldName $1)           }
