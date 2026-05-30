@@ -10,6 +10,10 @@
 %token<int64> NUM64
 %token<string> STR CSTR BSTR ESTR
 %token<char> CHR
+
+%nonassoc ty_field_p
+%nonassoc CBR_CLS
+
 %token BR_OPN BR_CLS SBR_OPN SBR_CLS CBR_OPN CBR_CLS ATTR_OPEN
 %token ARROW EFF_ARROW ARROW2 BAR COLON COMMA DOT EQ SEMICOLON2 SLASH GT_DOT
 %token KW_ABSTR KW_AFF KW_AS KW_DATA KW_EFFECT KW_ELSE KW_END KW_EXTERN
@@ -157,6 +161,14 @@ ty_eff_arrow
 ty_expr
 : ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
 | ty_expr_app ty_eff_arrow  { make (TArrow($1, $2)) }
+| KW_HANDLER effct_bind ty_expr KW_IN ty_expr ARROW2 ty_expr
+  { make (THandler ($2, $3, $5, $7)) }
+| KW_HANDLER effct_bind ty_expr ARROW2 ty_expr
+  { make (THandler ($2, $3, $5, $5)) }
+| KW_HANDLER ty_expr KW_IN ty_expr ARROW2 ty_expr
+  { make (THandler (None, $2, $4, $6)) }
+| KW_HANDLER ty_expr ARROW2 ty_expr
+  { make (THandler (None, $2, $4, $4)) }
 | ty_expr_app { $1 }
 ;
 
@@ -174,6 +186,11 @@ ty_expr_simple
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effct SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
+;
+
+effct_bind
+: CBR_OPN UID CBR_CLS { Some $2 }
+| CBR_OPN UNDERSCORE CBR_CLS { None }
 ;
 
 /* ------------------------------------------------------------------------- */
@@ -222,7 +239,7 @@ ty_expr_list1
 
 ty_field
 : KW_TYPE ty_expr      { make (FldAnonType $2)       }
-| UID                  { make (FldType($1, None))    }
+| UID %prec ty_field_p { make (FldType($1, None))    }
 | UID COLON kind_expr  { make (FldType($1, Some $3)) }
 | UID EQ ty_expr       { make (FldTypeVal($1, $3))   }
 | name                 { make (FldName $1)           }
