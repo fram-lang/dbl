@@ -157,6 +157,14 @@ ty_eff_arrow
 ty_expr
 : ty_expr_app ARROW ty_expr { make (TArrow($1, $3)) }
 | ty_expr_app ty_eff_arrow  { make (TArrow($1, $2)) }
+| KW_HANDLER effct_bind ty_expr KW_IN ty_expr ARROW2 ty_expr
+  { make (THandler ($2, $3, $5, $7)) }
+| KW_HANDLER effct_bind ty_expr ARROW2 ty_expr
+  { make (THandler ($2, $3, $5, $5)) }
+| KW_HANDLER ty_expr KW_IN ty_expr ARROW2 ty_expr
+  { make (THandler (None, $2, $4, $6)) }
+| KW_HANDLER ty_expr ARROW2 ty_expr
+  { make (THandler (None, $2, $4, $4)) }
 | ty_expr_app { $1 }
 ;
 
@@ -174,14 +182,6 @@ ty_expr_simple
 | UNDERSCORE { make TWildcard }
 | SBR_OPN effct SBR_CLS { make ($2).data }
 | CBR_OPN ty_field_list CBR_CLS { make (TRecord $2) }
-| KW_HANDLER effct_bind ty_expr KW_IN ty_expr ARROW2 ty_expr
-  { make (THandler ($2, $3, $5, $7)) }
-| KW_HANDLER effct_bind ty_expr ARROW2 ty_expr
-  { make (THandler ($2, $3, $5, $5)) }
-| KW_HANDLER ty_expr KW_IN ty_expr ARROW2 ty_expr
-  { make (THandler (None, $2, $4, $6)) }
-| KW_HANDLER ty_expr ARROW2 ty_expr
-  { make (THandler (None, $2, $4, $4)) }
 ;
 
 effct_bind
