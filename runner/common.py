@@ -56,7 +56,7 @@ def parse_repl_tests(path):
       - Code can span multiple lines.
       - `# @...` lines are expectations for the current command.
       - A new command starts when we hit a code line after a completed command
-        (completed means code ended with `;;` and had expectations attached).
+        (completed means code ended with `;;` and maybe had expectations attached).
       - If command doesn't end with `;;`, parser appends it automatically.
     """
     tests = []
@@ -117,7 +117,12 @@ def parse_repl_tests(path):
                     current_test = {"code": "", "expect": _new_expectations()}
                     code_lines = [line]
             else:
-                code_lines.append(line)
+                if not previous_done:
+                    code_lines.append(line)
+                else:
+                    finish_current()
+                    current_test = {"code": "", "expect": _new_expectations()}
+                    code_lines = [line]
 
     finish_current()
     return tests

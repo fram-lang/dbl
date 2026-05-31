@@ -48,13 +48,13 @@ let report_to_stderr ?pos ~cls msg =
   in
   match pos, text_range with
   | Some pos, None ->
-    Printf.eprintf "%s: %s: %s\n"
+    Printf.eprintf "%s: %s: %s\n%!"
       (Position.to_string pos) name msg
   | _, Some pos ->
-    Printf.eprintf "%s: %s\n%s\n"
+    Printf.eprintf "%s: %s\n%s\n%!"
       name msg pos
   | None, _ ->
-    Printf.eprintf "%s: %s\n" name msg
+    Printf.eprintf "%s: %s\n%!" name msg
 
 let report_impl = ref report_to_stderr
 

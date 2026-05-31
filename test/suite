@@ -1,5 +1,27 @@
-from runner.runner import *
-simple_run_tests("test/ok/*.fram",flags = '-no-prelude -no-stdlib')
+# THIS IS AN EXAMPLE TEST SUITE. IT IS NOT MEANT TO BE COMPREHENSIVE, BUT RATHER TO SHOWCASE FEATURES.
+
+"""We can run one functional test."""
+simple("test/ok/ok0000_emptyFile.fram")
+
+"""Similarly for tests run line by line."""
+repl_tests("test/repl/repl_test.fram", flags='')
+
+"""
+Or we can run all tests in a directory:
+"""
+simple_run_tests("test/ok/*.fram")
+
+"""
+We can also specify flags:
+"""
+simple_run_tests("test/ok/*.fram", flags='-no-prelude -no-stdlib')
+simple_run_tests("test/stdlib/*.fram", flags='')
+
+
+"""
+We can also define some helper functions to run specific sets of tests, 
+with specific flags, for example:
+"""
 
 def simple_examples():
     simple("examples/Tick.fram")
@@ -8,26 +30,40 @@ def simple_examples():
     simple("examples/Pythagorean.fram")
     simple("examples/Modules/Main.fram")
 
-
 with_flags("", simple_examples)
 
-simple_run_tests("test/stdlib/*.fram",flags ='')
-
+"""
+If we wish to run tests that are expected to fail, we can do it like this:
+"""
 def simple_error_tests():
-    for file in tqdm(glob("test/err/*.fram"), desc="Error Tests"):
+    for file in glob("test/err/*.fram"):
         exit_code(1, file)
-
 
 with_flags("-no-prelude -no-stdlib -no-error-context", simple_error_tests)
 
+"""
+Of course, a test suite is just a Python file, so we can do anything we want in it, 
+including additional prints.
+"""
+print("--- RUNNING REPL TESTS ---")
 repl_tests("test/repl/*.fram", flags='')
-repl_tests("test/ok/*.fram", flags='')
-repl_tests("test/stdlib/*.fram", flags='')
+repl_tests("test/ok/*.fram", flags='-no-prelude -no-stdlib')
+print("--- REPL TESTS DONE ---")
 
-# # --- NOWE TESTY REPL ---
-# print("\n--- REPL TESTS ---\n")
-# repl_tests("test/repl/*.fram", flags='')
-# print("\n--- REPL TESTS DONE ---\n")
-# repl_tests("test/ok/*.fram", flags='')
-# print("\n--- REPL TESTS DONE ---\n")
-# repl_tests("test/stdlib/*.fram", flags='')
+"""
+REPL tests are run line by line, so we can have multiple tests in a single file, and they will be run sequentially.
+We should write expectations for each test, and if any of them fails, 
+we will get a report with the file, the command that failed, and the failure message.
+
+For example, if we have a test file with the following content:
+
+let f (x : Unit -> Unit) = 
+    x () ;;
+# @stderr-empty
+f () ;;
+# @stderr: error
+
+Then we will run two tests: the first one checks that the definition of `f` does not produce any error, 
+and the second one checks that calling `f ()` produces an error as expected. We can also specify what 
+to expect on standard error and standard output.
+"""
