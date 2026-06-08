@@ -144,8 +144,7 @@ let mk_rec_ctx ~evs ~cs ~targs ~named all_defs =
 
 let rec update_rec_body ~rec_ctx (e : T.expr) : T.expr =
   match e with
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | ELit _ | EExtern _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ELit _ | EExtern _ ->
     e
   
   | EVar x ->

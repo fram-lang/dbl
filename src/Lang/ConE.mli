@@ -1,5 +1,4 @@
 (* This file is part of DBL, released under MIT license.
-
  * See LICENSE for details.
  *)
 
@@ -128,20 +127,8 @@ type expr =
   | EOptionPrf
     (** ADT-shape proof for option type *)
 
-  | ENum of int
-    (** Integer literal *)
-
-  | ENum64 of int64
-    (** 64 bit integer literal *)
-
-  | EStr of string
-    (** String literal *)
-
-  | EChr of char
-    (** Character literal *)
-
   | ELit of literal
-    (** Literal for pattern *)
+    (** Literal *)
 
   | EVar of var
     (** Variable *)
@@ -213,7 +200,7 @@ type expr =
       expression. *)
 
 (** Recursive definition *)
- and rec_def =
+and rec_def =
   { rd_var    : var;
       (** Variable that stores recursive value. *)
 

@@ -27,10 +27,6 @@ type expr =
   | EUnitPrf
   | EBoolPrf
   | EOptionPrf
-  | ENum      of int
-  | ENum64    of int64
-  | EStr      of string
-  | EChr      of char
   | ELit      of literal
   | EVar      of var
   | EFn       of var * scheme * expr

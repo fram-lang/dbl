@@ -77,6 +77,12 @@ type proof_expr =
   | PE_Option of typ
   | PE_Var    of var * typ list
 
+type literal =
+  | ENum      of int
+  | ENum64    of int64
+  | EStr      of string
+  | EChr      of char
+
 type pattern = pattern_data node
 and pattern_data =
   | PWildcard
@@ -108,10 +114,7 @@ and poly_fun_data =
 and expr = expr_data node
 and expr_data =
   | EInst       of poly_expr * type_expr list * poly_fun list
-  | ENum        of int
-  | ENum64      of int64
-  | EStr        of string
-  | EChr        of char
+  | ELit        of literal
   | EFn         of var * scheme_expr * expr * effct
   | EAppPoly    of expr * poly_fun
   | EAppMono    of expr * expr

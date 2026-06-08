@@ -14,8 +14,8 @@ let return x cont = cont x
 (** Translate expression *)
 let rec tr_expr env (e : S.expr) =
   match e with
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | ELit _ | EVar _ | EExtern _ | ERepl _ | EReplExpr _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ELit _ | EVar _ | EExtern _ | ERepl _
+  | EReplExpr _ ->
     let^ v = tr_expr_v env e in
     T.EValue v
 
@@ -90,8 +90,8 @@ and tr_let_expr ~pure x env (e : S.expr) cont =
   | _ when pure ->
     T.ELetPure(Relevant, x, tr_expr env e, cont ())
 
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | ELit _ | EVar _ | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ELit _ | EVar _ | EFn _ | ETFun _
+  | ECAbs _ | EExtern _ ->
     T.ELetPure(Relevant, x, tr_expr env e, cont ())
 
   | EApp _ | ETApp _ | ECApp _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _
@@ -116,8 +116,8 @@ and tr_expr_as_var env e =
 (** Translate an expression as pure expression *)
 and tr_expr_p env (e : S.expr) =
   match e with
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _
-  | ELit _ | EVar _ | EFn _ | ETFun _ | ECAbs _ | EExtern _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ELit _ | EVar _ | EFn _ | ETFun _
+  | ECAbs _ | EExtern _ ->
     return (tr_expr env e)
 
   | ETApp(e, tp) ->
@@ -164,11 +164,6 @@ and tr_expr_v env (e : S.expr) =
   | EUnitPrf   -> return v_unit_prf
   | EBoolPrf   -> return v_bool_prf
   | EOptionPrf -> return v_option_prf
-
-  | ENum   n -> return (T.VLit (LNum n))
-  | ENum64 n -> return (T.VLit (LNum64 n))
-  | EStr   s -> return (T.VLit (LStr s))
-  | EChr   c -> return (T.VLit (LNum (Char.code c)))
   | ELit   l -> tr_lit l
   | EVar   x -> return (T.VVar x)
 

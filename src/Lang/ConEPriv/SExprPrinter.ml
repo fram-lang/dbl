@@ -105,10 +105,6 @@ let rec tr_expr (e : expr) =
   | EUnitPrf   -> Sym "unit-prf"
   | EBoolPrf   -> Sym "bool-prf"
   | EOptionPrf -> Sym "option-prf"
-  | ENum n     -> Sym (string_of_int n)
-  | ENum64 n   -> Sym (Int64.to_string n ^ "L")
-  | EStr s     -> Sym (Printf.sprintf "\"%s\"" (String.escaped s))
-  | EChr c     -> Sym (Printf.sprintf "\'%s\'" (Char.escaped c))
   | ELit l     -> tr_lit l
   | EVar x     -> tr_var x
   | EFn _      -> List (Sym "fn" :: tr_fn e)
@@ -166,10 +162,9 @@ and tr_app e args =
   | ETApp(e1, tp) -> tr_app e1 (List [ Sym "type"; tr_type tp ] :: args)
   | ECApp e1 -> tr_app e1 (Sym "constr" :: args)
 
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | ELit _ | EVar _ | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ 
-  | ELetRec _ | ERecCtx _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ 
-  | EExtern _ | ERepl _ | EReplExpr _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ELit _ | EVar _ | EFn _ | ETFun _
+  | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ | ERecCtx _ | EData _ | ECtor _
+  | EMatch _ | EShift _ | EReset _ | EExtern _ | ERepl _ | EReplExpr _ ->
     List (tr_expr e :: args)
 
 and tr_defs e =
@@ -190,9 +185,9 @@ and tr_defs e =
         tr_var x; tr_expr ret
       ] :: tr_defs body
 
-  | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
-  | ELit _ | EVar _ | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ 
-  | ECtor _ | EMatch _ | EShift _ | EExtern _ | ERepl _ | EReplExpr _ ->
+  | EUnitPrf | EBoolPrf | EOptionPrf | ELit _ | EVar _ | EFn _ | ETFun _
+  | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _ | EMatch _ | EShift _
+  | EExtern _ | ERepl _ | EReplExpr _ ->
     [ tr_expr e ]
 
 and tr_rec_def rd =

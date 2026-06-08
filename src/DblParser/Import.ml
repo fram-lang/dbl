@@ -154,7 +154,7 @@ let define_module_path path =
   let open Lang.Surface in
   let make data = { pos = Position.nowhere; data } in
   make (DLetId(false, IdImplicit "~__modulePath__",
-    make (PE_Expr (make (EStr path)))))
+    make (PE_Expr (make (ELit(EStr path))))))
 
 let import_many imported imports =
   let mk_mod_def (n, imports, (d : File.def_list)) =
