@@ -1,0 +1,9 @@
+import open Pretty
+
+# Two multi-line documents.
+let docA = text "aaaa" $$ text "aa"
+let docB = text "bb" $$ text "bbbb"
+
+# `>+>` places documents side-by-side.
+# The last lines are aligned with each other.
+let _ = printStrLn (generate (docA >+> docB))

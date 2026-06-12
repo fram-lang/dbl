@@ -1,0 +1,13 @@
+import open Pretty
+
+# `hangWith n x y` tries to place `x` and `y` on a single line.
+# If that does not fit within the given width, `y` is moved
+# to the next line and indented by `n` spaces.
+let myDoc = hangWith 2 (text "Hello") (text "World!")
+
+# With width = 20, everything fits on one line.
+let _ = printStrLn (generate {width=20} myDoc)
+
+# With width = 8, the layout no longer fits.
+# `World!` is placed on the next line and indented by 2 spaces.
+let _ = printStrLn (generate {width=8}  myDoc)

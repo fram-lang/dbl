@@ -1,0 +1,140 @@
+import open /Pretty/Core
+import /Stream
+import /List
+import open /Testing
+
+# TODO
+# Functions tested here should be a part of some separate "util"
+# internal module
+
+let cmpInts (x : Int) (y : Int) = x <= y
+
+let mkS = Stream.fromList
+
+let _ = testSuite "paretoSelector" (fn _ =>
+
+  testCase "empty" (fn _ =>
+    let (iStr : Stream.Stream Int) = Stream.empty in
+    assertEq iStr (paretoSelector (fn x y => False) iStr));
+  
+  testCase "singleton" (fn _ =>
+    [0, 10, 50, 2137].iter (fn x =>
+    assertEq (Stream.singleton x)
+             (paretoSelector (fn x y => False) (Stream.singleton x))));
+
+  testCase "pairs" (fn _ =>
+    assertEq (mkS [10])     (paretoSelector cmpInts (mkS [10, 20]));
+    assertEq (mkS [20, 10]) (paretoSelector cmpInts (mkS [20, 10]));
+    assertEq (mkS [10])     (paretoSelector cmpInts (mkS [10, 10])));
+
+  testCase "many" (fn _ =>
+    assertEq (mkS [10])
+             (paretoSelector cmpInts (mkS [10, 20, 30, 40, 50, 60]));
+    assertEq (mkS [30, 20, 10])
+             (paretoSelector cmpInts (mkS [30, 20, 10]));
+    assertEq (mkS [30, 10, 5])
+             (paretoSelector cmpInts (mkS [30, 10, 10, 20, 5])));
+  
+  ())
+
+let _ = testSuite "mergeOn" (fn _ =>
+
+  testCase "empty" (fn _ =>
+    assertEq (mkS []) (mergeOn cmpInts (mkS []) (mkS [])));
+  
+  testCase "singletons" (fn _ =>
+    assertEq (mkS [1, 2]) (mergeOn cmpInts (mkS [2]) (mkS [1]));
+    assertEq (mkS [1, 2]) (mergeOn cmpInts (mkS [1]) (mkS [2])));
+  
+  testCase "many" (fn _ =>
+    assertEq
+      (mkS [1, 2, 3, 4, 5, 6, 7, 8])
+      (mergeOn cmpInts (mkS [1, 3, 5, 7]) (mkS [2, 4, 6, 8]));
+    assertEq
+      (mkS [1, 2, 3, 4, 5, 6])
+        (mergeOn cmpInts (mkS [1, 2, 5]) (mkS [3, 4, 6])));
+  
+  ())
+
+let _ = testSuite "mergeAllOn" (fn _ =>
+
+  testCase "empty" (fn _ =>
+    assertEq (mkS []) (mergeAllOn cmpInts (mkS [])));
+  
+  testCase "empties" (fn _ =>
+    assertEq (mkS []) (mergeAllOn cmpInts (mkS [mkS [], mkS [], mkS []])));
+  
+  testCase "singletons" (fn _ =>
+    assertEq (mkS [1, 2, 3])
+             (mergeAllOn cmpInts (mkS [mkS [2], mkS [1], mkS [3]]));
+    assertEq (mkS [1, 2, 3])
+             (mergeAllOn cmpInts (mkS [mkS [3], mkS [2], mkS [1]])));
+  
+  testCase "manies" (fn _ =>
+    assertEq
+      (mkS [1, 2, 3, 4, 5, 6, 7, 8])
+      (mergeAllOn cmpInts
+                  (mkS [mkS [1, 3], mkS [], mkS [2, 4, 6, 8], mkS [5, 7]])));
+  
+  ())
+
+
+let ordPairs (x1, y1) (x2, y2) =
+  (x1 : Int) < x2 || (x1 == x2 && (y1 : Int) < y2)
+
+let posetPairs (x1, y1) (x2, y2) =
+  (((x1 : Int) <= x2) && ((y1 : Int) <= y2))
+
+let pairEq (x1, y1) (x2, y2) =
+  ((x1 : Int) == x2 && (y1 : Int) == y2)
+
+method equal = pairEq
+
+let _ = testSuite "bestOn" (fn _ =>
+
+  testCase "empty" (fn _ =>
+    assertEq (mkS []) (bestOn ordPairs posetPairs (mkS [])));
+  
+  testCase "empties" (fn _ =>
+    assertEq (mkS [])
+             (bestOn ordPairs posetPairs (mkS [mkS [], mkS [], mkS []])));
+  
+  testCase "singletons" (fn _ =>
+    assertEq
+      (mkS [(1, 1), (3, 0)])
+      (bestOn ordPairs posetPairs
+        (mkS [mkS [(2, 1)], mkS [(1, 1)], mkS [(3, 0)]]));
+    assertEq
+      (mkS [(5, 6)])
+      (bestOn ordPairs posetPairs
+        (mkS [mkS [(5, 6)], mkS [(6, 7)], mkS [(5, 7)]])));
+  
+  testCase "manies" (fn _ =>
+    assertEq
+      (mkS [(1, 3), (6, 0)])
+      (bestOn ordPairs posetPairs
+        (mkS [mkS [(1, 3)], mkS [], mkS [(2, 4), (6, 0)], mkS [(5, 7)]])));
+  
+  ())
+
+let _ = testSuite "quasifilter" (fn _ =>
+
+  testCase "singleton" (fn _ =>
+    assertEq (mkS [1]) (quasifilter (fn _ => False) cmpInts (mkS [1]));
+    assertEq (mkS [1]) (quasifilter (fn _ => True)  cmpInts (mkS [1])));
+  
+  testCase "filters" (fn _ =>
+    assertEq (mkS [1, 2, 1])
+             (quasifilter (fn x => 5 > x) cmpInts (mkS [1, 10, 6, 2, 1]));
+    assertEq (mkS [6, 7])
+             (quasifilter (fn x => 4 % x == 4)  cmpInts (mkS [1, 6, 7, 2])));
+
+  testCase "selects minimum" (fn _ =>
+    assertEq (mkS [0])
+             (quasifilter (fn x => False) cmpInts (mkS [2, 1, 3, 7, 0, 42]));
+    assertEq
+      (mkS [(0, 0)])
+      (quasifilter (fn x => False) ordPairs
+        (mkS [(2, 1), (1, 2), (3, 3), (0, 0)])));
+  
+  ())
