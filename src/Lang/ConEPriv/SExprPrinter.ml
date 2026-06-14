@@ -140,6 +140,8 @@ let rec tr_expr (e : expr) =
     List [ Sym "repl"; tr_type tp; CEffect.to_sexpr eff ]
   | EReplExpr(e1, tp, e2) ->
     List [ Sym "repl-expr"; tr_expr e1; Sym ("{" ^ tp ^ "}"); tr_expr e2 ]
+  | EReplDir (cont, e2) ->
+    List [Sym "repl-dir"; tr_expr e2]
 
 and tr_fn e =
   match e with
@@ -161,7 +163,7 @@ and tr_app e args =
   | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
   | EVar _ | EFn _ | ETFun _ | ECAbs _ | ELet _ | ELetPure _ | ELetRec _ 
   | ERecCtx _ | EData _ | ECtor _ | EMatch _ | EShift _ | EReset _ | EExtern _
-  | ERepl _ | EReplExpr _ ->
+  | ERepl _ | EReplExpr _ | EReplDir _ ->
     List (tr_expr e :: args)
 
 and tr_defs e =
@@ -184,7 +186,7 @@ and tr_defs e =
 
   | EUnitPrf | EBoolPrf | EOptionPrf | ENum _ | ENum64 _ | EStr _ | EChr _ 
   | EVar _ | EFn _ | ETFun _ | ECAbs _ | EApp _ | ETApp _ | ECApp _ | ECtor _
-  | EMatch _ | EShift _ | EExtern _ | ERepl _ | EReplExpr _ ->
+  | EMatch _ | EShift _ | EExtern _ | ERepl _ | EReplExpr _ | EReplDir _ ->
     [ tr_expr e ]
 
 and tr_rec_def rd =

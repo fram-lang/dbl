@@ -50,6 +50,7 @@ type expr =
   | EExtern   of string * typ
   | ERepl     of (unit -> expr) * typ * ceffect
   | EReplExpr of expr * string * expr
+  | EReplDir  of (unit -> unit) * expr 
 
 and rec_def =
   { rd_var    : var;
