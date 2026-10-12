@@ -415,6 +415,7 @@ expr_70
 expr_80
 : expr_80 op_80 expr_90 { make (EBOp($1, $2, $3)) }
 | expr_90 { $1 }
+| expr_90 { $1 }
 ;
 
 // exp1 | '*' | '/' | '%'  exp2
