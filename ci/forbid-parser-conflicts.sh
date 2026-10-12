@@ -6,9 +6,12 @@ if [[ "$#" -ne "1" ]]; then
 	echo "usage: $0 <build_log_file>"
 	exit 1
 fi
-if [[ -f "$1" ]]; then
+if [[ ! -f "$1" ]]; then
 	echo "$0: cannot access '$1': No such file or directory"
 	exit 1
 fi
 
-grep -E -e "reduce conflicts" && ( echo "Conflicts found"; exit 1 )
+if grep -qE -e "reduce conflicts" -- "$1"; then
+	echo "Conflicts found"
+	exit 1
+fi
