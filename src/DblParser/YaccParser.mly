@@ -413,7 +413,7 @@ expr_70
 
 // exp1 | '+' | '-' | '~' exp2
 expr_80
-: expr_80 op_80 expr_80 { make (EBOp($1, $2, $3)) }
+: expr_80 op_80 expr_90 { make (EBOp($1, $2, $3)) }
 | expr_90 { $1 }
 ;
 
