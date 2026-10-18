@@ -11,7 +11,7 @@ if [[ ! -f "$1" ]]; then
 	exit 1
 fi
 
-if grep -qE -e "reduce conflicts" -- "$1"; then
+if grep -qE -e "reduce conflict" -- "$1"; then
 	echo "Conflicts found"
 	exit 1
 fi
