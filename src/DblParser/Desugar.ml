@@ -518,12 +518,15 @@ and tr_poly_expr_def (e : Raw.expr) =
   match e.data with
   | EParen e -> make (tr_poly_expr_def e).data
   | EFn(es, e) -> make (tr_poly_function ~pos es (tr_expr e)).data
+  | EEffect { label; mode; args; resumption; body } ->
+    let e = make (Raw.EEffect { label; mode; args = []; resumption; body }) in
+    make (tr_poly_function ~pos args (tr_expr e)).data
 
   | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (PE_Poly (tr_poly_expr e))
 
   | ENum _ | ENum64 _ | EStr _ | EChr _ | EApp _ | EMethodCall _ | EDefs _
-  | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _ | EExtern _ | EAnnot _
+  | EMatch _ | EHandler _ | EHandlerFn _ | EExtern _ | EAnnot _
   | EIf _ | ESelect _ | EBOp _ | EUOp _ | EList _ | EWildcard | ERecord _
   | EPub _ | EInterp (_, _) | EPOr _ ->
     make (PE_Expr (tr_expr e))

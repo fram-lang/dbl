@@ -1,0 +1,4 @@
+data Id E = Id of { id : { x : Int } -> Unit ->[E] Int }
+
+let hId1 = handler Id { effect id { x : Int } () = resume x } end
+let hId2 = handler Id { id = effect { x : Int } () => resume x } end
