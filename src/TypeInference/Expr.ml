@@ -37,7 +37,7 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
       er_constr = []
     }
 
-  | ELit l -> 
+  | ELit l ->
     begin match l with
     | ENum n ->
       { er_expr   = make (T.ELit(ENum n));

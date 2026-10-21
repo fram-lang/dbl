@@ -117,7 +117,7 @@ type data_def =
     }
 
 (** Literals *)
-and literal =
+type literal =
   | ENum of int
     (** Integer literal *)
 
