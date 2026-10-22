@@ -443,7 +443,7 @@ section
       {msg =
         "Assertion Failed: Expected \{
           expected.show
-        }" and \{
+        } and \{
           actual.show
         } to be equal"}
       (expected.equal actual)
