@@ -230,7 +230,8 @@ let rec check_scheme env (pat : S.pattern) sch =
         ~on_error:(Error.or_pattern_scheme_mismatch ~pp sch1 sch2)
     in
     let scope = Env.scope env in
-    let (penv, ren) = PartialEnv.intersect ~check_schemes ~pp ~pos ~scope penv1 penv2 in
+    let (penv, ren) =
+      PartialEnv.intersect ~check_schemes ~pp ~pos ~scope penv1 penv2 in
     let pat2 = T.Ren.rename_pattern ren pat2 in
     let pat = make (T.POr(pat1, pat2)) in
     let eff = T.Effect.join eff1 eff2 in

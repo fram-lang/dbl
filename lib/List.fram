@@ -339,7 +339,8 @@ pub let rec filterMapi { ?i : Int } f xs =
 pub let concatMap f xs = concat (map f xs)
 
 {##
-  Returns prefix of length n of a list or the list itself if it's shorter than n.
+  Returns prefix of length n of a list or the list itself
+  if it's shorter than n.
  ##}
 pub let rec take (n : Int) xs =
   match xs with
@@ -671,8 +672,8 @@ pub let rec findMapi { ?i : Int } f xs =
   end
 
 {##
-  Same as `List.findMapErr` but its argument `f` takes an additional argument which
-  corresponds to index position of its first argument in `xs`.
+  Same as `List.findMapErr` but its argument `f` takes an additional argument
+  which corresponds to index position of its first argument in `xs`.
 
   @param ~onError Fallback function in case all results are `None`.
   @param ?i Initial value of the iterator index. Defaults to 0.

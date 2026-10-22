@@ -167,7 +167,7 @@ method addTest (tree : TestTree) (test : TestCase) =
   in
   visit tree path
 
-let constructTestTree (tests : List TestCase) = 
+let constructTestTree (tests : List TestCase) =
   tests.foldRight
     (fn test (tree : TestTree) => tree.addTest test)
     emptyTestTree
@@ -231,7 +231,7 @@ let printTreeTestResult
     (idx : Option Int)
     nest =
   printNesting nest;
-  printStr 
+  printStr
     match result with
     | TR_Accept => "\{T.Font.setFgColor T.Font.Green}✔ "
     | TR_Reject => "\{T.Font.setFgColor T.Font.Red}✖ "
@@ -242,7 +242,7 @@ let printTreeTestResult
   end;
   printStrLn "\{T.Font.resetAll}\{name}"
 
-method toString (lt : LogType) = 
+method toString (lt : LogType) =
   let (col, name) =
     match lt with
     | LT_Exit     => (T.Font.Green, "EXIT")
@@ -331,7 +331,7 @@ let runTest
     , ~sessionTestCounter : SessionTestCounter E_ST }
     (testCase : TestCase) =
   let (result, logs) = testCase.body () in
-  let logNum = 
+  let logNum =
     if shouldLogResult result then
       Some (~sessionLogger.reportTest (TestLogs {testCase, logs, result}))
     else
@@ -366,7 +366,7 @@ let runTests () =
     exit 0;
   ()
 
-# Global handler. Forces test evaulation at the end of session.
+# Global handler. Forces test evaluation at the end of session.
 handle _ = ()
   return _ => runTests ()
   finally _ => ()
@@ -376,7 +376,7 @@ handle _ = ()
 
 section
   parameter ~testCaseTracker : TestCaseTracker _
-  parameter ~testLogger : TestLogger _ 
+  parameter ~testLogger : TestLogger _
   parameter ~onError
 
   let log' {~__line__, ~__file__} lt msg = ~testLogger.log (mkLogMsg lt msg)
@@ -413,13 +413,13 @@ section
       {msg=msg.unwrapOr "Assertion Failed: Expected to be false"} (not cond)
 
   {## Asserts that given values are equal. ##}
-  pub let assertEq 
+  pub let assertEq
       { ~__line__
       , ~__file__
       , ?msg : String
       , X : type
       , Y : type
-      , method equal : X ->> Y ->> Bool } 
+      , method equal : X ->> Y ->> Bool }
       (expected : X) (actual : Y) =
     assertTrue
       {msg = "Assertion Failed: Expected values to be equal"}
@@ -437,11 +437,15 @@ section
       , Y : type
       , method show : X ->> String
       , method show : Y ->> String
-      , method equal : X ->> Y ->> Bool } 
+      , method equal : X ->> Y ->> Bool }
       (expected : X) (actual : Y) =
     assertTrue
       {msg =
-        "Assertion Failed: Expected \{expected.show} and \{actual.show} to be equal"}
+        "Assertion Failed: Expected \{
+          expected.show
+        } and \{
+          actual.show
+        } to be equal"}
       (expected.equal actual)
 
   let callsOnError {~onError} (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
@@ -506,13 +510,13 @@ section
       (not cond)
 
   {## Expects given values to be equal. ##}
-  pub let expectEq 
+  pub let expectEq
       { ~__line__
       , ~__file__
       , ?msg : String
       , X : type
       , Y : type
-      , method equal : X ->> Y ->> Bool } 
+      , method equal : X ->> Y ->> Bool }
       (expected : X) (actual : Y) =
     expectTrue
       {msg = "Expectation Failed: Expected values to be equal"}
@@ -530,11 +534,12 @@ section
       , Y : type
       , method show : X ->> String
       , method show : Y ->> String
-      , method equal : X ->> Y ->> Bool } 
+      , method equal : X ->> Y ->> Bool }
       (expected : X) (actual : Y) =
     expectTrue
       {msg =
-        "Expectation Failed: Expected: \{expected.show} and \{actual.show} to be equal"}
+        "Expectation Failed: Expected: \{expected.show}" +
+        " and \{actual.show} to be equal"}
       (expected.equal actual)
 
   {##

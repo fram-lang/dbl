@@ -16,10 +16,10 @@ module M = Map.Make(String)
 type attribute = Raw.attribute
 type attributes = attribute list
 
-type attr_resolver = 
-  attribute 
-    -> attributes 
-    -> Lang.Surface.def list 
+type attr_resolver =
+  attribute
+    -> attributes
+    -> Lang.Surface.def list
     -> (attributes * Lang.Surface.def list)
 
 type attr_conf = {
@@ -37,8 +37,8 @@ let rec make_vis_pattern (pt : Lang.Surface.pattern) =
   | PWildcard -> PWildcard
   | PId (_, ident) -> PId (true, ident)
   | PAnnot (pt, scheme) -> PAnnot (make_vis_pattern pt, scheme)
-  | PCtor (pth, xs, ys) -> 
-    PCtor 
+  | PCtor (pth, xs, ys) ->
+    PCtor
       (pth, List.map make_vis_named_pattern xs, List.map make_vis_pattern ys)
   | POr (pt1, pt2) -> POr (make_vis_pattern pt1, make_vis_pattern pt2)
   end pt
@@ -48,30 +48,30 @@ and make_vis_named_pattern (npt : Lang.Surface.named_pattern) =
   | NP_Module (_, name) -> NP_Module (true, name)
   | NP_Open _ -> NP_Open true
   | NP_Val (name, pt, scheme) -> NP_Val (name, make_vis_pattern pt, scheme)
-  end npt 
+  end npt
 and make_vis_def ~is_abstract def =
   map_node begin function
-  | DLetId (_, ident, ped) -> 
+  | DLetId (_, ident, ped) ->
     DLetId (true, ident, ped)
-  | DLetPat (pattern, expr) -> 
+  | DLetPat (pattern, expr) ->
     DLetPat (make_vis_pattern pattern, expr)
   | DHandlePat (pattern, ty, expr) ->
     DHandlePat (make_vis_pattern pattern, ty, expr)
-  | DData data -> 
+  | DData data ->
     DData { data with public_tp = true; public_ctors = not is_abstract}
   | DModule (_, v, ds) -> DModule (true, v, ds)
   | DOpen (_, pth) -> DOpen (true, pth)
-  | DRec ds -> DRec (List.map (make_vis_def ~is_abstract) ds) 
+  | DRec ds -> DRec (List.map (make_vis_def ~is_abstract) ds)
   | DSection sec -> DSection (List.map (make_vis_def ~is_abstract) sec)
   | DType ty -> DType {ty with public_tp = true}
   | other -> other
   end def
 
-let make_visible ~is_abstract args attrs ds = 
+let make_visible ~is_abstract args attrs ds =
   match attr_args args.data with
   | [] -> (attrs, List.map (make_vis_def ~is_abstract) ds)
-  | xs -> 
-    Error.fatal 
+  | xs ->
+    Error.fatal
       (Error.attribute_argument_arity_mismatch args.pos 0 (List.length xs))
 
 let public_attribute : attr_conf = {
@@ -93,8 +93,8 @@ let abstr_attribute : attr_conf = {
 (* ===== Test ===== *)
 
 let make_test args attrs defs =
-  (* Collect all test attrs and treat as single attribute*) 
-  let (labels, attrs) = 
+  (* Collect all test attrs and treat as single attribute*)
+  let (labels, attrs) =
     List.partition (fun a -> attr_name a.data = "test") attrs in
   let tags = List.concat_map (fun e -> attr_args e.data) (args :: labels) in
   if DblConfig.test_active tags then
@@ -155,7 +155,8 @@ let tr_record args attrs (defs : Lang.Surface.def list) =
         make (TNVar old_name, make (TA_Var (new_name, make KWildcard))) in
       named_arg, new_name
     in
-    let (new_named_type_args, new_names : named_type_arg list * ctor_name list) =
+    let (new_named_type_args, new_names :
+          named_type_arg list * ctor_name list) =
       List.split (List.mapi create_mapping named_type_args) in
     (* function for fold that generates nested series of tapps for type
       annotation *)
@@ -186,8 +187,8 @@ let tr_record args attrs (defs : Lang.Surface.def list) =
     let method_named_args, pattern_gen =
       generate_accessor_method_pattern data.args data.tvar in
     let cd_named_args = (List.hd data.ctors).data.cd_named_args in
-    let sels = 
-      List.filter_map 
+    let sels =
+      List.filter_map
       (create_accessor_method method_named_args pattern_gen) cd_named_args in
     (attrs, dd :: sels)
   | _ ->
@@ -206,10 +207,10 @@ let record_attribute : attr_conf = {
 }
 
 (* Existential attribute adds an argument to record attribute *)
-let tr_existential args attrs defs = 
+let tr_existential args attrs defs =
   let add_arg attr =
     if attr_name attr.data = "#record" then
-      { pos = args.pos; 
+      { pos = args.pos;
         data = Raw.Attribute ("#record", ["ignoreExistential"]) }
     else
       attr in
@@ -223,26 +224,26 @@ let ignore_existential_attribute : attr_conf = {
   resolver  = tr_existential
 }
 
-let attributes = 
+let attributes =
   let xs = [
     public_attribute;
     abstr_attribute;
     record_attribute;
     ignore_existential_attribute;
     test_attribute;
-  ] in 
+  ] in
   xs |> List.map (fun e -> (e.name, e))|> M.of_list
 
-(* Topologically sorts attributes 
+(* Topologically sorts attributes
    and runs checks on them *)
 let parse_attributes (attrs : attributes) =
 
-  (* Reduces multiple occurrences of given attribute 
+  (* Reduces multiple occurrences of given attribute
      to a list and puts them on a map *)
   let fold_attrs (attrs : attributes) : attributes M.t =
     let rec iter (acc : attributes M.t) = function
       | [] -> acc
-      | attr :: attrs -> 
+      | attr :: attrs ->
         let name = attr_name attr.data in
         let add_elem = function
           | Some xs -> Some (attr :: xs)
@@ -257,15 +258,15 @@ let parse_attributes (attrs : attributes) =
     (* uniqueness check *)
     let _ = match (curr_attrs, conf.is_unique) with
     | ([], true) | ([_], true) | (_, false)  -> ()
-    | (_, true) -> 
-      Error.fatal 
+    | (_, true) ->
+      Error.fatal
         (Error.attribute_not_unique first.pos conf.name) in
     (* conflicts check *)
-    List.iter 
-      (fun c -> 
-        if M.mem c other_attrs then 
-          Error.fatal 
-            (Error.attribute_conflict first.pos conf.name c)) 
+    List.iter
+      (fun c ->
+        if M.mem c other_attrs then
+          Error.fatal
+            (Error.attribute_conflict first.pos conf.name c))
       conf.conflicts
   in
 
@@ -275,18 +276,18 @@ let parse_attributes (attrs : attributes) =
     | None -> (to_visit, stack)
     | Some xs ->
       begin match M.find_opt key attributes with
-      | None -> 
+      | None ->
         Error.fatal
           (Error.unknown_attribute (List.hd xs).pos key)
       | Some conf ->
         let to_visit = M.remove key to_visit in
         let _ = static_check conf xs to_visit in
         let prerequisites = conf.precedes in
-        let (to_visit, stack) = 
+        let (to_visit, stack) =
           List.fold_right visit prerequisites (to_visit, stack) in
-        (to_visit, xs @ stack) 
+        (to_visit, xs @ stack)
       end in
-  
+
   (* Iteratively sorts all attributes *)
   let rec visit_all (attrs, stack) =
     match M.choose_opt attrs with
@@ -294,10 +295,10 @@ let parse_attributes (attrs : attributes) =
     | Some (key, _) -> visit_all (visit key (attrs, stack)) in
 
   visit_all (fold_attrs attrs, [])
-  
-let tr_attrs (attrs : attributes) (defs : Lang.Surface.def list) = 
-  let sorted = parse_attributes attrs in 
-  let rec iter attrs defs = 
+
+let tr_attrs (attrs : attributes) (defs : Lang.Surface.def list) =
+  let sorted = parse_attributes attrs in
+  let rec iter attrs defs =
     match attrs with
     | []      -> defs
     | attr :: attrs ->
