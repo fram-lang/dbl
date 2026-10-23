@@ -10,14 +10,14 @@ let _ =
 testSuite "isEmpty" (fn _ =>
   testCase "true" (fn _ =>
     assertTrue (IntMap.empty {Val=Bool} >.isEmpty));
-  
+
   testCase "false" (fn _ =>
     assertFalse (IntMap.singleton 13 "A" >.isEmpty)));
 
 testSuite "size" (fn _ =>
   testCase "empty" (fn _ =>
     assertEq (IntMap.empty {Val=Int}  >.size) 0);
-  
+
   testCase "not empty" (fn _ =>
     assertEq (IntMap.singleton 42 True >.size) 1));
 
@@ -28,7 +28,7 @@ testCase "randomized test" (fn _ =>
       resume (seed >> 12) seed
     return x => fn _ => x
     finally c => c 0
-  
+
   let doExtraTest (map : IntMap.T Int) (bitSet : Int) (bitMap : Int) =
     assertEq (map.fold (fn _ acc => acc + 1) 0) map.size;
     let rest = map.fold
