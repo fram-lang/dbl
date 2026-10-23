@@ -172,11 +172,28 @@ and ctor_decl_data = {
   cd_arg_schemes : scheme_expr list
 }
 
+(** Literals *)
+type literal =
+  | ENum of int
+    (** Integer literal *)
+
+  | ENum64 of int64
+    (** 64 bit integer literal *)
+
+  | EStr of string
+    (** String literal *)
+
+  | EChr of char
+    (** Char literal *)
+
 (** Patterns *)
 type pattern = pattern_data node
 and pattern_data =
   | PWildcard
     (** Wildcard pattern -- it matches everything *)
+
+  | PLit of literal
+    (** Literal pattern *)
 
   | PId of is_public * ident
     (** Pattern that binds an identifier *)
@@ -240,17 +257,8 @@ and expr_data =
     (** Unit expression. Used only as the expression after the last definition
       in a program. *)
 
-  | ENum of int
-    (** Integer literal *)
-
-  | ENum64 of int64
-    (** 64 bit integer literal *)
-
-  | EStr of string
-    (** String literal *)
-
-  | EChr of char
-    (** Char literal *)
+  | ELit of literal
+    (** Literal *)
 
   | EPoly of poly_expr_use * inst list
     (** Polymorphic expression with partial explicit instantiation, possibly

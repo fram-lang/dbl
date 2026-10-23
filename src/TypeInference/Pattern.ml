@@ -193,6 +193,13 @@ let tr_named_scheme_annot env (name : Name.t) sch_expr =
 
 (* ========================================================================= *)
 
+let literal_type (lit : S.literal) =
+  match lit with
+  | ENum _   -> T.Type.t_var T.BuiltinType.tv_int
+  | ENum64 _ -> T.Type.t_var T.BuiltinType.tv_int64
+  | EStr _   -> T.Type.t_var T.BuiltinType.tv_string
+  | EChr _   -> T.Type.t_var T.BuiltinType.tv_char
+
 let rec check_scheme env (pat : S.pattern) sch =
   let pos = pat.pos in
   let pp = Env.pp_tree env in
@@ -200,6 +207,23 @@ let rec check_scheme env (pat : S.pattern) sch =
   match pat.data with
   | PWildcard ->
     (PartialEnv.empty, make T.PWildcard, T.Pure)
+
+  | PLit l ->
+    let lit_tp = literal_type l in
+    begin match T.Scheme.to_type sch with
+    | None ->
+        Error.fatal (Error.non_polymorphic_pattern ~pos)
+    | Some tp ->
+        Error.check_unify_result ~pos
+          (Unification.subtype env lit_tp tp)
+          ~on_error:(Error.pattern_type_mismatch ~pp lit_tp tp);
+    end; 
+    begin match l with
+    | ENum n   -> (PartialEnv.empty, make (T.PLit(T.ENum n)), T.Pure)
+    | ENum64 n -> (PartialEnv.empty, make (T.PLit(T.ENum64 n)), T.Pure)
+    | EStr s   -> (PartialEnv.empty, make (T.PLit(T.EStr s)), T.Pure)
+    | EChr c   -> (PartialEnv.empty, make (T.PLit(T.EChr c)), T.Pure)
+    end
 
   | PId(public, id) ->
     let name = NameUtils.tr_ident ~pos ~pp id sch in
@@ -242,7 +266,7 @@ and check_type env (pat : S.pattern) tp =
   let pp = Env.pp_tree env in
   let make data = T.{ pos; pp; data } in
   match pat.data with
-  | PWildcard | PId _ | PAnnot _ | POr _ ->
+  | PWildcard | PLit _ | PId _ | PAnnot _ | POr _ ->
     let sch = T.Scheme.of_type tp in
     check_scheme env pat sch
 
@@ -385,7 +409,7 @@ and check_named_pattern env np tvars named =
 
 let infer_scheme env (pat : S.pattern) =
   match pat.data with
-  | PWildcard | PId _ | PCtor _ | POr _ ->
+  | PWildcard | PLit _ | PId _ | PCtor _ | POr (_, _) ->
     let tp = Env.fresh_uvar ~pos:pat.pos env T.Kind.k_type in
     let tp_expr =
       { T.pos  = pat.pos;

@@ -307,10 +307,10 @@ let rec tr_pattern (p : Raw.expr) =
   | EWildcard   -> make PWildcard
   | EUnit | ECtor _ | ESelect _ ->
     make (PCtor(tr_ctor_pattern p, [], []))
-  | ENum _      -> Error.fatal (Error.desugar_error p.pos)
-  | ENum64 _      -> Error.fatal (Error.desugar_error p.pos)
-  | EStr _      -> Error.fatal (Error.desugar_error p.pos)
-  | EChr _      -> Error.fatal (Error.desugar_error p.pos)
+  | ENum      n -> make (PLit (ENum n))
+  | ENum64    n -> make (PLit (ENum64 n))
+  | EStr      s -> make (PLit (EStr s))
+  | EChr      c -> make (PLit (EChr c))
   | EInterp _   -> Error.fatal (Error.desugar_error p.pos)
   | EParen    p -> make (tr_pattern p).data
   | EVar      x -> make (PId(false, IdVar x))
@@ -549,10 +549,10 @@ and tr_expr (e : Raw.expr) =
   | EParen e       -> make (tr_expr e).data
   | EUnit | EVar _ | EImplicit _ | ECtor _ | EMethod _ | EBOpID _ | EUOpID _ ->
     make (EPoly(tr_poly_expr e, []))
-  | ENum n -> make (ENum n)
-  | ENum64 n -> make (ENum64 n)
-  | EStr s -> make (EStr s)
-  | EChr c -> make (EChr c)
+  | ENum n -> make (ELit(ENum n))
+  | ENum64 n -> make (ELit(ENum64 n))
+  | EStr s -> make (ELit(EStr s))
+  | EChr c -> make (ELit(EChr c))
   | EInterp (s, xs) ->
     let tr_toString (expr : Raw.expr) (fmt : Raw.expr option) = 
       let mth = { pos = expr.pos; data = (Raw.EMethod (expr, "toString"))} in

@@ -313,21 +313,24 @@ and infer_type : type ed.
       T.Type.subst sub sch.sch_body,
       return_pure eff_req )
 
-  | ENum n ->
-    let tp = T.Type.t_var (T.BuiltinType.tv_int) in
-    (T.ENum n, tp, return_pure eff_req)
+  | ELit l -> 
+    begin match l with
+    | ENum n ->
+      let tp = T.Type.t_var (T.BuiltinType.tv_int) in
+      (T.ELit(ENum n), tp, return_pure eff_req)
 
-  | ENum64 n ->
-    let tp = T.Type.t_var (T.BuiltinType.tv_int64) in
-    (T.ENum64 n, tp, return_pure eff_req)
+    | ENum64 n ->
+      let tp = T.Type.t_var (T.BuiltinType.tv_int64) in
+      (T.ELit(ENum64 n), tp, return_pure eff_req)
 
-  | EStr s ->
-    let tp = T.Type.t_var (T.BuiltinType.tv_string) in
-    (T.EStr s, tp, return_pure eff_req)
+    | EStr s ->
+      let tp = T.Type.t_var (T.BuiltinType.tv_string) in
+      (T.ELit(EStr s), tp, return_pure eff_req)
 
-  | EChr c ->
-    let tp = T.Type.t_var (T.BuiltinType.tv_char) in
-    (T.EChr c, tp, return_pure eff_req)
+    | EChr c ->
+      let tp = T.Type.t_var (T.BuiltinType.tv_char) in
+      (T.ELit(EChr c), tp, return_pure eff_req)
+    end
 
   | EFn(x, sch, body, _) ->
     let sch = Type.tr_scheme_expr env sch in
