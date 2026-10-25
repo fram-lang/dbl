@@ -56,6 +56,7 @@ let rec check_names ~pp names =
       | Some ppos ->
         Error.report (Error.multiple_named_args ~pos ~ppos ~pp name)
       end;
+      loop (Name.Map.add name pos acc) names
   in
   loop Name.Map.empty names
 
