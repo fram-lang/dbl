@@ -439,9 +439,9 @@ section
         "Assertion Failed: Expected \{expected.show} and \{actual.show} to be equal"}
       (expected.equal actual)
 
-  let callsOnError {~onError} (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+  let callsOnError {~onError} (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     handle
-      ~onError = effect arg / r => fn _ => r (~onError arg) True
+      ~onError = aff effect arg / r => fn _ => r (~onError arg) True
       return _ => fn s => s
       finally c => c False
     in f ()
@@ -454,7 +454,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[aff E,_] _} -> Unit ->> _ ) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _ ) =
     assertTrue
       {msg = "Assertion Failed: Expected function to call ~onError implicit"}
       (callsOnError f)
@@ -466,7 +466,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[aff E,_] _} -> Unit ->> _ ) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _ ) =
     assertFalse
       {msg =
         "Assertion Failed: Expected function to not call ~onError implicit"}
@@ -539,7 +539,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[aff E,_] _} -> Unit ->> _) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     expectTrue
       {msg = "Expectation Failed: Expected function to call ~onError implicit"}
       (callsOnError f)
@@ -551,7 +551,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[aff E,_] _} -> Unit ->> _) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     expectFalse
       {msg =
         "Expectation Failed: Expected function to not call ~onError implicit"}
