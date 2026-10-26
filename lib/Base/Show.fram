@@ -105,3 +105,13 @@ pub method show
     | Ok  a => "Ok "  + a.show {prec=201}
     | Err e => "Err " + e.show {prec=201}
     end
+
+## ## Ord
+
+pub method show (ord : Ord) =
+  match ord with
+  | Lt => "Lt"
+  | Eq => "Eq"
+  | Gt => "Gt"
+  end
+
