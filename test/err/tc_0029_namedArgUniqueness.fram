@@ -1,0 +1,2 @@
+let foo { x : Int, x : String } = x
+# @stderr: Named parameter x is bound more than once
