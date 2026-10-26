@@ -76,8 +76,8 @@ pub let ioMut = Mut {E=IO}
 {## Local handler of state.
 
   The mutability effect can be handled locally, provided that the handled
-  computation has no other effects. ##}
-pub let hMut (f : {E : effect} -> Mut E ->[E] _) =
+  computation's effects are affine. ##}
+pub let hMut {R : effect} (f : {E : effect} -> Mut E ->[aff E, aff R] _) =
   handle _ / E = () in
   f {E} Mut
 
@@ -86,7 +86,7 @@ pub let hMut (f : {E : effect} -> Mut E ->[E] _) =
   This function is similar to `hMut`, but it allows the handled expression to
   have other effects. However, this function is not pure: it has the `IO`
   effect. ##}
-pub let hMutIO {type R} (f : {E : effect} -> Mut E ->[E,R] _) =
+pub let hMutIO {R : effect} (f : {E : effect} -> Mut E ->[aff E, R] _) =
   f {E=IO} ioMut
 
 {# ========================================================================= #}
@@ -97,15 +97,15 @@ pub let hMutIO {type R} (f : {E : effect} -> Mut E ->[E,R] _) =
 
 {## Get the contents of a mutable value. ##}
 pub method get {E, type T} =
-  extern dbl_refGet : Ref E T ->[E] T
+  extern dbl_refGet : Ref E T ->[aff E] T
 
 {## Set the contents of a mutable value. ##}
 pub method set {E, type T} =
-  extern dbl_refSet : Ref E T -> T ->[E] Unit
+  extern dbl_refSet : Ref E T -> T ->[aff E] Unit
 
 {## Create a new mutable cell. ##}
 pub method ref {E, type T} (self : Mut E) =
-  extern dbl_ref : T ->[E] Ref E T
+  extern dbl_ref : T ->[aff E] Ref E T
 
 {# ========================================================================= #}
 ## ## Mutable arrays
@@ -116,16 +116,16 @@ pub method ref {E, type T} (self : Mut E) =
 {## Write-only elements of an array.
 
   See the `at` method of the `Array` type for details. ##}
-pub data ArrayElem E T = { set : T ->[E] Unit }
+pub data ArrayElem E T = { set : T ->[aff E] Unit }
 
 let unsafeGetArray {E, type T} =
-  extern dbl_arrayGet : Array E T -> Int ->[E] T
+  extern dbl_arrayGet : Array E T -> Int ->[aff E] T
 
 let unsafeSetArray {E, type T} =
-  extern dbl_arraySet : Array E T -> Int -> T ->[E] Unit
+  extern dbl_arraySet : Array E T -> Int -> T ->[aff E] Unit
 
 let unsafeMakeArray {E, type T} =
-  extern dbl_mkArray : Int ->[E] Array E T
+  extern dbl_mkArray : Int ->[aff E] Array E T
 
 {## Get the maximum length of an array. ##}
 pub let maxArrayLength = (extern dbl_maxArrayLength : Int)
@@ -175,7 +175,7 @@ pub method toList {E} (self : Array E _) =
 {# ------------------------------------------------------------------------- #}
 ## ### Creating new arrays
 
-let unsafeInitArray {E} n (f : _ ->[E] _) =
+let unsafeInitArray {E} n (f : _ ->[aff E] _) =
   let arr = unsafeMakeArray {E} n
   let rec loop (i : Int) =
     if i < n then (
@@ -208,7 +208,7 @@ pub method toArray {E, ~mut : Mut E} (self : List _) =
 ##}
 pub method pureInitArray
   {E, ~__line__, ~__file__}
-  (self : Mut E) (n : Int) (f : _ ->[E] _) =
+  (self : Mut E) (n : Int) (f : _ ->[aff E] _) =
     assert {msg="Array of negative size"} (n >= 0);
     unsafeInitArray {E} n f
 

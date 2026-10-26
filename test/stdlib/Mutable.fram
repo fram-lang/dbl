@@ -13,16 +13,17 @@ let hBT =
 let _ = testSuite "refs" (fn _ =>
 
   testCase "usage" (fn _ =>
-    let x = ~mut.ref 0
-    let y = ~mut.ref 1 in
-    assertEqS x.get 0;
-    assertEqS y.get 1;
-    x := 2;
-    assertEqS x.get 2;
-    assertEqS y.get 1;
-    y := 5;
-    assertEqS x.get 2;
-    assertEqS y.get 5);
+    hMut (fn mut =>
+      let x = mut.ref 0
+      let y = mut.ref 1 in
+      assertEqS x.get 0;
+      assertEqS y.get 1;
+      x := 2;
+      assertEqS x.get 2;
+      assertEqS y.get 1;
+      y := 5;
+      assertEqS x.get 2;
+      assertEqS y.get 5));
 
   testCase "purity" (fn _ =>
     let ensurePure (f : _ ->[] _) = f ()
@@ -42,32 +43,34 @@ let _ = testSuite "refs" (fn _ =>
 let _ = testSuite "mutable arrays" (fn _ =>
 
   testCase "usage" (fn _ =>
-    let arr1 = ~mut.pureInitArray 4 id in
-    assertEq arr1.length 4;
-    assertEq (arr1.get 0) 0;
-    assertEq (arr1.get 1) 1;
-    assertEq (arr1.get 2) 2;
-    assertEq (arr1.get 3) 3;
-    arr1.at 2 := 13;
-    assertEq (arr1.get 0) 0;
-    assertEq (arr1.get 2) 13;
-    let arr2 = arr1.clone in
-    assertEq arr2.length 4;
-    arr2.at 1 := 42;
-    assertEq (arr2.get 1) 42;
-    assertEq (arr1.get 1) 1);
+    hMut (fn mut =>
+      let arr1 = mut.pureInitArray 4 id in
+      assertEq arr1.length 4;
+      assertEq (arr1.get 0) 0;
+      assertEq (arr1.get 1) 1;
+      assertEq (arr1.get 2) 2;
+      assertEq (arr1.get 3) 3;
+      arr1.at 2 := 13;
+      assertEq (arr1.get 0) 0;
+      assertEq (arr1.get 2) 13;
+      let arr2 = arr1.clone in
+      assertEq arr2.length 4;
+      arr2.at 1 := 42;
+      assertEq (arr2.get 1) 42;
+      assertEq (arr1.get 1) 1));
 
   testCase "array with backtrack" (fn _ =>
-    let tab =
-      handle bt with hBT in
-      ~mut.initArray 2 (fn _ => bt.flip ())
-    in
-    assertEq tab.length 4;
-    assertTrue (tab.get 0 >.get 0);
-    assertTrue (tab.get 0 >.get 1);
-    assertTrue (tab.get 1 >.get 0);
-    assertFalse (tab.get 1 >.get 1);
-    assertFalse (tab.get 2 >.get 0));
+    hMut (fn mut =>
+      let tab =
+        handle bt with hBT in
+        mut.initArray 2 (fn _ => bt.flip ())
+      in
+      assertEq tab.length 4;
+      assertTrue (tab.get 0 >.get 0);
+      assertTrue (tab.get 0 >.get 1);
+      assertTrue (tab.get 1 >.get 0);
+      assertFalse (tab.get 1 >.get 1);
+      assertFalse (tab.get 2 >.get 0)));
 
   # Example program
   let primes n =
@@ -120,54 +123,57 @@ let _ = testSuite "mutable arrays" (fn _ =>
     assertEq (ptab.get 9) 29);
 
   testCase "methods" (fn _ =>
-    let ca = [1,2,3,4].toConstArray in
-    let testarr = [1,2].toArray in
-    let testarr2 = [3,4].toArray in
-    let lst = ca.toList in
-    let lst2 = testarr.toList in
-    testarr.mapInPlace (fn x => x+1);
-    let testarr3 = testarr.concat testarr2 in
-    let testarr4 = testarr2.reverse in
+    hMut (fn ~mut =>
+      let ca = [1,2,3,4].toConstArray in
+      let testarr = [1,2].toArray in
+      let testarr2 = [3,4].toArray in
+      let lst = ca.toList in
+      let lst2 = testarr.toList in
+      testarr.mapInPlace (fn x => x+1);
+      let testarr3 = testarr.concat testarr2 in
+      let testarr4 = testarr2.reverse in
 
-    assertEq (lst.hdErr {~onError=(fn ()=> 2)}) 1;
-    assertEq (lst2.hdErr {~onError=(fn ()=> 2)}) 1;
-    assertEq (testarr.get 0) 2;
-    assertEq (testarr3.get 2) 3;
-    assertEq (testarr2.foldLeft (fn a x => a-x) 0) (-7);
-    assertEq (testarr2.foldRight(fn x a => a-x) 0) (-7);
-    assertTrue (testarr.exists (fn x => x==2));
-    assertFalse (testarr.forall (fn x => x==2));
-    assertTrue (testarr.forall (fn x => x>0));
-    assertTrue (ca.exists (fn x => x>3 ));
-    assertTrue (ca.forall (fn x => x<5));
-    assertFalse (ca.exists (fn x => x<0));
-    assertFalse (ca.forall (fn x => x>1));
-    assertEq (testarr4.get 0) 4;
-    assertEq (testarr4.get 1) 3;
-    assertEq (testarr3.foldLeft (fn a x => a+x) 0) 12);
+      assertEq (lst.hdErr {~onError=(fn ()=> 2)}) 1;
+      assertEq (lst2.hdErr {~onError=(fn ()=> 2)}) 1;
+      assertEq (testarr.get 0) 2;
+      assertEq (testarr3.get 2) 3;
+      assertEq (testarr2.foldLeft (fn a x => a-x) 0) (-7);
+      assertEq (testarr2.foldRight(fn x a => a-x) 0) (-7);
+      assertTrue (testarr.exists (fn x => x==2));
+      assertFalse (testarr.forall (fn x => x==2));
+      assertTrue (testarr.forall (fn x => x>0));
+      assertTrue (ca.exists (fn x => x>3 ));
+      assertTrue (ca.forall (fn x => x<5));
+      assertFalse (ca.exists (fn x => x<0));
+      assertFalse (ca.forall (fn x => x>1));
+      assertEq (testarr4.get 0) 4;
+      assertEq (testarr4.get 1) 3;
+      assertEq (testarr3.foldLeft (fn a x => a+x) 0) 12));
   
   ())
 
 let _ = testSuite "constArray" (fn _ =>
   testCase "usage" (fn _ =>
-    let arr1 = [0, 1, 2].toArray
-    let v = arr1.get 1
-    let carr = arr1.freeze in
-    assertEq (carr.get 1) v;
-    arr1.at 1 := v + 1;
-    assertEq (carr.get 1) v);
+    hMut (fn ~mut =>
+      let arr1 = [0, 1, 2].toArray
+      let v = arr1.get 1
+      let carr = arr1.freeze in
+      assertEq (carr.get 1) v;
+      arr1.at 1 := v + 1;
+      assertEq (carr.get 1) v));
 
 
   testCase "methods" (fn _ =>
-    let arr0 = [4, 5, 6].toArray in
-    let ca2 = arr0.freeze in
-    let arr1 = arr0.map (fn x=> x+1) in
-    let ca3 = ca2.map (fn x=> x+1) in
+    hMut (fn ~mut =>
+      let arr0 = [4, 5, 6].toArray in
+      let ca2 = arr0.freeze in
+      let arr1 = arr0.map (fn x=> x+1) in
+      let ca3 = ca2.map (fn x=> x+1) in
     
-    assertEq (ca2.foldLeft (fn a x => a-x) 0) (-15);
-    assertEq (ca2.foldRight (fn x a => a-x) 0) (-15);
-    assertEq (arr1.foldLeft (fn a x => a-x) 0) (-18);
-    assertEq (ca3.foldLeft (fn a x => a-x) 0) (-18));
+      assertEq (ca2.foldLeft (fn a x => a-x) 0) (-15);
+      assertEq (ca2.foldRight (fn x a => a-x) 0) (-15);
+      assertEq (arr1.foldLeft (fn a x => a-x) 0) (-18);
+      assertEq (ca3.foldLeft (fn a x => a-x) 0) (-18)));
   
   ())
 

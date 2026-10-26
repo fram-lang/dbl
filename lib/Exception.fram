@@ -12,7 +12,7 @@ handler for it.
 {## The effect capability for exceptions. ##}
 pub data Exn E Arg =
   {## Raise an exception. ##}
-  { raise : {X} -> Arg ->[E] X
+  { raise : {X} -> Arg ->[aff E] X
   }
 
 {## The first-class handler for exceptions.
@@ -21,5 +21,5 @@ It calls given function `f` when an exception is raised.
 ##}
 pub let hExn {Arg} f =
   handler
-    Exn { Arg, effect raise x = f x }
+    Exn { Arg, aff effect raise x = f x }
   end

@@ -10,8 +10,8 @@ This module provides a standard effect of a single mutable cell.
 
 {## Effect capability representing a single mutable cell of type `X`. ##}
 pub data State E X = State of
-  { get : Unit ->[E] X
-  , set : X ->[E] Unit
+  { get : Unit ->[aff E] X
+  , set : X ->[aff E] Unit
   }
 
 parameter E
@@ -30,8 +30,8 @@ pub method update (cell : State E X) f =
 {## Handler for the `State` effect, initializing the cell with `initial`. ##}
 pub let hState (initial : X) =
   handler State
-    { effect get () = fn st => resume st st
-    , effect set st = fn _  => resume () st
+    { aff effect get () = fn st => resume st st
+    , aff effect set st = fn _  => resume () st
     }
   return  x => fn _ => x
   finally c => c initial

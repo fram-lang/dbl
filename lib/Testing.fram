@@ -96,27 +96,27 @@ data TestLogs  =
 
 {# Tracks state of a test case. Allows "soft" failing. #}
 data TestCaseTracker E =
-  { hardFail  : {X} -> Unit ->[E] X
-  , softFail  : Unit ->[E] Unit
-  , testExit  : {X} -> Unit ->[E] X
+  { hardFail  : {X} -> Unit ->[aff E] X
+  , softFail  : Unit ->[aff E] Unit
+  , testExit  : {X} -> Unit ->[aff E] X
   }
 
 let testCaseTrackerH =
   handler TestCaseTracker
-    { effect softFail _ / r = fn _ => r () TR_Reject
-    , effect hardFail _ / r = fn _ => TR_Reject
-    , effect testExit _     = fn s => s
+    { aff effect softFail _ / r = fn _ => r () TR_Reject
+    , aff effect hardFail _ / r = fn _ => TR_Reject
+    , aff effect testExit _     = fn s => s
     }
     return _ => id
     finally c => c TR_Accept
   end
 
 {# Stores all logs from a test case execution. #}
-data TestLogger E = { log : LogMessage ->[E] Unit }
+data TestLogger E = { log : LogMessage ->[aff E] Unit }
 
 let testLoggerH =
   handler TestLogger
-    { effect log l / r = fn logs => r () (l :: logs) }
+    { aff effect log l / r = fn logs => r () (l :: logs) }
     return s => fn logs => (s, List.rev logs)
     finally c => c ([] : List LogMessage)
   end
@@ -130,17 +130,14 @@ let mkTestCase
     (name : String)
     (f : { E_TL : effect
          , E_TT : effect
-         , E_M  : effect
-         , ~mut : M.Mut E_M
          , ~testLogger : TestLogger E_TL
          , ~testCaseTracker : TestCaseTracker E_TT
-         } -> Unit ->[E_TL, E_TT, E_M] Unit) =
+         } -> Unit ->[aff E_TL, aff E_TT] Unit) =
   let loc     = mkLoc
   let body () =
-    M.hMut (fn {E=E_M} ~mut =>
-      handle ~testLogger / E_TL with testLoggerH in
-      handle ~testCaseTracker / E_TT with testCaseTrackerH in
-        f {E_TL, E_TT, E_M} ())
+    handle ~testLogger / E_TL with testLoggerH in
+    handle ~testCaseTracker / E_TT with testCaseTrackerH in
+      f {E_TL, E_TT} ()
   in
   TestCase {name, path=getPath (), loc, body}
 
@@ -317,11 +314,9 @@ pub let testCase
     name
     (f : { E_TL
          , E_TT
-         , E_M
-         , ~mut : M.Mut E_M
          , ~testLogger : TestLogger E_TL
          , ~testCaseTracker : TestCaseTracker E_TT
-         } -> Unit ->[E_TL, E_TT, E_M] Unit) =
+         } -> Unit ->[aff E_TL, aff E_TT] Unit) =
   tests := (mkTestCase name f :: tests.get)
 
 let runTest
@@ -448,9 +443,9 @@ section
         } to be equal"}
       (expected.equal actual)
 
-  let callsOnError {~onError} (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+  let callsOnError {~onError} (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     handle
-      ~onError = effect arg / r => fn _ => r (~onError arg) True
+      ~onError = aff effect arg / r => fn _ => r (~onError arg) True
       return _ => fn s => s
       finally c => c False
     in f ()
@@ -463,7 +458,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _ ) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _ ) =
     assertTrue
       {msg = "Assertion Failed: Expected function to call ~onError implicit"}
       (callsOnError f)
@@ -475,7 +470,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _ ) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _ ) =
     assertFalse
       {msg =
         "Assertion Failed: Expected function to not call ~onError implicit"}
@@ -549,7 +544,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     expectTrue
       {msg = "Expectation Failed: Expected function to call ~onError implicit"}
       (callsOnError f)
@@ -561,7 +556,7 @@ section
       { ~__line__
       , ~__file__
       , ?msg : String }
-      (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+      (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     expectFalse
       {msg =
         "Expectation Failed: Expected function to not call ~onError implicit"}
