@@ -1,0 +1,2 @@
+let foo {T,T} x = x
+# @stderr: Type T is bound more than once

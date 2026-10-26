@@ -1,0 +1,2 @@
+data T = { x : Int, x : String }
+# @stderr: Named parameter x is bound more than once
