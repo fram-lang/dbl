@@ -56,8 +56,8 @@ let rec prepare_rec_data env (def : S.def) =
     | PAnnot({ data = PId(public, id); _ }, sch) ->
       (env, make (D1_Label(x, public, id, Some(pat.pos, sch))))
 
-    | PAnnot({ data = PWildcard | PCtor _ | PAnnot _; _ }, _)
-    | PWildcard | PCtor _ ->
+    | PAnnot({ data = PWildcard | PCtor _ | PAnnot _ | POr _; _ }, _)
+    | PWildcard | PCtor _ | POr _ ->
       Error.fatal (Error.invalid_rec_def ~pos:def.pos)
     end
 

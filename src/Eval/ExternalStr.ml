@@ -12,7 +12,7 @@ let to_char = function
 let list_fun trans f = VFn (fun v cont ->
   let rec parse_list = function
   | VCtor(0, []) -> []
-  | VCtor(1, [x; xs]) -> trans x :: parse_list xs 
+  | VCtor(1, [x; xs]) -> trans x :: parse_list xs
   | _ -> runtime_error "Not a list" in
   cont (f @@ parse_list v))
 
@@ -31,7 +31,7 @@ let extern_str_seq =
     "dbl_geStr",   str_cmpop ( >= );
     "dbl_leStr",   str_cmpop ( <= );
     "dbl_strLen",  str_fun (fun s -> VNum (String.length s));
-    "dbl_strGet", 
+    "dbl_strGet",
       str_fun (fun s -> int_fun (fun n -> VNum (Char.code s.[n])));
     "dbl_subStr",
       str_fun (fun s ->
@@ -41,10 +41,10 @@ let extern_str_seq =
     "dbl_chrListToStr",
       list_fun to_char (fun xs -> VStr (List.to_seq xs |> String.of_seq));
     "dbl_chrCode",    int_fun (fun c -> VNum c);
-    "dbl_strListCat", list_fun to_string_raw (fun xs -> VStr (String.concat "" xs));
+    "dbl_strListCat",
+      list_fun to_string_raw (fun xs -> VStr (String.concat "" xs));
     "dbl_strEscape",  str_fun (fun s -> VStr (String.escaped s));
     "dbl_printStrLn", str_fun (fun s -> print_endline s; v_unit);
     "dbl_printStr",   str_fun (fun s -> print_string s; v_unit);
     "dbl_readLine",   unit_fun (fun () -> VStr (read_line ()));
   ] |> List.to_seq
-

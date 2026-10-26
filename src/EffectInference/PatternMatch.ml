@@ -84,22 +84,26 @@ let drop_wildcard (cl : iclause) =
   | PWildcard :: pats -> { cl with c_patterns = pats }
   | _ -> assert false
 
-(** Simplify as-patterns on the head position in given clause list *)
-let rec simplify_as_pattern x (cl : iclause) =
+(** Simplify as-patterns and expand or-patterns at head position. *)
+let rec simplify_head x (cl : iclause) =
   match cl.c_patterns with
   | [] -> assert false
-  | (PWildcard | PCtor _) :: pats -> cl
   | PAs(pat, y) :: pats ->
     let cl =
       { cl with
         c_patterns = pat :: pats;
         c_var_map  = Var.Map.add y (T.EVar x) cl.c_var_map
       } in
-    simplify_as_pattern x cl
+    simplify_head x cl
+  | POr(pat1, pat2) :: pats ->
+    simplify_head x { cl with c_patterns = pat1 :: pats } @
+    simplify_head x { cl with c_patterns = pat2 :: pats }
+  | (PWildcard | PCtor _) :: _ -> [cl]
 
-(** Simplify as-patterns on the head position in given clause list *)
-let simplify_as_patterns x cls =
-  List.map (simplify_as_pattern x) cls
+(** Normalize patterns at head position by simplifying as-patterns and
+    expanding or-patterns in given clause list *)
+let normalize_head_patterns x cls =
+  List.concat_map (simplify_head x) cls
 
 (* ========================================================================= *)
 
@@ -131,8 +135,8 @@ let simplify_ctor idx (ctor : T.ctor_decl) tvs cl =
 
   | PCtor _ :: _ -> None
 
-  | PAs _ :: _ ->
-    (* As-patterns should be already simplified *)
+  | PAs _ :: _ | POr _ :: _ ->
+    (* As-patterns and or-patterns should be already simplified *)
     assert false
 
 (* ========================================================================= *)
@@ -157,8 +161,8 @@ let rec column_class (cls : iclause list) =
     | [] -> assert false
     | PWildcard :: _ -> column_class cls
     | PCtor cp :: _ -> CC_ADT(cp.proof, cp.ctors)
-    | PAs _ :: _ ->
-      (* As-patterns should be already simplified *)
+    | PAs _ :: _ | POr _ :: _ ->
+      (* As-patterns and or-patterns should be already simplified *)
       assert false
     end
 
@@ -190,7 +194,7 @@ module Make(Ctx : MatchContext) = struct
       make_body cl
 
     | x :: xs, cls ->
-      let cls = simplify_as_patterns x cls in
+      let cls = normalize_head_patterns x cls in
       begin match column_class cls with
       | CC_Wildcard ->
         tr_match (refocus ctx) xs (List.map drop_wildcard cls)

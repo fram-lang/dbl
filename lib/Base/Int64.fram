@@ -60,3 +60,10 @@ pub method min (self : Int64) oth =
   if self <= oth then self else oth
 pub method max (self : Int64) oth =
   if self >= oth then self else oth
+
+pub let ofInt n = (extern dbl_intToInt64 : Int -> Int64) n
+
+pub let zero = 0L
+pub let one  = 1L
+pub let maxValue = 9223372036854775807L
+pub let minValue = -9223372036854775807L - 1L

@@ -43,7 +43,8 @@ pub let rec toList (Stream xs : Stream X) =
   end : List X
 
 {##
-  Initializes lazy stream by iteratively applying function `f` on previous results.
+  Initializes lazy stream by iteratively applying
+  function `f` on previous results.
 
   This function may generate infinite stream.
  ##}

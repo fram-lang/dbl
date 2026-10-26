@@ -68,7 +68,7 @@ and try_focus_ctor_i ctx name left right exs =
   match right with
   | [] -> try_focus_ctor_p ctx name (List.rev left) [] exs
   | (iname, ex) :: right ->
-    begin match 
+    begin match
       try_focus (CtxCtorI(name, left, iname, ctx, right, exs)) ex
     with
     | Some ctx -> Some ctx
@@ -134,7 +134,8 @@ and pp_ex_pattern ex =
     let ims_strs = List.filter_map pp_nontrivial_named ims in
     let named_str = String.concat ", " ims_strs in
     let args_str =
-      String.concat "" (List.map (fun a -> " " ^ pp_ex_pattern_wrap true a) args)
+      String.concat ""
+        (List.map (fun a -> " " ^ pp_ex_pattern_wrap true a) args)
     in
     match ims_strs with
     | [] -> name ^ args_str

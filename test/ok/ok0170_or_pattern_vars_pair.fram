@@ -1,0 +1,11 @@
+data Pair A B = Pair of A, B
+
+let proj_first_or_second p =
+  match p with
+  | Pair x _ | Pair _ x => x
+  end
+
+let proj_both p =
+  match p with
+  | Pair x y | Pair y x => Pair x y
+  end

@@ -1,0 +1,4 @@
+data T = A | B
+
+let x = (A | B)
+# @stderr:Syntax error. This construction cannot be used in this context

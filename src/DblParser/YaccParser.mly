@@ -278,6 +278,13 @@ ctor_decl_list
 
 /* ========================================================================= */
 
+/* Pattern-level expressions, i.e., the level lower then the level of
+   definitions. */
+pattern_expr
+: expr                    { $1 }
+| expr BAR pattern_expr   { make (EPOr($1, $3)) }
+;
+
 expr
 : def_list1 KW_IN expr  { make (EDefs($1, $3)) }
 | KW_FN expr_250_list1 ARROW2 expr { make (EFn($2, $4))   }
@@ -487,7 +494,7 @@ expr_simple
 | STR                { make (EStr $1)          }
 | CHR                { make (EChr $1)          }
 | BR_OPN BR_CLS      { make EUnit              }
-| BR_OPN expr BR_CLS { make (EParen $2)        }
+| BR_OPN pattern_expr BR_CLS { make (EParen $2)     }
 | SBR_OPN SBR_CLS    { make (EList [])         }
 | SBR_OPN expr_comma_sep SBR_CLS { make (EList $2)       }
 | KW_MATCH expr KW_WITH KW_END   { make (EMatch($2, [])) }
@@ -518,7 +525,7 @@ str_interp
 /* ========================================================================= */
 
 match_clause
-: expr ARROW2 expr { make (Clause($1, $3)) }
+: pattern_expr ARROW2 expr { make (Clause($1, $3)) }
 ;
 
 match_clause_list
@@ -639,8 +646,8 @@ def_list1
 /* ========================================================================= */
 
 h_clause
-: KW_RETURN  expr ARROW2 expr { make (HCReturn($2, $4))  }
-| KW_FINALLY expr ARROW2 expr { make (HCFinally($2, $4)) }
+: KW_RETURN  pattern_expr ARROW2 expr { make (HCReturn($2, $4))  }
+| KW_FINALLY pattern_expr ARROW2 expr { make (HCFinally($2, $4)) }
 ;
 
 h_clauses

@@ -89,7 +89,8 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
           let env = Env.extend env x k in
           eval_expr env e)
         cont
-    | v -> failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
+    | v ->
+      failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
     end
   | EReset(v, vs, e1, x, e2) ->
     begin match eval_value env v with
@@ -98,7 +99,8 @@ let rec eval_expr env (e : Lang.Untyped.expr) cont =
       reset0 l vs (eval_expr env e1)
         (fun v -> eval_expr (Env.extend env x v) e2)
         cont
-    | v -> failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
+    | v ->
+      failwith ("Runtime error: expected <label>, actual: "^to_string v^"!")
     end
   | ERepl func -> eval_repl env func cont
   | EReplExpr(e1, tp, e2) ->

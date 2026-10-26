@@ -1,0 +1,9 @@
+data T = A | B | C
+
+let _ =
+  handle x = A
+  return (A | B) => C
+  return C => A
+  finally (A | B | C) => ()
+  in
+  x
