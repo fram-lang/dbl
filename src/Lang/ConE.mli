@@ -116,17 +116,8 @@ type data_def =
         (** Effect of the delimiter *)
     }
 
-(** Expressions *)
-type expr =
-  | EUnitPrf
-    (** ADT-shape proof for unit type *)
-
-  | EBoolPrf
-    (** ADT-shape proof for bool type *)
-
-  | EOptionPrf
-    (** ADT-shape proof for option type *)
-
+(** Literals *)
+type literal =
   | ENum of int
     (** Integer literal *)
 
@@ -138,6 +129,20 @@ type expr =
 
   | EChr of char
     (** Character literal *)
+
+(** Expressions *)
+type expr =
+  | EUnitPrf
+    (** ADT-shape proof for unit type *)
+
+  | EBoolPrf
+    (** ADT-shape proof for bool type *)
+
+  | EOptionPrf
+    (** ADT-shape proof for option type *)
+
+  | ELit of literal
+    (** Literal *)
 
   | EVar of var
     (** Variable *)

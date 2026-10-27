@@ -266,7 +266,7 @@ type proof_expr =
   | PE_Unit
     (** Proof that Unit is an ADT with only one constructor *)
 
-  | PE_Bool 
+  | PE_Bool
     (** Proof that Bool is an ADT with True and False constructors *)
 
   | PE_Option of typ
@@ -277,6 +277,20 @@ type proof_expr =
     (** Variable generated at the ADT definition, applied to the parameters
       of the ADT. *)
 
+(** Literal *)
+type literal =
+  | ENum of int
+    (** Integer literal *)
+
+  | ENum64 of int64
+    (** 64 bit integer literal *)
+
+  | EStr of string
+    (** String literal *)
+
+  | EChr of char
+    (** Character literal *)
+
 (** Pattern *)
 type pattern = pattern_data node
 and pattern_data =
@@ -285,6 +299,9 @@ and pattern_data =
 
   | PAs of pattern * var
     (** Pattern that binds a variable and continues with a subpattern *)
+
+  | PLit of literal
+    (** Literal pattern *)
 
   | PCtor of
     string * int * proof_expr * tvar list * pattern list * pattern list
@@ -335,17 +352,8 @@ and expr_data =
   | EInst of poly_expr * type_expr list * poly_fun list
     (** Instantiation of polymorphic expression *)
 
-  | ENum of int
-    (** Integer literal *)
-
-  | ENum64 of int64
-    (** 64 bit integer literal *)
-
-  | EStr of string
-    (** String literal *)
-
-  | EChr of char
-    (** Character literal *)
+  | ELit of literal
+    (** Literal *)
 
   | EFn of var * scheme_expr * expr * effct
     (** Effect-annotated lambda-abstraction. *)

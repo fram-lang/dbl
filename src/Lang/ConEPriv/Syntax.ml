@@ -23,14 +23,17 @@ type data_def =
       delim_eff : effct
     }
 
-type expr =
-  | EUnitPrf
-  | EBoolPrf
-  | EOptionPrf
+type literal =
   | ENum      of int
   | ENum64    of int64
   | EStr      of string
   | EChr      of char
+
+type expr =
+  | EUnitPrf
+  | EBoolPrf
+  | EOptionPrf
+  | ELit      of literal
   | EVar      of var
   | EFn       of var * scheme * expr
   | ETFun     of tvar * expr

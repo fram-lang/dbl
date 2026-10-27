@@ -76,6 +76,7 @@ end
 type t =
   | PWildcard
   | PAs       of t * T.var
+  | PLit      of T.literal 
   | PCtor     of
       { name  : string;
         idx   : int;
@@ -105,7 +106,7 @@ let open_tvars env targs tvars =
 
 let rec check_type env (pat : S.pattern) tp =
   match pat.data with
-  | PWildcard | PAnnot _ | POr _ ->
+  | PWildcard | PLit _ | PAnnot _ | POr _ ->
     check_scheme env pat (T.Scheme.of_type tp)
 
   | PAs(pat, x) ->
@@ -185,6 +186,32 @@ and check_patterns env penv sub pats schs =
 and check_scheme env (pat : S.pattern) sch =
   match pat.data with
   | PWildcard -> (PWildcard, PEnv.empty)
+
+  | PLit l ->
+    let check_lit_scheme lit_tp =
+      begin match T.Scheme.to_type sch with
+      | Some tp ->
+          begin match T.Type.view tp, T.Type.view lit_tp with
+          | TVar x, TVar y -> assert (T.TVar.equal x y)
+          | _, _ -> assert false
+          end
+      | None -> assert false
+      end
+    in
+    begin match l with
+    | ENum n ->
+      check_lit_scheme (T.Type.t_var T.BuiltinType.tv_int);
+      (PLit (ENum n), PEnv.empty)
+    | ENum64 n ->
+      check_lit_scheme (T.Type.t_var T.BuiltinType.tv_int64);
+      (PLit (ENum64 n), PEnv.empty)
+    | EStr s ->
+      check_lit_scheme (T.Type.t_var T.BuiltinType.tv_string);
+      (PLit (EStr s), PEnv.empty)
+    | EChr c ->
+      check_lit_scheme (T.Type.t_var T.BuiltinType.tv_char);
+      (PLit (EChr c), PEnv.empty)
+    end
 
   | PAs(pat, x) ->
     let (pat, penv) = check_scheme env pat sch in
