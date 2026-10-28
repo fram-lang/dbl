@@ -1,0 +1,3 @@
+(library
+  (name linearityInference)
+  (libraries interpLib lang utils))

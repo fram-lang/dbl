@@ -9,6 +9,9 @@ type t = private int
 (** Comparator *)
 val compare : t -> t -> int
 
+(** Equality *)
+val equal : t -> t -> bool
+
 (** Generate fresh identifier *)
 val fresh : unit -> t
 

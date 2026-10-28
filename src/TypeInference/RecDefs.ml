@@ -613,6 +613,9 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
     | EAnnotEff(e, tp, eff) ->
       make (T.EAnnotEff(update_expr e, tp, eff))
 
+    | EModeAnnot a ->
+      make (T.EModeAnnot { a with body = update_expr a.body })
+
     | ELetRec _ | ERecCtx _ | EMatchEmpty(_, _, _, Impure)
     | EMatch(_, _, _, Impure) | EMatchPoly(_, _, _, _, Impure) | EHandle _
     | EEffect _ ->

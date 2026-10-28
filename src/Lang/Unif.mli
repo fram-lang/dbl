@@ -483,6 +483,23 @@ and expr_data =
     (** Expression explicitly annotated with a type (second parameter) and an
       effect (third parameter) *)
 
+  | EModeAnnot of
+    { body         : expr;
+      (** Expression that is annotated with an effect mode *)
+
+      mode         : EffectMode.t;
+      (** Effect mode annotation *)
+
+      resource_pos : Position.t;
+      (** Position of the resource definition that introduces the mode
+        annotation. *)
+
+      resource_use : Position.t list
+      (** Positions where the resource was used. The first position is the
+        position of the outermost function call and the last position is the
+        position where the original resourceful function was used. *)
+    }
+
   | ERepl of (unit -> expr) * typ
     (** REPL. It is a function that prompts user for another input. It returns
       an expression to evaluate, usually containing another REPL expression.

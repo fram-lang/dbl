@@ -147,6 +147,12 @@ and expr_data =
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
   | EAnnotEff   of expr * type_expr * type_expr
+  | EModeAnnot  of
+    { body         : expr;
+      mode         : EffectMode.t;
+      resource_pos : Position.t;
+      resource_use : Position.t list
+    }
   | ERepl       of (unit -> expr) * typ
   | EReplExpr   of
     { body   : expr;
