@@ -12,6 +12,20 @@ function simple_examples {
   simple_test examples/Prolog.fram
   simple_test examples/Pythagorean.fram
   simple_test examples/Modules/Main.fram
+  simple_test examples/pretty/tutorial/Tutorial1-basic.fram
+  simple_test examples/pretty/tutorial/Tutorial2-combine.fram
+  simple_test examples/pretty/tutorial/Tutorial3-flush.fram
+  simple_test examples/pretty/tutorial/Tutorial4-vcat.fram
+  simple_test examples/pretty/tutorial/Tutorial5-hang.fram
+  simple_test examples/pretty/tutorial/Tutorial6-aligns.fram
+  simple_test examples/pretty/tutorial/Tutorial7-alignScopes.fram
+  simple_test examples/pretty/tutorial/Tutorial8-hcat.fram
+  simple_test examples/pretty/tutorial/Tutorial9-vsep.fram
+  simple_test examples/pretty/tutorial/Tutorial10-style.fram
+  simple_test examples/pretty/examples/Example1-impPrettyPrinter.fram
+  simple_test examples/pretty/examples/Example2-table.fram
+  simple_test examples/pretty/examples/Example3-tablesWithHang.fram
+  simple_test examples/pretty/examples/Example4-alignmentsUnderCat.fram
 }
 
 run_with_flags simple_examples ""

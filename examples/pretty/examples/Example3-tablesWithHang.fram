@@ -1,0 +1,23 @@
+import open Pretty
+import List
+
+{##
+  Pretty printer example 3:
+    Tables with hang
+ ##}
+
+let cell1 = text "aaaaaa" </> text "aaa"
+let cell2 = text "bb" </> text "bbb"
+let cell3 = text "ccc" </> text "cccc" </> text "c"
+let cell4 = text "d" </> text "dddd"
+let empty = text ""
+
+let hsep = empty >+> shift {fill='-'} vsep
+
+let table = (vsep >+> hsep >+> hsep)
+         $$ (vsep >+> cell1 >+>& vsep >+> cell2 >+>& vsep)
+         $$ (vsep >+> cell3 >+>& vsep >+> cell4 >+>& vsep)
+
+let _ = [25, 21, 20].iter (fn width =>
+  printStrLn (generate {width} table))
+

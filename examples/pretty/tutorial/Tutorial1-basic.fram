@@ -1,0 +1,8 @@
+import open Pretty
+
+# Create a simple document from plain text.
+let myDoc = text "Hello World!"
+
+# `generate` converts a `Doc` into a String.
+# The result is printed to standard output.
+let _ = printStrLn (generate myDoc)
