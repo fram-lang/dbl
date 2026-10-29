@@ -201,23 +201,25 @@ and tr_expr env e =
     let res = make (EHandlerFn { h with body }) in
     (res, TAny, RNone)
 
-  | EEffect(lbl, Unrestricted, x, body, res_tp) ->
+  | EEffect(lbl,
+      (({ mode = Unrestricted; _ } | { should_check = false; _ }) as mode),
+      x, body, res_tp) ->
     let (lbl, tp1, rs1) = tr_expr env lbl in
     let env = Env.add_var env x TAny in
     let (body, tp2, rs2) = tr_expr env body in
     Resource.ensure_no_resources_t body tp2;
     Resource.ensure_no_resources_r body rs2;
-    let res = make (EEffect(lbl, Unrestricted, x, body, res_tp)) in
+    let res = make (EEffect(lbl, mode, x, body, res_tp)) in
     (res, TAny, rs1)
 
-  | EEffect(lbl, Affine, x, body, res_tp) ->
+  | EEffect(lbl, ({ mode = Affine; _ } as mode), x, body, res_tp) ->
     let (lbl, tp1, rs1) = tr_expr env lbl in
     let rsid = Resource.fresh ~pos:e.pos Affine in
     let env = Env.add_var env x (TArrow(TAny, RSome(rsid, []))) in
     let (body, tp2, rs2) = tr_expr env body in
     Resource.ensure_no_resources_t body tp2;
     Resource.check_usage body rsid rs2;
-    let res = make (EEffect(lbl, Affine, x, body, res_tp)) in
+    let res = make (EEffect(lbl, mode, x, body, res_tp)) in
     (res, TAny, rs1)
 
   | EAnnot(e, tp_expr) ->

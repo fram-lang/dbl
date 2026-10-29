@@ -143,7 +143,7 @@ and expr_data =
       comp_var  : var;
       body      : expr
     }
-  | EEffect     of expr * EffectMode.t * var * expr * typ
+  | EEffect     of expr * EffectMode.extended * var * expr * typ
   | EExtern     of string * typ
   | EAnnot      of expr * type_expr
   | EAnnotEff   of expr * type_expr * type_expr

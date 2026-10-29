@@ -1,0 +1,2 @@
+handle f = aff effect () => resume (); resume ()
+# @stderr: Affine resource used more than once

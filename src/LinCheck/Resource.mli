@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-(** Types used by the linearity constraint inference. *)
+(** Types used by the linearity checking. *)
 
 (** Mode of a resource. *)
 type mode =

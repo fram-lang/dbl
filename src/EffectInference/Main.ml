@@ -13,4 +13,5 @@ let tr_program ~solve_all p =
       (T.Type.t_var T.BuiltinType.tv_unit)
       (Check T.CEffect.prog_effect) in
   ConstrSolver.final_solve env;
+  InterpLib.Error.assert_no_error ();
   e

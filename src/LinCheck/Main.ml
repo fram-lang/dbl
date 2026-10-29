@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-(** The main module of the linearity constraint inference. *)
+(** The main module of the linearity checking. *)
 
 let tr_program p =
   let (p, _, _) = Expr.tr_expr Env.initial p in

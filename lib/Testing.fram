@@ -6,6 +6,7 @@ import Map
 import Mutable as M
 import String as S
 import List
+import State
 import AnsiTerminal as T
 
 ## # Testing framework
@@ -102,23 +103,27 @@ data TestCaseTracker E =
   }
 
 let testCaseTrackerH =
-  handler TestCaseTracker
-    { aff effect softFail _ / r = fn _ => r () TR_Reject
-    , aff effect hardFail _ / r = fn _ => TR_Reject
-    , aff effect testExit _     = fn s => s
-    }
-    return _ => id
-    finally c => c TR_Accept
+  handlerfn
+    handle st with State.hState TR_Accept
+    handle tracker =
+      TestCaseTracker
+        {            softFail _ = st := TR_Reject
+        , aff effect hardFail _ = TR_Reject
+        , aff effect testExit _ = st.get
+        }
+      return _ => st.get
+    in
+    tracker
   end
 
 {# Stores all logs from a test case execution. #}
 data TestLogger E = { log : LogMessage ->[aff E] Unit }
 
 let testLoggerH =
-  handler TestLogger
-    { aff effect log l / r = fn logs => r () (l :: logs) }
-    return s => fn logs => (s, List.rev logs)
-    finally c => c ([] : List LogMessage)
+  handlerfn
+    handle logs with State.hState [] in
+    TestLogger { log l = logs := l :: logs.get }
+    return s => (s, List.rev logs.get)
   end
 
 {#
@@ -444,11 +449,9 @@ section
       (expected.equal actual)
 
   let callsOnError {~onError} (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
-    handle
-      ~onError = aff effect arg / r => fn _ => r (~onError arg) True
-      return _ => fn s => s
-      finally c => c False
-    in f ()
+    handle hit with State.hState False in
+    f { ~onError arg = hit := True; ~onError arg } ();
+    hit.get
 
   {##
     Asserts that given function will call ~onError function.

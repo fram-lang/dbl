@@ -30,8 +30,8 @@ pub method update (cell : State E X) f =
 {## Handler for the `State` effect, initializing the cell with `initial`. ##}
 pub let hState (initial : X) =
   handler State
-    { aff effect get () = fn st => resume st st
-    , aff effect set st = fn _  => resume () st
+    { trustme aff effect get () = fn st => resume st st
+    , trustme aff effect set st = fn _  => resume () st
     }
   return  x => fn _ => x
   finally c => c initial

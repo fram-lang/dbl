@@ -1,0 +1,4 @@
+handle foo = aff effect () / (r : Unit ->> Unit) =>
+  handle bar = effect () / (_ : Unit ->> Unit) => r () in
+  bar ()
+# @stderr: resource cannot be used in this context

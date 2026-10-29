@@ -2,7 +2,7 @@
  * See LICENSE for details.
  *)
 
-(** The environment of the linearity constraint inference *)
+(** The environment of the linearity checking *)
 
 type t =
   { var_map  : Resource.typ Var.Map.t;

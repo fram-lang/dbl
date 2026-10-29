@@ -67,6 +67,7 @@ let check_effect_mode env ~origin mode (eff : T.ceffect) =
   match eff with
   | Pure -> ()
   | Impure eff ->
+    let origin = origin eff in
     ConstrSolver.add_constraint ~origin env eff (T.Effct.proj mode eff)
 
 (* ========================================================================= *)
@@ -544,7 +545,8 @@ and infer_type : type ed.
     let (body, Checked) =
       check_type env body delim_tp (Check (Impure delim_eff)) in
     let eff_resp2 =
-      return_effect env ~node:e eff_req (Impure (T.Effct.proj mode eff)) in
+      return_effect env ~node:e eff_req
+        (Impure (T.Effct.proj mode.mode eff)) in
     let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
     let res = T.EShift(lbl, x, body, res_tp) in
     (res, res_tp, eff_resp)
@@ -569,7 +571,7 @@ and infer_type : type ed.
     let pos = body.pos in
     let pp  = body.pp in
     let (body, tp, Infered eff) = infer_type env body Infer in
-    let origin =
+    let origin eff =
       OResourceMode { pos; pp; mode; eff; resource_pos; resource_use } in
     check_effect_mode env ~origin mode eff;
     (body, tp, return_effect env ~node:e eff_req eff)
