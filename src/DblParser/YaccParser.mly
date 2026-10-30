@@ -17,7 +17,7 @@
 %token KW_IN KW_LABEL KW_LET KW_MATCH KW_METHOD KW_MODULE KW_OF KW_OPEN
 %token KW_PARAMETER KW_PUB
 %token KW_REC
-%token KW_RETURN KW_SECTION KW_THEN KW_TOTAL KW_TYPE KW_WITH
+%token KW_RETURN KW_SECTION KW_THEN KW_TOTAL KW_TRUSTME KW_TYPE KW_WITH
 %token UNDERSCORE
 %token EOF
 
@@ -55,8 +55,10 @@ bar_opt
 ;
 
 eff_mode
-: /* empty */ { EffectMode.Unrestricted }
-| KW_AFF      { EffectMode.Affine }
+: /* empty */ { EffectMode.{ mode = Unrestricted; should_check = true } }
+| KW_AFF      { EffectMode.{ mode = Affine;       should_check = true } }
+| KW_TRUSTME KW_AFF {
+    EffectMode.{ mode = Affine; should_check = false } }
 ;
 
 /* ========================================================================= */

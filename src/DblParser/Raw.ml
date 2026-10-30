@@ -85,7 +85,7 @@ type ('tp, 'e) field_data =
     (** Explicit instantiation with an effectful function *)
     { name       : name;
       label      : 'e option;
-      mode       : EffectMode.t;
+      mode       : EffectMode.extended;
       args       : 'e list;
       resumption : 'e option;
       body       : 'e
@@ -215,7 +215,7 @@ and expr_data =
 
   | EEffect of
     { label      : expr option;
-      mode       : EffectMode.t;
+      mode       : EffectMode.extended;
       args       : expr list;
       resumption : expr option;
       body       : expr

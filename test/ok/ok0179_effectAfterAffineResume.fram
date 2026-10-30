@@ -1,0 +1,3 @@
+handle id1 = effect x => resume x; resume x
+handle id2 = aff effect x => id1 (resume x)
+let _ = id2 ()

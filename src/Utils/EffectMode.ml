@@ -10,3 +10,10 @@ type t =
 
   | Affine
     (** Affine effect, i.e., the computation returns at most once. *)
+
+(** Extended effect mode, which includes a flag indicating whether a resource
+  usage should be checked. *)
+type extended =
+  { mode         : t;
+    should_check : bool
+  }

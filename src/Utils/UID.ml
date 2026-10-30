@@ -8,6 +8,8 @@ type t = int
 
 let compare = Int.compare
 
+let equal = Int.equal
+
 let next_fresh = ref 0
 let fresh () =
   let x = !next_fresh in

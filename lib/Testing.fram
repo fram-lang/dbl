@@ -103,9 +103,9 @@ data TestCaseTracker E =
 
 let testCaseTrackerH =
   handler TestCaseTracker
-    { aff effect softFail _ / r = fn _ => r () TR_Reject
-    , aff effect hardFail _ / r = fn _ => TR_Reject
-    , aff effect testExit _     = fn s => s
+    { trustme aff effect softFail _ / r = fn _ => r () TR_Reject
+    , trustme aff effect hardFail _ / r = fn _ => TR_Reject
+    , trustme aff effect testExit _     = fn s => s
     }
     return _ => id
     finally c => c TR_Accept
@@ -116,7 +116,7 @@ data TestLogger E = { log : LogMessage ->[aff E] Unit }
 
 let testLoggerH =
   handler TestLogger
-    { aff effect log l / r = fn logs => r () (l :: logs) }
+    { trustme aff effect log l / r = fn logs => r () (l :: logs) }
     return s => fn logs => (s, List.rev logs)
     finally c => c ([] : List LogMessage)
   end
@@ -445,7 +445,7 @@ section
 
   let callsOnError {~onError} (f : {E, ~onError : _ ->[aff E] _} -> Unit ->> _) =
     handle
-      ~onError = aff effect arg / r => fn _ => r (~onError arg) True
+      ~onError = trustme aff effect arg / r => fn _ => r (~onError arg) True
       return _ => fn s => s
       finally c => c False
     in f ()

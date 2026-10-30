@@ -1,0 +1,12 @@
+data T = A | B | C | D
+
+let foo () =
+  handle f = aff effect x =>
+    match x with
+    | A => A
+    | B => resume C
+    | C => resume D
+    | D => A
+    end
+in
+  f (f (f (f B)))
