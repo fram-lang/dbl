@@ -582,6 +582,7 @@ and infer_type : type ed.
     let func () =
       let (body, Checked) = check_type env (func ()) tp (Check eff) in
       ConstrSolver.final_solve env;
+      InterpLib.Error.assert_no_error ();
       body
     in
     (T.ERepl(func, tp, eff), tp, eff_resp)

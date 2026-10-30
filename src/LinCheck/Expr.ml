@@ -93,11 +93,10 @@ and tr_expr env e =
   | EAppPoly(e1, e2) ->
     let (e1, tp1, rs1) = tr_expr env e1 in
     let e2 = tr_poly_fun env e2 in
-    let (tp2, rs2) = Resource.as_arrow ~pos:e.pos tp1 in
-    Resource.ensure_no_resources_t e2 tp2;
-    let e1 = Resource.guard e1 rs2 in
+    let (tp_f, rs_f) = Resource.as_arrow ~pos:e.pos tp1 in
+    let e1 = Resource.guard e1 rs_f in
     let res = make (EAppPoly(e1, e2)) in
-    (res, tp2, Resource.seq_join rs1 rs2)
+    (res, tp_f, Resource.seq_join rs1 rs_f)
 
   | EAppMono(e1, e2) ->
     let (e1, tp1, rs1) = tr_expr env e1 in
