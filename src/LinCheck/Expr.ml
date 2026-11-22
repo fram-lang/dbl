@@ -28,7 +28,10 @@ let rec process_pattern env pat tp =
 
   | POr(pat1, _) ->
     (* Subpatterns bind the same variables, so we can just process the first
-      one. *)
+      one. We pass [TAny] as the type, which can cause some loss of precision,
+      but it approximates the desired behavior from the safe side. The more
+      precise combination of information from both subpatterns could be
+      implemented, but it is not worth the complexity. *)
     process_pattern env pat1 TAny
 
 and process_patterns env pats =
@@ -171,6 +174,10 @@ and tr_expr env e =
     let (e1, tp1, rs1) = tr_expr env e1 in
     let env = Env.add_var env x TAny in
     let (e2, tp2, rs2) = tr_expr env e2 in
+    (* We have to ensure that the rest of the computation does not use any
+      resources, because [e1] can be any function defined by handlerfn
+      construct, so we cannot guarantee that [e2] will be executed exactly
+      once. *)
     Resource.ensure_no_resources_t e2 tp2;
     Resource.ensure_no_resources_r e2 rs2;
     let res = make (EHandle(a, x, e1, e2)) in
