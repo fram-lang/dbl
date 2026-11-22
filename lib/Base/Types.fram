@@ -8,4 +8,6 @@ pub data Pair X Y = (,) of X, Y
 
 pub data Either X Y = Left of X | Right of Y
 
+pub data Ord = Lt | Eq | Gt
+
 pub data Result A E = Ok of A | Err of E
