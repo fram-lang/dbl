@@ -129,11 +129,10 @@ and eval_value env (v : Lang.Untyped.value) =
     end
 
 and eval_repl env func cont =
-  match func () with
+  match BRef.bracket func with
   | e -> eval_expr env e cont
   | exception InterpLib.Error.Fatal_error ->
     InterpLib.Error.reset ();
-    (* TODO: backtrack references *)
     eval_repl env func cont
 
 let eval_program p =
