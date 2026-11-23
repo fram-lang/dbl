@@ -34,6 +34,7 @@ end
 type t =
   | PWildcard
   | PAs       of t * T.var
+  | PLit      of T.literal 
   | PCtor     of
       { name  : string;
         idx   : int;

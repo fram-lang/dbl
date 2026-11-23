@@ -37,33 +37,33 @@ let infer_expr_type ~tcfix ?app_type env (e : S.expr) =
       er_constr = []
     }
 
-  | ENum n ->
-    { er_expr   = make (T.ENum n);
-      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_int);
-      er_effect = Pure;
-      er_constr = []
-    }
-
-  | ENum64 n ->
-    { er_expr   = make (T.ENum64 n);
-      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_int64);
-      er_effect = Pure;
-      er_constr = []
-    }
-
-  | EStr s ->
-    { er_expr   = make (T.EStr s);
-      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_string);
-      er_effect = Pure;
-      er_constr = []
-    }
-
-  | EChr c ->
-    { er_expr   = make (T.EChr c);
-      er_type   = Infered (T.Type.t_var T.BuiltinType.tv_char);
-      er_effect = Pure;
-      er_constr = []
-    }
+  | ELit l ->
+    begin match l with
+    | ENum n ->
+      { er_expr   = make (T.ELit(ENum n));
+        er_type   = Infered (T.Type.t_var T.BuiltinType.tv_int);
+        er_effect = Pure;
+        er_constr = []
+      }
+    | ENum64 n ->
+      { er_expr   = make (T.ELit(ENum64 n));
+        er_type   = Infered (T.Type.t_var T.BuiltinType.tv_int64);
+        er_effect = Pure;
+        er_constr = []
+      }
+    | EStr s ->
+      { er_expr   = make (T.ELit(EStr s));
+        er_type   = Infered (T.Type.t_var T.BuiltinType.tv_string);
+        er_effect = Pure;
+        er_constr = []
+      }
+    | EChr c ->
+      { er_expr   = make (T.ELit(EChr c));
+        er_type   = Infered (T.Type.t_var T.BuiltinType.tv_char);
+        er_effect = Pure;
+        er_constr = []
+      }
+    end
 
   | EPoly(e, inst) ->
     let (p_ctx, e, sch) = PolyExpr.infer_use_scheme ~tcfix ?app_type env e in
@@ -316,8 +316,8 @@ let check_expr_type ~tcfix env (e : S.expr) tp =
   let pp = Env.pp_tree env in
   let make data = T.{ pos; pp; data } in
   match e.data with
-  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _
-  | EAnnot _ | EAnnotEff _ | EAnnotTotal _ ->
+  | EUnit | ELit _ | EPoly _ | EApp _ | EAnnot _ | EAnnotEff _ 
+  | EAnnotTotal _ ->
     check_expr_type_default ~tcfix env e tp
 
   | EFn(pat, body) ->

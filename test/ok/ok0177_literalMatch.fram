@@ -1,0 +1,36 @@
+let f (x: Int) =
+  match x with
+  | 0 => 0
+  | 1 => 1
+  | 2 => 2
+  | _ => 3
+  end
+
+let fs (s: String) = 
+  match s with
+  | "fram" => "fram"
+  | "compiler" => "not found :("
+  | _ => "abcd"
+  end
+
+let fc (c: Char) = 
+  match c with
+  | 'a' => 'a'
+  | 'b' => 'b'
+  | _ => 'c'
+  end
+
+data Pair X Y = (,) of X, Y
+
+let fp x y =
+  match (x,y) with
+  | (1,2) => 1
+  | (_,_) => 0
+  end
+
+let _ = f 3
+let _ = fs "compiler"
+let _ = fc 'x'
+let _ = fp 1 2 
+
+

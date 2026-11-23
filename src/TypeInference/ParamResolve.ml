@@ -244,9 +244,9 @@ and resolve_implicit ~resolve_env rctx iname sch =
     (* Special implicits *)
     let (param_expr, param_tvar) = match iname with
       | "~__line__" -> 
-        (make (T.ENum pos.pos_start_line), T.BuiltinType.tv_int)
+        (make (T.ELit(ENum pos.pos_start_line)), T.BuiltinType.tv_int)
       | "~__file__" -> 
-        (make (T.EStr pos.pos_fname), T.BuiltinType.tv_string)
+        (make (T.ELit(EStr pos.pos_fname)), T.BuiltinType.tv_string)
       | _ -> Error.fatal (Error.cannot_resolve_implicit ~pos iname) in
     (* Check types *)
     let param_sch = T.Scheme.of_type (T.Type.t_var param_tvar) in

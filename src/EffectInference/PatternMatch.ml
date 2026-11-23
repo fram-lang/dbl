@@ -98,7 +98,7 @@ let rec simplify_head x (cl : iclause) =
   | POr(pat1, pat2) :: pats ->
     simplify_head x { cl with c_patterns = pat1 :: pats } @
     simplify_head x { cl with c_patterns = pat2 :: pats }
-  | (PWildcard | PCtor _) :: _ -> [cl]
+  | (PWildcard | PLit _ | PCtor _) :: _ -> [cl]
 
 (** Normalize patterns at head position by simplifying as-patterns and
     expanding or-patterns in given clause list *)
@@ -118,6 +118,8 @@ let simplify_ctor idx (ctor : T.ctor_decl) tvs cl =
     let pats1 = List.map (fun _ -> Pattern.PWildcard) ctor.ctor_named in
     let pats2 = List.map (fun _ -> Pattern.PWildcard) ctor.ctor_arg_schemes in
     Some { cl with c_patterns = pats1 @ pats2 @ pats }
+
+  | PLit _ :: _  -> assert false
 
   | PCtor pc :: pats when pc.idx = idx ->
     assert (List.length pc.tvars = List.length tvs);
@@ -146,6 +148,10 @@ type column_class =
   | CC_Wildcard
     (** All patterns wild-cards *)
 
+  | CC_Lit of T.literal list
+    (** There is a literal pattern in the column. It stores the list of all
+      literals. *)
+
   | CC_ADT of T.expr * T.ctor_decl list
     (** There is a constructor pattern in the column. It stores computationally
       irrelevant proof of the shape of the constructor and the list of all
@@ -160,6 +166,21 @@ let rec column_class (cls : iclause list) =
     begin match cl.c_patterns with
     | [] -> assert false
     | PWildcard :: _ -> column_class cls
+    | PLit lit :: _ -> 
+      let rec collect acc cls = 
+        match cls with
+        | [] -> acc
+        | cl :: cls ->
+          (match cl.c_patterns with
+          | [] -> assert false
+          | PWildcard :: _ -> collect acc cls
+          | PLit l :: _ ->
+              if List.exists (fun x -> x = l) acc
+              then collect acc cls
+              else collect (l :: acc) cls
+          | (PCtor _ | PAs (_, _) | POr(_, _)) :: _ -> assert false)
+      in
+      CC_Lit (collect [lit] cls)
     | PCtor cp :: _ -> CC_ADT(cp.proof, cp.ctors)
     | PAs _ :: _ | POr _ :: _ ->
       (* As-patterns and or-patterns should be already simplified *)
@@ -199,10 +220,84 @@ module Make(Ctx : MatchContext) = struct
       | CC_Wildcard ->
         tr_match (refocus ctx) xs (List.map drop_wildcard cls)
 
+      | CC_Lit(lits) ->
+        tr_match_lit ctx x xs cls lits
+
       | CC_ADT(proof, ctors) ->
         let match_cls = List.mapi (tr_match_clause ctx xs cls) ctors in
         T.EMatch(proof, T.EVar x, match_cls, Ctx.res_tp, Ctx.res_eff)
       end
+
+  and make_eq_type (lit: T.literal) = 
+    let tp_lit = 
+      match lit with 
+      | ENum n   -> T.Type.t_var T.BuiltinType.tv_int
+      | ENum64 n -> T.Type.t_var T.BuiltinType.tv_int64
+      | EStr s   -> T.Type.t_var T.BuiltinType.tv_string
+      | EChr c   -> T.Type.t_var T.BuiltinType.tv_char
+    in 
+    let tp_bool = T.Type.t_var T.BuiltinType.tv_bool in
+    let sch_lit = T.Scheme.of_type tp_lit in
+    let inner = T.Type.t_arrow sch_lit tp_bool T.Pure
+    in
+    T.Type.t_arrow sch_lit inner T.Pure 
+
+  and make_eq_expr (x : T.expr) (lit : T.literal) : T.expr =
+    let eq_tp = make_eq_type lit in
+    match lit with
+    | ENum n ->
+      T.EApp(T.EApp(T.EExtern("dbl_eqInt", eq_tp), x), T.ELit(ENum n))
+    | ENum64 n ->
+      T.EApp(T.EApp(T.EExtern("dbl_eqInt64", eq_tp), x), T.ELit(ENum64 n))
+    | EStr s ->
+      T.EApp(T.EApp(T.EExtern("dbl_eqStr", eq_tp), x), T.ELit(EStr s))
+    | EChr c ->
+      T.EApp(T.EApp(T.EExtern("dbl_eqInt", eq_tp), x), T.ELit(EChr c))
+
+  and make_eq_match x lit then_e else_e =
+    let cond = make_eq_expr(T.EVar x) lit in
+    let cl_true =
+      { T.cl_tvars = [];
+        T.cl_vars  = [];
+        T.cl_body  = then_e 
+      } in
+    let cl_false =
+      { T.cl_tvars = [];
+        T.cl_vars  = [];
+        T.cl_body  = else_e 
+      } in
+    T.EMatch(T.EBoolPrf, cond, [cl_false; cl_true], Ctx.res_tp, Ctx.res_eff)
+
+  (** Build a match clause for a literal *)
+  and tr_match_lit ctx x xs cls lits =
+    let is_default cl = 
+      match cl.c_patterns with
+      | (PWildcard | PAs _)  :: _ -> true
+      | _ -> false 
+    in
+    let drop cl =
+      match cl.c_patterns with
+      | _ :: pats -> { cl with c_patterns = pats }
+      | [] -> assert false
+    in
+    let default_cls = List.filter is_default cls in
+    let default_branch =
+      match default_cls with
+      | [] -> Error.fatal (Error.non_exhaustive_match ~pos:Ctx.pos ctx)
+      | _ -> tr_match (refocus ctx) xs (List.map drop default_cls)
+    in
+    List.fold_right (fun lit acc ->
+      let cls_lit =
+      List.filter (fun cl ->
+        match cl.c_patterns with
+        | PLit l :: _ -> (l = lit)
+        | PWildcard :: _ -> true
+        | _ -> false)
+      cls
+    in
+    let branch = tr_match (refocus ctx) xs (List.map drop cls_lit) in
+    make_eq_match x lit branch acc)
+    lits default_branch
 
   (** Build a match clause for a single constructor. *)
   and tr_match_clause ctx xs cls idx (ctor : T.ctor_decl) =

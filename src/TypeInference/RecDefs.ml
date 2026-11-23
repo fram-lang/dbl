@@ -56,8 +56,8 @@ let rec prepare_rec_data env (def : S.def) =
     | PAnnot({ data = PId(public, id); _ }, sch) ->
       (env, make (D1_Label(x, public, id, Some(pat.pos, sch))))
 
-    | PAnnot({ data = PWildcard | PCtor _ | PAnnot _ | POr _; _ }, _)
-    | PWildcard | PCtor _ | POr _ ->
+    | PAnnot({ data = PWildcard | PLit _ | PCtor _ | PAnnot _ | POr _; _ }, _)
+    | PWildcard | PLit _ | PCtor _ | POr _ ->
       Error.fatal (Error.invalid_rec_def ~pos:def.pos)
     end
 
@@ -304,8 +304,8 @@ let rec guess_rec_fun_type env (e : S.expr) tp =
       rfb_body_tp = tp
     }, T.Impure
 
-  | EUnit | ENum _ | ENum64 _ | EStr _ | EChr _ | EPoly _ | EApp _ | EDefs _
-  | EMatch _ | EHandler _ | EHandlerFn _ | EEffect _ | EExtern _ | ERepl _ ->
+  | EUnit | ELit _ | EPoly _ | EApp _ | EDefs _ | EMatch _ | EHandler _
+  | EHandlerFn _ | EEffect _ | EExtern _ | ERepl _ ->
     let pp = Env.pp_tree env in
     { rfb_type    = { T.pos = pos; T.pp = pp; T.data = T.TE_Type tp };
       rfb_args    = [];
@@ -544,7 +544,7 @@ let update_rec_body ~pos fds (body : T.poly_fun) =
     let make data = { body with data = data } in
     match e.data with
 
-    | ENum _ | ENum64 _ | EStr _ | EChr _ | EExtern _ -> e
+    | ELit _ | EExtern _ -> e
 
     | EFn(x, sch, body, Impure) ->
       make (T.EFn(x, sch, make (T.ERecCtx body), Impure))

@@ -36,6 +36,7 @@ let rec make_vis_pattern (pt : Lang.Surface.pattern) =
   map_node begin function
   | PWildcard -> PWildcard
   | PId (_, ident) -> PId (true, ident)
+  | PLit l -> PLit l
   | PAnnot (pt, scheme) -> PAnnot (make_vis_pattern pt, scheme)
   | PCtor (pth, xs, ys) ->
     PCtor

@@ -71,6 +71,7 @@ let rec rename_pattern ren (pat : pattern) =
     match pat.data with
     | PWildcard   -> PWildcard
     | PAs(pat, x) -> PAs(rename_pattern ren pat, rename_var ren x)
+    | PLit(lit)   -> PLit(lit)
     | PCtor(name, idx, prf, tvars, pats1, pats2) ->
       PCtor(name, idx, rename_proof_expr ren prf,
              List.map (rename_tvar ren) tvars,
