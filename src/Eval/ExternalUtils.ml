@@ -37,7 +37,7 @@ let of_bool b =
 
 let rec of_list = function
   | [] -> VCtor(0, [])
-  | x :: xs -> VCtor(1, [x; of_list xs]) 
+  | x :: xs -> VCtor(1, [x; of_list xs])
 
 let of_option opt =
   match opt with
@@ -48,5 +48,3 @@ let str_fun f = VFn (fun v cont ->
   match v with
   | VStr s -> cont (f s)
   | _ -> runtime_error "Not a string")
-
-

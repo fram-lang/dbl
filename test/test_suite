@@ -22,6 +22,18 @@ function simple_stdlib_tests {
 
 run_with_flags simple_stdlib_tests ""
 
+function simple_functional_tests {
+  mkdir -p test/tmp
+  for file in test/func/*.fram
+  do
+    simple_test $file
+    rm -f test/tmp/*
+  done
+  rmdir test/tmp
+}
+
+run_with_flags simple_functional_tests ""
+
 function simple_error_tests {
   for file in test/err/*.fram
   do

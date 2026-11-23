@@ -1,0 +1,208 @@
+import open /Os
+
+# Helper functions
+
+let ~onError {~__line__, ~__file__} _ =
+  runtimeError "Unhandled ~onError in Os test module!"
+
+let checkOk v =
+  match v with
+  | Ok _  => True
+  | Err _ => False
+  end
+
+let unwrapRes {~__line__, ~__file__} (v : Result _ OsErr) =
+  match v with
+  | Ok  v => v
+  | Err e => impossible {msg = e.toString} ()
+  end
+
+let assertFalse {?msg : String, ~__line__, ~__file__} (cond : Bool) =
+  assert (cond.neg)
+
+let noOnError
+  {?msg : String, ~__line__, ~__file__} (f : {~onError} -> Unit ->[_] _) =
+  f {~onError = impossible} ()
+
+let callsOnError {~onError} (f : {E, ~onError : _ ->[E,_] _} -> Unit ->> _) =
+  handle
+    ~onError = effect arg / r => fn _ => r (~onError arg) True
+    return _ => fn s => s
+    finally c => c False
+  in f ()
+
+let assertEq
+  { ~__line__
+  , ~__file__
+  , ?msg : String
+  , X : type
+  , Y : type
+  , method show : X ->> String
+  , method show : Y ->> String
+  , method equal : X ->> Y ->> Bool }
+  (expected : X) (actual : Y) =
+  assert
+  {msg =
+  "Assertion Failed: Expected \{expected.show} and \{actual.show} to be equal"}
+  (expected.equal actual)
+
+# Test cases
+
+# Opening and closing
+let _ =
+  let p = "test/data/FileIOTest.txt"
+  # openFile
+  let f1 = unwrapRes (openFile p)
+  let f2 = openFileErr {~onError = fn _ => f1} p in
+  assertFalse (f1 == f2);
+  unwrapRes f1.close;
+  noOnError (fn () => f2.closeErr);
+  assertFalse (fileExists "test/tmp/__nonexistent");
+  let f = unwrapRes (openFile "test/tmp/__nonexistent") in
+  assert (fileExists "test/tmp/__nonexistent");
+  unwrapRes f.close;
+  unwrapRes (removeFile "test/tmp/__nonexistent");
+  assertFalse (fileExists "test/tmp/__nonexistent");
+  let f = noOnError (fn () => openFileErr "test/tmp/__nonexistent") in
+  assert (fileExists "test/tmp/__nonexistent");
+  unwrapRes f.close;
+  unwrapRes (removeFile "test/tmp/__nonexistent");
+
+  # openFileOut
+  let f1 = unwrapRes (openFileOut p)
+  let f2 = openFileOutErr {~onError = fn () => f1} p in
+  assertFalse (f1 == f2);
+  unwrapRes f1.close;
+  noOnError (fn () => f2.closeErr);
+  assertFalse (fileExists "test/tmp/__nonexistent");
+  let f = unwrapRes (openFileOut "test/tmp/__nonexistent") in
+  assert (fileExists "test/tmp/__nonexistent");
+  unwrapRes f.close;
+  unwrapRes (removeFile "test/tmp/__nonexistent");
+  assertFalse (fileExists "test/tmp/__nonexistent");
+  let f = noOnError (fn () => openFileOutErr "test/tmp/__nonexistent") in
+  assert (fileExists "test/tmp/__nonexistent");
+  unwrapRes f.close;
+  unwrapRes (removeFile "test/tmp/__nonexistent");
+
+  # openFileIn
+  let f1 = unwrapRes (openFileIn p)
+  let f2 = openFileInErr {~onError = fn _ => f1} p in
+  assertFalse (f1 == f2);
+  unwrapRes f1.close;
+  noOnError (fn () => f2.closeErr);
+  assertFalse (fileExists "test/tmp/__nonexistent");
+  assertFalse (checkOk (openFileIn "test/tmp/__nonexistent"));
+  assertFalse (fileExists "test/tmp/__nonexistent");
+  assert (callsOnError
+    {~onError = fn _ => stdin}
+    (fn () => openFileInErr "test/tmp/__nonexistent"));
+  assertFalse (fileExists "test/tmp/__nonexistent")
+
+# Reading
+let _ =
+  # read
+  let str1 = "abcdefghijklmnopqrstuvwxyz"
+  let str2 = "0123456789"
+  let f = unwrapRes (openFileIn "test/data/FileIOTest.txt") in
+  assertEq str1 (unwrapRes (f.read 26));
+  assertEq str2 ((f.readErr {~onError = fn () => ""} 10));
+  unwrapRes f.close;
+  let f = unwrapRes (openFileIn "test/data/empty.txt") in
+  assertEq "" (unwrapRes (f.read 1000));
+  assertEq "" ((f.readErr {~onError = fn () => "err"} 1000));
+  unwrapRes f.close;
+
+  # readLine
+  let f = unwrapRes (openFileIn "test/data/ReadLineTest.txt") in
+  let l1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+  let l2 = "Morbi a elit sed nunc sagittis tristique."
+  let l3 = ""
+  let l4 =
+    "Class aptent taciti sociosqu ad litora torquent " +
+    "per conubia nostra, per inceptos himenaeos."
+  in
+  assertEq (Some l1) (unwrapRes f.readLine);
+  assertEq (Some l2) (unwrapRes f.readLine);
+  assertEq (Some l3) (f.readLineErr {~onError = fn () => None});
+  assertEq (Some l4) (f.readLineErr {~onError = fn () => None});
+  let rec aux {~onError} n =
+    if n == 0
+    then ()
+    else (let _ = f.readLineErr in aux (n-1))
+  let _ = (aux {~onError = impossible} 10) in
+  assertEq None (unwrapRes f.readLine);
+  assertEq None (f.readLineErr {~onError = fn () => Some ""});
+  unwrapRes f.close
+
+# Cursor manipulation
+let _ =
+  # seek and reset
+  let f = unwrapRes (openFileIn "test/data/FileIOTest.txt") in
+  unwrapRes (f.seek 5);
+  assertEq "fgh" (unwrapRes (f.read 3));
+  unwrapRes (f.seek {opt = SEEK_SET} 3);
+  assertEq "de" (unwrapRes (f.read 2));
+  unwrapRes (f.seek {opt = SEEK_CUR} 5);
+  assertEq "klm" (unwrapRes (f.read 3));
+  unwrapRes (f.seek {opt = SEEK_END} (-10));
+  assertEq "0123456789" (unwrapRes (f.read 10));
+  unwrapRes (f.resetCursor);
+  assertEq "abcde" ((f.read 5).unwrapOr "");
+  unwrapRes f.resetCursor;
+  # _err versions
+  noOnError (fn _ => f.seekErr 5);
+  assertEq "fgh" (unwrapRes (f.read 3));
+  noOnError (fn _ => f.seekErr {opt = SEEK_SET} 3);
+  assertEq "de" (unwrapRes (f.read 2));
+  noOnError (fn _ => f.seekErr {opt = SEEK_CUR} 5);
+  assertEq "klm" ((f.read 3).unwrapOr "");
+  noOnError (fn _ => f.seekErr {opt = SEEK_END} (-10));
+  assertEq "0123456789" (unwrapRes (f.read 10));
+  noOnError (fn _ => f.resetCursorErr);
+  assertEq "abcde" (unwrapRes (f.read 5));
+  unwrapRes f.close;
+
+  # tell
+  let f = unwrapRes (openFileIn "test/data/FileIOTest.txt") in
+  assertEq 0 (unwrapRes f.tell);
+  unwrapRes (f.seek 10);
+  assertEq 10 (unwrapRes f.tell);
+  unwrapRes f.resetCursor;
+  assertEq 0 (unwrapRes f.tell);
+  assertEq 0 (noOnError (fn () => f.tellErr));
+  unwrapRes (f.seek 10);
+  assertEq 10 (noOnError (fn () => f.tellErr));
+  unwrapRes f.resetCursor;
+  assertEq 0 (noOnError (fn () => f.tellErr));
+  unwrapRes f.close;
+
+  # isEof
+  let f1 = unwrapRes (openFileIn "test/data/empty.txt") in
+  assert (unwrapRes f1.isEof);
+  assert (noOnError (fn () => f1.isEofErr));
+  unwrapRes f1.close;
+  let f2 = unwrapRes (openFileIn "test/data/FileIOTest.txt") in
+  assertFalse (unwrapRes f2.isEof);
+  assertFalse (noOnError (fn () => f2.isEofErr));
+  unwrapRes f2.close
+
+# Writing
+let _ =
+  # write
+  let testString = "Example string for testing Os module file IO writing" in
+  let f = unwrapRes (openFile "test/data/FileWriteTest.txt") in
+  assertEq 52 (unwrapRes (f.write testString));
+  assertEq 52 (f.writeErr {~onError = fn () => 0} testString);
+  unwrapRes f.flush;
+  unwrapRes  f.resetCursor;
+  assertEq testString (unwrapRes (f.read 52));
+  unwrapRes (f.seek {opt = SEEK_SET} 5);
+  assertEq 52 (unwrapRes (f.write testString));
+  unwrapRes f.resetCursor;
+  assertEq ("Examp" + testString) (unwrapRes (f.read 57));
+  unwrapRes (f.seek {opt = SEEK_SET} 10);
+  assertEq 52 ((f.write testString).unwrapOr 0);
+  unwrapRes f.resetCursor;
+  assertEq ("ExampExamp" + testString) (unwrapRes (f.read 62));
+  unwrapRes f.close
