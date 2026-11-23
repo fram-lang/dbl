@@ -49,6 +49,7 @@ let set_module_dirs ?fname () =
 let core_pipeline prog =
   prog
   |> print_timing "type inference" TypeInference.Main.tr_program
+  |> print_timing "linearity checking" LinCheck.Main.tr_program
   |> print_timing "effect inference"
        (EffectInference.Main.tr_program ~solve_all:true)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr
@@ -62,6 +63,7 @@ let core_pipeline prog =
 let nocore_pipeline prog =
   prog
   |> print_timing "type inference" TypeInference.Main.tr_program
+  |> print_timing "linearity checking" LinCheck.Main.tr_program
   |> print_timing "effect inference"
        (EffectInference.Main.tr_program ~solve_all:false)
   |> dump_sexpr !dump_cone Lang.ConE.to_sexpr

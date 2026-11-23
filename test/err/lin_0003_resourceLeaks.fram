@@ -1,0 +1,2 @@
+handle f = aff effect g => g resume
+# @stderr: Affine resource leaks

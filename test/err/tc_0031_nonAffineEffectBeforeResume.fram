@@ -1,0 +1,4 @@
+data Twice E = { twice : Unit ->[E] Unit }
+
+handle t = Twice { effect twice () = resume (); resume () }
+handle doEff = aff effect () => resume (t.twice ())

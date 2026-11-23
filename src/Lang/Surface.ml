@@ -276,7 +276,7 @@ and expr_data =
     (** First-class handler defined on top of a block of definitions. In
       contrast to [EHandler], this handler does not create a fresh label. *)
 
-  | EEffect of expr option * EffectMode.t * pattern * expr
+  | EEffect of expr option * EffectMode.extended * pattern * expr
     (** Effectful operation. The only argument (bound by the pattern) is a
       continuation. Other arguments should be bound using regular lambda
       abstractions ([EFn]). The first parameter is an optional label. *)

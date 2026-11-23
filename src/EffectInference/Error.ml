@@ -108,6 +108,20 @@ let rec report_from_origin pp_ctx origin =
         (T.Pretty.pp_effect pp_ctx pp eff2)
     in (pos, pp, msg1 ^ msg2)
 
+  | OResourceMode o ->
+    let msg =
+      Printf.sprintf
+        ("This expression has effect %s. " ^^
+         "Cannot ensure that it is %s to be consistent with the resource " ^^
+         "introduced at %s.")
+        (T.Pretty.pp_effect pp_ctx o.pp o.eff)
+        begin match o.mode with
+        | Unrestricted -> "unrestricted"
+        | Affine       -> "affine"
+        end
+        (Position.to_string o.resource_pos)
+    in (o.pos, o.pp, msg)
+
 (* ========================================================================= *)
 
 let escaping_effect_var ~origin x =

@@ -62,6 +62,16 @@ let effect_annot (type ed) env
 
 (* ========================================================================= *)
 
+(** Check computation effect against a given mode. *)
+let check_effect_mode env ~origin mode (eff : T.ceffect) =
+  match eff with
+  | Pure -> ()
+  | Impure eff ->
+    let origin = origin eff in
+    ConstrSolver.add_constraint ~origin env eff (T.Effct.proj mode eff)
+
+(* ========================================================================= *)
+
 (** Translate a named parameter and add it to the environment. *)
 let tr_named_param env (name, x, sch) =
   let sch = Type.tr_scheme_expr env sch in
@@ -526,7 +536,6 @@ and infer_type : type ed.
     (res, tp, return_pure eff_req)
 
   | EEffect(lbl, mode, x, body, res_tp) ->
-    (* TODO: check if the usage of resumption respects the mode *)
     let (lbl, lbl_tp, eff_resp1) = infer_type env lbl eff_req in
     let (eff, delim_tp, delim_eff) = Subtyping.as_label lbl_tp in
     let res_tp = Type.tr_type env res_tp in
@@ -536,7 +545,8 @@ and infer_type : type ed.
     let (body, Checked) =
       check_type env body delim_tp (Check (Impure delim_eff)) in
     let eff_resp2 =
-      return_effect env ~node:e eff_req (Impure (T.Effct.proj mode eff)) in
+      return_effect env ~node:e eff_req
+        (Impure (T.Effct.proj mode.mode eff)) in
     let eff_resp = eff_resp_join eff_resp1 [ eff_resp2 ] in
     let res = T.EShift(lbl, x, body, res_tp) in
     (res, res_tp, eff_resp)
@@ -557,12 +567,22 @@ and infer_type : type ed.
     let (e1, Checked) = check_type env e1 tp (Check eff) in
     (e1, tp, eff_resp)
 
+  | EModeAnnot { body; mode; resource_pos; resource_use } ->
+    let pos = body.pos in
+    let pp  = body.pp in
+    let (body, tp, Infered eff) = infer_type env body Infer in
+    let origin eff =
+      OResourceMode { pos; pp; mode; eff; resource_pos; resource_use } in
+    check_effect_mode env ~origin mode eff;
+    (body, tp, return_effect env ~node:e eff_req eff)
+
   | ERepl(func, tp) ->
     let tp = Type.tr_type env tp in
     let (eff, eff_resp) = effect_annot env Impure eff_req in
     let func () =
       let (body, Checked) = check_type env (func ()) tp (Check eff) in
       ConstrSolver.final_solve env;
+      InterpLib.Error.assert_no_error ();
       body
     in
     (T.ERepl(func, tp, eff), tp, eff_resp)

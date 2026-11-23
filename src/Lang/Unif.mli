@@ -468,7 +468,7 @@ and expr_data =
         have type [out_type]. *)
     }
 
-  | EEffect of expr * EffectMode.t * var * expr * typ
+  | EEffect of expr * EffectMode.extended * var * expr * typ
     (** Capability of effectful functional operation. It stores dynamic label,
       effect mode, continuation variable binder, body, and the type of the
       whole expression. *)
@@ -482,6 +482,23 @@ and expr_data =
   | EAnnotEff of expr * type_expr * type_expr
     (** Expression explicitly annotated with a type (second parameter) and an
       effect (third parameter) *)
+
+  | EModeAnnot of
+    { body         : expr;
+      (** Expression that is annotated with an effect mode *)
+
+      mode         : EffectMode.t;
+      (** Effect mode annotation *)
+
+      resource_pos : Position.t;
+      (** Position of the resource definition that introduces the mode
+        annotation. *)
+
+      resource_use : Position.t list
+      (** Positions where the resource was used. The first position is the
+        position of the outermost function call and the last position is the
+        position where the original resourceful function was used. *)
+    }
 
   | ERepl of (unit -> expr) * typ
     (** REPL. It is a function that prompts user for another input. It returns

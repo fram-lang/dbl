@@ -1,0 +1,3 @@
+handle foo = aff effect x =>
+  let r = if x then resume else (fn () => ()) in
+  r ()

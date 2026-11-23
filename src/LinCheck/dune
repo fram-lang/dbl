@@ -1,0 +1,3 @@
+(library
+  (name linCheck)
+  (libraries interpLib lang utils))

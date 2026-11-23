@@ -1,0 +1,4 @@
+handle foo = aff effect () / r1 =>
+  handle bar = aff effect b / r2 => if b then r1 () else r2 () in
+  ()
+# @stderr: Multiple resources used in the same context
